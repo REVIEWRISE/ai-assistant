@@ -1,0 +1,2 @@
+ALTER TABLE providers
+ADD COLUMN IF NOT EXISTS logo_url TEXT;

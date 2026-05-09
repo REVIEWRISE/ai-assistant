@@ -1,0 +1,282 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email        String    @unique
+  fullName     String    @map("full_name")
+  passwordHash String    @map("password_hash")
+  accountStatus String   @default("active") @map("account_status")
+  emailVerified Boolean  @default(false) @map("email_verified")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  sessions            Session[]
+  organizationMembers OrganizationMember[]
+  userRoles           UserRole[]
+  auditEvents         AuditEvent[]
+  providerConnections ProviderConnection[]
+  routedChatbotAppointments Appointment[] @relation("AppointmentRoutedUser")
+
+  @@map("users")
+}
+
+model Session {
+  id                   String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId               String   @map("user_id") @db.Uuid
+  activeOrganizationId String?  @map("active_organization_id") @db.Uuid
+  token                String   @unique
+  expiresAt            DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeOrganization Organization? @relation(fields: [activeOrganizationId], references: [id], onDelete: SetNull)
+
+  @@map("sessions")
+}
+
+model Organization {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name      String
+  timezone  String   @default("UTC")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  members        OrganizationMember[]
+  reviewServices ReviewService[]
+  reviews        Review[]
+  appointments   Appointment[]
+  leads          Lead[]
+  auditEvents    AuditEvent[]
+  activeSessions Session[]
+  knowledgeBase  OrganizationKnowledgeBase?
+  chatbotSettings OrganizationChatbotSettings?
+
+  @@map("organizations")
+}
+
+model OrganizationChatbotSettings {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizationId String   @unique @map("organization_id") @db.Uuid
+  welcomeMessage String   @default("") @map("welcome_message")
+  ctaLabel       String   @default("Continue to secure booking") @map("cta_label")
+  themeColor     String   @default("#22c55e") @map("theme_color")
+  iconColor      String   @default("#0f172a") @map("icon_color")
+  services       Json     @default(dbgenerated("'[]'::jsonb")) @map("services") @db.JsonB
+  bookingFlow    Json     @default(dbgenerated("'{}'::jsonb")) @map("booking_flow") @db.JsonB
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_chatbot_settings")
+}
+
+model OrganizationKnowledgeBase {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizationId String   @unique @map("organization_id") @db.Uuid
+  sourceType     String   @default("text") @map("source_type")
+  sourceUrl      String?  @map("source_url")
+  sourceFileName String?  @map("source_file_name")
+  status         String   @default("draft")
+  rawText        String   @default("") @map("raw_text")
+  parsedData     Json?    @map("parsed_data") @db.JsonB
+  lastImportedAt DateTime? @map("last_imported_at") @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_knowledge_bases")
+}
+
+model OrganizationMember {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  role            String   @default("member")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@map("organization_members")
+}
+
+model ReviewService {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  provider       String
+  status         String   @default("not_connected")
+  lastSyncedAt   DateTime? @map("last_synced_at") @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("review_services")
+}
+
+model Review {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  provider       String
+  rating         Int
+  reviewText     String   @map("review_text")
+  responseText   String?  @map("response_text")
+  status         String   @default("pending")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
+}
+
+model Appointment {
+  id                       String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizationId           String   @map("organization_id") @db.Uuid
+  customerName             String   @map("customer_name")
+  startTime                DateTime @map("start_time") @db.Timestamptz(6)
+  endTime                  DateTime @map("end_time") @db.Timestamptz(6)
+  status                   String   @default("requested")
+  source                   String   @default("web")
+  serviceDescription       String?  @map("service_description")
+  partySize                Int?     @map("party_size")
+  /// Guided chatbot steps at save time: [{ question, answer }, ...]
+  bookingFlowQa            Json?    @map("booking_flow_qa")
+  rawMessage               String?  @map("raw_message")
+  routedProviderId           String?  @map("routed_provider_id") @db.Uuid
+  routedConnectionUserId     String?  @map("routed_connection_user_id") @db.Uuid
+  providerSyncStatus         String   @default("pending") @map("provider_sync_status")
+  externalCalendarEventId    String?  @map("external_calendar_event_id")
+  providerSyncError          String?  @map("provider_sync_error")
+  createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization           Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  routedProvider         Provider?    @relation(fields: [routedProviderId], references: [id], onDelete: SetNull)
+  routedConnectionUser   User?        @relation("AppointmentRoutedUser", fields: [routedConnectionUserId], references: [id], onDelete: SetNull)
+
+  @@map("appointments")
+}
+
+model Lead {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String?
+  email          String?
+  source         String   @default("web")
+  status         String   @default("new")
+  score          Int      @default(0)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("leads")
+}
+
+model AuditEvent {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  actorId        String?  @map("actor_id") @db.Uuid
+  action         String
+  metadata       Json     @default(dbgenerated("'{}'::jsonb")) @db.JsonB
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor         User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@map("audit_events")
+}
+
+model Role {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  userRoles UserRole[]
+  menuAccesses MenuAccess[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model MenuItem {
+  id        String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  parentId  String?    @map("parent_id") @db.Uuid
+  description String?
+  label     String
+  path      String
+  icon      String?
+  sortOrder Int        @default(0) @map("sort_order")
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  parent   MenuItem?  @relation("MenuItemHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children MenuItem[] @relation("MenuItemHierarchy")
+  menuAccess  MenuAccess[]
+
+  @@map("menu_items")
+}
+
+model MenuAccess {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  menuItemId String   @map("menu_item_id") @db.Uuid
+  roleId     String   @map("role_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  role     Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, roleId])
+  @@map("menu_access")
+}
+
+model Provider {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String   @unique
+  type        String   @default("review")
+  apiUrl      String?  @map("api_url")
+  logoUrl     String?  @map("logo_url")
+  status      String   @default("enabled")
+  config      Json?    @default(dbgenerated("'{}'::jsonb")) @db.JsonB
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  connections         ProviderConnection[]
+  routedAppointments Appointment[]
+
+  @@map("providers")
+}
+
+model ProviderConnection {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  providerId String   @map("provider_id") @db.Uuid
+  connected  Boolean  @default(false)
+  tokenData  Json?    @map("token_data") @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, providerId])
+  @@map("provider_connections")
+}

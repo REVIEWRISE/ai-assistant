@@ -1,0 +1,37 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai_assistant_app
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    env_file:
+      - .env.local
+    environment:
+      DATABASE_URL: postgresql://ai_user:ai_password@postgres:5432/ai_assistant
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NODE_ENV: development
+    command: sh -c "npm run db:setup && npm run dev -- -H 0.0.0.0 -p 3000"
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+  postgres:
+    image: postgres:16
+    container_name: ai_assistant_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ai_user
+      POSTGRES_PASSWORD: ai_password
+      POSTGRES_DB: ai_assistant
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+volumes:
+  postgres_data:
