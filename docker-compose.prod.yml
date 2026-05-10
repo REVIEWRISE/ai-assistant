@@ -10,8 +10,7 @@ services:
         condition: service_healthy
     env_file:
       - .env.production
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    command: sh -c "npx prisma migrate deploy && node server.js"
     ports:
       - "3000:3000"
     healthcheck:

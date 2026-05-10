@@ -255,7 +255,7 @@ export function FloatingBookingChatbot({
     const parsed =
       options?.guidedParsed ??
       parseBookingUtterance(parseInput, reference, bookingFlow.slotDurationMinutes);
-    const history = [...messages, { id: `user-pending-${Date.now()}`, role: "user" as const, text: trimmed }]
+    const history = [...messages, { id: `user-pending-${reference.getTime()}`, role: "user" as const, text: trimmed }]
       .slice(-10)
       .map((m) => ({ role: m.role, text: m.text }));
     try {

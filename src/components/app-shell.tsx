@@ -79,7 +79,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!authRoute && !isPublicLanding && !isEmbedRoute) {
       void loadSession();
     } else {
-      setAllowedNavPaths(null);
+      setTimeout(() => {
+        if (isMounted) setAllowedNavPaths(null);
+      }, 0);
     }
 
     return () => {
