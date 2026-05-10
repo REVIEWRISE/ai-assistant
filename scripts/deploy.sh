@@ -13,12 +13,7 @@ cd "$APP_DIR"
 # .env.production is already created by GitHub Action from secrets
 
 # Backup current state for rollback
-if [ -d ".git" ]; then
-    git rev-parse HEAD > .last_version || true
-else
-    # Fallback if not a git repo: use timestamp or just skip
-    date +%s > .last_version
-fi
+echo $(date +%s) > .last_version
 
 # Build and restart containers
 echo "Building and starting containers..."
@@ -28,12 +23,12 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 # Health check
 echo "Waiting for app to be healthy..."
-MAX_RETRIES=10
+MAX_RETRIES=20
 RETRY_COUNT=0
 UNTIL_HEALTHY=0
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if curl -s http://localhost:3000/api/health | grep -q '"status":"healthy"'; then
+    if curl -sf http://localhost:3015/api/health | grep -q '"status":"healthy"'; then
         echo "App is healthy!"
         UNTIL_HEALTHY=1
         break
@@ -44,12 +39,9 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
 done
 
 if [ $UNTIL_HEALTHY -eq 0 ]; then
-    echo "App failed to become healthy. Rolling back..."
-    if [ -f "./scripts/rollback.sh" ]; then
-        ./scripts/rollback.sh "$APP_DIR"
-    else
-        echo "Rollback script not found!"
-    fi
+    echo "App failed to become healthy after ${MAX_RETRIES} attempts."
+    echo "Stopping containers for safety..."
+    docker compose -f docker-compose.prod.yml down
     exit 1
 fi
 
