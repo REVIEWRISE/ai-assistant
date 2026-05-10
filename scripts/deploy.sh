@@ -23,6 +23,7 @@ fi
 # Build and restart containers
 echo "Building and starting containers..."
 docker compose -f docker-compose.prod.yml pull || true
+docker compose -f docker-compose.prod.yml down --remove-orphans
 docker compose -f docker-compose.prod.yml up -d --build
 
 # Health check
