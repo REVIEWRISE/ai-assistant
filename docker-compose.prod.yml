@@ -13,6 +13,9 @@ services:
     command: sh -c "npx prisma migrate deploy && node server.js"
     ports:
       - "3000:3000"
+    networks:
+      - default
+      - shared_network
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
       interval: 30s
@@ -51,3 +54,9 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  default:
+  shared_network:
+    name: reviewrise_shared_network
+    external: true
