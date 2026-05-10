@@ -58,5 +58,5 @@ volumes:
 networks:
   default:
   shared_network:
-    name: reviewrise_shared_network
+    name: review-rise-monorepo_reviewrise-network
     external: true
