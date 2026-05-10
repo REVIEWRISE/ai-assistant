@@ -12,7 +12,7 @@ services:
       - .env.production
     command: sh -c "npx prisma migrate deploy && node server.js"
     ports:
-      - "3000:3000"
+      - "3015:3000"
     networks:
       - default
       - shared_network
