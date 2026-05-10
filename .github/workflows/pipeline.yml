@@ -43,7 +43,6 @@ jobs:
         host: ${{ secrets.SERVER_HOST }}
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
-        password: ${{ secrets.SERVER_PASSWORD }}
         port: ${{ secrets.SERVER_PORT }}
         source: "scripts/*,docker-compose.prod.yml,Dockerfile.prod,next.config.ts,package*.json,prisma/*,src/*,public/*,tsconfig.json,postcss.config.mjs,eslint.config.mjs"
         target: ${{ secrets.APP_DIR }}
@@ -64,7 +63,6 @@ jobs:
         host: ${{ secrets.SERVER_HOST }}
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
-        password: ${{ secrets.SERVER_PASSWORD }}
         port: ${{ secrets.SERVER_PORT }}
         envs: DATABASE_URL,OPENAI_API_KEY,SEED_ADMIN_EMAIL,SEED_ADMIN_NAME,SEED_ADMIN_PASSWORD,POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,NEXT_PUBLIC_APP_URL
         script: |
