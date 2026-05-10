@@ -10,7 +10,7 @@ services:
         condition: service_healthy
     env_file:
       - .env.production
-    command: sh -c "npx prisma migrate deploy && node server.js"
+    command: sh -c "npx prisma@6 migrate deploy && node server.js"
     ports:
       - "3015:3000"
     networks:
