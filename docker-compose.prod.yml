@@ -15,7 +15,6 @@ services:
       - "3015:3000"
     networks:
       - default
-      - shared_network
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
       interval: 30s
@@ -55,8 +54,4 @@ services:
 volumes:
   postgres_data:
 
-networks:
-  default:
-  shared_network:
-    name: review-rise-monorepo_reviewrise-network
-    external: true
+
