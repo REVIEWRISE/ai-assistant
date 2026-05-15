@@ -8,7 +8,7 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email        String    @unique
   fullName     String    @map("full_name")
   passwordHash String    @map("password_hash")
@@ -28,7 +28,7 @@ model User {
 }
 
 model Session {
-  id                   String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId               String   @map("user_id") @db.Uuid
   activeOrganizationId String?  @map("active_organization_id") @db.Uuid
   token                String   @unique
@@ -42,7 +42,7 @@ model Session {
 }
 
 model Organization {
-  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name      String
   timezone  String   @default("UTC")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -61,7 +61,7 @@ model Organization {
 }
 
 model OrganizationChatbotSettings {
-  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String   @unique @map("organization_id") @db.Uuid
   welcomeMessage String   @default("") @map("welcome_message")
   ctaLabel       String   @default("Continue to secure booking") @map("cta_label")
@@ -78,7 +78,7 @@ model OrganizationChatbotSettings {
 }
 
 model OrganizationKnowledgeBase {
-  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String   @unique @map("organization_id") @db.Uuid
   sourceType     String   @default("text") @map("source_type")
   sourceUrl      String?  @map("source_url")
@@ -96,7 +96,7 @@ model OrganizationKnowledgeBase {
 }
 
 model OrganizationMember {
-  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId  String   @map("organization_id") @db.Uuid
   userId          String   @map("user_id") @db.Uuid
   role            String   @default("member")
@@ -110,7 +110,7 @@ model OrganizationMember {
 }
 
 model ReviewService {
-  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String   @map("organization_id") @db.Uuid
   provider       String
   status         String   @default("not_connected")
@@ -123,7 +123,7 @@ model ReviewService {
 }
 
 model Review {
-  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String   @map("organization_id") @db.Uuid
   provider       String
   rating         Int
@@ -138,7 +138,7 @@ model Review {
 }
 
 model Appointment {
-  id                       String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId           String   @map("organization_id") @db.Uuid
   customerName             String   @map("customer_name")
   startTime                DateTime @map("start_time") @db.Timestamptz(6)
@@ -165,7 +165,7 @@ model Appointment {
 }
 
 model Lead {
-  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String   @map("organization_id") @db.Uuid
   name           String?
   email          String?
@@ -180,7 +180,7 @@ model Lead {
 }
 
 model AuditEvent {
-  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String   @map("organization_id") @db.Uuid
   actorId        String?  @map("actor_id") @db.Uuid
   action         String
@@ -194,7 +194,7 @@ model AuditEvent {
 }
 
 model Role {
-  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name      String   @unique
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
@@ -205,7 +205,7 @@ model Role {
 }
 
 model UserRole {
-  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String   @map("user_id") @db.Uuid
   roleId    String   @map("role_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -218,7 +218,7 @@ model UserRole {
 }
 
 model MenuItem {
-  id        String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   parentId  String?    @map("parent_id") @db.Uuid
   description String?
   label     String
@@ -235,7 +235,7 @@ model MenuItem {
 }
 
 model MenuAccess {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   menuItemId String   @map("menu_item_id") @db.Uuid
   roleId     String   @map("role_id") @db.Uuid
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -248,7 +248,7 @@ model MenuAccess {
 }
 
 model Provider {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String   @unique
   type        String   @default("review")
   apiUrl      String?  @map("api_url")
@@ -266,7 +266,7 @@ model Provider {
 }
 
 model ProviderConnection {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId     String   @map("user_id") @db.Uuid
   providerId String   @map("provider_id") @db.Uuid
   connected  Boolean  @default(false)
