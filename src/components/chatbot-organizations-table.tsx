@@ -564,9 +564,9 @@ export function ChatbotOrganizationsTable({
                               <div className="absolute bottom-5 right-5">
                                 <div
                                   style={{ backgroundColor: previewTheme, color: previewIcon }}
-                                  className="flex h-16 w-16 items-center justify-center rounded-full shadow-lg"
+                                  className="flex h-14 w-14 items-center justify-center rounded-full shadow-[0_12px_40px_-12px_rgba(24,24,27,0.35)] ring-4 ring-white/95"
                                 >
-                                  <BookingChatbotIcon className="h-7 w-7" />
+                                  <BookingChatbotIcon className="h-6 w-6" />
                                 </div>
                               </div>
                             </div>
@@ -584,31 +584,32 @@ export function ChatbotOrganizationsTable({
                               aria-hidden
                             >
                               <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(255,255,255,0.5)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.5)_1px,transparent_1px)] [background-size:20px_20px]" />
-                              <div className="relative mx-auto w-full max-w-[440px] overflow-hidden rounded-2xl border border-white/15 bg-[#0b1122]/95 text-left text-slate-100 shadow-xl backdrop-blur">
-                                <div className="flex items-start justify-between gap-2 border-b border-white/10 px-3.5 py-3">
-                                  <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                              <div className="relative mx-auto w-full max-w-[380px] overflow-hidden rounded-[1.75rem] bg-gradient-to-b from-white/95 via-white/88 to-[#faf8f5]/95 text-left text-zinc-900 shadow-[0_24px_64px_-28px_rgba(24,24,27,0.18),0_8px_28px_-12px_rgba(24,24,27,0.08),inset_0_1px_0_0_rgba(255,255,255,1)] ring-1 ring-zinc-200/70 backdrop-blur-md">
+                                <div className="flex items-center justify-between gap-3 border-b border-zinc-200/60 px-4 py-3.5">
+                                  <div className="flex min-w-0 flex-1 items-start gap-3">
                                     <span
                                       style={{
                                         backgroundColor: previewTheme,
                                         color: previewIcon,
-                                        border: `1px solid ${previewTheme}`,
-                                        boxShadow: "none",
+                                        boxShadow: "0 4px 14px -2px rgba(24,24,27,0.12)",
                                       }}
-                                      className="box-border flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                                      className="box-border flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ring-black/[0.06]"
                                     >
                                       <BookingChatbotIcon className="h-5 w-5" />
                                     </span>
-                                    <div className="min-w-0">
-                                      <p className="text-[10px] uppercase tracking-[0.12em] text-cyan-200/90">
-                                        Booking Assistant
+                                    <div className="min-w-0 pt-0.5">
+                                      <div className="inline-flex items-center rounded-full border border-amber-200/60 bg-gradient-to-b from-white/90 to-amber-50/50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-900/85 ring-1 ring-amber-200/45">
+                                        Booking assistant
+                                      </div>
+                                      <p className="mt-1.5 truncate text-sm font-semibold tracking-tight text-zinc-950">
+                                        {configureModalOrg.name}
                                       </p>
-                                      <p className="truncate text-sm font-semibold text-white">{configureModalOrg.name}</p>
                                     </div>
                                   </div>
-                                  <span className="shrink-0 text-slate-400" aria-hidden>
+                                  <span className="shrink-0 rounded-xl p-2 text-zinc-500" aria-hidden>
                                     <svg
                                       viewBox="0 0 24 24"
-                                      className="h-4 w-4"
+                                      className="h-5 w-5"
                                       fill="none"
                                       stroke="currentColor"
                                       strokeWidth="2"
@@ -618,36 +619,35 @@ export function ChatbotOrganizationsTable({
                                     </svg>
                                   </span>
                                 </div>
-                                <div className="max-h-[200px] overflow-y-auto border-b border-white/10 px-3.5 py-3">
+                                <div className="max-h-[200px] overflow-y-auto border-b border-zinc-200/50 px-4 py-4">
                                   <div className="flex flex-col gap-3">
-                                    <div className="max-w-[92%] rounded-lg bg-white/10 px-2.5 py-2 text-xs leading-relaxed text-slate-100">
+                                    <div className="max-w-[90%] rounded-xl border border-zinc-200/70 bg-white/90 px-3.5 py-2.5 text-xs leading-relaxed text-zinc-800 shadow-sm">
                                       {previewWelcome.trim() || "Welcome message appears here."}
                                     </div>
-                                    <div className="ml-auto max-w-[92%] rounded-lg bg-cyan-300 px-2.5 py-2 text-xs font-medium leading-relaxed text-slate-900">
+                                    <div className="ml-auto max-w-[90%] rounded-xl bg-gradient-to-b from-zinc-900 to-zinc-800 px-3.5 py-2.5 text-xs font-medium leading-relaxed text-white shadow-md shadow-zinc-900/15 ring-1 ring-zinc-950/10">
                                       Tomorrow 7:30 PM, party of 4
                                     </div>
-                                    <div className="max-w-[92%] rounded-lg bg-white/10 px-2.5 py-2 text-xs leading-relaxed text-slate-100">
+                                    <div className="max-w-[90%] rounded-xl border border-zinc-200/70 bg-white/90 px-3.5 py-2.5 text-xs leading-relaxed text-zinc-800 shadow-sm">
                                       Thanks — we can use your knowledge base to answer questions about what you
                                       offer and your policies too.
                                     </div>
                                   </div>
                                 </div>
-                                <div className="px-3.5 py-2.5">
-                                  <p className="mb-2 text-[11px] text-slate-300">
+                                <div className="border-t border-zinc-200/50 bg-white/35 px-4 py-3 backdrop-blur-sm">
+                                  <p className="mb-2.5 text-xs leading-relaxed text-zinc-500">
                                     Add date, time, party size, or any question.
                                   </p>
                                   <div className="flex gap-2">
-                                    <div className="w-full rounded-lg border border-white/15 bg-white/5 px-2.5 py-2 text-xs text-slate-400">
-                                      Tomorrow 7:30 PM for 4
+                                    <div className="w-full rounded-xl border border-zinc-200/90 bg-[#faf8f5]/90 px-3.5 py-2.5 text-xs text-zinc-400 shadow-sm">
+                                      Type a question...
                                     </div>
                                     <span
-                                      style={{ backgroundColor: previewTheme, color: previewIcon }}
-                                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-zinc-900 to-zinc-800 text-white shadow-lg shadow-zinc-900/20 ring-1 ring-zinc-950/10"
                                       aria-hidden
                                     >
                                       <svg
                                         viewBox="0 0 24 24"
-                                        className="h-4 w-4"
+                                        className="h-5 w-5"
                                         fill="none"
                                         stroke="currentColor"
                                         strokeWidth="2"
