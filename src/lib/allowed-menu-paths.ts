@@ -11,7 +11,7 @@ export async function getAllowedMenuPathsForUser(userId: string): Promise<Set<st
   });
 
   if (!user) {
-    return new Set(["/profile", "/logout"].map(normalizeNavPath));
+    return new Set(["/logout"].map(normalizeNavPath));
   }
 
   const globalAccessCount = await prisma.menuAccess.count();
@@ -33,7 +33,7 @@ export async function getAllowedMenuPathsForUser(userId: string): Promise<Set<st
   }
 
   const roleIds = user.userRoles.map((ur) => ur.role.id);
-  const paths = new Set<string>(["/profile", "/logout"].map(normalizeNavPath));
+  const paths = new Set<string>(["/logout"].map(normalizeNavPath));
   if (roleIds.length === 0) {
     return paths;
   }

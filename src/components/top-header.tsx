@@ -130,6 +130,8 @@ function getHeaderCopy(pathname: string): HeaderCopy {
 type TopHeaderProps = {
   pathname: string;
   navItems: MobileNavItem[];
+  /** When false, hides the sidebar-style /profile deep link only; Log out stays available. */
+  showProfilePageLink?: boolean;
   profileOpen: boolean;
   onToggleProfile: () => void;
   onCloseProfile: () => void;
@@ -147,6 +149,7 @@ type TopHeaderProps = {
 export function TopHeader({
   pathname,
   navItems,
+  showProfilePageLink = false,
   profileOpen,
   onToggleProfile,
   onCloseProfile,
@@ -243,15 +246,17 @@ export function TopHeader({
                   <p className="text-sm font-semibold text-slate-900">{profileName}</p>
                   <p className="text-xs text-slate-500">{profileEmail ?? "user@example.com"}</p>
                 </div>
-                <div className="p-1.5">
-                <Link
-                  href="/profile"
-                  onClick={onCloseProfile}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
-                >
-                  View Profile
-                </Link>
-                </div>
+                {showProfilePageLink ? (
+                  <div className="p-1.5">
+                    <Link
+                      href="/profile"
+                      onClick={onCloseProfile}
+                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+                    >
+                      View Profile
+                    </Link>
+                  </div>
+                ) : null}
                 <div className="border-t border-slate-200 p-1.5">
                 <Link
                   href="/logout"

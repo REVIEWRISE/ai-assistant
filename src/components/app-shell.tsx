@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { TopHeader } from "@/components/top-header";
 import { NavAccessGuard } from "@/components/nav-access-guard";
 import { APP_NAV_ITEMS, type NavItem } from "@/lib/nav-config";
-import { filterNavItemsByPermissions } from "@/lib/nav-access";
+import { filterNavItemsByPermissions, isHrefAllowedForNav } from "@/lib/nav-access";
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") {
@@ -14,6 +14,36 @@ function isActive(pathname: string, href: string): boolean {
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function SidebarNavLoading({ collapsed }: { collapsed: boolean }) {
+  if (collapsed) {
+    return (
+      <div className="space-y-2 px-1" aria-label="Loading workspace menus">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="flex justify-center py-1">
+            <div className="h-9 w-9 animate-pulse rounded-xl bg-slate-200/80" />
+          </div>
+        ))}
+        <span className="sr-only">Loading workspace menus</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2" aria-label="Loading workspace menus">
+      <p className="px-1 text-xs text-slate-500">Loading workspace menus…</p>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div key={i} className="flex items-center gap-3 rounded-2xl px-3 py-2.5">
+          <div className="h-8 w-8 shrink-0 animate-pulse rounded-lg bg-slate-200/80" />
+          <div
+            className="h-4 flex-1 animate-pulse rounded-md bg-slate-200/80"
+            style={{ maxWidth: i === 1 ? "72%" : i === 3 ? "55%" : "85%" }}
+          />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -39,6 +69,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const set = allowedNavPaths === null ? new Set<string>() : new Set(allowedNavPaths);
     return filterNavItemsByPermissions(APP_NAV_ITEMS, set);
   }, [allowedNavPaths]);
+
+  const showProfilePageLink = useMemo(() => {
+    if (allowedNavPaths === null) return false;
+    return isHrefAllowedForNav("/profile", new Set(allowedNavPaths));
+  }, [allowedNavPaths]);
+
+  const navPermissionsReady = allowedNavPaths !== null;
+  const hasNoMenuAccess = navPermissionsReady && visibleNavItems.length === 0;
 
   useEffect(() => {
     let isMounted = true;
@@ -159,16 +197,58 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </span>
             </button>
           </div>
-          <div className={`mb-2 px-1 ${sidebarCollapsed ? "hidden" : ""}`}>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Workspaces
-            </p>
-          </div>
+          {(!navPermissionsReady || !hasNoMenuAccess) && !sidebarCollapsed ? (
+            <div className="mb-2 px-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Workspaces
+              </p>
+            </div>
+          ) : null}
           <nav
-            className={`space-y-2 transition-opacity ${allowedNavPaths === null ? "pointer-events-none opacity-40" : "opacity-100"}`}
-            aria-busy={allowedNavPaths === null}
+            className="space-y-2"
+            aria-busy={!navPermissionsReady}
+            aria-label="Workspace navigation"
           >
-            {visibleNavItems.map((item: NavItem) => {
+            {!navPermissionsReady ? (
+              <SidebarNavLoading collapsed={sidebarCollapsed} />
+            ) : hasNoMenuAccess ? (
+              sidebarCollapsed ? (
+                <div
+                  className="flex justify-center px-1 py-2"
+                  title="No menu access assigned to your role. Contact your administrator or sign out from the profile menu."
+                >
+                  <span
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-700"
+                    aria-hidden
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M12 8v4M12 16h.01" />
+                    </svg>
+                  </span>
+                  <span className="sr-only">
+                    No menu access assigned to your role. Contact your administrator or sign out
+                    from the profile menu.
+                  </span>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-amber-200/80 bg-amber-50/90 px-3 py-3">
+                  <p className="text-sm font-semibold text-slate-800">No menu access</p>
+                  <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+                    Your administrator has not assigned any workspace menus to your role yet. Use
+                    the profile menu above to sign out, or contact your admin if you think this is
+                    a mistake.
+                  </p>
+                </div>
+              )
+            ) : (
+              visibleNavItems.map((item: NavItem) => {
               const active = isActive(pathname, item.href);
               const hasChildren = Boolean(item.children?.length);
               const submenuOpenKey = `submenu:${item.href}`;
@@ -268,7 +348,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   ) : null}
                 </div>
               );
-            })}
+            })
+            )}
           </nav>
         </aside>
 
@@ -279,6 +360,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               href: item.href,
               shortLabel: item.shortLabel,
             }))}
+            showProfilePageLink={showProfilePageLink}
             profileOpen={profileOpen}
             onToggleProfile={() => setProfileOpen((prev) => !prev)}
             onCloseProfile={() => setProfileOpen(false)}

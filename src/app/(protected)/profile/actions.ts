@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
+import { isHrefAllowedForNav, redirectPathWhenMenuForbidden } from "@/lib/nav-access";
 
 function resolveReturnTo(formData: FormData, fallback: string): string {
   const returnTo = String(formData.get("return_to") || "").trim();
@@ -59,8 +61,16 @@ async function requireSession() {
   return session;
 }
 
+async function assertProfileMenuAccess(userId: string) {
+  const allowed = await getAllowedMenuPathsForUser(userId);
+  if (!isHrefAllowedForNav("/profile", allowed)) {
+    redirect(redirectPathWhenMenuForbidden(allowed));
+  }
+}
+
 export async function updateProfile(formData: FormData) {
   const userId = await requireUserId();
+  await assertProfileMenuAccess(userId);
   const fullName = String(formData.get("full_name") || "").trim();
   const email = String(formData.get("email") || "").trim().toLowerCase();
 
@@ -83,6 +93,7 @@ export async function updateProfile(formData: FormData) {
 
 export async function updatePassword(formData: FormData) {
   const userId = await requireUserId();
+  await assertProfileMenuAccess(userId);
   const currentPassword = String(formData.get("current_password") || "");
   const newPassword = String(formData.get("new_password") || "");
   const confirmPassword = String(formData.get("confirm_password") || "");
