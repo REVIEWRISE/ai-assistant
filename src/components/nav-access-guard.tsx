@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { isHrefAllowedForNav } from "@/lib/nav-access";
+import { isHrefAllowedForNav, redirectPathWhenMenuForbidden } from "@/lib/nav-access";
 
 type NavAccessGuardProps = {
   allowedNavPaths: string[] | null;
@@ -17,8 +17,7 @@ export function NavAccessGuard({ allowedNavPaths, enabled }: NavAccessGuardProps
     if (!enabled || allowedNavPaths === null) return;
     const allowed = new Set(allowedNavPaths);
     if (isHrefAllowedForNav(pathname, allowed)) return;
-    const fallback = isHrefAllowedForNav("/dashboard", allowed) ? "/dashboard" : "/profile";
-    router.replace(fallback);
+    router.replace(redirectPathWhenMenuForbidden(allowed));
   }, [pathname, allowedNavPaths, enabled, router]);
 
   return null;

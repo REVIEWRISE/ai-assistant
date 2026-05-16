@@ -1,6 +1,8 @@
 import { ProfileTabs } from "@/components/profile-tabs";
 import { ProfileToasts } from "@/components/profile-toasts";
+import { getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
 import { prisma } from "@/lib/prisma";
+import { isHrefAllowedForNav, redirectPathWhenMenuForbidden } from "@/lib/nav-access";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
@@ -22,6 +24,7 @@ export default async function ProfileSettingsPage() {
       expiresAt: { gt: new Date() },
     },
     select: {
+      userId: true,
       activeOrganizationId: true,
       user: {
         select: {
@@ -48,6 +51,11 @@ export default async function ProfileSettingsPage() {
 
   if (!session) {
     redirect("/login");
+  }
+
+  const allowedPaths = await getAllowedMenuPathsForUser(session.userId);
+  if (!isHrefAllowedForNav("/profile", allowedPaths)) {
+    redirect(redirectPathWhenMenuForbidden(allowedPaths));
   }
 
   const user = session.user;
