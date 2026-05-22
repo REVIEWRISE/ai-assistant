@@ -8,10 +8,9 @@ export const LANDING_INTEGRATIONS = [
 ] as const;
 
 export const LANDING_TRUSTED_BY = [
-  "Riverstone Legal",
-  "Harbor Health Clinic",
-  "Northline Home Services",
-  "Aster Property Group",
+  "Habesha Food",
+  "Liya Cookies",
+  "Nazaret Market",
 ] as const;
 
 export const LANDING_FAQ = [
@@ -41,26 +40,21 @@ export const LANDING_FAQ = [
 export const LANDING_TESTIMONIALS = [
   {
     quote:
-      "We went from slow, inconsistent replies to same-day responses everywhere. Clients notice—and appointments followed.",
-    name: "Lina A.",
-    role: "Managing Partner, Riverstone Legal",
+      "Our inbox used to pile up after busy weekends—now review replies and catering questions get answered the same day. Regulars definitely notice.",
+    name: "Helen T.",
+    role: "Owner, Habesha Food",
   },
   {
     quote:
-      "Scheduling and handoffs finally stay in sync. We catch double-books and conflicts before they become fires.",
-    name: "Marcus T.",
-    role: "Office Manager, Harbor Health Clinic",
+      "Pre-order and pickup messages finally stay in one place. We respond faster during holiday rushes without living on our phones.",
+    name: "Liya A.",
+    role: "Founder, Liya Cookies",
   },
   {
     quote:
-      "One dashboard for reviews, leads, and calendars cut our back-and-forth in half. The team actually uses it.",
-    name: "Priya N.",
-    role: "Head of Ops, Northline Home Services",
-  },
-  {
-    quote: "We can approve sensitive replies before they go out. That balance of speed and control sold us.",
-    name: "Daniel R.",
-    role: "Director, Aster Services Group",
+      "Shoppers ask about hours and specials all day—the agent handles the routine questions so our team can stay on the floor.",
+    name: "Samuel K.",
+    role: "Manager, Nazaret Market",
   },
 ] as const;
 

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { loginUser } from "@/app/login/actions";
+import { PRODUCT_NAME } from "@/lib/brand";
 import { toast } from "@/lib/toast";
 
 function LoginPageContent() {
@@ -47,7 +48,7 @@ function LoginPageContent() {
                 href="/"
                 className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-300/90 transition hover:text-amber-200"
               >
-                <span className="text-white/90">AI Assistant</span>
+                <span className="text-white/90">{PRODUCT_NAME}</span>
                 <span className="text-zinc-500">·</span>
                 <span className="text-zinc-400">Home</span>
               </Link>

@@ -1,3 +1,5 @@
+import { CONTACT_EMAIL, CONTACT_PHONE, CONTACT_PHONE_TEL } from "@/lib/brand";
+
 export function LandingContactSection() {
   return (
     <section id="contact" className="relative overflow-hidden bg-zinc-950 py-16 text-zinc-100 sm:py-20 lg:py-24">
@@ -40,7 +42,7 @@ export function LandingContactSection() {
             </p>
             <div className="mt-10 space-y-3 sm:space-y-4">
               <a
-                href="mailto:hello@aiassistant.ai"
+                href={`mailto:${CONTACT_EMAIL}`}
                 className="group flex items-center gap-4 rounded-2xl bg-gradient-to-b from-white/[0.1] to-white/[0.04] px-4 py-3.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] ring-1 ring-white/10 transition duration-300 hover:-translate-y-0.5 hover:bg-white/[0.12] hover:ring-amber-400/25 motion-reduce:hover:translate-y-0 sm:px-5 sm:py-4"
               >
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20 ring-1 ring-white/20">
@@ -54,10 +56,13 @@ export function LandingContactSection() {
                 </span>
                 <span className="min-w-0">
                   <span className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Email</span>
-                  <span className="mt-0.5 block truncate text-sm font-semibold text-white">hello@aiassistant.ai</span>
+                  <span className="mt-0.5 block truncate text-sm font-semibold text-white">{CONTACT_EMAIL}</span>
                 </span>
               </a>
-              <div className="flex items-center gap-4 rounded-2xl bg-gradient-to-b from-white/[0.1] to-white/[0.04] px-4 py-3.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] ring-1 ring-white/10 sm:px-5 sm:py-4">
+              <a
+                href={`tel:${CONTACT_PHONE_TEL}`}
+                className="group flex items-center gap-4 rounded-2xl bg-gradient-to-b from-white/[0.1] to-white/[0.04] px-4 py-3.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] ring-1 ring-white/10 transition duration-300 hover:-translate-y-0.5 hover:bg-white/[0.12] hover:ring-teal-400/25 motion-reduce:hover:translate-y-0 sm:px-5 sm:py-4"
+              >
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/20 ring-1 ring-white/20">
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                     <path
@@ -69,9 +74,9 @@ export function LandingContactSection() {
                 </span>
                 <span className="min-w-0">
                   <span className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Phone</span>
-                  <span className="mt-0.5 block text-sm font-semibold text-white">+1 (555) 010-2929</span>
+                  <span className="mt-0.5 block text-sm font-semibold text-white">{CONTACT_PHONE}</span>
                 </span>
-              </div>
+              </a>
               <div className="flex items-center gap-4 rounded-2xl border border-dashed border-white/20 bg-black/25 px-4 py-3.5 sm:px-5 sm:py-4">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-zinc-200 ring-1 ring-white/15">
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">

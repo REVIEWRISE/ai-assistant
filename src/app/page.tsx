@@ -14,7 +14,6 @@ import {
   LANDING_FAQ,
   LANDING_INTEGRATIONS,
   LANDING_PLANS,
-  LANDING_TESTIMONIALS,
   LANDING_TRUSTED_BY,
 } from "@/lib/landing-data";
 
@@ -51,7 +50,7 @@ export default async function Home() {
         isLoggedIn={isLoggedIn}
       />
 
-      <LandingTestimonialsSection items={LANDING_TESTIMONIALS} />
+      <LandingTestimonialsSection />
 
       <LandingFaqSection faq={LANDING_FAQ} />
 

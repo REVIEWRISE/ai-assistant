@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { TopHeader } from "@/components/top-header";
 import { NavAccessGuard } from "@/components/nav-access-guard";
+import { BRAND_NAME, PRODUCT_NAME } from "@/lib/brand";
 import { APP_NAV_ITEMS, type NavItem } from "@/lib/nav-config";
 import { filterNavItemsByPermissions, isHrefAllowedForNav } from "@/lib/nav-access";
 
@@ -174,9 +175,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="mb-6 flex items-start justify-between">
             <div className={sidebarCollapsed ? "hidden" : ""}>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-600">
-                AI Assistant
+                {BRAND_NAME}
               </p>
-              <h1 className="mt-1 text-xl font-semibold">AI Assistant</h1>
+              <h1 className="mt-1 text-xl font-semibold">{PRODUCT_NAME}</h1>
               <p className="mt-2 text-sm text-slate-600">
                 Appointment, reviews, and lead operations in one place.
               </p>

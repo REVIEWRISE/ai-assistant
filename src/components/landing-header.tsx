@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PRODUCT_NAME } from "@/lib/brand";
 import { useEffect, useState } from "react";
 
 const NAV = [
@@ -54,7 +55,7 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
               className="group flex min-w-0 items-center gap-2.5 rounded-xl pr-1 outline-none ring-zinc-900/10 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent sm:gap-3"
             >
               <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 via-amber-500 to-orange-600 shadow-[0_4px_14px_-2px_rgba(245,158,11,0.45)] ring-[1.5px] ring-white transition-transform duration-200 group-hover:scale-[1.03] group-active:scale-[0.98] sm:h-11 sm:w-11">
-                <span className="relative text-sm font-bold tracking-tight text-white">AA</span>
+                <span className="relative text-sm font-bold tracking-tight text-white">VR</span>
                 <span
                   className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                   aria-hidden
@@ -62,7 +63,7 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
               </div>
               <div className="min-w-0 leading-tight">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-800/85">
-                  AI Assistant
+                  {PRODUCT_NAME}
                 </p>
                 <p className="truncate text-sm font-semibold text-zinc-900">Customer-facing automation</p>
               </div>

@@ -1,6 +1,8 @@
-import { TestimonialsMarquee, type TestimonialItem } from "@/components/testimonials-marquee";
+import { TestimonialsMarquee } from "@/components/testimonials-marquee";
+import { LANDING_TESTIMONIALS } from "@/lib/landing-data";
 
-export function LandingTestimonialsSection({ items }: { items: readonly TestimonialItem[] }) {
+export function LandingTestimonialsSection() {
+  const items = Array.from(LANDING_TESTIMONIALS);
   return (
     <section
       id="testimonials"
@@ -33,7 +35,7 @@ export function LandingTestimonialsSection({ items }: { items: readonly Testimon
         </div>
 
         <div className="mt-8 sm:mt-10">
-          <TestimonialsMarquee items={[...items]} />
+          <TestimonialsMarquee items={items} />
         </div>
       </div>
     </section>
