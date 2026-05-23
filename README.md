@@ -1,4 +1,4 @@
-# AI Assistant
+# VyntRise Agent
 
 Next.js + Prisma + Postgres app for AI-assisted appointment/chatbot workflows.
 

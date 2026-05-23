@@ -78,7 +78,7 @@ async function crawlWebsite(seedUrl: URL): Promise<{
     let html = "";
     try {
       const response = await fetch(nextUrl, {
-        headers: { "User-Agent": "AI-Assistant-Knowledge-Importer/1.0" },
+        headers: { "User-Agent": "VyntRise-Agent-Knowledge-Importer/1.0" },
         cache: "no-store",
       });
       if (!response.ok) continue;

@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { BrandLogo } from "@/components/brand-logo";
 import { TopHeader } from "@/components/top-header";
 import { NavAccessGuard } from "@/components/nav-access-guard";
+import { BRAND_NAME, PRODUCT_NAME } from "@/lib/brand";
 import { APP_NAV_ITEMS, type NavItem } from "@/lib/nav-config";
 import { filterNavItemsByPermissions, isHrefAllowedForNav } from "@/lib/nav-access";
 
@@ -151,9 +153,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(id);
   }, []);
 
+  const setSubmenuOpen = useCallback((parentHref: string, open: boolean) => {
+    APP_NAV_ITEMS.forEach((navItem) => {
+      if (!navItem.children?.length) return;
+      sessionStorage.setItem(`submenu:${navItem.href}`, navItem.href === parentHref && open ? "1" : "0");
+    });
+    setSubmenuTick((prev) => prev + 1);
+  }, []);
+
+  const closeAllSubmenus = useCallback(() => {
+    APP_NAV_ITEMS.forEach((navItem) => {
+      if (!navItem.children?.length) return;
+      sessionStorage.setItem(`submenu:${navItem.href}`, "0");
+    });
+    setSubmenuTick((prev) => prev + 1);
+  }, []);
+
+  useEffect(() => {
+    if (!menuStateReady) return;
+    let opened = false;
+    for (const item of visibleNavItems) {
+      if (!item.children?.length) continue;
+      if (item.children.some((child) => isActive(pathname, child.href))) {
+        setSubmenuOpen(item.href, true);
+        opened = true;
+        break;
+      }
+    }
+    if (!opened) return;
+  }, [pathname, menuStateReady, visibleNavItems, setSubmenuOpen]);
+
   if (authRoute) {
     return (
-      <div className="min-h-screen bg-[#faf8f5] text-zinc-900">
+      <div className="min-h-screen bg-white text-slate-900">
         <main className="min-h-screen">{children}</main>
       </div>
     );
@@ -171,16 +203,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className={`hidden shrink-0 rounded-3xl border border-slate-200/70 bg-white/80 shadow-sm backdrop-blur transition-all lg:block ${sidebarCollapsed ? "w-20 p-3" : "w-68 p-5"
             }`}
         >
-          <div className="mb-6 flex items-start justify-between">
-            <div className={sidebarCollapsed ? "hidden" : ""}>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-600">
-                AI Assistant
-              </p>
-              <h1 className="mt-1 text-xl font-semibold">AI Assistant</h1>
-              <p className="mt-2 text-sm text-slate-600">
-                Appointment, reviews, and lead operations in one place.
-              </p>
-            </div>
+          <div className="mb-6 flex items-start justify-between gap-2">
+            {sidebarCollapsed ? (
+              <BrandLogo href="/dashboard" size="sm" showWordmark={false} linkClassName="mx-auto" />
+            ) : (
+              <div className="min-w-0">
+                <BrandLogo
+                  href="/dashboard"
+                  size="sm"
+                  primary={BRAND_NAME}
+                  secondary={PRODUCT_NAME}
+                  className="text-slate-900 [&_p:first-child]:text-[10px] [&_p:first-child]:font-semibold [&_p:first-child]:uppercase [&_p:first-child]:tracking-[0.16em] [&_p:first-child]:text-[var(--color-primary)] [&_p:last-child]:text-sm [&_p:last-child]:font-semibold [&_p:last-child]:leading-snug [&_p:last-child]:text-slate-900"
+                />
+                <p className="mt-2 text-sm text-slate-600">
+                  Appointment, reviews, and lead operations in one place.
+                </p>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setSidebarCollapsed((prev) => !prev)}
@@ -249,80 +288,65 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )
             ) : (
               visibleNavItems.map((item: NavItem) => {
-              const active = isActive(pathname, item.href);
               const hasChildren = Boolean(item.children?.length);
+              const childActive = item.children?.some((child) => isActive(pathname, child.href)) ?? false;
+              const highlighted = hasChildren ? childActive : isActive(pathname, item.href);
               const submenuOpenKey = `submenu:${item.href}`;
-              const isSubmenuOpen =
+              const storedSubmenuOpen =
                 menuStateReady &&
                 submenuTick >= 0 &&
                 (sessionStorage.getItem(submenuOpenKey) ?? "0") !== "0";
-              const showChildren = hasChildren && isSubmenuOpen;
+              const isSubmenuOpen = hasChildren && storedSubmenuOpen;
+              const showChildren = hasChildren && isSubmenuOpen && !sidebarCollapsed;
+              const rowClass = `group flex w-full items-center gap-3 rounded-2xl py-2.5 text-sm font-medium transition ${sidebarCollapsed ? "px-0 justify-center" : "px-3"} ${
+                highlighted
+                  ? "border border-slate-900 bg-slate-900 text-white shadow-sm"
+                  : "border border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100"
+              }`;
+              const iconClass = `flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                highlighted ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700 group-hover:bg-slate-300"
+              }`;
+
               return (
                 <div key={item.href} className="space-y-1">
-                  <div
-                    className={`group flex items-center gap-3 rounded-2xl py-2.5 text-sm font-medium transition ${sidebarCollapsed ? "px-0 justify-center" : "px-3"
-                      } ${active
-                        ? "border border-slate-900 bg-slate-900 text-white shadow-sm"
-                        : "border border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100"
-                      }`}
-                  >
-                    <Link
-                      href={item.href}
+                  {hasChildren ? (
+                    <button
+                      type="button"
+                      aria-expanded={isSubmenuOpen}
+                      aria-label={isSubmenuOpen ? `Collapse ${item.label}` : `Expand ${item.label}`}
                       onClick={() => {
-                        if (!hasChildren) {
-                          APP_NAV_ITEMS.forEach((navItem) => {
-                            if (!navItem.children?.length) return;
-                            sessionStorage.setItem(`submenu:${navItem.href}`, "0");
-                          });
-                          setSubmenuTick((prev) => prev + 1);
+                        if (sidebarCollapsed) {
+                          setSidebarCollapsed(false);
+                          setSubmenuOpen(item.href, true);
+                          return;
                         }
+                        setSubmenuOpen(item.href, !storedSubmenuOpen);
                       }}
-                      className={`flex items-center gap-3 ${sidebarCollapsed ? "flex-1 justify-center" : "flex-1"
-                        }`}
+                      className={rowClass}
                     >
-                      <span
-                        className={`flex h-8 w-8 items-center justify-center rounded-lg ${active
-                          ? "bg-white/20 text-white"
-                          : "bg-slate-200 text-slate-700 group-hover:bg-slate-300"
-                          }`}
-                      >
-                        {item.icon}
-                      </span>
-                      <span className={sidebarCollapsed ? "sr-only" : "leading-none"}>
+                      <span className={iconClass}>{item.icon}</span>
+                      <span className={sidebarCollapsed ? "sr-only" : "flex-1 text-left leading-none"}>
                         {item.label}
                       </span>
-                    </Link>
-                    {hasChildren && !sidebarCollapsed ? (
-                      <button
-                        type="button"
-                        aria-label={isSubmenuOpen ? "Collapse submenu" : "Expand submenu"}
-                        onClick={() => {
-                          const nextOpen = !isSubmenuOpen;
-                          APP_NAV_ITEMS.forEach((navItem) => {
-                            if (!navItem.children?.length) return;
-                            const nextValue =
-                              navItem.href === item.href && nextOpen ? "1" : "0";
-                            sessionStorage.setItem(`submenu:${navItem.href}`, nextValue);
-                          });
-                          setSubmenuTick((prev) => prev + 1);
-                        }}
-                        className={`flex h-7 w-7 items-center justify-center rounded-lg transition ${active
-                          ? "text-white/80 hover:bg-white/10"
-                          : "text-slate-500 hover:bg-slate-200"
-                          }`}
-                      >
+                      {!sidebarCollapsed ? (
                         <svg
                           viewBox="0 0 24 24"
-                          className={`h-4 w-4 transition ${isSubmenuOpen ? "rotate-180" : ""}`}
+                          className={`h-4 w-4 shrink-0 transition ${isSubmenuOpen ? "rotate-180" : ""} ${highlighted ? "text-white/80" : "text-slate-500"}`}
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="2"
+                          aria-hidden
                         >
                           <path d="m6 9 6 6 6-6" />
                         </svg>
-                      </button>
-                    ) : null}
-                  </div>
+                      ) : null}
+                    </button>
+                  ) : (
+                    <Link href={item.href} onClick={closeAllSubmenus} className={rowClass}>
+                      <span className={iconClass}>{item.icon}</span>
+                      <span className={sidebarCollapsed ? "sr-only" : "leading-none"}>{item.label}</span>
+                    </Link>
+                  )}
                   {showChildren && !sidebarCollapsed ? (
                     <div className="ml-3 rounded-2xl border border-slate-200/70 bg-slate-50/80 p-2">
                       {item.children?.map((child) => {

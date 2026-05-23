@@ -1,13 +1,25 @@
 @import "tailwindcss";
+@import "../styles/tokens.css";
+@import "../styles/landing-theme.css";
 
 :root {
-  --background: #f3f5f7;
-  --foreground: #0f172a;
+  --background: var(--color-bg);
+  --foreground: var(--color-text);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
+  --color-surface: var(--color-surface);
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-h);
+  --color-primary-soft: var(--color-primary-soft);
+  --color-border: var(--color-border);
+  --color-muted: var(--color-text-muted);
+  --color-accent-cyan: var(--color-data-cyan);
+  --color-accent-purple: var(--color-data-purple);
+  --color-grad-start: var(--color-grad-start);
+  --color-grad-end: var(--color-grad-end);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -18,7 +30,6 @@
 
 html {
   scroll-behavior: smooth;
-  /* Offset sticky header so #anchors don’t sit under it */
   scroll-padding-top: 5rem;
 }
 
@@ -41,13 +52,11 @@ body {
   font-family: var(--font-geist-sans), sans-serif;
 }
 
-/* Knowledge base website import — indeterminate progress thumb */
 @keyframes kb-import-indeterminate {
   0% {
     transform: translateX(-100%);
   }
   100% {
-    /* translateX % is relative to the thumb; ~400% crosses a full-width track for a 35%-wide thumb */
     transform: translateX(400%);
   }
 }
@@ -55,7 +64,7 @@ body {
 .kb-import-progress-thumb {
   width: 35%;
   border-radius: 9999px;
-  background: linear-gradient(90deg, #0e7490, #0284c7, #0e7490);
+  background: linear-gradient(90deg, var(--color-grad-end), var(--color-primary), var(--color-grad-end));
   animation: kb-import-indeterminate 1.35s ease-in-out infinite;
 }
 

@@ -14,7 +14,6 @@ import {
   LANDING_FAQ,
   LANDING_INTEGRATIONS,
   LANDING_PLANS,
-  LANDING_TESTIMONIALS,
   LANDING_TRUSTED_BY,
 } from "@/lib/landing-data";
 
@@ -23,16 +22,10 @@ export default async function Home() {
   const registerHref = isLoggedIn ? "/dashboard" : "/register";
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] text-zinc-900 antialiased">
-      <div className="relative overflow-hidden">
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_55%_at_50%_-8%,rgba(251,191,36,0.2),transparent),radial-gradient(ellipse_45%_40%_at_100%_0%,rgba(20,184,166,0.11),transparent),radial-gradient(ellipse_40%_35%_at_0%_25%,rgba(244,114,182,0.07),transparent)]"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.4] bg-[linear-gradient(rgba(24,24,27,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(24,24,27,0.035)_1px,transparent_1px)] bg-[size:48px_48px]"
-          aria-hidden
-        />
+    <div className="landing min-h-screen antialiased">
+      <div className="relative overflow-x-clip">
+        <div className="landing-mesh pointer-events-none absolute inset-0" aria-hidden />
+        <div className="landing-grid pointer-events-none absolute inset-0 opacity-40" aria-hidden />
 
         <LandingHeader isLoggedIn={isLoggedIn} />
 
@@ -51,7 +44,7 @@ export default async function Home() {
         isLoggedIn={isLoggedIn}
       />
 
-      <LandingTestimonialsSection items={LANDING_TESTIMONIALS} />
+      <LandingTestimonialsSection />
 
       <LandingFaqSection faq={LANDING_FAQ} />
 

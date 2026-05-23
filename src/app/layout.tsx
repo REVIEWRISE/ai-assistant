@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
+import { BRAND_LOGO_PATH, PRODUCT_NAME } from "@/lib/brand";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -15,8 +16,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Assistant",
+  title: PRODUCT_NAME,
   description: "Dashboard for AI appointment, review response, and lead capture agents.",
+  icons: {
+    icon: BRAND_LOGO_PATH,
+    apple: BRAND_LOGO_PATH,
+  },
 };
 export default function RootLayout({
   children,

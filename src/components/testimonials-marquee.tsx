@@ -15,30 +15,24 @@ type Props = {
 const THEMES = [
   {
     avatar:
-      "bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/25 ring-amber-100/50",
-    glow: "from-amber-400/30 via-orange-300/12 to-transparent",
-    chip: "bg-amber-500/[0.12] text-amber-900/90 ring-amber-300/40",
-    star: "text-amber-500",
+      "bg-gradient-to-br from-primary to-indigo-700 shadow-lg shadow-primary/25 ring-2 ring-white/90",
+    glow: "from-primary/30 via-indigo-300/12 to-transparent",
+    chip: "border-primary/25 bg-primary/10 text-[var(--color-primary-h)]",
+    star: "text-primary",
   },
   {
     avatar:
-      "bg-gradient-to-br from-teal-500 to-emerald-600 shadow-lg shadow-teal-500/25 ring-teal-100/50",
-    glow: "from-teal-400/28 via-emerald-300/10 to-transparent",
-    chip: "bg-teal-500/[0.12] text-teal-900/90 ring-teal-300/40",
-    star: "text-teal-600",
-  },
-  {
-    avatar:
-      "bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-violet-500/25 ring-violet-100/50",
-    glow: "from-violet-400/25 via-purple-300/10 to-transparent",
-    chip: "bg-violet-500/[0.12] text-violet-900/90 ring-violet-300/40",
-    star: "text-violet-600",
-  },
-  {
-    avatar: "bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/25 ring-sky-100/50",
-    glow: "from-sky-400/22 via-blue-300/10 to-transparent",
-    chip: "bg-sky-500/[0.12] text-sky-900/90 ring-sky-300/40",
+      "bg-gradient-to-br from-[var(--color-grad-start)] to-[var(--color-grad-end)] shadow-lg shadow-primary/20 ring-2 ring-white/90",
+    glow: "from-sky-400/25 via-cyan-300/12 to-transparent",
+    chip: "border-sky-200/80 bg-sky-500/10 text-sky-800",
     star: "text-sky-600",
+  },
+  {
+    avatar:
+      "bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-violet-500/20 ring-2 ring-white/90",
+    glow: "from-violet-400/20 via-purple-300/12 to-transparent",
+    chip: "border-violet-200/80 bg-violet-500/10 text-violet-800",
+    star: "text-violet-600",
   },
 ] as const;
 
@@ -70,7 +64,7 @@ function TestimonialCard({ item, index }: { item: TestimonialItem; index: number
   const t = THEMES[index % THEMES.length];
   return (
     <article
-      className="group relative flex w-[min(100vw-2rem,21rem)] shrink-0 flex-col overflow-hidden rounded-[1.65rem] bg-gradient-to-b from-white/95 via-white/88 to-white/70 shadow-[0_20px_56px_-28px_rgba(24,24,27,0.14),0_8px_24px_-12px_rgba(24,24,27,0.06),inset_0_1px_0_0_rgba(255,255,255,1)] ring-1 ring-zinc-200/70 backdrop-blur-md transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-1 hover:shadow-[0_28px_64px_-28px_rgba(24,24,27,0.18),0_12px_32px_-16px_rgba(24,24,27,0.08)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:w-[23rem]"
+      className="group relative flex w-[min(100vw-2rem,21rem)] shrink-0 flex-col overflow-hidden rounded-[1.65rem] border border-[var(--color-border)] bg-gradient-to-b from-[var(--color-bg)] via-[var(--color-bg)]/95 to-[var(--color-surface)] shadow-[var(--shadow-md)] backdrop-blur-md transition-[transform,box-shadow,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-1 hover:border-[var(--color-border-hover)] hover:shadow-[var(--shadow-lg)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:w-[23rem]"
     >
       <div
         className={`pointer-events-none absolute -right-10 -top-14 h-44 w-44 rounded-full bg-gradient-to-br ${t.glow} opacity-80 blur-3xl transition-opacity duration-700 ease-out group-hover:opacity-100 motion-reduce:transition-none`}
@@ -80,37 +74,37 @@ function TestimonialCard({ item, index }: { item: TestimonialItem; index: number
       <div className="relative flex flex-col px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
         <header className="relative flex items-start gap-3.5">
           <div
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-[11px] font-bold tracking-wide text-white ring-2 ring-white/90 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100 ${t.avatar}`}
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-[11px] font-bold tracking-wide text-white transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100 ${t.avatar}`}
             aria-hidden
           >
             {initials(item.name)}
           </div>
           <div className="min-w-0 flex-1 pt-0.5">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate text-sm font-semibold tracking-tight text-zinc-900">{item.name}</p>
+              <p className="truncate text-sm font-semibold tracking-tight text-[var(--color-text)]">{item.name}</p>
               <span
-                className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ring-1 ${t.chip}`}
+                className={`inline-flex shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${t.chip}`}
               >
                 Client
               </span>
             </div>
-            <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-500">{item.role}</p>
+            <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-[var(--color-text-muted)]">{item.role}</p>
           </div>
         </header>
 
         <blockquote className="relative mt-5">
           <span
-            className="pointer-events-none absolute -left-0.5 top-0 font-serif text-[3.25rem] leading-[0.85] text-zinc-200/95 transition-colors duration-500 ease-out select-none group-hover:text-zinc-300/90 motion-reduce:transition-none"
+            className="pointer-events-none absolute -left-0.5 top-0 font-serif text-[3.25rem] leading-[0.85] text-[var(--color-border)] transition-colors duration-500 ease-out select-none group-hover:text-[var(--color-border-hover)] motion-reduce:transition-none"
             aria-hidden
           >
             &ldquo;
           </span>
-          <p className="relative z-[1] pl-6 text-[0.9375rem] leading-[1.65] text-zinc-600 transition-colors duration-500 ease-out group-hover:text-zinc-700 motion-reduce:transition-none sm:text-base sm:leading-relaxed">
+          <p className="relative z-[1] pl-6 text-[0.9375rem] leading-[1.65] text-[var(--color-text-muted)] transition-colors duration-500 ease-out group-hover:text-[var(--color-text)] motion-reduce:transition-none sm:text-base sm:leading-relaxed">
             {item.quote}
           </p>
         </blockquote>
 
-        <footer className="relative mt-6 flex justify-center rounded-xl bg-zinc-50/80 px-3.5 py-2.5 ring-1 ring-zinc-200/60 transition-[background-color,box-shadow] duration-500 ease-out group-hover:bg-white/90 group-hover:shadow-sm motion-reduce:transition-none">
+        <footer className="relative mt-6 flex justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 transition-[background-color,box-shadow,border-color] duration-500 ease-out group-hover:border-[var(--color-border-hover)] group-hover:bg-[var(--color-bg)] group-hover:shadow-sm motion-reduce:transition-none">
           <StarRow className={t.star} />
         </footer>
       </div>
@@ -217,7 +211,7 @@ export function TestimonialsMarquee({ items }: Props) {
 
   if (reduceMotion) {
     return (
-      <div className="mx-auto grid max-w-5xl gap-6 sm:grid-cols-2">
+      <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 px-4 sm:grid-cols-2 sm:px-6">
         {items.map((item, i) => (
           <TestimonialCard key={item.name} item={item} index={i} />
         ))}
@@ -241,7 +235,7 @@ export function TestimonialsMarquee({ items }: Props) {
         }}
       />
       <div
-        className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2"
+        className="relative w-full overflow-hidden"
         style={{
           maskImage: "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)",
           WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)",
@@ -249,7 +243,7 @@ export function TestimonialsMarquee({ items }: Props) {
         onMouseEnter={handleMarqueeEnter}
         onMouseLeave={handleMarqueeLeave}
       >
-        <div className="overflow-hidden py-2 md:py-3">
+        <div className="overflow-hidden pb-2 pt-2 md:pb-3 md:pt-3">
           <div ref={trackRef} className="ai-assistant-testimonials-track flex w-max items-stretch gap-5 md:gap-7">
             {loop.map((item, i) => (
               <TestimonialCard key={`${item.name}-${i}`} item={item} index={i} />
