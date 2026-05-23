@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { BrandLogo } from "@/components/brand-logo";
 import { TopHeader } from "@/components/top-header";
 import { NavAccessGuard } from "@/components/nav-access-guard";
 import { BRAND_NAME, PRODUCT_NAME } from "@/lib/brand";
@@ -154,7 +155,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (authRoute) {
     return (
-      <div className="min-h-screen bg-[#faf8f5] text-zinc-900">
+      <div className="min-h-screen bg-white text-slate-900">
         <main className="min-h-screen">{children}</main>
       </div>
     );
@@ -172,16 +173,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className={`hidden shrink-0 rounded-3xl border border-slate-200/70 bg-white/80 shadow-sm backdrop-blur transition-all lg:block ${sidebarCollapsed ? "w-20 p-3" : "w-68 p-5"
             }`}
         >
-          <div className="mb-6 flex items-start justify-between">
-            <div className={sidebarCollapsed ? "hidden" : ""}>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-600">
-                {BRAND_NAME}
-              </p>
-              <h1 className="mt-1 text-xl font-semibold">{PRODUCT_NAME}</h1>
-              <p className="mt-2 text-sm text-slate-600">
-                Appointment, reviews, and lead operations in one place.
-              </p>
-            </div>
+          <div className="mb-6 flex items-start justify-between gap-2">
+            {sidebarCollapsed ? (
+              <BrandLogo href="/dashboard" size="sm" showWordmark={false} linkClassName="mx-auto" />
+            ) : (
+              <div className="min-w-0">
+                <BrandLogo
+                  href="/dashboard"
+                  size="sm"
+                  primary={BRAND_NAME}
+                  secondary={PRODUCT_NAME}
+                  className="text-slate-900 [&_p:first-child]:text-[10px] [&_p:first-child]:font-semibold [&_p:first-child]:uppercase [&_p:first-child]:tracking-[0.16em] [&_p:first-child]:text-[var(--color-primary)] [&_p:last-child]:text-sm [&_p:last-child]:font-semibold [&_p:last-child]:leading-snug [&_p:last-child]:text-slate-900"
+                />
+                <p className="mt-2 text-sm text-slate-600">
+                  Appointment, reviews, and lead operations in one place.
+                </p>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setSidebarCollapsed((prev) => !prev)}

@@ -1,5 +1,6 @@
 export const BRAND_NAME = "VyntRise";
 export const PRODUCT_NAME = "VyntRise Agent";
+export const BRAND_LOGO_PATH = "/logo.png";
 export const CONTACT_EMAIL = "hello@vyntrise.com";
 export const CONTACT_PHONE = "+1 (571) 484-3141";
 export const CONTACT_PHONE_TEL = "+15714843141";
