@@ -8,7 +8,12 @@ export type GbpLocationOption = {
 
 export type GbpLocationListResult = {
   locations: GbpLocationOption[];
-  error?: "accounts_api_failed" | "no_accounts" | "locations_api_failed" | "no_locations";
+  error?:
+    | "accounts_api_failed"
+    | "rate_limited"
+    | "no_accounts"
+    | "locations_api_failed"
+    | "no_locations";
   detail?: string;
 };
 
@@ -66,6 +71,10 @@ function summarizeApiError(result: Extract<FetchResult, { ok: false }>): string 
     // ignore parse errors
   }
   return result.body || `HTTP ${result.status}`;
+}
+
+function isRateLimited(result: Extract<FetchResult, { ok: false }>): boolean {
+  return result.status === 429 || /quota exceeded/i.test(result.body);
 }
 
 function locationKey(accountId: string, locationId: string): string {
@@ -215,12 +224,26 @@ export async function listGoogleBusinessProfileLocationsWithResult(
 
   let accountsResult = await listAccountsV1(accessToken);
   if (!accountsResult.ok) {
+    if (isRateLimited(accountsResult)) {
+      const detail = summarizeApiError(accountsResult);
+      console.warn("[gbp] accounts API rate limited", detail);
+      return { locations: [], error: "rate_limited", detail };
+    }
+
     const v4Accounts = await listAccountsV4(accessToken);
     if (!v4Accounts.ok) {
-      const detail = summarizeApiError(accountsResult.ok === false ? accountsResult : v4Accounts);
+      if (isRateLimited(v4Accounts)) {
+        const detail = summarizeApiError(v4Accounts);
+        console.warn("[gbp] accounts API rate limited (v4)", detail);
+        return { locations: [], error: "rate_limited", detail };
+      }
+      const v1Detail = summarizeApiError(accountsResult);
+      const v4Detail = summarizeApiError(v4Accounts);
+      const detail = [v1Detail, v4Detail].filter(Boolean).join(" | ");
+      console.error("[gbp] accounts API failed", { v1Status: accountsResult.status, v4Status: v4Accounts.status, detail });
       return {
         locations: [],
-        error: accountsResult.status === 403 || v4Accounts.status === 403 ? "accounts_api_failed" : "accounts_api_failed",
+        error: "accounts_api_failed",
         detail,
       };
     }
@@ -245,13 +268,16 @@ export async function listGoogleBusinessProfileLocationsWithResult(
     const accountId = accountName ? parseResourceId(accountName, "accounts") : null;
     if (!accountName || !accountId) continue;
 
+    const countBefore = locationMap.size;
     const v1Ok = await listLocationsV1(accessToken, accountName, accountId, locationMap);
     if (v1Ok) anyLocationsApiSuccess = true;
     else anyLocationsApiFailure = true;
 
-    const v4Ok = await listLocationsV4(accessToken, accountId, locationMap);
-    if (v4Ok) anyLocationsApiSuccess = true;
-    else anyLocationsApiFailure = true;
+    if (locationMap.size === countBefore) {
+      const v4Ok = await listLocationsV4(accessToken, accountId, locationMap);
+      if (v4Ok) anyLocationsApiSuccess = true;
+      else anyLocationsApiFailure = true;
+    }
   }
 
   const locations = Array.from(locationMap.values());

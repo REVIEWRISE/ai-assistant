@@ -20,7 +20,8 @@ export function ReviewsPageAlerts() {
 
   const success = searchParams.get("success");
   const error = searchParams.get("error");
-  const message = getReviewStatusMessage({ success, error });
+  const detail = searchParams.get("detail");
+  const message = getReviewStatusMessage({ success, error, detail });
   const toastKey = success ? `success:${success}` : error ? `error:${error}` : null;
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export function ReviewsPageAlerts() {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("success");
     params.delete("error");
+    params.delete("detail");
     const query = params.toString();
     router.replace(query ? `/reviews?${query}` : "/reviews", { scroll: false });
   }
