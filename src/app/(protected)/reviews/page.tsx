@@ -1,6 +1,12 @@
 import { Suspense } from "react";
 import { ReviewsTabs } from "@/components/reviews-tabs";
 import { ReviewsPageAlerts } from "@/components/reviews-page-alerts";
+import {
+  AppPageHero,
+  AppPageHeroStat,
+  AppPageHeroStatGrid,
+  AppPageHeroStatPanel,
+} from "@/components/app-page-hero";
 import { prisma } from "@/lib/prisma";
 import { isOAuthProviderConfig } from "@/lib/google-oauth";
 import { cookies } from "next/headers";
@@ -29,9 +35,9 @@ function toInboxStatus(status: string, rating: number): string {
 }
 
 function toInboxTone(status: string): string {
-  if (status === "Safe to auto-publish") return "border-emerald-200 bg-emerald-50";
-  if (status === "Needs human review") return "border-rose-200 bg-rose-50";
-  return "border-amber-200 bg-amber-50";
+  if (status === "Safe to auto-publish") return "vr-app-status-success";
+  if (status === "Needs human review") return "vr-app-status-danger";
+  return "vr-app-status-warning";
 }
 
 function isAutoPublishedStatus(status: string): boolean {
@@ -170,9 +176,7 @@ export default async function ReviewsPage() {
               ),
             )
           : {},
-      tone: connected
-        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-        : "border-slate-200 bg-slate-100 text-slate-700",
+      tone: connected ? "vr-app-status-success" : "vr-app-status-muted",
     };
   });
 
@@ -322,35 +326,23 @@ export default async function ReviewsPage() {
       <Suspense fallback={null}>
         <ReviewsPageAlerts />
       </Suspense>
-      <section className="rounded-3xl border border-slate-200 bg-[linear-gradient(120deg,#0f172a,#1e293b_45%,#334155)] p-5 text-white shadow-sm lg:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">
-              Review Response System
-            </p>
-            <h1 className="mt-2 text-2xl font-semibold leading-tight lg:text-3xl">
-              Protect brand trust with fast and consistent review handling.
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-200">
-              AI drafts contextual replies, escalates risky sentiment, and
-              applies approval rules so your team can respond quickly without
-              sacrificing quality.
-            </p>
-          </div>
-          <div className="basis-full w-full rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur">
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-lg bg-white/10 px-2 py-1.5">
-                <p className="text-slate-300">Awaiting</p>
-                <p className="font-semibold text-white">{totals.pending}</p>
-              </div>
-              <div className="rounded-lg bg-white/10 px-2 py-1.5">
-                <p className="text-slate-300">Auto-ready</p>
-                <p className="font-semibold text-white">{totals.autoReady}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <AppPageHero
+        eyebrow="Review Response System"
+        title={
+          <>
+            Protect brand trust with fast and{" "}
+            <span className="vr-brand-gradient-text">consistent review handling</span>
+          </>
+        }
+        description="AI drafts contextual replies, escalates risky sentiment, and applies approval rules so your team can respond quickly without sacrificing quality."
+      >
+        <AppPageHeroStatPanel>
+          <AppPageHeroStatGrid columns="2">
+            <AppPageHeroStat label="Awaiting" value={totals.pending} />
+            <AppPageHeroStat label="Auto-ready" value={totals.autoReady} />
+          </AppPageHeroStatGrid>
+        </AppPageHeroStatPanel>
+      </AppPageHero>
 
       <ReviewsTabs
         reviewServices={reviewServices}

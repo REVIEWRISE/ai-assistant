@@ -2,6 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ChatbotOrganizationsTable } from "@/components/chatbot-organizations-table";
+import {
+  AppPageHero,
+  AppPageHeroStat,
+  AppPageHeroStatGrid,
+  AppPageHeroStatPanel,
+} from "@/components/app-page-hero";
 import { getAppOrigin } from "@/lib/app-origin";
 import { resolveChatbotConfigData } from "@/lib/chatbot-config";
 import { generateChatbotFromKnowledge, saveChatbotConfig } from "./actions";
@@ -99,52 +105,45 @@ export default async function AppointmentChatbotPage({
 
   return (
     <div className="space-y-5">
-      <section className="rounded-3xl border border-slate-200 bg-[linear-gradient(120deg,#0f172a,#1e293b_45%,#334155)] p-5 text-white shadow-sm lg:p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-300">
-          Configure chatbot
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold leading-tight lg:text-3xl">
-          Configure booking assistant per organization
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-200">
-          Every organization you belong to is listed below with its own chatbot settings. Configure any row independently.
-          Saving here does not change your active workspace. To switch which organization drives your session (and the
-          signed-in marketing widget), use{" "}
-          <Link href="/appointments/organization" className="font-semibold text-indigo-200 underline decoration-indigo-200/60 underline-offset-2 hover:text-white">
-            Appointment Agent → Organization
-          </Link>
-          .
-        </p>
-        <div className="mt-4 grid gap-3 text-xs sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
-            <p className="text-slate-300">Total organizations</p>
-            <p className="text-lg font-semibold text-white">{totalOrganizations}</p>
-          </div>
-          <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
-            <p className="text-slate-300">Active session workspace</p>
-            <p className="text-lg font-semibold text-white">{activeOrganization?.name ?? "—"}</p>
-          </div>
-          <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
-            <p className="text-slate-300">Newest organization</p>
-            <p className="text-lg font-semibold text-white">{newestOrganization?.name ?? "—"}</p>
-          </div>
-          <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
-            <p className="text-slate-300">Last created</p>
-            <p className="text-lg font-semibold text-white">{newestLabel}</p>
-          </div>
-        </div>
-      </section>
+      <AppPageHero
+        eyebrow="Configure chatbot"
+        title={
+          <>
+            Configure booking assistant per{" "}
+            <span className="vr-brand-gradient-text">organization</span>
+          </>
+        }
+        description={
+          <>
+            Every organization you belong to is listed below with its own chatbot settings. Configure any row
+            independently. Saving here does not change your active workspace. To switch which organization drives your
+            session (and the signed-in marketing widget), use{" "}
+            <Link
+              href="/appointments/organization"
+              className="font-semibold text-[color-mix(in_srgb,var(--color-primary)_78%,white)] underline decoration-[color-mix(in_srgb,var(--color-primary)_45%,transparent)] underline-offset-2 hover:text-white"
+            >
+              Appointment Agent → Organization
+            </Link>
+            .
+          </>
+        }
+      >
+        <AppPageHeroStatPanel>
+          <AppPageHeroStatGrid columns="4">
+            <AppPageHeroStat label="Total organizations" value={totalOrganizations} />
+            <AppPageHeroStat label="Active session workspace" value={activeOrganization?.name ?? "—"} />
+            <AppPageHeroStat label="Newest organization" value={newestOrganization?.name ?? "—"} />
+            <AppPageHeroStat label="Last created" value={newestLabel} />
+          </AppPageHeroStatGrid>
+        </AppPageHeroStatPanel>
+      </AppPageHero>
 
       {params.success === "saved" ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          Chatbot settings saved.
-        </div>
+        <div className="vr-app-alert vr-app-alert-success">Chatbot settings saved.</div>
       ) : null}
 
       {params.error && errorMessages[params.error] ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {errorMessages[params.error]}
-        </div>
+        <div className="vr-app-alert vr-app-alert-danger">{errorMessages[params.error]}</div>
       ) : null}
 
       <ChatbotOrganizationsTable

@@ -1,4 +1,8 @@
 import Link from "next/link";
+import {
+  AppPageHero,
+  AppPageHeroBadge,
+} from "@/components/app-page-hero";
 import { Panel } from "@/components/ui";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
@@ -32,50 +36,58 @@ export default async function AppointmentsPage() {
 
   return (
     <div className="space-y-4 lg:space-y-6">
-      <section className="rounded-3xl border border-slate-200 bg-[linear-gradient(120deg,#0f172a,#1e293b_45%,#334155)] p-5 text-white shadow-sm lg:p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">
-          Appointment Agent
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold leading-tight lg:text-3xl">
-          Manage appointment modules and setup
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-200">
-          Use these modules to configure organization context, build knowledge base, and monitor booking operations.
-        </p>
-        <p className="mt-3 inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-slate-100">
+      <AppPageHero
+        eyebrow="Appointment Agent"
+        title={
+          <>
+            Manage appointment modules and{" "}
+            <span className="vr-brand-gradient-text">setup</span>
+          </>
+        }
+        description="Configure organization context, build your knowledge base, and monitor booking operations."
+      >
+        <AppPageHeroBadge>
           Active organization: {activeOrganization?.name ?? "Not selected"}
-        </p>
-      </section>
+        </AppPageHeroBadge>
+      </AppPageHero>
 
       <Panel title="Appointment Modules" subtitle="Choose a section to configure">
-        <div className="grid gap-3 text-sm text-slate-700 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
           <Link
             href="/appointments/overview"
-            className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:bg-slate-50"
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 transition hover:border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] hover:bg-[var(--color-surface)]"
           >
-            <p className="font-semibold text-slate-900">Overview</p>
-            <p className="mt-1 text-xs text-slate-500">Track provider status, schedule signals, and booking flow.</p>
+            <p className="font-semibold text-[var(--color-text)]">Overview</p>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              Track provider status, schedule signals, and booking flow.
+            </p>
           </Link>
           <Link
             href="/appointments/organization"
-            className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:bg-slate-50"
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 transition hover:border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] hover:bg-[var(--color-surface)]"
           >
-            <p className="font-semibold text-slate-900">Organization</p>
-            <p className="mt-1 text-xs text-slate-500">Manage active organization and workspace lifecycle.</p>
+            <p className="font-semibold text-[var(--color-text)]">Organization</p>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              Manage active organization and workspace lifecycle.
+            </p>
           </Link>
           <Link
             href="/appointments/knowledge-base"
-            className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:bg-slate-50"
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 transition hover:border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] hover:bg-[var(--color-surface)]"
           >
-            <p className="font-semibold text-slate-900">Knowledge Base</p>
-            <p className="mt-1 text-xs text-slate-500">Import business context from your website, docs, and notes.</p>
+            <p className="font-semibold text-[var(--color-text)]">Knowledge Base</p>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              Import business context from your website, docs, and notes.
+            </p>
           </Link>
           <Link
             href="/appointments/chatbot"
-            className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:bg-slate-50"
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 transition hover:border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] hover:bg-[var(--color-surface)]"
           >
-            <p className="font-semibold text-slate-900">Configure chatbot</p>
-            <p className="mt-1 text-xs text-slate-500">Customize floating booking assistant text and services.</p>
+            <p className="font-semibold text-[var(--color-text)]">Configure chatbot</p>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              Customize floating booking assistant text and services.
+            </p>
           </Link>
         </div>
       </Panel>

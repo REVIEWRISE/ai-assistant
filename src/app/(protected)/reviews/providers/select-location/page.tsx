@@ -8,6 +8,7 @@ import {
   asOAuthProviderConfig,
   getValidOAuthAccessToken,
 } from "@/lib/google-oauth";
+import { AppPageHero } from "@/components/app-page-hero";
 import { completeReviewProviderLocation } from "../../actions";
 
 export default async function SelectReviewProviderLocationPage({
@@ -64,35 +65,30 @@ export default async function SelectReviewProviderLocationPage({
 
   return (
     <div className="mx-auto max-w-xl space-y-5">
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">
-          Google Business Profile
-        </p>
-        <h1 className="mt-1 text-xl font-semibold text-slate-900">Choose a business location</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Your Google account has access to multiple locations. Select which business profile to
-          sync reviews from for {provider.name}.
-        </p>
-      </section>
+      <AppPageHero
+        eyebrow="Google Business Profile"
+        title="Choose a business location"
+        description={`Your Google account has access to multiple locations. Select which business profile to sync reviews from for ${provider.name}.`}
+      />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="vr-app-panel p-5">
         <form action={completeReviewProviderLocation} className="space-y-3">
           <input type="hidden" name="provider_id" value={provider.id} />
           {locations.map((location) => (
             <label
               key={`${location.accountId}:${location.locationId}`}
-              className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 transition hover:border-slate-300 hover:bg-slate-50"
+              className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--color-border)] px-4 py-3 transition hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface)]"
             >
               <input
                 type="radio"
                 name="location_key"
                 value={`${location.accountId}::${location.locationId}::${location.title}`}
                 required
-                className="mt-1"
+                className="mt-1 accent-[var(--color-primary)]"
               />
               <span>
-                <span className="block text-sm font-semibold text-slate-900">{location.title}</span>
-                <span className="mt-0.5 block text-xs text-slate-500">
+                <span className="block text-sm font-semibold text-[var(--color-text)]">{location.title}</span>
+                <span className="mt-0.5 block text-xs text-[var(--color-text-muted)]">
                   Account {location.accountId} · Location {location.locationId}
                 </span>
               </span>
@@ -101,19 +97,16 @@ export default async function SelectReviewProviderLocationPage({
           <div className="flex justify-end gap-2 pt-2">
             <Link
               href="/reviews"
-              className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
             >
-              Cancel 
+              Cancel
             </Link>
-            <button
-              type="submit"
-              className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700"
-            >
+            <button type="submit" className="rounded-lg vr-btn-primary px-3 py-2 text-xs font-semibold">
               Connect location
-            </button> 
+            </button>
           </div>
         </form>
       </section>
-    </div> 
+    </div>
   );
 }

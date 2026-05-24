@@ -62,22 +62,22 @@ export function UsersManager({
   return (
     <Panel title="User Directory" subtitle="Create, edit, and remove users">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-[var(--color-text-muted)]">
           Manage who has access to the workspace.
         </p>
         <button
           type="button"
           onClick={() => setModal({ type: "create" })}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+          className="rounded-xl vr-btn-primary px-4 py-2 text-sm font-semibold"
         >
           Add User
         </button>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="hidden grid-cols-[72px_1.2fr_1.2fr_140px_140px_140px] items-center gap-2 bg-[linear-gradient(120deg,#0f172a,#1e293b_55%,#334155)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-200 md:grid">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+        <div className="vr-app-table-header hidden grid-cols-[72px_1.2fr_1.2fr_140px_140px_140px] items-center gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] md:grid">
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-amber-300" />
+            <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]" />
             Index
           </div>
           <div>Name</div>
@@ -86,37 +86,37 @@ export function UsersManager({
           <div>Status</div>
           <div className="text-right">Actions</div>
         </div>
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-[var(--color-border-muted)]">
           {pagedUsers.map((user, index) => (
             <div
               key={user.id}
-              className="group grid items-center gap-2 px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50 md:grid-cols-[72px_1.2fr_1.2fr_140px_140px_140px]"
+              className="group grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] md:grid-cols-[72px_1.2fr_1.2fr_140px_140px_140px]"
             >
-              <div className="text-xs font-semibold text-slate-500 md:text-sm">
-                <span className="inline-flex min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-600">
+              <div className="text-xs font-semibold text-[var(--color-text-muted)] md:text-sm">
+                <span className="inline-flex min-w-[44px] items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
                   {String((currentPage - 1) * perPage + index + 1).padStart(2, "0")}
                 </span>
               </div>
               <div>
-                <p className="font-semibold text-slate-900">{user.fullName}</p>
-                <p className="text-xs text-slate-500">
+                <p className="font-semibold text-[var(--color-text)]">{user.fullName}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">
                   Created {new Date(user.createdAt).toLocaleDateString()}
                 </p>
               </div>
-              <div className="text-xs font-semibold text-slate-600 md:text-sm">
+              <div className="text-xs font-semibold text-[var(--color-text-muted)] md:text-sm">
                 {user.email}
               </div>
-              <div className="text-xs font-semibold text-slate-600">
+              <div className="text-xs font-semibold text-[var(--color-text-muted)]">
                 {user.roleName}
               </div>
-              <div className="text-xs font-semibold text-slate-600">
+              <div className="text-xs font-semibold text-[var(--color-text-muted)]">
                 {user.accountStatus}
               </div>
               <div className="flex items-center justify-start gap-2 md:justify-end">
                 <button
                   type="button"
                   onClick={() => setModal({ type: "edit", user })}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-white group-hover:border-slate-300"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] transition hover:bg-[var(--color-bg)] group-hover:border-[var(--color-border-hover)]"
                   aria-label={`Edit ${user.fullName}`}
                 >
                   <svg
@@ -133,7 +133,7 @@ export function UsersManager({
                 <button
                   type="button"
                   onClick={() => setModal({ type: "delete", user })}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)] text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))] transition hover:brightness-95"
                   aria-label={`Delete ${user.fullName}`}
                 >
                   <svg
@@ -152,24 +152,24 @@ export function UsersManager({
             </div>
           ))}
           {sortedUsers.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-slate-500">
+            <div className="px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
               No users yet. Create your first user.
             </div>
           ) : null}
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--color-text-muted)]">
         <div>
           Showing{" "}
-          <span className="font-semibold text-slate-900">
+          <span className="font-semibold text-[var(--color-text)]">
             {sortedUsers.length === 0 ? 0 : (currentPage - 1) * perPage + 1}
           </span>{" "}
           to{" "}
-          <span className="font-semibold text-slate-900">
+          <span className="font-semibold text-[var(--color-text)]">
             {Math.min(currentPage * perPage, sortedUsers.length)}
           </span>{" "}
-          of <span className="font-semibold text-slate-900">{sortedUsers.length}</span>
+          of <span className="font-semibold text-[var(--color-text)]">{sortedUsers.length}</span>
         </div>
         <div className="flex items-center gap-2">
           <label className="flex items-center gap-2">
@@ -181,7 +181,7 @@ export function UsersManager({
                 setPerPage(next);
                 setPage(1);
               }}
-              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]"
             >
               {[5, 10, 20, 50].map((size) => (
                 <option key={size} value={size}>
@@ -195,18 +195,18 @@ export function UsersManager({
               type="button"
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700 transition disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] transition disabled:cursor-not-allowed disabled:opacity-50"
             >
               Prev
             </button>
-            <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+            <span className="rounded-lg bg-[var(--color-raised)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]">
               {currentPage} / {totalPages}
             </span>
             <button
               type="button"
               onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700 transition disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] transition disabled:cursor-not-allowed disabled:opacity-50"
             >
               Next
             </button>
@@ -216,17 +216,17 @@ export function UsersManager({
 
       {modal && modal.type !== "delete"
         ? createPortal(
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
-              <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] px-4">
+              <div className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5 shadow-2xl">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-600">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
                       User Management
                     </p>
-                    <h2 className="mt-2 text-lg font-semibold text-slate-900">
+                    <h2 className="mt-2 text-lg font-semibold text-[var(--color-text)]">
                       {modal.type === "create" ? "Add User" : "Edit User"}
                     </h2>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">
                       {modal.type === "create"
                         ? "Invite a new user to the workspace."
                         : "Update user profile details."}
@@ -235,7 +235,7 @@ export function UsersManager({
                   <button
                     type="button"
                     onClick={() => setModal(null)}
-                    className="rounded-lg p-1 text-slate-500 transition hover:bg-slate-100"
+                    className="rounded-lg p-1 text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)]"
                     aria-label="Close"
                   >
                     <svg
@@ -257,42 +257,42 @@ export function UsersManager({
                   {modal.type === "edit" ? (
                     <input type="hidden" name="id" value={modal.user.id} />
                   ) : null}
-                  <label className="block text-sm text-slate-700">
+                  <label className="block text-sm text-[var(--color-text)]">
                     Full name
                     <input
                       type="text"
                       name="full_name"
                       defaultValue={modal.type === "edit" ? modal.user.fullName : ""}
                       placeholder="Jane Doe"
-                      className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none ring-amber-300 transition focus:bg-white focus:ring"
+                      className="mt-1 w-full rounded-xl border border-[var(--color-border-hover)] bg-[var(--color-surface)] px-3 py-2 text-sm outline-none ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] transition focus:bg-[var(--color-bg)] focus:ring"
                     />
                   </label>
-                  <label className="block text-sm text-slate-700">
+                  <label className="block text-sm text-[var(--color-text)]">
                     Email
                     <input
                       type="email"
                       name="email"
                       defaultValue={modal.type === "edit" ? modal.user.email : ""}
                       placeholder="you@company.com"
-                      className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none ring-amber-300 transition focus:bg-white focus:ring"
+                      className="mt-1 w-full rounded-xl border border-[var(--color-border-hover)] bg-[var(--color-surface)] px-3 py-2 text-sm outline-none ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] transition focus:bg-[var(--color-bg)] focus:ring"
                     />
                   </label>
                   {modal.type === "create" ? (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="block text-sm text-slate-700">
+                      <label className="block text-sm text-[var(--color-text)]">
                         Temporary password
                         <div className="relative mt-1">
                           <input
                             type={showPassword ? "text" : "password"}
                             name="password"
                             placeholder="Create a secure password"
-                            className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 pr-10 text-sm outline-none ring-amber-300 transition focus:bg-white focus:ring"
+                            className="w-full rounded-xl border border-[var(--color-border-hover)] bg-[var(--color-surface)] px-3 py-2 pr-10 text-sm outline-none ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] transition focus:bg-[var(--color-bg)] focus:ring"
                           />
                           <button
                             type="button"
                             onClick={() => setShowPassword((prev) => !prev)}
                             aria-label={showPassword ? "Hide password" : "Show password"}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-500 transition hover:text-slate-900"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
                           >
                             {showPassword ? (
                               <svg
@@ -322,7 +322,7 @@ export function UsersManager({
                           </button>
                         </div>
                       </label>
-                      <label className="block text-sm text-slate-700">
+                      <label className="block text-sm text-[var(--color-text)]">
                         Status
                         <div className="mt-1">
                           <SearchableSelect
@@ -339,7 +339,7 @@ export function UsersManager({
                       </label>
                     </div>
                   ) : null}
-                  <label className="block text-sm text-slate-700">
+                  <label className="block text-sm text-[var(--color-text)]">
                     Role
                     <div className="mt-1">
                       <SearchableSelect
@@ -354,7 +354,7 @@ export function UsersManager({
                     </div>
                   </label>
                   {modal.type === "edit" ? (
-                    <label className="block text-sm text-slate-700">
+                    <label className="block text-sm text-[var(--color-text)]">
                       Status
                       <div className="mt-1">
                         <SearchableSelect
@@ -375,13 +375,13 @@ export function UsersManager({
                     <button
                       type="button"
                       onClick={() => setModal(null)}
-                      className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                      className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                      className="rounded-xl vr-btn-primary px-4 py-2 text-sm font-semibold"
                     >
                       {modal.type === "create" ? "Create User" : "Save Changes"}
                     </button>

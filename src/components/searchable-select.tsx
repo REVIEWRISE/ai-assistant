@@ -66,14 +66,14 @@ export function SearchableSelect({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none transition focus:ring focus:ring-amber-300"
+        className="flex w-full items-center justify-between rounded-xl border border-[var(--color-border-hover)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] outline-none transition focus:ring focus:ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
       >
-        <span className={selected ? "text-slate-900" : "text-slate-400"}>
+        <span className={selected ? "text-[var(--color-text)]" : "text-[var(--color-text-muted)]"}>
           {selected?.label ?? placeholder}
         </span>
         <svg
           viewBox="0 0 24 24"
-          className={`h-4 w-4 text-slate-500 transition ${open ? "rotate-180" : ""}`}
+          className={`h-4 w-4 text-[var(--color-text-muted)] transition ${open ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
@@ -83,19 +83,19 @@ export function SearchableSelect({
       </button>
 
       {open ? (
-        <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-          <div className="border-b border-slate-200 p-2">
+        <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-xl">
+          <div className="border-b border-[var(--color-border)] p-2">
             <input
               type="text"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search..."
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 outline-none focus:ring focus:ring-amber-300"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-text)] outline-none focus:ring focus:ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
             />
           </div>
           <div className="max-h-56 overflow-auto p-1">
             {filtered.length === 0 ? (
-              <div className="px-3 py-4 text-xs text-slate-500">No matches.</div>
+              <div className="px-3 py-4 text-xs text-[var(--color-text-muted)]">No matches.</div>
             ) : (
               filtered.map((option) => (
                 <button
@@ -109,14 +109,20 @@ export function SearchableSelect({
                     onChange?.(option.value);
                   }}
                   className={`flex w-full flex-col items-start gap-1 rounded-xl px-3 py-2 text-left text-xs transition ${
-                    value === option.value
-                      ? "bg-slate-900 text-white"
-                      : "text-slate-700 hover:bg-slate-100"
+                    selectedValue === option.value
+                      ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+                      : "text-[var(--color-text)] hover:bg-[var(--color-surface)]"
                   }`}
                 >
                   <span className="text-sm font-semibold">{option.label}</span>
                   {option.description ? (
-                    <span className={value === option.value ? "text-white/70" : "text-slate-500"}>
+                    <span
+                      className={
+                        selectedValue === option.value
+                          ? "text-[var(--color-primary-fg)]/70"
+                          : "text-[var(--color-text-muted)]"
+                      }
+                    >
                       {option.description}
                     </span>
                   ) : null}

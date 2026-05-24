@@ -1,0 +1,158 @@
+/* Protected app shell — same token system as the landing page */
+
+.app-shell {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+.app-shell-mesh {
+  background:
+    radial-gradient(
+      ellipse 90% 55% at 50% -8%,
+      color-mix(in srgb, var(--color-primary) 14%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 45% 40% at 100% 0%,
+      color-mix(in srgb, var(--color-grad-start) 10%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 40% 35% at 0% 25%,
+      color-mix(in srgb, var(--color-data-purple) 6%, transparent),
+      transparent
+    );
+}
+
+.app-shell-grid {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-text) 3%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-text) 3%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.vr-app-surface {
+  border: 1px solid color-mix(in srgb, var(--color-border) 85%, white);
+  background: color-mix(in srgb, var(--color-bg) 92%, transparent);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-sm);
+}
+
+.vr-app-panel {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.vr-app-hero {
+  border-radius: var(--radius-2xl);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, #0f172a);
+  background: linear-gradient(125deg, #0b101a 0%, #0f172a 42%, #1e293b 72%, #334155 100%);
+  color: #ffffff;
+  box-shadow:
+    var(--shadow-md),
+    inset 0 1px 0 0 color-mix(in srgb, white 6%, transparent);
+}
+
+.vr-app-hero-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, #a5b4fc 95%, white);
+}
+
+.vr-app-hero-muted {
+  color: color-mix(in srgb, #cbd5e1 92%, white);
+}
+
+.vr-app-nav-active {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+  box-shadow: var(--shadow-sm);
+}
+
+.vr-app-nav-idle {
+  border: 1px solid transparent;
+  color: var(--color-text);
+}
+
+.vr-app-nav-idle:hover {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.vr-app-table-header {
+  background: linear-gradient(125deg, #0b101a 0%, #0f172a 42%, #1e293b 72%, #334155 100%);
+  color: color-mix(in srgb, #cbd5e1 92%, white);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.vr-app-alert {
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--color-border);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.375;
+}
+
+.vr-app-alert-success {
+  border-color: color-mix(in srgb, var(--color-success) 35%, var(--color-border));
+  background: var(--color-success-soft);
+  color: color-mix(in srgb, var(--color-success) 80%, var(--color-text));
+}
+
+.vr-app-alert-danger {
+  border-color: color-mix(in srgb, var(--color-danger) 35%, var(--color-border));
+  background: var(--color-danger-soft);
+  color: color-mix(in srgb, var(--color-danger) 80%, var(--color-text));
+}
+
+.vr-app-alert-warning {
+  border-color: color-mix(in srgb, var(--color-warning) 35%, var(--color-border));
+  background: var(--color-warning-soft);
+  color: color-mix(in srgb, var(--color-warning) 80%, var(--color-text));
+}
+
+.vr-app-meta-cell {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  padding: 0.5rem 0.75rem;
+}
+
+.vr-app-empty-state {
+  border: 1px dashed var(--color-border-hover);
+  background: var(--color-surface);
+  border-radius: var(--radius-2xl);
+  color: var(--color-text-muted);
+}
+
+.vr-app-status-success {
+  border: 1px solid color-mix(in srgb, var(--color-success) 35%, var(--color-border));
+  background: var(--color-success-soft);
+  color: color-mix(in srgb, var(--color-success) 85%, var(--color-text));
+}
+
+.vr-app-status-muted {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.vr-app-status-warning {
+  border: 1px solid color-mix(in srgb, var(--color-warning) 35%, var(--color-border));
+  background: var(--color-warning-soft);
+  color: color-mix(in srgb, var(--color-warning) 85%, var(--color-text));
+}
+
+.vr-app-status-danger {
+  border: 1px solid color-mix(in srgb, var(--color-danger) 35%, var(--color-border));
+  background: var(--color-danger-soft);
+  color: color-mix(in srgb, var(--color-danger) 85%, var(--color-text));
+}

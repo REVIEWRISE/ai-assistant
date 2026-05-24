@@ -336,7 +336,7 @@ export function ChatbotOrganizationsTable({
       subtitle="Every workspace you created or were added to appears here. Open Configure for any row—settings are saved per organization."
     >
       <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-        <div className="hidden grid-cols-[72px_1fr_140px_260px] items-center gap-2 bg-[linear-gradient(120deg,#0f172a,#1e293b_55%,#334155)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-200 lg:grid">
+        <div className="vr-app-table-header hidden grid-cols-[72px_1fr_140px_260px] items-center gap-2 px-4 py-3 lg:grid">
           <div>#</div>
           <div>Organization</div>
           <div>Session</div>
@@ -361,7 +361,7 @@ export function ChatbotOrganizationsTable({
               </div>
               <div>
                 {row.isActive ? (
-                  <span className="inline-flex rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                  <span className="inline-flex rounded-lg vr-app-status-success px-2.5 py-1 text-xs font-semibold">
                     Active session
                   </span>
                 ) : (
@@ -745,7 +745,7 @@ export function ChatbotOrganizationsTable({
                       <span className="font-semibold">Save booking flow</span>.
                     </p>
                     {flowGenerateError ? (
-                      <p className="text-xs font-medium text-rose-700">{flowGenerateError}</p>
+                      <p className="text-xs font-medium text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))]">{flowGenerateError}</p>
                     ) : null}
 
                     <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-sm">
@@ -831,7 +831,7 @@ export function ChatbotOrganizationsTable({
                                   onClick={() =>
                                     setQuickActionItems((prev) => prev.filter((_, i) => i !== idx))
                                   }
-                                  className="shrink-0 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100"
+                                  className="shrink-0 rounded-md border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)] px-2 py-1 text-[11px] font-semibold text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))] hover:brightness-95"
                                 >
                                   Remove
                                 </button>
@@ -998,7 +998,7 @@ export function ChatbotOrganizationsTable({
                                 onClick={() =>
                                   setFlowSteps((prev) => prev.filter((_, i) => i !== index))
                                 }
-                                className="rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100"
+                                className="rounded-md border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)] px-2 py-1 text-[11px] font-semibold text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))] hover:brightness-95"
                               >
                                 Remove
                               </button>

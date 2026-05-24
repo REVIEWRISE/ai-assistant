@@ -75,8 +75,8 @@ function ChartTooltip({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-lg">
-      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 shadow-lg">
+      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
         {label}
       </p>
       <div className="mt-1 space-y-1">
@@ -86,8 +86,8 @@ function ChartTooltip({
               className="h-2.5 w-2.5 rounded-full"
               style={{ backgroundColor: entry.color ?? "#94a3b8" }}
             />
-            <span className="font-medium text-slate-700">{entry.name}:</span>
-            <span className="font-semibold text-slate-900">{entry.value}</span>
+            <span className="font-medium text-[var(--color-text)]">{entry.name}:</span>
+            <span className="font-semibold text-[var(--color-text)]">{entry.value}</span>
           </p>
         ))}
       </div>
@@ -101,27 +101,27 @@ function TrendLineChart({
   points: Array<{ day: string; count: number }>;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={points}
             margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
           >
-            <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" />
-            <XAxis dataKey="day" tick={{ fill: "#475569", fontSize: 12 }} />
-            <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} />
+            <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" />
+            <XAxis dataKey="day" tick={{ fill: "var(--color-text-muted)", fontSize: 12 }} />
+            <YAxis tick={{ fill: "var(--color-text-subtle)", fontSize: 12 }} />
             <Tooltip
               content={<ChartTooltip />}
-              cursor={{ stroke: "#cbd5e1", strokeDasharray: "4 4" }}
+              cursor={{ stroke: "var(--color-border-hover)", strokeDasharray: "4 4" }}
             />
             <Line
               type="monotone"
               dataKey="count"
               name="Auto-published"
-              stroke="#0284c7"
+              stroke="#6366f1"
               strokeWidth={3}
-              dot={{ r: 5, fill: "#0284c7" }}
+              dot={{ r: 5, fill: "#6366f1" }}
               activeDot={{ r: 7 }}
             />
           </LineChart>
@@ -137,7 +137,7 @@ function ServiceBarChart({
   items: Array<{ service: string; total: number; autoPublished: number }>;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
       <div className="h-72 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -145,29 +145,29 @@ function ServiceBarChart({
             margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
             barGap={6}
           >
-            <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" />
-            <XAxis dataKey="service" tick={{ fill: "#475569", fontSize: 12 }} />
-            <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} />
+            <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" />
+            <XAxis dataKey="service" tick={{ fill: "var(--color-text-muted)", fontSize: 12 }} />
+            <YAxis tick={{ fill: "var(--color-text-subtle)", fontSize: 12 }} />
             <Tooltip
               content={<ChartTooltip />}
             />
-            <Bar dataKey="total" name="Total reviews" fill="#38bdf8" radius={[6, 6, 0, 0]} />
+            <Bar dataKey="total" name="Total reviews" fill="#6366f1" radius={[6, 6, 0, 0]} />
             <Bar
               dataKey="autoPublished"
               name="Auto-published"
-              fill="#14b8a6"
+              fill="#10b981"
               radius={[6, 6, 0, 0]}
             />
           </BarChart>
         </ResponsiveContainer>
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-xs">
-        <span className="inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1.5 font-semibold text-sky-700">
-          <span className="h-2.5 w-2.5 rounded-full bg-sky-400" />
+        <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary-soft)] px-3 py-1.5 font-semibold text-[var(--color-primary-h)]">
+          <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-primary)]" />
           Total reviews
         </span>
-        <span className="inline-flex items-center gap-2 rounded-full bg-teal-100 px-3 py-1.5 font-semibold text-teal-700">
-          <span className="h-2.5 w-2.5 rounded-full bg-teal-500" />
+        <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-success-soft)] px-3 py-1.5 font-semibold text-[var(--color-success)]">
+          <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-success)]" />
           Auto-published
         </span>
       </div>
@@ -201,12 +201,12 @@ export function ReviewsTabs({
 
   const getStatusTone = (status: string): string => {
     if (status === "Safe to auto-publish") {
-      return "bg-emerald-100 text-emerald-700";
+      return "vr-app-status-success";
     }
     if (status === "Needs human review") {
-      return "bg-rose-100 text-rose-700";
+      return "vr-app-status-danger";
     }
-    return "bg-amber-100 text-amber-700";
+    return "vr-app-status-warning";
   };
 
   return (
@@ -221,8 +221,8 @@ export function ReviewsTabs({
               onClick={() => setActiveTab(tab.key)}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                 active
-                  ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-700 hover:bg-slate-100"
+                  ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+                  : "bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)] border border-[var(--color-border)]"
               }`}
             >
               {tab.label}
@@ -243,24 +243,24 @@ export function ReviewsTabs({
             subtitle="Remaining reviews by connected service"
           >
             {pendingBySource.length === 0 ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <div className="rounded-xl border vr-app-alert vr-app-alert-warning border-0 p-3 text-sm text-inherit">
                 <p className="font-semibold">No review sources found.</p>
-                <p className="mt-1 text-xs text-amber-800">
+                <p className="mt-1 text-xs text-inherit opacity-90">
                   Add and enable review providers, then sync reviews to see pending counts here.
                 </p>
               </div>
             ) : (
-              <div className="space-y-3 text-sm text-slate-700">
+              <div className="space-y-3 text-sm text-[var(--color-text)]">
                 {pendingBySource.map((item) => (
                   <div
                     key={item.source}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 p-3"
+                    className="flex items-center justify-between rounded-xl border border-[var(--color-border)] p-3"
                   >
                     <div>
-                      <p className="font-semibold text-slate-900">{item.source}</p>
-                      <p className="text-xs text-slate-500">{item.autoReady}</p>
+                      <p className="font-semibold text-[var(--color-text)]">{item.source}</p>
+                      <p className="text-xs text-[var(--color-text-muted)]">{item.autoReady}</p>
                     </div>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                    <span className="rounded-full bg-[var(--color-raised)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text)]">
                       {item.pending}
                     </span>
                   </div>
@@ -279,9 +279,9 @@ export function ReviewsTabs({
               subtitle="Prioritized by source, sentiment, rating, and risk"
             >
               {inbox.length === 0 ? (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <div className="rounded-xl border vr-app-alert vr-app-alert-warning border-0 p-3 text-sm text-inherit">
                   <p className="font-semibold">No reviews in inbox yet.</p>
-                  <p className="mt-1 text-xs text-amber-800">
+                  <p className="mt-1 text-xs text-inherit opacity-90">
                     Connect a review provider and run sync to populate pending reviews.
                   </p>
                 </div>
@@ -291,10 +291,10 @@ export function ReviewsTabs({
                   {inbox.map((review) => (
                     <div
                       key={`${review.rating}-${review.quote}-mobile`}
-                      className="rounded-xl border border-slate-200 p-3 text-sm"
+                      className="rounded-xl border border-[var(--color-border)] p-3 text-sm"
                     >
                       <div className="mb-2 flex items-center justify-between gap-2">
-                        <p className="font-semibold text-slate-900">
+                        <p className="font-semibold text-[var(--color-text)]">
                           {review.source} • {review.rating}
                         </p>
                         <span
@@ -303,14 +303,14 @@ export function ReviewsTabs({
                           {review.status}
                         </span>
                       </div>
-                      <p className="text-slate-700">&quot;{review.quote}&quot;</p>
-                      <div className="mt-2 rounded-lg bg-slate-50 p-2 text-xs text-slate-600">
+                      <p className="text-[var(--color-text)]">&quot;{review.quote}&quot;</p>
+                      <div className="mt-2 rounded-lg bg-[var(--color-surface)] p-2 text-xs text-[var(--color-text-muted)]">
                         {review.response}
                       </div>
                       <button
                         type="button"
                         onClick={() => setSelectedReview(review)}
-                        className="mt-3 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                        className="mt-3 rounded-lg border border-[var(--color-border-hover)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
                       >
                         Open
                       </button>
@@ -321,25 +321,25 @@ export function ReviewsTabs({
 
               {inbox.length > 0 ? (
                 <div className="hidden overflow-x-auto md:block">
-                  <table className="min-w-full border-separate border-spacing-0 text-left text-sm text-slate-700">
+                  <table className="min-w-full border-separate border-spacing-0 text-left text-sm text-[var(--color-text)]">
                     <thead>
                       <tr>
-                        <th className="border-b border-slate-200 px-3 py-2 font-semibold text-slate-900">
+                        <th className="border-b border-[var(--color-border)] px-3 py-2 font-semibold text-[var(--color-text)]">
                           Source
                         </th>
-                        <th className="border-b border-slate-200 px-3 py-2 font-semibold text-slate-900">
+                        <th className="border-b border-[var(--color-border)] px-3 py-2 font-semibold text-[var(--color-text)]">
                           Rating
                         </th>
-                        <th className="border-b border-slate-200 px-3 py-2 font-semibold text-slate-900">
+                        <th className="border-b border-[var(--color-border)] px-3 py-2 font-semibold text-[var(--color-text)]">
                           Review
                         </th>
-                        <th className="border-b border-slate-200 px-3 py-2 font-semibold text-slate-900">
+                        <th className="border-b border-[var(--color-border)] px-3 py-2 font-semibold text-[var(--color-text)]">
                           Response
                         </th>
-                        <th className="border-b border-slate-200 px-3 py-2 font-semibold text-slate-900">
+                        <th className="border-b border-[var(--color-border)] px-3 py-2 font-semibold text-[var(--color-text)]">
                           Status
                         </th>
-                        <th className="border-b border-slate-200 px-3 py-2 font-semibold text-slate-900">
+                        <th className="border-b border-[var(--color-border)] px-3 py-2 font-semibold text-[var(--color-text)]">
                           Action
                         </th>
                       </tr>
@@ -348,30 +348,30 @@ export function ReviewsTabs({
                       {inbox.map((review) => {
                         return (
                           <tr key={`${review.rating}-${review.quote}`} className="align-top">
-                            <td className="border-b border-slate-100 px-3 py-3 font-medium text-slate-900">
+                            <td className="border-b border-[var(--color-border-muted)] px-3 py-3 font-medium text-[var(--color-text)]">
                               {review.source}
                             </td>
-                            <td className="border-b border-slate-100 px-3 py-3">
+                            <td className="border-b border-[var(--color-border-muted)] px-3 py-3">
                               {review.rating}
                             </td>
-                            <td className="border-b border-slate-100 px-3 py-3">
+                            <td className="border-b border-[var(--color-border-muted)] px-3 py-3">
                               &quot;{review.quote}&quot;
                             </td>
-                            <td className="border-b border-slate-100 px-3 py-3 text-slate-600">
+                            <td className="border-b border-[var(--color-border-muted)] px-3 py-3 text-[var(--color-text-muted)]">
                               <span className="line-clamp-2">{review.response}</span>
                             </td>
-                            <td className="border-b border-slate-100 px-3 py-3">
+                            <td className="border-b border-[var(--color-border-muted)] px-3 py-3">
                               <span
                                 className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusTone(review.status)}`}
                               >
                                 {review.status}
                               </span>
                             </td>
-                            <td className="border-b border-slate-100 px-3 py-3">
+                            <td className="border-b border-[var(--color-border-muted)] px-3 py-3">
                               <button
                                 type="button"
                                 onClick={() => setSelectedReview(review)}
-                                className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                                className="rounded-lg border border-[var(--color-border-hover)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
                               >
                                 Open
                               </button>
@@ -394,14 +394,14 @@ export function ReviewsTabs({
           <Panel title="Performance Snapshot" subtitle="This week compared to last week">
             <div className="grid gap-3 sm:grid-cols-3 text-sm">
               {performance.map((metric) => (
-                <div key={metric.label} className="rounded-xl border border-slate-200 p-3">
-                  <p className="text-xs uppercase tracking-[0.1em] text-slate-500">
+                <div key={metric.label} className="rounded-xl border border-[var(--color-border)] p-3">
+                  <p className="text-xs uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
                     {metric.label}
                   </p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">{metric.value}</p>
+                  <p className="mt-1 text-lg font-semibold text-[var(--color-text)]">{metric.value}</p>
                   <p
                     className={
-                      metric.delta.startsWith("+") ? "text-rose-700" : "text-emerald-700"
+                      metric.delta.startsWith("+") ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"
                     }
                   >
                     {metric.delta}
@@ -431,27 +431,27 @@ export function ReviewsTabs({
 
       {typeof document !== "undefined" && selectedReview
         ? createPortal(
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4">
-          <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-3 bg-[linear-gradient(120deg,#0f172a,#1e293b)] px-5 py-4 text-white">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-amber-300">
-                  {selectedReview.source} • {selectedReview.rating}
-                </p>
-                <h3 className="mt-1 text-xl font-semibold">Review Response Workspace</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedReview(null)}
-                className="rounded-lg border border-white/30 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
-              >
-                Close
-              </button>
-            </div>
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] p-4">
+              <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]">
+                <div className="vr-app-table-header flex items-start justify-between gap-3 px-5 py-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.1em] opacity-90">
+                      {selectedReview.source} • {selectedReview.rating}
+                    </p>
+                    <h3 className="mt-1 text-xl font-semibold text-white">Review Response Workspace</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedReview(null)}
+                    className="rounded-lg border border-white/30 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
+                  >
+                    Close
+                  </button>
+                </div>
 
-            <div className="space-y-4 p-5 text-sm text-slate-700">
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+            <div className="space-y-4 p-5 text-sm text-[var(--color-text)]">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
                   Current Status
                 </p>
                 <span
@@ -462,34 +462,34 @@ export function ReviewsTabs({
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
                     Customer Review
                   </p>
                   <p className="mt-2 leading-relaxed">&quot;{selectedReview.quote}&quot;</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                <div className="rounded-2xl border border-[var(--color-border)] p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
                     Suggested Response
                   </p>
                   <p className="mt-2 leading-relaxed">{selectedReview.response}</p>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3">
-                <p className="text-xs text-slate-500">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border)] pt-3">
+                <p className="text-xs text-[var(--color-text-muted)]">
                   Source: {selectedReview.source} • Rating: {selectedReview.rating}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                    className="rounded-lg border border-[var(--color-border-hover)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
                   >
                     Edit Response
                   </button>
                   <button
                     type="button"
-                    className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                    className="rounded-lg vr-btn-primary px-3 py-2 text-sm font-semibold"
                   >
                     Approve and Send
                   </button>

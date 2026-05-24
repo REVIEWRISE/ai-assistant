@@ -166,13 +166,13 @@ export function TopHeader({
   const copy = getHeaderCopy(pathname);
 
   return (
-    <header className="sticky top-0 z-10 rounded-t-3xl border-b border-slate-200/80 bg-white/90 px-4 py-3 backdrop-blur lg:px-6">
+    <header className="sticky top-0 z-10 rounded-t-3xl border-b border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg)_92%,transparent)] px-4 py-3 backdrop-blur lg:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-h)]">
             {copy.eyebrow}
           </p>
-          <h2 className="text-lg font-semibold">{copy.title}</h2>
+          <h2 className="text-lg font-semibold text-[var(--color-text)]">{copy.title}</h2>
         </div>
         <div className="flex items-center gap-2">
           {organizations.length > 0 ? (
@@ -186,7 +186,7 @@ export function TopHeader({
               value={activeOrganizationId ?? ""}
               onChange={(e) => onSwitchOrganization?.(e.target.value)}
               disabled={switchingOrganization}
-              className="max-w-[220px] rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="max-w-[220px] rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 text-sm font-medium text-[var(--color-text)] transition hover:bg-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {organizations.map((org) => (
                 <option key={org.id} value={org.id}>
@@ -198,7 +198,7 @@ export function TopHeader({
           <button
             type="button"
             aria-label="Notifications"
-            className="relative rounded-lg border border-slate-300 bg-white p-2 text-slate-700 transition hover:bg-slate-100"
+            className="relative rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface)]"
           >
             <svg
               viewBox="0 0 24 24"
@@ -210,27 +210,27 @@ export function TopHeader({
               <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5" />
               <path d="M9 17a3 3 0 0 0 6 0" />
             </svg>
-            <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-rose-500" />
+            <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[var(--color-danger)]" />
           </button>
           <div className="relative">
             <button
               type="button"
               onClick={onToggleProfile}
-              className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+              className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 text-sm font-medium text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
             >
               {profileAvatar}
               <span className="hidden text-left sm:block">
-                <span className="block text-sm font-semibold text-slate-900">
+                <span className="block text-sm font-semibold text-[var(--color-text)]">
                   {profileName}
                 </span>
-                <span className="block text-[11px] text-slate-500">
+                <span className="block text-[11px] text-[var(--color-text-muted)]">
                   {profileRole ?? "Member"}
                   {profileOrg ? ` • ${profileOrg}` : ""}
                 </span>
               </span>
               <svg
                 viewBox="0 0 24 24"
-                className={`h-4 w-4 text-slate-500 transition ${
+                className={`h-4 w-4 text-[var(--color-text-muted)] transition ${
                   profileOpen ? "rotate-180" : ""
                 }`}
                 fill="none"
@@ -241,27 +241,27 @@ export function TopHeader({
               </svg>
             </button>
             {profileOpen ? (
-              <div className="absolute right-0 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-                <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-sm font-semibold text-slate-900">{profileName}</p>
-                  <p className="text-xs text-slate-500">{profileEmail ?? "user@example.com"}</p>
+              <div className="absolute right-0 mt-2 w-64 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]">
+                <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
+                  <p className="text-sm font-semibold text-[var(--color-text)]">{profileName}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{profileEmail ?? "user@example.com"}</p>
                 </div>
                 {showProfilePageLink ? (
                   <div className="p-1.5">
                     <Link
                       href="/profile"
                       onClick={onCloseProfile}
-                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
                     >
                       View Profile
                     </Link>
                   </div>
                 ) : null}
-                <div className="border-t border-slate-200 p-1.5">
+                <div className="border-t border-[var(--color-border)] p-1.5">
                 <Link
                   href="/logout"
                   onClick={onCloseProfile}
-                  className="block rounded-xl px-3 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-50"
+                  className="block rounded-xl px-3 py-2 text-sm font-medium text-[var(--color-danger)] transition hover:bg-[var(--color-danger-soft)]"
                 >
                     Log out
                   </Link>
@@ -279,7 +279,9 @@ export function TopHeader({
               key={`${item.href}-mobile`}
               href={item.href}
               className={`rounded-full px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
-                active ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"
+                active
+                  ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+                  : "bg-[var(--color-surface)] text-[var(--color-text)]"
               }`}
             >
               {item.shortLabel}

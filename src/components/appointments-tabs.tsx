@@ -188,18 +188,18 @@ function formatAppointmentSlot(startIso: string, endIso: string): string {
 
 function statusDotClass(status: string): string {
   const s = status.toLowerCase();
-  if (s === "booked" || s === "confirmed") return "bg-emerald-500";
-  if (s === "pending" || s === "requested") return "bg-amber-500";
-  if (s === "cancelled") return "bg-slate-400";
-  return "bg-slate-400";
+  if (s === "booked" || s === "confirmed") return "bg-[var(--color-success)]";
+  if (s === "pending" || s === "requested") return "bg-[var(--color-warning)]";
+  if (s === "cancelled") return "bg-[var(--color-text-subtle)]";
+  return "bg-[var(--color-text-subtle)]";
 }
 
 function statusBadgeClass(status: string): string {
   const s = status.toLowerCase();
-  if (s === "booked" || s === "confirmed") return "bg-emerald-100 text-emerald-800";
-  if (s === "pending" || s === "requested") return "bg-amber-100 text-amber-900";
-  if (s === "cancelled") return "bg-slate-200 text-slate-700";
-  return "bg-slate-100 text-slate-700";
+  if (s === "booked" || s === "confirmed") return "vr-app-status-success";
+  if (s === "pending" || s === "requested") return "vr-app-status-warning";
+  if (s === "cancelled") return "vr-app-status-muted";
+  return "vr-app-status-muted";
 }
 
 /** Guest name or contact from synthetic chatbot booking lines (`name is …`, usually last). */
@@ -383,11 +383,11 @@ function BookedViewModeSwitch({
   ];
 
   return (
-    <div className="rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50 via-white to-slate-50/80 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(15,23,42,0.04)]">
+    <div className="rounded-2xl border border-[var(--color-border)] bg-gradient-to-b from-[var(--color-surface)] via-[var(--color-bg)] to-[var(--color-surface)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(15,23,42,0.04)]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-        <div className="shrink-0 sm:max-w-[9.5rem] sm:border-r sm:border-slate-200/80 sm:pr-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">View</p>
-          <p className="mt-0.5 text-xs font-medium leading-snug text-slate-600">Layout for booked times</p>
+        <div className="shrink-0 sm:max-w-[9.5rem] sm:border-r sm:border-[var(--color-border)] sm:pr-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-subtle)]">View</p>
+          <p className="mt-0.5 text-xs font-medium leading-snug text-[var(--color-text-muted)]">Layout for booked times</p>
         </div>
         <div
           className="grid min-w-0 flex-1 grid-cols-2 gap-2"
@@ -405,28 +405,28 @@ function BookedViewModeSwitch({
                 onClick={() => onChange(mode)}
                 className={`group relative flex flex-col items-stretch rounded-xl px-3 py-2.5 text-left transition-all duration-200 sm:flex-row sm:items-center sm:gap-3 sm:py-2.5 sm:pl-3 sm:pr-3.5 ${
                   selected
-                    ? "bg-white shadow-[0_1px_3px_rgba(15,23,42,0.08),0_0_0_1px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/90"
-                    : "hover:bg-white/70"
-                } focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500`}
+                    ? "bg-[var(--color-bg)] shadow-[0_1px_3px_rgba(15,23,42,0.08),0_0_0_1px_rgba(15,23,42,0.06)] ring-1 ring-[var(--color-border)]"
+                    : "hover:bg-[var(--color-bg)]/70"
+                } focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]`}
               >
                 <span
                   className={`mb-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors sm:mb-0 ${
                     selected
-                      ? "border-emerald-200/90 bg-emerald-50 text-emerald-700"
-                      : "border-slate-200/80 bg-slate-50/90 text-slate-400 group-hover:border-slate-300 group-hover:bg-white group-hover:text-slate-600"
+                      ? "border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]"
+                      : "border-[var(--color-border)] bg-[var(--color-surface)]/90 text-[var(--color-text-subtle)] group-hover:border-[var(--color-border-hover)] group-hover:bg-[var(--color-bg)] group-hover:text-[var(--color-text-muted)]"
                   }`}
                 >
                   <Icon className="shrink-0" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span
-                    className={`text-sm font-semibold tracking-tight ${selected ? "text-slate-900" : "text-slate-700 group-hover:text-slate-900"}`}
+                    className={`text-sm font-semibold tracking-tight ${selected ? "text-[var(--color-text)]" : "text-[var(--color-text)] group-hover:text-[var(--color-text)]"}`}
                   >
                     {label}
                   </span>
                   <span
                     className={`mt-0.5 block text-[11px] font-medium leading-snug ${
-                      selected ? "text-slate-500" : "text-slate-500 group-hover:text-slate-600"
+                      selected ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-muted)] group-hover:text-[var(--color-text-muted)]"
                     }`}
                   >
                     {hint}
@@ -456,7 +456,7 @@ function CalendarPeriodModeSwitch({
 
   return (
     <div
-      className="rounded-xl border border-slate-200/90 bg-slate-50/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]"
+      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]"
       role="radiogroup"
       aria-label="Calendar time range"
     >
@@ -473,14 +473,14 @@ function CalendarPeriodModeSwitch({
               onClick={() => onChange(key)}
               className={`rounded-lg px-2 py-2 text-center transition sm:px-3 ${
                 selected
-                  ? "bg-white font-semibold text-slate-900 shadow-sm ring-1 ring-slate-200/90"
-                  : "text-xs font-medium text-slate-600 hover:bg-white/80 hover:text-slate-900 sm:text-sm"
-              } focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500`}
+                  ? "bg-[var(--color-primary)] font-semibold text-[var(--color-primary-fg)] shadow-sm ring-1 ring-[color-mix(in_srgb,var(--color-primary)_35%,transparent)]"
+                  : "text-xs font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-h)] sm:text-sm"
+              } focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]`}
             >
               <span className="block truncate">{label}</span>
               <span
                 className={`mt-0.5 hidden text-[10px] font-normal leading-tight sm:block ${
-                  selected ? "text-slate-500" : "text-slate-400"
+                  selected ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-subtle)]"
                 }`}
               >
                 {hint}
@@ -577,7 +577,7 @@ function BookedAppointmentsPanel({
         title="Booked appointments"
         subtitle="Reservations from your chatbot and other sources appear here once guests pick a time."
       >
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
+        <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
           No appointments yet. When visitors book through your embedded chatbot, they will appear here.
         </div>
       </Panel>
@@ -596,7 +596,7 @@ function BookedAppointmentsPanel({
           <>
             <CalendarPeriodModeSwitch value={calendarPeriodMode} onChange={setCalendarPeriodMode} />
 
-            <div className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 px-3 py-2.5 shadow-sm">
+            <div className="flex items-center justify-between gap-2 rounded-2xl border border-[var(--color-border)] bg-gradient-to-b from-[var(--color-bg)] to-[var(--color-surface)] px-3 py-2.5 shadow-sm">
               <button
                 type="button"
                 onClick={() => {
@@ -609,7 +609,7 @@ function BookedAppointmentsPanel({
                     setCalendarFocus((prev) => addCalendarDays(prev, -1));
                   }
                 }}
-                className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-100"
+                className="shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] shadow-sm hover:bg-[var(--color-raised)]"
               >
                 ← Prev
               </button>
@@ -621,7 +621,7 @@ function BookedAppointmentsPanel({
                   setCalendarFocus(new Date());
                   setSelectedDateKey(null);
                 }}
-                className="min-w-0 max-w-[46%] flex-1 truncate rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-center text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-100 sm:max-w-none sm:flex-none sm:px-3"
+                className="min-w-0 max-w-[46%] flex-1 truncate rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-center text-xs font-semibold text-[var(--color-text)] shadow-sm hover:bg-[var(--color-raised)] sm:max-w-none sm:flex-none sm:px-3"
               >
                 {currentPeriodJumpButtonLabel(calendarPeriodMode, calendarFocus)}
               </button>
@@ -637,7 +637,7 @@ function BookedAppointmentsPanel({
                     setCalendarFocus((prev) => addCalendarDays(prev, 1));
                   }
                 }}
-                className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-100"
+                className="shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] shadow-sm hover:bg-[var(--color-raised)]"
               >
                 Next →
               </button>
@@ -645,7 +645,7 @@ function BookedAppointmentsPanel({
 
             {calendarPeriodMode === "month" ? (
               <>
-                <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
                   {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
                     <div key={day} className="py-1">
                       {day}
@@ -653,7 +653,7 @@ function BookedAppointmentsPanel({
                   ))}
                 </div>
 
-                <div className="grid grid-cols-7 gap-1.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-1.5">
+                <div className="grid grid-cols-7 gap-1.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 p-1.5">
                   {gridDays.map((day) => {
                     const key = dateKeyLocal(day.toISOString());
                     const dayRows = rowsByDate.get(key) ?? [];
@@ -674,36 +674,36 @@ function BookedAppointmentsPanel({
                         }}
                         className={`min-h-[7.25rem] rounded-xl border px-2 py-1.5 text-left transition ${
                           isSelected
-                            ? "border-slate-900 bg-slate-100 shadow-sm ring-1 ring-slate-200"
-                            : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-                        } ${inMonth ? "text-slate-900" : "text-slate-400/80"}`}
+                            ? "border-[color-mix(in_srgb,var(--color-primary)_45%,var(--color-border))] bg-[var(--color-primary-soft)] shadow-sm ring-1 ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
+                            : "border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface)]"
+                        } ${inMonth ? "text-[var(--color-text)]" : "text-[var(--color-text-subtle)]/80"}`}
                       >
                         <div className="flex items-center justify-between">
-                          <p className={`text-xs font-semibold ${isToday ? "text-emerald-700" : ""}`}>{day.getDate()}</p>
+                          <p className={`text-xs font-semibold ${isToday ? "text-[var(--color-success)]" : ""}`}>{day.getDate()}</p>
                           {dayRows.length > 0 ? (
-                            <span className="rounded-full bg-slate-900 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                            <span className="rounded-full bg-[var(--color-primary)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-primary-fg)]">
                               {dayRows.length}
                             </span>
                           ) : null}
                         </div>
                         {dayRows.length > 0 ? (
                           <div className="mt-2 space-y-1">
-                            <p className="line-clamp-1 text-[11px] font-medium text-slate-700">
+                            <p className="line-clamp-1 text-[11px] font-medium text-[var(--color-text)]">
                               {calendarCellTitle(dayRows[0])}
                             </p>
                             {dayRows[0].bookingFlowQa && dayRows[0].bookingFlowQa.length > 0 ? (
-                              <p className="line-clamp-1 text-[9px] leading-snug text-slate-600">
-                                <span className="font-semibold text-slate-700">{dayRows[0].bookingFlowQa[0].question}</span>
-                                <span className="text-slate-400"> → </span>
+                              <p className="line-clamp-1 text-[9px] leading-snug text-[var(--color-text-muted)]">
+                                <span className="font-semibold text-[var(--color-text)]">{dayRows[0].bookingFlowQa[0].question}</span>
+                                <span className="text-[var(--color-text-subtle)]"> → </span>
                                 <span>{dayRows[0].bookingFlowQa[0].answer}</span>
-                                {dayRows[0].bookingFlowQa.length > 1 ? <span className="text-slate-400"> ...</span> : null}
+                                {dayRows[0].bookingFlowQa.length > 1 ? <span className="text-[var(--color-text-subtle)]"> ...</span> : null}
                               </p>
                             ) : null}
                             <div className="flex items-center gap-1">
                               {dayRows.slice(0, 3).map((row) => (
                                 <span key={row.id} className={`h-1.5 w-1.5 rounded-full ${statusDotClass(row.displayStatus)}`} />
                               ))}
-                              {dayRows.length > 3 ? <span className="text-[10px] text-slate-500">+{dayRows.length - 3}</span> : null}
+                              {dayRows.length > 3 ? <span className="text-[10px] text-[var(--color-text-muted)]">+{dayRows.length - 3}</span> : null}
                             </div>
                           </div>
                         ) : null}
@@ -716,7 +716,7 @@ function BookedAppointmentsPanel({
 
             {calendarPeriodMode === "week" ? (
               <>
-                <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
                   {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
                     <div key={day} className="py-1">
                       {day}
@@ -725,7 +725,7 @@ function BookedAppointmentsPanel({
                 </div>
 
                 <div className="overflow-x-auto pb-1">
-                  <div className="grid min-w-[36rem] grid-cols-7 gap-1.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-1.5 sm:min-w-0">
+                  <div className="grid min-w-[36rem] grid-cols-7 gap-1.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 p-1.5 sm:min-w-0">
                     {weekDays.map((day) => {
                       const key = dateKeyLocal(day.toISOString());
                       const dayRows = rowsByDate.get(key) ?? [];
@@ -745,16 +745,16 @@ function BookedAppointmentsPanel({
                           }}
                           className={`min-h-[9.5rem] rounded-xl border px-1.5 py-1.5 text-left transition sm:px-2 ${
                             isSelected
-                              ? "border-slate-900 bg-slate-100 shadow-sm ring-1 ring-slate-200"
-                              : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-                          } text-slate-900`}
+                              ? "border-[color-mix(in_srgb,var(--color-primary)_45%,var(--color-border))] bg-[var(--color-primary-soft)] shadow-sm ring-1 ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
+                              : "border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface)]"
+                          } text-[var(--color-text)]`}
                         >
                           <div className="flex items-center justify-between gap-1">
-                            <p className={`text-[11px] font-bold tabular-nums ${isToday ? "text-emerald-700" : "text-slate-800"}`}>
+                            <p className={`text-[11px] font-bold tabular-nums ${isToday ? "text-[var(--color-success)]" : "text-[var(--color-text)]"}`}>
                               {day.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                             </p>
                             {dayRows.length > 0 ? (
-                              <span className="shrink-0 rounded-full bg-slate-900 px-1 py-0.5 text-[9px] font-semibold text-white">
+                              <span className="shrink-0 rounded-full bg-[var(--color-primary)] px-1 py-0.5 text-[9px] font-semibold text-[var(--color-primary-fg)]">
                                 {dayRows.length}
                               </span>
                             ) : null}
@@ -762,19 +762,19 @@ function BookedAppointmentsPanel({
                           {dayRows.length > 0 ? (
                             <div className="mt-2 space-y-1.5">
                               {dayRows.slice(0, 5).map((row) => (
-                                <div key={row.id} className="rounded-md bg-slate-50/90 px-1 py-0.5">
-                                  <p className="truncate text-[9px] font-semibold tabular-nums text-slate-700">
+                                <div key={row.id} className="rounded-md bg-[var(--color-surface)]/90 px-1 py-0.5">
+                                  <p className="truncate text-[9px] font-semibold tabular-nums text-[var(--color-text)]">
                                     {formatListTime(row.startTime)}
                                   </p>
-                                  <p className="truncate text-[9px] font-medium text-slate-600">{calendarCellTitle(row)}</p>
+                                  <p className="truncate text-[9px] font-medium text-[var(--color-text-muted)]">{calendarCellTitle(row)}</p>
                                 </div>
                               ))}
                               {dayRows.length > 5 ? (
-                                <p className="text-[9px] font-semibold text-slate-500">+{dayRows.length - 5} more</p>
+                                <p className="text-[9px] font-semibold text-[var(--color-text-muted)]">+{dayRows.length - 5} more</p>
                               ) : null}
                             </div>
                           ) : (
-                            <p className="mt-3 text-[10px] font-medium text-slate-400">—</p>
+                            <p className="mt-3 text-[10px] font-medium text-[var(--color-text-subtle)]">—</p>
                           )}
                         </button>
                       );
@@ -785,7 +785,7 @@ function BookedAppointmentsPanel({
             ) : null}
 
             {calendarPeriodMode === "day" ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 sm:p-4">
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 p-3 sm:p-4">
                 {(() => {
                   const dayKey = dateKeyLocal(calendarFocus.toISOString());
                   const dayRowsSorted = [...(rowsByDate.get(dayKey) ?? [])].sort(
@@ -797,25 +797,25 @@ function BookedAppointmentsPanel({
                   const isToday = dayKey === todayKey;
                   return (
                     <div className="space-y-3">
-                      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200/80 pb-3">
+                      <div className="flex flex-wrap items-center gap-3 border-b border-[var(--color-border)] pb-3">
                         {parts ? (
                           <div
                             className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl border text-center shadow-sm ${
                               isToday
-                                ? "border-emerald-200/90 bg-gradient-to-b from-emerald-50 to-white text-emerald-900"
-                                : "border-slate-200/90 bg-white text-slate-900"
+                                ? "border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] bg-gradient-to-b from-[var(--color-success-soft)] to-[var(--color-bg)] text-[var(--color-success)]"
+                                : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)]"
                             }`}
                           >
-                            <span className="text-[9px] font-bold uppercase leading-none text-slate-500">{parts.monthShort}</span>
+                            <span className="text-[9px] font-bold uppercase leading-none text-[var(--color-text-muted)]">{parts.monthShort}</span>
                             <span className="text-lg font-bold tabular-nums leading-tight">{parts.dayNum}</span>
                           </div>
                         ) : null}
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-slate-900 sm:text-base">{parts?.titleLong ?? dayKey}</p>
+                          <p className="text-sm font-semibold text-[var(--color-text)] sm:text-base">{parts?.titleLong ?? dayKey}</p>
                           {relative ? (
                             <span
                               className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                                isToday ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
+                                isToday ? "bg-[var(--color-success-soft)] text-[var(--color-success)]" : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
                               }`}
                             >
                               {relative}
@@ -824,7 +824,7 @@ function BookedAppointmentsPanel({
                         </div>
                       </div>
                       {dayRowsSorted.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-600">
+                        <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
                           No bookings on this date. Use Prev / Next, or jump to today (
                           {currentPeriodJumpButtonLabel(calendarPeriodMode, new Date())}).
                         </div>
@@ -839,19 +839,19 @@ function BookedAppointmentsPanel({
                                   setSelectedDateKey(dayKey);
                                   setOpenDateKey(dayKey);
                                 }}
-                                className="flex w-full gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+                                className="flex w-full gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 text-left shadow-sm transition hover:border-[var(--color-border-hover)] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
                               >
-                                <div className="flex w-[4.5rem] shrink-0 flex-col items-end justify-center border-r border-slate-100 pr-3 text-right">
-                                  <span className="text-xs font-bold tabular-nums text-slate-900">
+                                <div className="flex w-[4.5rem] shrink-0 flex-col items-end justify-center border-r border-[var(--color-border-muted)] pr-3 text-right">
+                                  <span className="text-xs font-bold tabular-nums text-[var(--color-text)]">
                                     {formatListTime(row.startTime)}
                                   </span>
-                                  <span className="text-[10px] font-semibold tabular-nums text-slate-400">
+                                  <span className="text-[10px] font-semibold tabular-nums text-[var(--color-text-subtle)]">
                                     {formatListTime(row.endTime)}
                                   </span>
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <div className="flex flex-wrap items-start justify-between gap-2">
-                                    <p className="font-semibold text-slate-900">{displayBookedCustomerName(row)}</p>
+                                    <p className="font-semibold text-[var(--color-text)]">{displayBookedCustomerName(row)}</p>
                                     <span
                                       className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusBadgeClass(row.displayStatus)}`}
                                     >
@@ -871,9 +871,9 @@ function BookedAppointmentsPanel({
             ) : null}
 
             {activeDateKey ? (
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-[var(--color-text-muted)]">
                 {calendarPeriodMode === "day" ? "Focus date" : "Selected date"}:{" "}
-                <span className="font-semibold text-slate-800">
+                <span className="font-semibold text-[var(--color-text)]">
                   {new Date(activeDateKey).toLocaleDateString(undefined, {
                     weekday: "long",
                     month: "short",
@@ -886,7 +886,7 @@ function BookedAppointmentsPanel({
                 {(rowsByDate.get(activeDateKey)?.length ?? 0) === 1 ? "" : "s"}
               </p>
             ) : (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[var(--color-text-muted)]">
                 {calendarPeriodMode === "month"
                   ? "No bookings to highlight in this month—pick a date on the grid or switch range."
                   : calendarPeriodMode === "week"
@@ -896,52 +896,52 @@ function BookedAppointmentsPanel({
             )}
           </>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50/95 via-white to-slate-50/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_1px_2px_rgba(15,23,42,0.04)]">
+          <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-gradient-to-b from-[var(--color-surface)] via-[var(--color-bg)] to-[var(--color-surface)] shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_1px_2px_rgba(15,23,42,0.04)]">
             <div className="max-h-[min(70vh,42rem)] overflow-y-auto">
-              <div className="divide-y divide-slate-200/70">
+              <div className="divide-y divide-[var(--color-border-muted)]">
                 {listSections.map((section) => {
                   const parts = dateKeyDisplayParts(section.dateKey);
                   const relative = relativeListDayHint(section.dateKey);
                   const isToday = relative === "Today";
                   return (
-                    <div key={section.dateKey} className="bg-white/40 px-3 py-4 sm:px-4">
-                      <div className="sticky top-0 z-[1] -mx-3 mb-3 border-b border-slate-200/80 bg-gradient-to-b from-white/98 to-white/90 px-3 py-3 backdrop-blur-md sm:-mx-4 sm:px-4">
+                    <div key={section.dateKey} className="bg-[var(--color-bg)]/40 px-3 py-4 sm:px-4">
+                      <div className="sticky top-0 z-[1] -mx-3 mb-3 border-b border-[var(--color-border)] bg-gradient-to-b from-[color-mix(in_srgb,var(--color-bg)_98%,transparent)] to-[color-mix(in_srgb,var(--color-bg)_90%,transparent)] px-3 py-3 backdrop-blur-md sm:-mx-4 sm:px-4">
                         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                           {parts ? (
                             <div
                               className={`flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl border text-center shadow-sm ${
                                 isToday
-                                  ? "border-emerald-200/90 bg-gradient-to-b from-emerald-50 to-white text-emerald-900"
-                                  : "border-slate-200/90 bg-gradient-to-b from-slate-50 to-white text-slate-900"
+                                  ? "border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] bg-gradient-to-b from-[var(--color-success-soft)] to-[var(--color-bg)] text-[var(--color-success)]"
+                                  : "border-[var(--color-border)] bg-gradient-to-b from-[var(--color-surface)] to-[var(--color-bg)] text-[var(--color-text)]"
                               }`}
                             >
-                              <span className="text-[10px] font-bold uppercase leading-none tracking-wide text-slate-500">
+                              <span className="text-[10px] font-bold uppercase leading-none tracking-wide text-[var(--color-text-muted)]">
                                 {parts.monthShort}
                               </span>
                               <span className="text-xl font-bold tabular-nums leading-tight">{parts.dayNum}</span>
-                              <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">
+                              <span className="text-[9px] font-semibold uppercase tracking-wider text-[var(--color-text-subtle)]">
                                 {parts.weekdayShort}
                               </span>
                             </div>
                           ) : null}
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h4 className="text-sm font-semibold leading-snug text-slate-900 sm:text-base">
+                              <h4 className="text-sm font-semibold leading-snug text-[var(--color-text)] sm:text-base">
                                 {parts?.titleLong ?? section.heading}
                               </h4>
                               {relative ? (
                                 <span
                                   className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
                                     isToday
-                                      ? "bg-emerald-100 text-emerald-800"
-                                      : "bg-slate-100 text-slate-600"
+                                      ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
+                                      : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
                                   }`}
                                 >
                                   {relative}
                                 </span>
                               ) : null}
                             </div>
-                            <p className="mt-1 text-xs font-medium text-slate-500">
+                            <p className="mt-1 text-xs font-medium text-[var(--color-text-muted)]">
                               {section.rows.length} booking{section.rows.length === 1 ? "" : "s"} scheduled
                             </p>
                           </div>
@@ -958,26 +958,26 @@ function BookedAppointmentsPanel({
                                 setOpenDateKey(section.dateKey);
                                 setSelectedDateKey(section.dateKey);
                               }}
-                              className="group flex w-full gap-0 rounded-2xl border border-slate-200/80 bg-white/90 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-slate-300 hover:bg-white hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 sm:gap-1"
+                              className="group flex w-full gap-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]/90 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-[var(--color-border-hover)] hover:bg-[var(--color-bg)] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)] sm:gap-1"
                             >
                               <div
-                                className={`flex w-[4.75rem] shrink-0 flex-col justify-center gap-0.5 border-r border-slate-100 bg-slate-50/80 px-3 py-3.5 text-right sm:w-[5.25rem] ${
+                                className={`flex w-[4.75rem] shrink-0 flex-col justify-center gap-0.5 border-r border-[var(--color-border-muted)] bg-[var(--color-surface)]/80 px-3 py-3.5 text-right sm:w-[5.25rem] ${
                                   row.displayStatus.toLowerCase() === "cancelled"
                                     ? "opacity-75"
                                     : ""
                                 }`}
                               >
-                                <span className="text-xs font-bold tabular-nums text-slate-900">
+                                <span className="text-xs font-bold tabular-nums text-[var(--color-text)]">
                                   {formatListTime(row.startTime)}
                                 </span>
-                                <span className="text-[10px] font-semibold tabular-nums text-slate-400">
+                                <span className="text-[10px] font-semibold tabular-nums text-[var(--color-text-subtle)]">
                                   {formatListTime(row.endTime)}
                                 </span>
                               </div>
                               <div className="flex min-w-0 flex-1 items-center gap-2 py-3 pl-3 pr-2 sm:gap-3 sm:py-3.5 sm:pl-4 sm:pr-2">
                                 <div className="min-w-0 flex-1">
                                   <div className="flex flex-wrap items-start justify-between gap-2">
-                                    <p className="font-semibold leading-snug text-slate-900">
+                                    <p className="font-semibold leading-snug text-[var(--color-text)]">
                                       {displayBookedCustomerName(row)}
                                     </p>
                                     <span
@@ -987,14 +987,14 @@ function BookedAppointmentsPanel({
                                     </span>
                                   </div>
                                   {row.bookingFlowQa && row.bookingFlowQa.length > 0 ? (
-                                    <p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-slate-500">
-                                      <span className="font-semibold text-slate-600">
+                                    <p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-[var(--color-text-muted)]">
+                                      <span className="font-semibold text-[var(--color-text-muted)]">
                                         {row.bookingFlowQa[0].question}
                                       </span>
-                                      <span className="text-slate-400"> · </span>
+                                      <span className="text-[var(--color-text-subtle)]"> · </span>
                                       <span>{row.bookingFlowQa[0].answer}</span>
                                       {row.bookingFlowQa.length > 1 ? (
-                                        <span className="text-slate-400"> (+{row.bookingFlowQa.length - 1} more)</span>
+                                        <span className="text-[var(--color-text-subtle)]"> (+{row.bookingFlowQa.length - 1} more)</span>
                                       ) : null}
                                     </p>
                                   ) : null}
@@ -1003,7 +1003,7 @@ function BookedAppointmentsPanel({
                                   className="flex shrink-0 items-center pr-1 sm:pr-2"
                                   aria-hidden
                                 >
-                                  <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/90 bg-slate-50/90 text-slate-400 transition group-hover:border-slate-300 group-hover:bg-white group-hover:text-slate-600">
+                                  <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/90 text-[var(--color-text-subtle)] transition group-hover:border-[var(--color-border-hover)] group-hover:bg-[var(--color-bg)] group-hover:text-[var(--color-text-muted)]">
                                     <ListDetailsChevron className="shrink-0" />
                                   </span>
                                 </div>
@@ -1024,12 +1024,12 @@ function BookedAppointmentsPanel({
       {openDateKey && typeof document !== "undefined"
         ? createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] p-4"
           onClick={() => setOpenDateKey(null)}
           role="presentation"
         >
           <div
-            className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-5"
+            className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-[var(--color-bg)] p-4 shadow-2xl sm:p-5"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -1037,10 +1037,10 @@ function BookedAppointmentsPanel({
           >
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
                   Booked details
                 </p>
-                <h3 className="mt-1 text-lg font-semibold text-slate-900">
+                <h3 className="mt-1 text-lg font-semibold text-[var(--color-text)]">
                   {new Date(openDateKey).toLocaleDateString(undefined, {
                     weekday: "long",
                     month: "short",
@@ -1048,7 +1048,7 @@ function BookedAppointmentsPanel({
                     year: "numeric",
                   })}
                 </h3>
-                <p className="mt-0.5 text-xs text-slate-600">
+                <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
                   {modalRows.length} booking{modalRows.length === 1 ? "" : "s"}
                 </p>
               </div>
@@ -1056,7 +1056,7 @@ function BookedAppointmentsPanel({
                 type="button"
                 onClick={() => setOpenDateKey(null)}
                 aria-label="Close modal"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-text)] hover:bg-[var(--color-raised)]"
               >
                 <span aria-hidden className="text-base leading-none">
                   ×
@@ -1065,32 +1065,32 @@ function BookedAppointmentsPanel({
             </div>
 
             {modalRows.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600">
+              <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-4 text-sm text-[var(--color-text-muted)]">
                 No bookings on this date.
               </div>
             ) : (
               <div className="space-y-2">
                 {modalRows.map((row) => (
-                  <div key={row.id} className="rounded-xl border border-slate-200 bg-white px-3 py-3">
+                  <div key={row.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-semibold text-slate-900">{displayBookedCustomerName(row)}</p>
+                      <p className="font-semibold text-[var(--color-text)]">{displayBookedCustomerName(row)}</p>
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(row.displayStatus)}`}
                       >
                         {row.displayStatus}
                       </span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-600">{formatAppointmentSlot(row.startTime, row.endTime)}</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">{formatAppointmentSlot(row.startTime, row.endTime)}</p>
                     {row.bookingFlowQa && row.bookingFlowQa.length > 0 ? (
-                      <div className="mt-3 border-t border-slate-100 pt-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                      <div className="mt-3 border-t border-[var(--color-border-muted)] pt-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
                           Booking flow
                         </p>
                         <dl className="mt-2 space-y-2.5">
                           {row.bookingFlowQa.map((qa, i) => (
                             <div key={i}>
-                              <dt className="text-xs font-semibold leading-snug text-slate-700">{qa.question}</dt>
-                              <dd className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-900">
+                              <dt className="text-xs font-semibold leading-snug text-[var(--color-text)]">{qa.question}</dt>
+                              <dd className="mt-0.5 whitespace-pre-wrap break-words text-sm text-[var(--color-text)]">
                                 {qa.answer}
                               </dd>
                             </div>
@@ -1126,8 +1126,8 @@ function ChartTooltip({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-lg">
-      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 shadow-lg">
+      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
         {label}
       </p>
       <div className="mt-1 space-y-1">
@@ -1137,8 +1137,8 @@ function ChartTooltip({
               className="h-2.5 w-2.5 rounded-full"
               style={{ backgroundColor: entry.color ?? "#94a3b8" }}
             />
-            <span className="font-medium text-slate-700">{entry.name}:</span>
-            <span className="font-semibold text-slate-900">{entry.value}</span>
+            <span className="font-medium text-[var(--color-text)]">{entry.name}:</span>
+            <span className="font-semibold text-[var(--color-text)]">{entry.value}</span>
           </p>
         ))}
       </div>
@@ -1177,8 +1177,8 @@ export function AppointmentsTabs({
               onClick={() => setActiveTab(tab.key)}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                 active
-                  ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-700 hover:bg-slate-100"
+                  ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+                  : "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)]"
               }`}
             >
               {tab.label}
@@ -1202,21 +1202,21 @@ export function AppointmentsTabs({
             subtitle="Incoming scheduling load by connected provider"
           >
             {providerLoad.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+              <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
                 No provider load data yet.
               </div>
             ) : (
-              <div className="space-y-3 text-sm text-slate-700">
+              <div className="space-y-3 text-sm text-[var(--color-text)]">
                 {providerLoad.map((item) => (
                   <div
                     key={item.provider}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 p-3"
+                    className="flex items-center justify-between rounded-xl border border-[var(--color-border)] p-3"
                   >
                     <div>
-                      <p className="font-semibold text-slate-900">{item.provider}</p>
-                      <p className="text-xs text-slate-500">{item.note}</p>
+                      <p className="font-semibold text-[var(--color-text)]">{item.provider}</p>
+                      <p className="text-xs text-[var(--color-text-muted)]">{item.note}</p>
                     </div>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                    <span className="rounded-full bg-[var(--color-raised)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text)]">
                       {item.requests}
                     </span>
                   </div>
@@ -1230,26 +1230,26 @@ export function AppointmentsTabs({
       {activeTab === "analytics" ? (
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Last 30 days</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-900">
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Last 30 days</p>
+              <p className="mt-1 text-2xl font-semibold text-[var(--color-text)]">
                 {appointmentAnalytics.totalLast30Days}
               </p>
-              <p className="mt-0.5 text-xs text-slate-600">Bookings recorded</p>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">Bookings recorded</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">On calendar</p>
-              <p className="mt-1 text-2xl font-semibold text-emerald-800">
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">On calendar</p>
+              <p className="mt-1 text-2xl font-semibold text-[var(--color-success)]">
                 {appointmentAnalytics.postedToCalendarLast30Days}
               </p>
-              <p className="mt-0.5 text-xs text-slate-600">Synced or has external event</p>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">Synced or has external event</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Not on calendar</p>
-              <p className="mt-1 text-2xl font-semibold text-amber-900">
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Not on calendar</p>
+              <p className="mt-1 text-2xl font-semibold text-[var(--color-warning)]">
                 {appointmentAnalytics.awaitingCalendarLast30Days}
               </p>
-              <p className="mt-0.5 text-xs text-slate-600">Pending post or sync issue</p>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">Pending post or sync issue</p>
             </div>
           </div>
 
@@ -1258,11 +1258,11 @@ export function AppointmentsTabs({
             subtitle="Last 7 days (UTC): new bookings recorded vs posted to a connected calendar that day"
           >
             {showTrendPlaceholder ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+              <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
                 No bookings yet. When guests book through your chatbot, daily counts will appear in this chart.
               </div>
             ) : (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
                 <div className="h-72 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart

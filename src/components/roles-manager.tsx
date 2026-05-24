@@ -49,51 +49,51 @@ export function RolesManager({
   return (
     <Panel title="Role Inventory" subtitle="Create, edit, and remove roles">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-[var(--color-text-muted)]">
           Roles control which menus and permissions are available.
         </p>
         <button
           type="button"
           onClick={() => setModal({ type: "create" })}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+          className="rounded-xl vr-btn-primary px-4 py-2 text-sm font-semibold"
         >
           Add Role
         </button>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="hidden grid-cols-[80px_1fr_160px_160px] items-center gap-2 bg-[linear-gradient(120deg,#0f172a,#1e293b_55%,#334155)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-200 md:grid">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+        <div className="vr-app-table-header hidden grid-cols-[80px_1fr_160px_160px] items-center gap-2 px-4 py-3 md:grid">
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-amber-300" />
+            <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]" />
             Index
           </div>
           <div>Role Name</div>
           <div>Created</div>
           <div className="text-right">Actions</div>
         </div>
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-[var(--color-border-muted)]">
           {pagedRoles.map((role, index) => (
             <div
               key={role.id}
-              className="group grid items-center gap-2 px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50 md:grid-cols-[80px_1fr_160px_160px]"
+              className="group grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] md:grid-cols-[80px_1fr_160px_160px]"
             >
-              <div className="text-xs font-semibold text-slate-500 md:text-sm">
-                <span className="inline-flex min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-600">
+              <div className="text-xs font-semibold text-[var(--color-text-muted)] md:text-sm">
+                <span className="inline-flex min-w-[44px] items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
                   {String((currentPage - 1) * perPage + index + 1).padStart(2, "0")}
                 </span>
               </div>
               <div>
-                <p className="font-semibold text-slate-900">{role.name}</p>
-                <p className="text-xs text-slate-500">Access control</p>
+                <p className="font-semibold text-[var(--color-text)]">{role.name}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">Access control</p>
               </div>
-              <div className="text-xs font-semibold text-slate-600">
+              <div className="text-xs font-semibold text-[var(--color-text-muted)]">
                 {new Date(role.createdAt).toLocaleDateString()}
               </div>
               <div className="flex items-center justify-start gap-2 md:justify-end">
                 <button
                   type="button"
                   onClick={() => setModal({ type: "edit", role })}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-white group-hover:border-slate-300"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] transition hover:bg-[var(--color-bg)] group-hover:border-[var(--color-border-hover)]"
                   aria-label={`Edit ${role.name}`}
                 >
                   <svg
@@ -110,7 +110,7 @@ export function RolesManager({
                 <button
                   type="button"
                   onClick={() => setModal({ type: "delete", role })}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)] text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))] transition hover:brightness-95"
                   aria-label={`Delete ${role.name}`}
                 >
                   <svg
@@ -129,25 +129,25 @@ export function RolesManager({
             </div>
           ))}
           {sortedRoles.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-slate-500">
+            <div className="px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
               No roles yet. Create your first role.
             </div>
           ) : null}
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--color-text-muted)]">
         <div>
           Showing{" "}
-          <span className="font-semibold text-slate-900">
+          <span className="font-semibold text-[var(--color-text)]">
             {sortedRoles.length === 0 ? 0 : (currentPage - 1) * perPage + 1}
           </span>{" "}
           to{" "}
-          <span className="font-semibold text-slate-900">
+          <span className="font-semibold text-[var(--color-text)]">
             {Math.min(currentPage * perPage, sortedRoles.length)}
           </span>{" "}
           of{" "}
-          <span className="font-semibold text-slate-900">{sortedRoles.length}</span>
+          <span className="font-semibold text-[var(--color-text)]">{sortedRoles.length}</span>
         </div>
         <div className="flex items-center gap-2">
           <label className="flex items-center gap-2">
@@ -159,7 +159,7 @@ export function RolesManager({
                 setPerPage(next);
                 setPage(1);
               }}
-              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]"
             >
               {[5, 10, 20, 50].map((size) => (
                 <option key={size} value={size}>
@@ -173,18 +173,18 @@ export function RolesManager({
               type="button"
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700 transition disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] transition disabled:cursor-not-allowed disabled:opacity-50"
             >
               Prev
             </button>
-            <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+            <span className="rounded-lg bg-[var(--color-raised)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]">
               {currentPage} / {totalPages}
             </span>
             <button
               type="button"
               onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700 transition disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] transition disabled:cursor-not-allowed disabled:opacity-50"
             >
               Next
             </button>
@@ -194,17 +194,17 @@ export function RolesManager({
 
       {modal && modal.type !== "delete"
         ? createPortal(
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
-              <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] px-4">
+              <div className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5 shadow-2xl">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-600">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
                       Access Control
                     </p>
-                    <h2 className="mt-2 text-lg font-semibold text-slate-900">
+                    <h2 className="mt-2 text-lg font-semibold text-[var(--color-text)]">
                       {modal.type === "create" ? "Add Role" : "Edit Role"}
                     </h2>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">
                       {modal.type === "create"
                         ? "Create a new role for the workspace."
                         : "Update the role name."}
@@ -213,7 +213,7 @@ export function RolesManager({
                   <button
                     type="button"
                     onClick={() => setModal(null)}
-                    className="rounded-lg p-1 text-slate-500 transition hover:bg-slate-100"
+                    className="rounded-lg p-1 text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)]"
                     aria-label="Close"
                   >
                     <svg
@@ -235,14 +235,14 @@ export function RolesManager({
                   {modal.type === "edit" ? (
                     <input type="hidden" name="id" value={modal.role.id} />
                   ) : null}
-                  <label className="block text-sm text-slate-700">
+                  <label className="block text-sm text-[var(--color-text)]">
                     Role name
                     <input
                       type="text"
                       name="name"
                       defaultValue={modal.type === "edit" ? modal.role.name : ""}
                       placeholder="e.g. Supervisor"
-                      className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none ring-amber-300 transition focus:bg-white focus:ring"
+                      className="mt-1 w-full rounded-xl border border-[var(--color-border-hover)] bg-[var(--color-surface)] px-3 py-2 text-sm outline-none ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] transition focus:bg-[var(--color-bg)] focus:ring"
                     />
                   </label>
 
@@ -250,13 +250,13 @@ export function RolesManager({
                     <button
                       type="button"
                       onClick={() => setModal(null)}
-                      className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                      className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                      className="rounded-xl vr-btn-primary px-4 py-2 text-sm font-semibold"
                     >
                       {modal.type === "create" ? "Create Role" : "Save Changes"}
                     </button>

@@ -1,4 +1,12 @@
 import { AppointmentsTabs } from "@/components/appointments-tabs";
+import {
+  AppPageHero,
+  AppPageHeroBadge,
+  AppPageHeroLink,
+  AppPageHeroStat,
+  AppPageHeroStatGrid,
+  AppPageHeroStatPanel,
+} from "@/components/app-page-hero";
 import { parseBookingFlowQaPayload, type BookingFlowQaItem } from "@/lib/booking-flow-qa";
 import { prisma } from "@/lib/prisma";
 import { getAppointmentAnalytics } from "@/lib/appointment-analytics";
@@ -134,24 +142,13 @@ export default async function AppointmentsOverviewPage({
   if (knowledgeBaseStatus !== "approved") {
     return (
       <div className="space-y-5">
-        <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-amber-900 shadow-sm lg:p-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">
-            Knowledge Base Required
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold leading-tight lg:text-3xl">
-            Configure and approve your knowledge base to unlock Appointment Overview.
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-amber-800">
-            Appointment insights rely on approved business context. Import your website, files, or business notes and
-            approve the draft first.
-          </p>
-          <a
-            href="/appointments/knowledge-base"
-            className="mt-4 inline-flex rounded-xl bg-amber-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-800"
-          >
-            Go to Knowledge Base
-          </a>
-        </section>
+        <AppPageHero
+          eyebrow="Knowledge Base Required"
+          title="Approve your knowledge base to unlock Appointment Overview"
+          description="Appointment insights rely on approved business context. Import your website, files, or business notes and approve the draft first."
+        >
+          <AppPageHeroLink href="/appointments/knowledge-base">Go to Knowledge Base</AppPageHeroLink>
+        </AppPageHero>
       </div>
     );
   }
@@ -250,10 +247,10 @@ export default async function AppointmentsOverviewPage({
       lastSync: "—",
       syncScope: provider.apiUrl ? "API configured" : "Connect provider API URL",
       tone: isExpired
-        ? "border-amber-200 bg-amber-50 text-amber-700"
+        ? "vr-app-status-warning"
         : isConnected
-          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-          : "border-slate-200 bg-slate-100 text-slate-700",
+          ? "vr-app-status-success"
+          : "vr-app-status-muted",
       connectHref: `/appointments/providers/connect/${provider.id}`,
     };
   });
@@ -279,51 +276,38 @@ export default async function AppointmentsOverviewPage({
   return (
     <div className="space-y-5">
       {successFlag === "calendar_synced" ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+        <div className="vr-app-alert vr-app-alert-success">
           Booking posted to the selected calendar successfully.
         </div>
       ) : null}
       {errorFlag ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+        <div className="vr-app-alert vr-app-alert-danger">
           <p className="font-semibold">{overviewFlashErrors[errorFlag] ?? "Calendar action failed."}</p>
           {errorFlag === "calendar_sync_failed" && errorDetail ? (
-            <p className="mt-1 text-xs text-rose-800/90">{errorDetail}</p>
+            <p className="mt-1 text-xs opacity-90">{errorDetail}</p>
           ) : null}
         </div>
       ) : null}
 
-      <section className="rounded-3xl border border-slate-200 bg-[linear-gradient(120deg,#0f172a,#1e293b_45%,#334155)] p-5 text-white shadow-sm lg:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">Appointment Agent</p>
-            <h1 className="mt-2 text-2xl font-semibold leading-tight lg:text-3xl">
-              Schedule optimization and real-time booking automation.
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-200">
-              AI is handling inbound booking requests, proposing time slots, and sending reminders automatically.
-            </p>
-            <p className="mt-3 inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-slate-100">
-              Active organization: {activeOrganization.name}
-            </p>
-          </div>
-          <div className="basis-full w-full rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur">
-            <div className="grid gap-3 text-xs sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
-                <p className="text-slate-300">Connected Providers</p>
-                <p className="text-lg font-semibold text-white">{connectedProviders}</p>
-              </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
-                <p className="text-slate-300">Upcoming (24h)</p>
-                <p className="text-lg font-semibold text-white">{upcomingNext24h}</p>
-              </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
-                <p className="text-slate-300">Upcoming (7d)</p>
-                <p className="text-lg font-semibold text-white">{upcomingNext7d}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <AppPageHero
+        eyebrow="Appointment Agent"
+        title={
+          <>
+            Schedule optimization and{" "}
+            <span className="vr-brand-gradient-text">real-time booking</span> automation
+          </>
+        }
+        description="AI handles inbound booking requests, proposes time slots, and sends reminders automatically."
+      >
+        <AppPageHeroBadge>Active organization: {activeOrganization.name}</AppPageHeroBadge>
+        <AppPageHeroStatPanel>
+          <AppPageHeroStatGrid columns="3">
+            <AppPageHeroStat label="Connected Providers" value={connectedProviders} />
+            <AppPageHeroStat label="Upcoming (24h)" value={upcomingNext24h} />
+            <AppPageHeroStat label="Upcoming (7d)" value={upcomingNext7d} />
+          </AppPageHeroStatGrid>
+        </AppPageHeroStatPanel>
+      </AppPageHero>
 
       <AppointmentsTabs
         bookedAppointments={bookedAppointments}
