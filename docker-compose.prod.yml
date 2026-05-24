@@ -13,6 +13,8 @@ services:
     command: sh -c "npx --yes prisma@6 db push --accept-data-loss --skip-generate && npx prisma db seed && node server.js"
     ports:
       - "3015:3000"
+    volumes:
+      - ./data/uploads:/app/public/uploads
     networks:
       - default
     healthcheck:

@@ -12,3 +12,6 @@ out/
 # misc
 .turbo
 *.tsbuildinfo
+
+# Production upload volume (bind-mounted in docker-compose.prod.yml)
+data/uploads/
