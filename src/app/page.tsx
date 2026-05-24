@@ -9,6 +9,7 @@ import { LandingPricingSection } from "@/components/landing/landing-pricing-sect
 import { LandingTestimonialsSection } from "@/components/landing/landing-testimonials-section";
 import { LandingTrustedSection } from "@/components/landing/landing-trusted-section";
 import { LandingHeader } from "@/components/landing-header";
+import { LandingChatbotDemo } from "@/components/landing/landing-chatbot-demo";
 import { hasValidSession } from "@/lib/has-valid-session";
 import {
   LANDING_FAQ,
@@ -53,6 +54,8 @@ export default async function Home() {
       <LandingContactSection />
 
       <LandingFooter isLoggedIn={isLoggedIn} />
+
+      <LandingChatbotDemo />
     </div>
   );
 }

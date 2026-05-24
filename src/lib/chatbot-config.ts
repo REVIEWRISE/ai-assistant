@@ -241,8 +241,8 @@ export function readChatbotConfigFromParsedData(parsedData: unknown): ChatbotCon
 
   return {
     welcomeMessage: String(config.welcomeMessage || "").trim() || defaultWelcome,
-    themeColor: String(config.themeColor || "").trim() || "#22c55e",
-    iconColor: String(config.iconColor || "").trim() || "#0f172a",
+    themeColor: String(config.themeColor || "").trim() || "#6366f1",
+    iconColor: String(config.iconColor || "").trim() || "#ffffff",
     bookingFlow: buildDefaultBookingFlow(),
   };
 }
@@ -266,8 +266,8 @@ export function resolveChatbotConfigData(
     const services = parseServicesList(settings.services);
     return {
       welcomeMessage: String(settings.welcomeMessage || "").trim() || defaultWelcome,
-      themeColor: String(settings.themeColor || "").trim() || "#22c55e",
-      iconColor: String(settings.iconColor || "").trim() || "#0f172a",
+      themeColor: String(settings.themeColor || "").trim() || "#6366f1",
+      iconColor: String(settings.iconColor || "").trim() || "#ffffff",
       bookingFlow: resolveBookingFlowConfig(settings.bookingFlow, services),
     };
   }

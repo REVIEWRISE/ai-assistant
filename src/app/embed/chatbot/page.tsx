@@ -18,8 +18,8 @@ export default async function EmbedChatbotPage({
 
   if (!organizationId) {
     return (
-      <div className="flex min-h-[120px] items-center justify-center bg-[#faf8f5] p-4 text-center text-xs text-zinc-500">
-        Missing <code className="rounded-md border border-zinc-200/80 bg-white/80 px-1.5 py-0.5 text-zinc-700">org</code>{" "}
+      <div className="flex min-h-[120px] items-center justify-center bg-[var(--color-surface)] p-4 text-center text-xs text-[var(--color-text-muted)]">
+        Missing <code className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-1.5 py-0.5 text-[var(--color-text)]">org</code>{" "}
         query parameter.
       </div>
     );
@@ -43,7 +43,7 @@ export default async function EmbedChatbotPage({
 
   if (!org) {
     return (
-      <div className="flex min-h-[120px] items-center justify-center bg-[#faf8f5] p-4 text-center text-xs text-zinc-500">
+      <div className="flex min-h-[120px] items-center justify-center bg-[var(--color-surface)] p-4 text-center text-xs text-[var(--color-text-muted)]">
         Assistant unavailable.
       </div>
     );

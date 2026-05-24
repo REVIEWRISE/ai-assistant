@@ -100,7 +100,7 @@ export default async function AppointmentChatbotPage({
   return (
     <div className="space-y-5">
       <section className="rounded-3xl border border-slate-200 bg-[linear-gradient(120deg,#0f172a,#1e293b_45%,#334155)] p-5 text-white shadow-sm lg:p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-300">
           Configure chatbot
         </p>
         <h1 className="mt-2 text-2xl font-semibold leading-tight lg:text-3xl">
@@ -110,7 +110,7 @@ export default async function AppointmentChatbotPage({
           Every organization you belong to is listed below with its own chatbot settings. Configure any row independently.
           Saving here does not change your active workspace. To switch which organization drives your session (and the
           signed-in marketing widget), use{" "}
-          <Link href="/appointments/organization" className="font-semibold text-cyan-200 underline decoration-cyan-200/60 underline-offset-2 hover:text-white">
+          <Link href="/appointments/organization" className="font-semibold text-indigo-200 underline decoration-indigo-200/60 underline-offset-2 hover:text-white">
             Appointment Agent → Organization
           </Link>
           .
