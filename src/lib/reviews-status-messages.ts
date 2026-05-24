@@ -106,13 +106,23 @@ export const reviewErrorMessages: Record<string, ReviewStatusMessage> = {
     ],
     variant: "error",
   },
+  gbp_rate_limited: {
+    title: "Google rate limit reached",
+    body: "Google temporarily blocked further Business Profile requests for your project. This usually clears within a minute.",
+    hints: [
+      "Wait 60 seconds, then click Connect with Google once (avoid clicking repeatedly)",
+      "If this keeps happening, request a higher quota in Google Cloud → APIs → My Business Account Management API → Quotas",
+      "Your Google account and APIs are likely configured correctly — this is a throttling limit, not a missing profile",
+    ],
+    variant: "warning",
+  },
   gbp_accounts_api_failed: {
     title: "Couldn't access your Business Profile account",
-    body: "Google blocked the account lookup after sign-in.",
+    body: "Google sign-in worked, but the Business Profile account API rejected our request.",
     hints: [
-      "Ask your developer to enable the Business Profile APIs in Google Cloud",
-      "Confirm your OAuth app has Business Profile API access approved by Google",
-      "Try connecting again once API access is configured",
+      "This is usually a Google Cloud setup issue, not a missing Business Profile on your Google account",
+      "Enable My Business Account Management API in the same project as your OAuth client_id",
+      "Request Business Profile API access from Google if you have not been approved yet",
     ],
     variant: "error",
   },
@@ -121,12 +131,19 @@ export const reviewErrorMessages: Record<string, ReviewStatusMessage> = {
 export function getReviewStatusMessage(args: {
   success?: string | null;
   error?: string | null;
+  detail?: string | null;
 }): ReviewStatusMessage | null {
   if (args.success && reviewSuccessMessages[args.success]) {
     return reviewSuccessMessages[args.success];
   }
   if (args.error && reviewErrorMessages[args.error]) {
-    return reviewErrorMessages[args.error];
+    const base = reviewErrorMessages[args.error];
+    const detail = args.detail?.trim();
+    if (!detail || args.error === "gbp_rate_limited") return base;
+    return {
+      ...base,
+      body: `${base.body} Google reported: ${detail}`,
+    };
   }
   if (args.error?.startsWith("oauth_")) {
     return {

@@ -94,7 +94,13 @@ export async function GET(request: Request) {
 
     cookieStore.set("oauth_state", "", { maxAge: 0, path: "/" });
     const errorCode = locationResult.error ?? "no_locations";
-    redirect(`${REVIEWS_ROUTE}?error=gbp_${errorCode}`);
+    const detailQuery = locationResult.detail
+      ? `&detail=${encodeURIComponent(locationResult.detail.slice(0, 240))}`
+      : "";
+    if (locationResult.detail) {
+      console.error("[gbp-oauth] connect failed:", errorCode, locationResult.detail);
+    }
+    redirect(`${REVIEWS_ROUTE}?error=gbp_${errorCode}${detailQuery}`);
   }
 
   if (locations.length === 1) {
