@@ -1,5 +1,8 @@
+import { Suspense } from "react";
 import { ReviewsTabs } from "@/components/reviews-tabs";
+import { ReviewsPageAlerts } from "@/components/reviews-page-alerts";
 import { prisma } from "@/lib/prisma";
+import { isOAuthProviderConfig } from "@/lib/google-oauth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { connectReviewProvider, syncReviewProvider } from "./actions";
@@ -134,16 +137,28 @@ export default async function ReviewsPage() {
 
   const reviewServices = providerRows.map((provider) => {
     const connected = Boolean(provider.connections[0]?.connected);
+    const oauthConnectHref = isOAuthProviderConfig(provider.config)
+      ? `/reviews/providers/connect/${provider.id}`
+      : undefined;
+    const tokenData =
+      provider.connections[0]?.tokenData &&
+      typeof provider.connections[0].tokenData === "object" &&
+      !Array.isArray(provider.connections[0].tokenData)
+        ? (provider.connections[0].tokenData as Record<string, unknown>)
+        : null;
+    const locationTitle =
+      tokenData && typeof tokenData.location_title === "string" ? tokenData.location_title.trim() : "";
     return {
       id: provider.id,
       name: provider.name,
       logoUrl: provider.logoUrl?.trim() || "",
       type: classifyProviderType(provider.name),
       status: connected ? "Connected" : "Not connected",
-      left: connected ? "Ready to sync" : "0 synced",
+      left: connected ? (locationTitle ? `Location: ${locationTitle}` : "Ready to sync") : "0 synced",
       lastSync: connected ? "Connected" : "No sync yet",
       autoReply: connected ? "Auto-send can be configured" : "Disabled until connected",
       syncable: connected,
+      oauthConnectHref,
       requiredFields: normalizeRequiredFields(provider.config),
       existingConnectionDetails:
         provider.connections[0]?.tokenData &&
@@ -304,6 +319,9 @@ export default async function ReviewsPage() {
 
   return (
     <div className="space-y-5">
+      <Suspense fallback={null}>
+        <ReviewsPageAlerts />
+      </Suspense>
       <section className="rounded-3xl border border-slate-200 bg-[linear-gradient(120deg,#0f172a,#1e293b_45%,#334155)] p-5 text-white shadow-sm lg:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
