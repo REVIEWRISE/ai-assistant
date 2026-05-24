@@ -231,7 +231,7 @@ export function mergeBookingFlowSteps(base: BookingFlowConfig, steps: BookingFlo
   return { ...base, steps };
 }
 
-export function resolveBookingFlowConfig(raw: unknown, _services?: string[]): BookingFlowConfig {
+export function resolveBookingFlowConfig(raw: unknown): BookingFlowConfig {
   const empty = emptyBookingFlow();
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return empty;
   const rec = raw as Record<string, unknown>;
@@ -293,12 +293,11 @@ export function resolveChatbotConfigData(
   legacyParsedData: unknown,
 ): ChatbotConfigData {
   if (settings) {
-    const services = parseServicesList(settings.services);
     return {
       welcomeMessage: String(settings.welcomeMessage || "").trim() || defaultWelcome,
       themeColor: String(settings.themeColor || "").trim() || "#6366f1",
       iconColor: String(settings.iconColor || "").trim() || "#ffffff",
-      bookingFlow: resolveBookingFlowConfig(settings.bookingFlow, services),
+      bookingFlow: resolveBookingFlowConfig(settings.bookingFlow),
     };
   }
   const legacy = readChatbotConfigFromParsedData(legacyParsedData);

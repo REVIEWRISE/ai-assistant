@@ -24,7 +24,7 @@ import {
 import { sendBookingConfirmationEmails } from "@/lib/booking-email";
 import { parseBookingFlowQaPayload } from "@/lib/booking-flow-qa";
 import { normalizeCustomerEmail } from "@/lib/parse-booking-utterance";
-import { parseServicesList, resolveBookingFlowConfig } from "@/lib/chatbot-config";
+import { resolveBookingFlowConfig } from "@/lib/chatbot-config";
 import {
   checkCalendarAvailabilityForRoute,
   markAppointmentCalendarSyncFailed,
@@ -246,10 +246,7 @@ export async function POST(request: Request) {
         }
 
         if (route) {
-          const flowConfig = resolveBookingFlowConfig(
-            chatbotSettings?.bookingFlow,
-            parseServicesList(chatbotSettings?.services),
-          );
+          const flowConfig = resolveBookingFlowConfig(chatbotSettings?.bookingFlow);
           const minGapMinutes = Math.max(0, Math.min(180, flowConfig.minGapMinutes || 0));
           const precheckStart =
             minGapMinutes > 0

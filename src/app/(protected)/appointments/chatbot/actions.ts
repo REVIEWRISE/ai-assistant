@@ -126,10 +126,7 @@ export async function saveChatbotConfig(formData: FormData) {
       bookingFlowInput = existing?.bookingFlow ?? null;
     }
   }
-  const bookingFlow = resolveBookingFlowConfig(
-    bookingFlowInput,
-    parseServicesList(existing?.services),
-  ) as unknown as Prisma.InputJsonValue;
+  const bookingFlow = resolveBookingFlowConfig(bookingFlowInput) as unknown as Prisma.InputJsonValue;
 
   await prisma.organizationChatbotSettings.upsert({
     where: { organizationId },
@@ -210,12 +207,12 @@ export async function generateChatbotFromKnowledge(
   let existingFlow = emptyBookingFlow();
   if (bookingFlowDraftRaw) {
     try {
-      existingFlow = resolveBookingFlowConfig(JSON.parse(bookingFlowDraftRaw), servicesList);
+      existingFlow = resolveBookingFlowConfig(JSON.parse(bookingFlowDraftRaw));
     } catch {
-      existingFlow = resolveBookingFlowConfig(org?.chatbotSettings?.bookingFlow, servicesList);
+      existingFlow = resolveBookingFlowConfig(org?.chatbotSettings?.bookingFlow);
     }
   } else {
-    existingFlow = resolveBookingFlowConfig(org?.chatbotSettings?.bookingFlow, servicesList);
+    existingFlow = resolveBookingFlowConfig(org?.chatbotSettings?.bookingFlow);
   }
 
   let digest = "";
@@ -386,7 +383,7 @@ ${kbExcerpt}`;
     }
     finalFlow = mergeBookingFlowSteps(existingFlow, normalizedSteps);
   } else {
-    const resolvedFlow = resolveBookingFlowConfig(rec.bookingFlow, servicesList);
+    const resolvedFlow = resolveBookingFlowConfig(rec.bookingFlow);
     finalFlow =
       resolvedFlow.steps.length >= 2 ? resolvedFlow : buildDefaultBookingFlow(servicesList);
   }
