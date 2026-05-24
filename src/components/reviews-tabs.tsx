@@ -35,6 +35,7 @@ type ReviewService = {
   lastSync: string;
   autoReply: string;
   syncable: boolean;
+  oauthConnectHref?: string;
   requiredFields: Array<{
     key: string;
     label: string;

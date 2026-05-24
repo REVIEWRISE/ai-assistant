@@ -1,4 +1,10 @@
 import { prisma } from "@/lib/prisma";
+import { buildGbpReviewsUrl } from "@/lib/google-business-profile";
+import {
+  asOAuthProviderConfig,
+  getValidOAuthAccessToken,
+  isOAuthProviderConfig,
+} from "@/lib/google-oauth";
 
 type RequiredFieldRule = { key: string; required: boolean };
 type ProviderConfig = Record<string, unknown>;
@@ -82,31 +88,51 @@ function normalizeGenericItem(item: Record<string, unknown>): NormalizedIncoming
 }
 
 async function fetchGoogleBusinessProfileReviews(
-  config: ProviderConfig,
+  provider: { config: unknown },
   tokenData: ConnectionTokenData,
+  persistTokenData?: (next: ConnectionTokenData) => Promise<void>,
 ): Promise<NormalizedIncomingReview[]> {
-  const accessToken = readString(tokenData.access_token) || readString(tokenData.api_key);
+  const config = asRecord(provider.config);
   const accountId = readString(tokenData.account_id) || readString(config.account_id);
   const locationId = readString(tokenData.location_id) || readString(config.location_id);
-  if (!accessToken || !accountId || !locationId) return [];
+  if (!accountId || !locationId) return [];
 
-  const url = `https://mybusiness.googleapis.com/v4/accounts/${encodeURIComponent(accountId)}/locations/${encodeURIComponent(locationId)}/reviews`;
-  const res = await fetch(url, {
-    method: "GET",
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) return [];
-  const json = (await res.json()) as Record<string, unknown>;
-  const reviews = Array.isArray(json.reviews) ? json.reviews : [];
-  return reviews
-    .map((row) => {
+  let accessToken = readString(tokenData.access_token) || readString(tokenData.api_key);
+  if (isOAuthProviderConfig(provider.config) && persistTokenData) {
+    const tokenResult = await getValidOAuthAccessToken({
+      config: asOAuthProviderConfig(provider.config),
+      tokenData,
+      persist: async (next) => {
+        await persistTokenData(next as ConnectionTokenData);
+      },
+    });
+    if ("error" in tokenResult) return [];
+    accessToken = tokenResult.accessToken;
+  }
+  if (!accessToken) return [];
+
+  const reviews: NormalizedIncomingReview[] = [];
+  let pageToken = "";
+  for (let page = 0; page < 5; page += 1) {
+    const url = buildGbpReviewsUrl(accountId, locationId, pageToken || undefined);
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) break;
+    const json = (await res.json()) as Record<string, unknown>;
+    const rows = Array.isArray(json.reviews) ? json.reviews : [];
+    for (const row of rows) {
       const rec = asRecord(row);
       const rating = parseGoogleStarRating(rec.starRating);
       const reviewText = readString(rec.comment);
-      if (!rating || !reviewText) return null;
-      return { rating, reviewText: reviewText.slice(0, 8000) };
-    })
-    .filter((x): x is NormalizedIncomingReview => x != null);
+      if (!rating || !reviewText) continue;
+      reviews.push({ rating, reviewText: reviewText.slice(0, 8000) });
+    }
+    pageToken = readString(json.nextPageToken);
+    if (!pageToken) break;
+  }
+  return reviews;
 }
 
 async function fetchGenericHttpReviews(
@@ -143,11 +169,12 @@ async function fetchGenericHttpReviews(
 async function fetchReviewsByIntegration(args: {
   provider: { apiUrl: string | null; config: unknown };
   tokenData: ConnectionTokenData;
+  persistTokenData?: (next: ConnectionTokenData) => Promise<void>;
 }): Promise<NormalizedIncomingReview[]> {
   const config = asRecord(args.provider.config);
   const integration = parseIntegration(config);
   if (integration === "google_business_profile") {
-    return fetchGoogleBusinessProfileReviews(config, args.tokenData);
+    return fetchGoogleBusinessProfileReviews(args.provider, args.tokenData, args.persistTokenData);
   }
   if (integration === "generic_http_reviews" || integration === "custom_http_json" || integration === "") {
     return fetchGenericHttpReviews(args.provider, args.tokenData);
@@ -197,6 +224,12 @@ export async function syncSingleConnectedReviewProvider(args: {
   const fetched = await fetchReviewsByIntegration({
     provider,
     tokenData,
+    persistTokenData: async (next) => {
+      await prisma.providerConnection.update({
+        where: { userId_providerId: { userId: args.userId, providerId: provider.id } },
+        data: { tokenData: next as object, updatedAt: new Date() },
+      });
+    },
   });
   const candidates = fetched.slice(0, 200);
   if (candidates.length === 0) {

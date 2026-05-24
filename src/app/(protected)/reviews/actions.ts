@@ -8,6 +8,76 @@ import { parseRequiredFieldRules, syncSingleConnectedReviewProvider } from "@/li
 
 const REVIEWS_ROUTE = "/reviews";
 
+function readTokenRecord(raw: unknown): Record<string, unknown> {
+  return raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+}
+
+export async function completeReviewProviderLocation(formData: FormData) {
+  const providerId = String(formData.get("provider_id") || "").trim();
+  const locationKey = String(formData.get("location_key") || "").trim();
+  const [accountId, locationId, ...titleParts] = locationKey.split("::");
+  const locationTitle = titleParts.join("::");
+
+  if (!providerId || !accountId || !locationId) {
+    redirect(`${REVIEWS_ROUTE}?error=missing_required_connection_fields`);
+  }
+
+  const cookieStore = await cookies();
+  const token = cookieStore.get("ai_session")?.value;
+  if (!token) redirect("/login");
+
+  const session = await prisma.session.findFirst({
+    where: { token, expiresAt: { gt: new Date() } },
+    select: { userId: true, activeOrganizationId: true },
+  });
+  if (!session) redirect("/login");
+  if (!session.activeOrganizationId) redirect(`${REVIEWS_ROUTE}?error=organization_required`);
+
+  const provider = await prisma.provider.findFirst({
+    where: { id: providerId, type: "review", status: "enabled" },
+    select: { id: true, name: true },
+  });
+  if (!provider) redirect(`${REVIEWS_ROUTE}?error=provider_not_found`);
+
+  const connection = await prisma.providerConnection.findUnique({
+    where: { userId_providerId: { userId: session.userId, providerId: provider.id } },
+    select: { tokenData: true },
+  });
+  if (!connection) redirect(`${REVIEWS_ROUTE}?error=provider_not_connected`);
+
+  const mergedTokenData = {
+    ...readTokenRecord(connection.tokenData),
+    account_id: accountId,
+    location_id: locationId,
+    location_title: locationTitle,
+  };
+
+  await prisma.providerConnection.update({
+    where: { userId_providerId: { userId: session.userId, providerId: provider.id } },
+    data: {
+      connected: true,
+      tokenData: mergedTokenData as unknown as Prisma.InputJsonValue,
+      updatedAt: new Date(),
+    },
+  });
+
+  await prisma.auditEvent.create({
+    data: {
+      organizationId: session.activeOrganizationId,
+      actorId: session.userId,
+      action: "organization_review_provider_connected",
+      metadata: {
+        providerId: provider.id,
+        providerName: provider.name,
+        connectionUserId: session.userId,
+        accountId,
+        locationId,
+      },
+    },
+  });
+
+  redirect(`${REVIEWS_ROUTE}?success=provider_connected`);
+}
 
 export async function connectReviewProvider(formData: FormData) {
   const providerId = String(formData.get("provider_id") || "").trim();

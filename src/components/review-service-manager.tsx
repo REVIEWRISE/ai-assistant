@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createPortal } from "react-dom";
 import Image from "next/image";
+import Link from "next/link";
 
 type ReviewService = {
   id: string;
@@ -15,6 +16,7 @@ type ReviewService = {
   lastSync: string;
   autoReply: string;
   syncable: boolean;
+  oauthConnectHref?: string;
   requiredFields: Array<{
     key: string;
     label: string;
@@ -181,15 +183,30 @@ export function ReviewServiceManager({
                       <p className="opacity-80">{service.lastSync}</p>
                       <p className="opacity-80">{service.autoReply}</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => openConnectionModal(service)}
-                      className={`mt-3 rounded-lg px-3 py-2 text-xs font-semibold transition ${
-                        connected ? "bg-white/80 text-slate-700 hover:bg-white" : "bg-slate-900 text-white hover:bg-slate-700"
-                      }`}
-                    >
-                      {connected ? "Manage Connection" : "Connect Service"}
-                    </button>
+                    {service.oauthConnectHref ? (
+                      <Link
+                        href={service.oauthConnectHref}
+                        className={`mt-3 inline-flex w-full items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                          connected
+                            ? "bg-white/80 text-slate-700 hover:bg-white"
+                            : "bg-slate-900 text-white hover:bg-slate-700"
+                        }`}
+                      >
+                        {connected ? "Reconnect with Google" : "Connect with Google"}
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => openConnectionModal(service)}
+                        className={`mt-3 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                          connected
+                            ? "bg-white/80 text-slate-700 hover:bg-white"
+                            : "bg-slate-900 text-white hover:bg-slate-700"
+                        }`}
+                      >
+                        {connected ? "Manage Connection" : "Connect Service"}
+                      </button>
+                    )}
                     {service.syncable ? (
                       <form action={onSyncProvider} className="mt-2">
                         <input type="hidden" name="provider_id" value={service.id} />
