@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  output: "standalone",
+  serverExternalPackages: ["nodemailer"],
 };
 
 export default nextConfig;

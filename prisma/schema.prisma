@@ -141,6 +141,7 @@ model Appointment {
   id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId           String   @map("organization_id") @db.Uuid
   customerName             String   @map("customer_name")
+  customerEmail            String?  @map("customer_email")
   startTime                DateTime @map("start_time") @db.Timestamptz(6)
   endTime                  DateTime @map("end_time") @db.Timestamptz(6)
   status                   String   @default("requested")

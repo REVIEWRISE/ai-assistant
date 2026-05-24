@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import {
   buildChatbotReply,
   parseBookingUtterance,
+  normalizeCustomerEmail,
   parsedBookingFromGuidedAnswers,
+  stepIdIndicatesCustomerEmail,
   stepIdIndicatesCustomerName,
   stepIdIndicatesPartySize,
   type ParsedBookingUtterance,
@@ -162,6 +164,24 @@ function pickCustomerNameFromAnswers(flow: BookingFlowConfig, answers: DynamicAn
   return null;
 }
 
+function isEmailStep(step: BookingFlowStep): boolean {
+  const question = step.question.toLowerCase();
+  return (
+    step.inputType === "email" ||
+    stepIdIndicatesCustomerEmail(step.id) ||
+    /\b(your email|email address|contact email)\b/.test(question)
+  );
+}
+
+function pickCustomerEmailFromAnswers(flow: BookingFlowConfig, answers: DynamicAnswers): string | null {
+  for (const step of flow.steps) {
+    if (!isEmailStep(step)) continue;
+    const normalized = normalizeCustomerEmail(String(answers[step.id] ?? ""));
+    if (normalized) return normalized;
+  }
+  return null;
+}
+
 function formatDateTimeValue(localIso: string): string {
   if (!localIso) return "";
   const d = new Date(localIso);
@@ -266,6 +286,8 @@ export function FloatingBookingChatbot({
           organizationId,
           message: trimmed,
           customerName: pickCustomerNameFromAnswers(bookingFlow, answers),
+          customerEmail:
+            pickCustomerEmailFromAnswers(bookingFlow, answers) ?? parsed.customerEmail,
           history,
           ...(options?.guidedParsed != null
             ? { bookingFlowQa: buildBookingFlowQaFromAnswers(bookingFlow, answers) }
@@ -275,6 +297,7 @@ export function FloatingBookingChatbot({
             serviceDescription: parsed.serviceDescription,
             partySize: parsed.partySize,
             customerName: parsed.customerName,
+            customerEmail: parsed.customerEmail,
             startTimeIso: parsed.startTime?.toISOString() ?? null,
             endTimeIso: parsed.endTime?.toISOString() ?? null,
           },
@@ -328,7 +351,8 @@ export function FloatingBookingChatbot({
         resetBookingFlow();
         return;
       }
-      if (step.inputType === "datetime" || step.inputType === "text") return;
+      if (step.inputType === "datetime" || step.inputType === "text" || step.inputType === "email")
+        return;
       const selectedOption = step.options.find((opt) => stepLabel(step, opt) === action);
       if (selectedOption == null) return;
       pushUserMessage(stepLabel(step, selectedOption));
@@ -413,9 +437,13 @@ export function FloatingBookingChatbot({
   function handleTextPick() {
     if (sending) return;
     const step = bookingFlow.steps[activeStepIndex];
-    if (!step || step.inputType !== "text") return;
+    if (!step || (step.inputType !== "text" && step.inputType !== "email")) return;
     const value = textDraft.trim();
     if (!value) return;
+    if (step.inputType === "email" && !normalizeCustomerEmail(value)) {
+      pushBotMessage("Please enter a valid email address (for example you@example.com).");
+      return;
+    }
     pushUserMessage(value);
     const nextAnswers = { ...answers, [step.id]: value };
     setAnswers(nextAnswers);
@@ -434,7 +462,13 @@ export function FloatingBookingChatbot({
     if (bookingStepState === "collecting") {
       const step = bookingFlow.steps[activeStepIndex];
       if (!step) return ["Back to menu"];
-      if (step.inputType === "datetime" || step.inputType === "text") return ["Back to menu"];
+      if (
+        step.inputType === "datetime" ||
+        step.inputType === "text" ||
+        step.inputType === "email"
+      ) {
+        return ["Back to menu"];
+      }
       return [...step.options.map((opt) => stepLabel(step, opt)), "Back to menu"];
     }
     if (bookingStepState === "confirm") return ["Confirm booking", "Change details", "Cancel"];
@@ -552,14 +586,17 @@ export function FloatingBookingChatbot({
               </div>
             ) : null}
             {bookingStepState === "collecting" &&
-            bookingFlow.steps[activeStepIndex]?.inputType === "text" ? (
+            (bookingFlow.steps[activeStepIndex]?.inputType === "text" ||
+              bookingFlow.steps[activeStepIndex]?.inputType === "email") ? (
               <div className="mb-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-raised)] p-2.5">
                 <label className="mb-1 block text-[11px] font-semibold text-[var(--color-text-muted)]">
-                  Type your answer
+                  {bookingFlow.steps[activeStepIndex]?.inputType === "email"
+                    ? "Your email"
+                    : "Type your answer"}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
-                    type="text"
+                    type={bookingFlow.steps[activeStepIndex]?.inputType === "email" ? "email" : "text"}
                     value={textDraft}
                     onChange={(e) => setTextDraft(e.target.value)}
                     onKeyDown={(e) => {
@@ -569,7 +606,11 @@ export function FloatingBookingChatbot({
                       }
                     }}
                     className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-2 text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]"
-                    placeholder="Type here..."
+                    placeholder={
+                      bookingFlow.steps[activeStepIndex]?.inputType === "email"
+                        ? "you@example.com"
+                        : "Type here..."
+                    }
                   />
                   <button
                     type="button"

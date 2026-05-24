@@ -39,8 +39,9 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     HTTP_RESPONSE=$(curl -s -o /tmp/health_body -w "%{http_code}" http://localhost:3015/api/health || echo "000")
     BODY=$(cat /tmp/health_body 2>/dev/null || echo "")
     echo "Attempt $RETRY_COUNT/$MAX_RETRIES — HTTP $HTTP_RESPONSE — $BODY"
-    if echo "$BODY" | grep -q '"status":"healthy"'; then
-        echo "App is healthy!"
+    if echo "$BODY" | grep -q '"status":"healthy"' \
+      && echo "$BODY" | grep -q '"schemaInSync":true'; then
+        echo "App is healthy and database schema is in sync!"
         UNTIL_HEALTHY=1
         break
     fi

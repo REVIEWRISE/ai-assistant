@@ -31,6 +31,7 @@ type CalendarProviderItem = {
 type AppointmentOverviewRow = {
   id: string;
   customerName: string;
+  customerEmail: string | null;
   startTime: string;
   endTime: string;
   displayStatus: string;
@@ -63,6 +64,7 @@ function displayStatusForAppointment(a: {
 function mapAppointmentRow(a: {
   id: string;
   customerName: string;
+  customerEmail: string | null;
   startTime: Date;
   endTime: Date;
   status: string;
@@ -80,6 +82,7 @@ function mapAppointmentRow(a: {
   return {
     id: a.id,
     customerName: a.customerName,
+    customerEmail: a.customerEmail,
     startTime: a.startTime.toISOString(),
     endTime: a.endTime.toISOString(),
     displayStatus: displayStatusForAppointment(a),
@@ -168,6 +171,7 @@ export default async function AppointmentsOverviewPage({
   const appointmentSelect = {
     id: true,
     customerName: true,
+    customerEmail: true,
     startTime: true,
     endTime: true,
     status: true,

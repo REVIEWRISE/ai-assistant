@@ -242,7 +242,7 @@ bookingFlow must match:
     "id": string,
     "question": string,
     "helperText": string,
-    "inputType": "options" | "datetime" | "text",
+    "inputType": "options" | "datetime" | "text" | "email",
     "options": Array<{ "label": string, "value": string }>
   }>
 }
@@ -252,8 +252,9 @@ Hard rules:
 - quickActions: 4–6 distinct short strings (mix booking intents and common questions). Under 60 chars each.
 - steps: between 2 and 7 steps, in a sensible order.
 - Include exactly ONE step with inputType "datetime" for preferred date/time (options must be []).
+- Include exactly ONE step with inputType "email" for the guest email (options must be []).
 - For inputType "options", options must be a non-empty array (max 12). label and value non-empty; value may match label.
-- For inputType "text", options must be [].
+- For inputType "text" or "email", options must be [].
 - Use snake_case ids (e.g. visit_type, preferred_time, party_size).
 - Base offerings and wording on the knowledge source; do not invent services or policies that are clearly absent.`;
 
@@ -291,7 +292,7 @@ Shape:
     "id": string,
     "question": string,
     "helperText": string,
-    "inputType": "options" | "datetime" | "text",
+    "inputType": "options" | "datetime" | "text" | "email",
     "options": Array<{ "label": string, "value": string }>
   }>
 }
@@ -299,8 +300,9 @@ Shape:
 Hard rules:
 - steps: between 2 and 7 steps, sensible order.
 - Include exactly ONE step with inputType "datetime" for preferred date/time (options must be []).
+- Include exactly ONE step with inputType "email" for the guest email (options must be []).
 - For inputType "options", options must be a non-empty array (max 12). label and value non-empty; value may match label.
-- For inputType "text", options must be [].
+- For inputType "text" or "email", options must be [].
 - Use snake_case ids.
 - Do NOT output idleHelperText, quickActions, version, or any other fields.
 - Base offerings on the knowledge source; do not invent services or policies clearly absent.`;

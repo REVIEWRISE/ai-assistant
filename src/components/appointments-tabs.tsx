@@ -20,6 +20,7 @@ import { Panel } from "@/components/ui";
 type BookedAppointmentRow = {
   id: string;
   customerName: string;
+  customerEmail: string | null;
   startTime: string;
   endTime: string;
   displayStatus: string;
@@ -1081,6 +1082,9 @@ function BookedAppointmentsPanel({
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-[var(--color-text-muted)]">{formatAppointmentSlot(row.startTime, row.endTime)}</p>
+                    {row.customerEmail ? (
+                      <p className="mt-1 text-xs text-[var(--color-text-muted)]">{row.customerEmail}</p>
+                    ) : null}
                     {row.bookingFlowQa && row.bookingFlowQa.length > 0 ? (
                       <div className="mt-3 border-t border-[var(--color-border-muted)] pt-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">

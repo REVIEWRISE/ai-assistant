@@ -21,7 +21,9 @@ import {
   parsedBookingHasSaveableSlot,
   type ParsedBookingUtterance,
 } from "@/lib/parse-booking-utterance";
+import { sendBookingConfirmationEmails } from "@/lib/booking-email";
 import { parseBookingFlowQaPayload } from "@/lib/booking-flow-qa";
+import { normalizeCustomerEmail } from "@/lib/parse-booking-utterance";
 import { parseServicesList, resolveBookingFlowConfig } from "@/lib/chatbot-config";
 import {
   checkCalendarAvailabilityForRoute,
@@ -56,6 +58,8 @@ function toParsedRecord(raw: unknown): ParsedBookingUtterance | null {
     serviceDescription: typeof p.serviceDescription === "string" ? p.serviceDescription : null,
     partySize,
     customerName: typeof p.customerName === "string" ? p.customerName : null,
+    customerEmail:
+      typeof p.customerEmail === "string" ? normalizeCustomerEmail(p.customerEmail) : null,
     startTime,
     endTime,
   };
@@ -105,6 +109,8 @@ export async function POST(request: Request) {
   const organizationId = typeof b.organizationId === "string" ? b.organizationId.trim() : "";
   const message = typeof b.message === "string" ? b.message.trim() : "";
   const explicitCustomerName = typeof b.customerName === "string" ? b.customerName.trim() : "";
+  const explicitCustomerEmail =
+    typeof b.customerEmail === "string" ? normalizeCustomerEmail(b.customerEmail) : null;
   const bookingFlowQa = parseBookingFlowQaPayload(b.bookingFlowQa);
   const history = Array.isArray(b.history)
     ? b.history
@@ -285,10 +291,13 @@ export async function POST(request: Request) {
 
         const safeCustomerName =
           (explicitCustomerName || parsed.customerName || "Website guest").slice(0, 200);
+        const safeCustomerEmail =
+          explicitCustomerEmail ?? parsed.customerEmail ?? null;
         const created = await prisma.appointment.create({
           data: {
             organizationId,
             customerName: safeCustomerName,
+            customerEmail: safeCustomerEmail,
             startTime: parsed.startTime!,
             endTime: parsed.endTime!,
             status: "requested",
@@ -303,18 +312,60 @@ export async function POST(request: Request) {
           } as Prisma.AppointmentUncheckedCreateInput,
         });
         saved = true;
+        let calendarSynced = false;
         calendarOutcome = "no_calendar_connected";
         console.info(
           `${debugTag} appointment saved`,
           JSON.stringify({ appointmentId: created.id, routed: Boolean(route) }),
         );
         const qaSummary = summarizeBookingFlowQa(bookingFlowQa);
+        const emailNote = safeCustomerEmail
+          ? " A confirmation email is on its way."
+          : "";
         deterministicReply = qaSummary
           ? appendRoutingNote(
-              `You're all set — we received your request: ${qaSummary}.`,
+              `You're all set — we received your request: ${qaSummary}.${emailNote}`,
               Boolean(route),
             )
-          : appendRoutingNote(buildChatbotReply(parsed, true), Boolean(route));
+          : appendRoutingNote(buildChatbotReply(parsed, true), Boolean(route)) + emailNote;
+
+        const parsedForEmail = {
+          ...parsed,
+          customerName: safeCustomerName,
+          customerEmail: safeCustomerEmail,
+        };
+
+        const dispatchBookingEmails = () => {
+          void sendBookingConfirmationEmails({
+            appointmentId: created.id,
+            organizationId,
+            organizationName: org.name,
+            customerName: safeCustomerName,
+            customerEmail: safeCustomerEmail,
+            parsed: parsedForEmail,
+            calendarSynced,
+          })
+            .then((results) => {
+              if (results.guest?.ok === false && !results.guest.skipped) {
+                console.warn(
+                  `${debugTag} guest email failed`,
+                  JSON.stringify({ error: results.guest.error }),
+                );
+              }
+              if (results.team?.ok === false && !results.team.skipped) {
+                console.warn(
+                  `${debugTag} team email failed`,
+                  JSON.stringify({ error: results.team.error }),
+                );
+              }
+            })
+            .catch((err) => {
+              console.warn(
+                `${debugTag} email exception`,
+                err instanceof Error ? err.message : String(err),
+              );
+            });
+        };
 
         if (route) {
           await prisma.auditEvent.create({
@@ -363,6 +414,7 @@ export async function POST(request: Request) {
               });
             } else {
               calendarOutcome = "synced";
+              calendarSynced = true;
               console.info(
                 `${debugTag} calendar synced`,
                 JSON.stringify({
@@ -372,8 +424,8 @@ export async function POST(request: Request) {
               );
               const summary = summarizeBookingFlowQa(bookingFlowQa) || formatBookingSummary(parsed);
               deterministicReply = summary
-                ? `You're all set — your reservation is booked: ${summary}.`
-                : "You're all set — your reservation is booked.";
+                ? `You're all set — your reservation is booked: ${summary}.${emailNote}`
+                : `You're all set — your reservation is booked.${emailNote}`;
               await prisma.auditEvent.create({
                 data: {
                   organizationId,
@@ -409,6 +461,8 @@ export async function POST(request: Request) {
             });
           }
         }
+
+        dispatchBookingEmails();
       } catch {
         saved = false;
         calendarOutcome = "not_applicable";

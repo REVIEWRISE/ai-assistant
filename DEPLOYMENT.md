@@ -35,7 +35,29 @@ Add the following secrets to your GitHub repository (Settings > Secrets and vari
 | `APP_DIR` | Deployment directory on server | `/var/www/ai-assistant` |
 | `ENV_FILE_CONTENTS` | Contents of the production `.env` file | See below |
 
-### `ENV_FILE_CONTENTS` Example
+### Environment variables
+
+Use **either**:
+
+1. **`ENV_FILE_CONTENTS`** — one secret with the full `.env.production` file (recommended), or  
+2. **Individual secrets** listed below (the deploy step builds `.env.production` from them).
+
+See `.env.production.example` in the repo for a complete template.
+
+#### Required for booking confirmation emails
+
+| Secret | Description |
+| :--- | :--- |
+| `SMTP_USER` | Gmail address used to send mail |
+| `SMTP_PASSWORD` | [Google App Password](https://myaccount.google.com/apppasswords) (not your normal Gmail password) |
+| `BOOKING_EMAIL_FROM` | Optional. Example: `VyntRise Bookings <you@gmail.com>` |
+| `BOOKING_NOTIFY_EMAIL` | Optional extra inbox for “new booking” alerts |
+| `SMTP_HOST` | Optional. Default `smtp.gmail.com` |
+| `SMTP_PORT` | Optional. Default `587` |
+
+`NEXT_PUBLIC_APP_URL` must be your **public** site URL (used in team notification links).
+
+#### `ENV_FILE_CONTENTS` example
 
 ```env
 POSTGRES_USER=ai_user
@@ -45,7 +67,80 @@ NEXT_PUBLIC_APP_URL=https://your-domain.com
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
 DATABASE_URL=postgresql://ai_user:secure_password@postgres:5432/ai_assistant
+SEED_ADMIN_EMAIL=admin@example.com
+SEED_ADMIN_PASSWORD=secure_password
+SEED_ADMIN_NAME=Admin
+
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASSWORD=your-google-app-password
+BOOKING_EMAIL_FROM=VyntRise Bookings <you@gmail.com>
+BOOKING_NOTIFY_EMAIL=you@gmail.com
 ```
+
+### Will deploy wipe my database?
+
+**No**, for normal deploys:
+
+- Postgres data lives in the Docker volume `postgres_data`. Rebuilding the app container does **not** delete that volume.
+- Deploy only runs **`prisma db push`** (adds missing tables/columns). It does **not** run `prisma db seed` on production.
+- `db push` runs **without** `--accept-data-loss`, so incompatible schema changes **fail the deploy** instead of silently dropping columns or rows.
+
+Your appointments, users, organizations, and other rows stay in place. Only the schema is updated to match `prisma/schema.prisma`.
+
+**First-time setup only** (empty database): run seed once manually if you need the default admin and menu items:
+
+```bash
+docker compose -f docker-compose.prod.yml exec app npx prisma db seed
+```
+
+### Database schema sync
+
+Production keeps Postgres in sync with `prisma/schema.prisma` automatically:
+
+1. On every deploy, the app container runs `scripts/db-sync.sh` (`prisma db push`) **before** starting the server.
+2. `/api/health` returns **503** until all expected tables exist (including `appointments.customer_email`).
+3. `scripts/deploy.sh` only succeeds when health reports `"status":"healthy"` and `"schemaInSync":true`.
+
+`db/migrations/*.sql` are historical reference only; **do not** rely on them on prod. Add new columns/models to `prisma/schema.prisma` and deploy.
+
+Manual sync on the server (if needed):
+
+```bash
+cd /var/www/ai-assistant
+docker compose -f docker-compose.prod.yml exec app sh scripts/db-sync.sh
+docker compose -f docker-compose.prod.yml restart app
+```
+
+Destructive schema changes require setting `PRISMA_DB_PUSH_ACCEPT_DATA_LOSS=1` on the app service (not recommended for routine deploys).
+
+### Verify after deploy
+
+```bash
+curl -s http://localhost:3015/api/health | jq
+```
+
+Expect:
+
+```json
+{
+  "status": "healthy",
+  "schema": {
+    "schemaInSync": true,
+    "missingTables": [],
+    "customerEmailColumn": true
+  },
+  "bookingEmail": {
+    "smtpConfigured": true,
+    "customerEmailColumn": true
+  }
+}
+```
+
+If `schemaInSync` is `false`, check `missingTables` in the response and run `docker compose -f docker-compose.prod.yml logs app` to confirm `prisma db push` succeeded on startup.
+
+If `smtpConfigured` is `false`, SMTP secrets are missing from `.env.production`.
 
 ## CI/CD Pipeline
 

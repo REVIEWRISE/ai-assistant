@@ -14,7 +14,7 @@ export type BookingFlowStep = {
   id: string;
   question: string;
   helperText: string;
-  inputType?: "options" | "datetime" | "text";
+  inputType?: "options" | "datetime" | "text" | "email";
   options: BookingFlowOption[];
 };
 
@@ -107,6 +107,13 @@ export function buildDefaultBookingFlow(services?: string[]): BookingFlowConfig 
       value: `for ${n}`,
     })),
   });
+  steps.push({
+    id: "contact_email",
+    question: "What is your email?",
+    helperText: "We will send your booking confirmation here.",
+    inputType: "email",
+    options: [],
+  });
   return {
     version: 1,
     idleHelperText: "Tap an option to start. The assistant can handle bookings and common questions.",
@@ -169,10 +176,20 @@ export function normalizeBookingFlowStepsArray(stepsRaw: unknown): BookingFlowSt
     const id = normalizeText(s.id, `step_${index + 1}`);
     const question = normalizeText(s.question, `Question ${index + 1}`);
     const inputType =
-      s.inputType === "datetime" ? "datetime" : s.inputType === "text" ? "text" : "options";
+      s.inputType === "datetime"
+        ? "datetime"
+        : s.inputType === "email"
+          ? "email"
+          : s.inputType === "text"
+            ? "text"
+            : "options";
     const helperText = normalizeText(
       s.helperText,
-      inputType === "text" ? "Type your answer." : "Choose one option.",
+      inputType === "text" || inputType === "email"
+        ? inputType === "email"
+          ? "Enter your email address."
+          : "Type your answer."
+        : "Choose one option.",
     );
 
     const sourceOptions = Array.isArray(s.options) ? s.options : [];
