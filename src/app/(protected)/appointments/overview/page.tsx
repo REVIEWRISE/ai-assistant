@@ -8,10 +8,10 @@ import {
   AppPageHeroStatPanel,
 } from "@/components/app-page-hero";
 import { parseBookingFlowQaPayload, type BookingFlowQaItem } from "@/lib/booking-flow-qa";
+import { requireSession } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import { getAppointmentAnalytics } from "@/lib/appointment-analytics";
 import { listOrgCalendarRoutes } from "@/lib/booking-org-gate";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { retryAppointmentCalendarSync } from "./actions";
 
@@ -117,27 +117,7 @@ export default async function AppointmentsOverviewPage({
   const successFlag = typeof sp.success === "string" ? sp.success : undefined;
   const errorFlag = typeof sp.error === "string" ? sp.error : undefined;
   const errorDetail = typeof sp.detail === "string" ? decodeURIComponent(sp.detail) : undefined;
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-
-  if (!token) redirect("/login");
-
-  const session = await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
-    select: {
-      userId: true,
-      activeOrganization: {
-        select: {
-          id: true,
-          name: true,
-          knowledgeBase: { select: { status: true } },
-        },
-      },
-    },
-  });
-
-  if (!session) redirect("/login");
-
+  const session = await requireSession();
   const activeOrganization = session.activeOrganization;
   if (!activeOrganization) redirect("/appointments/organization");
 
