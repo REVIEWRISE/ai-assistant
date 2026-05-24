@@ -16,16 +16,12 @@ export function ReviewsPageAlerts() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const lastToast = useRef<string | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissedKey, setDismissedKey] = useState<string | null>(null);
 
   const success = searchParams.get("success");
   const error = searchParams.get("error");
   const message = getReviewStatusMessage({ success, error });
   const toastKey = success ? `success:${success}` : error ? `error:${error}` : null;
-
-  useEffect(() => {
-    setDismissed(false);
-  }, [toastKey]);
 
   useEffect(() => {
     if (!toastKey || toastKey === lastToast.current || !message) return;
@@ -39,7 +35,7 @@ export function ReviewsPageAlerts() {
   }, [toastKey, message]);
 
   function dismissBanner() {
-    setDismissed(true);
+    if (toastKey) setDismissedKey(toastKey);
     const params = new URLSearchParams(searchParams.toString());
     params.delete("success");
     params.delete("error");
@@ -47,7 +43,7 @@ export function ReviewsPageAlerts() {
     router.replace(query ? `/reviews?${query}` : "/reviews", { scroll: false });
   }
 
-  if (!message || dismissed) return null;
+  if (!message || dismissedKey === toastKey) return null;
 
   return (
     <section
