@@ -10,6 +10,12 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "security", label: "Security" },
 ];
 
+const fieldClass =
+  "mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:bg-[var(--color-bg)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)]";
+
+const fieldReadOnlyClass =
+  "mt-1 w-full cursor-not-allowed rounded-xl border border-[var(--color-border)] bg-[var(--color-raised)] px-3 py-2 text-sm text-[var(--color-text-muted)] outline-none";
+
 type ProfileTabsProps = {
   fullName: string;
   email: string;
@@ -42,8 +48,8 @@ export function ProfileTabs({
               onClick={() => setActiveTab(tab.key)}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                 active
-                  ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-700 hover:bg-slate-100"
+                  ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+                  : "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)]"
               }`}
             >
               {tab.label}
@@ -55,39 +61,26 @@ export function ProfileTabs({
       {activeTab === "profile" ? (
         <Panel title="Profile Details" subtitle="Basic account information">
           <form action={onUpdateProfile} className="grid gap-3 sm:grid-cols-2">
-            <label className="text-sm text-slate-700">
+            <label className="text-sm text-[var(--color-text)]">
               Full name
-              <input
-                type="text"
-                name="full_name"
-                defaultValue={fullName}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none ring-amber-300 transition focus:bg-white focus:ring"
-              />
+              <input type="text" name="full_name" defaultValue={fullName} className={fieldClass} />
             </label>
-            <label className="text-sm text-slate-700">
+            <label className="text-sm text-[var(--color-text)]">
               Work email
-              <input
-                type="email"
-                name="email"
-                defaultValue={email}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none ring-amber-300 transition focus:bg-white focus:ring"
-              />
+              <input type="email" name="email" defaultValue={email} className={fieldClass} />
             </label>
-            <label className="text-sm text-slate-700 sm:col-span-2">
+            <label className="text-sm text-[var(--color-text)] sm:col-span-2">
               Role
               <input
                 type="text"
                 defaultValue={roleName}
                 readOnly
                 aria-readonly="true"
-                className="mt-1 w-full cursor-not-allowed rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none"
+                className={fieldReadOnlyClass}
               />
             </label>
             <div className="sm:col-span-2">
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-              >
+              <button type="submit" className="w-full rounded-xl vr-btn-primary px-3 py-2 text-sm font-semibold">
                 Update Profile
               </button>
             </div>
@@ -98,7 +91,7 @@ export function ProfileTabs({
       {activeTab === "security" ? (
         <div className="space-y-4">
           <Panel title="Security" subtitle="Account access controls">
-            <form action={onUpdatePassword} className="space-y-3 text-sm text-slate-700">
+            <form action={onUpdatePassword} className="space-y-3 text-sm text-[var(--color-text)]">
               <label className="block">
                 Current password
                 <div className="relative mt-1">
@@ -106,13 +99,13 @@ export function ProfileTabs({
                     type={showCurrent ? "text" : "password"}
                     name="current_password"
                     placeholder="Enter current password"
-                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 pr-10 text-sm outline-none ring-amber-300 transition focus:bg-white focus:ring"
+                    className={`${fieldClass} pr-10`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowCurrent((prev) => !prev)}
                     aria-label={showCurrent ? "Hide password" : "Show password"}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-500 transition hover:text-slate-900"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
                   >
                     {showCurrent ? (
                       <svg
@@ -149,13 +142,13 @@ export function ProfileTabs({
                     type={showNew ? "text" : "password"}
                     name="new_password"
                     placeholder="Enter new password"
-                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 pr-10 text-sm outline-none ring-amber-300 transition focus:bg-white focus:ring"
+                    className={`${fieldClass} pr-10`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowNew((prev) => !prev)}
                     aria-label={showNew ? "Hide password" : "Show password"}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-500 transition hover:text-slate-900"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
                   >
                     {showNew ? (
                       <svg
@@ -192,13 +185,13 @@ export function ProfileTabs({
                     type={showConfirm ? "text" : "password"}
                     name="confirm_password"
                     placeholder="Re-enter new password"
-                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 pr-10 text-sm outline-none ring-amber-300 transition focus:bg-white focus:ring"
+                    className={`${fieldClass} pr-10`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirm((prev) => !prev)}
                     aria-label={showConfirm ? "Hide password" : "Show password"}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-500 transition hover:text-slate-900"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
                   >
                     {showConfirm ? (
                       <svg
@@ -228,17 +221,13 @@ export function ProfileTabs({
                   </button>
                 </div>
               </label>
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-              >
+              <button type="submit" className="w-full rounded-xl vr-btn-primary px-3 py-2 text-sm font-semibold">
                 Update Password
               </button>
             </form>
           </Panel>
         </div>
       ) : null}
-
     </section>
   );
 }

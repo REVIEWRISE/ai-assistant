@@ -14,7 +14,7 @@ export type BookingFlowStep = {
   id: string;
   question: string;
   helperText: string;
-  inputType?: "options" | "datetime" | "text";
+  inputType?: "options" | "datetime" | "text" | "email";
   options: BookingFlowOption[];
 };
 
@@ -64,6 +64,18 @@ function normalizeOption(raw: unknown): BookingFlowOption | null {
   return { label, value };
 }
 
+/** Empty flow for new orgs or before the user configures / generates anything. */
+export function emptyBookingFlow(): BookingFlowConfig {
+  return {
+    version: 1,
+    idleHelperText: "",
+    quickActions: [],
+    slotDurationMinutes: 30,
+    minGapMinutes: 0,
+    steps: [],
+  };
+}
+
 export function buildDefaultBookingFlow(services?: string[]): BookingFlowConfig {
   const serviceOptions = (services ?? [])
     .map((s) => s.trim())
@@ -94,6 +106,13 @@ export function buildDefaultBookingFlow(services?: string[]): BookingFlowConfig 
       label: `${n} guest${n > 1 ? "s" : ""}`,
       value: `for ${n}`,
     })),
+  });
+  steps.push({
+    id: "contact_email",
+    question: "What is your email?",
+    helperText: "We will send your booking confirmation here.",
+    inputType: "email",
+    options: [],
   });
   return {
     version: 1,
@@ -157,10 +176,20 @@ export function normalizeBookingFlowStepsArray(stepsRaw: unknown): BookingFlowSt
     const id = normalizeText(s.id, `step_${index + 1}`);
     const question = normalizeText(s.question, `Question ${index + 1}`);
     const inputType =
-      s.inputType === "datetime" ? "datetime" : s.inputType === "text" ? "text" : "options";
+      s.inputType === "datetime"
+        ? "datetime"
+        : s.inputType === "email"
+          ? "email"
+          : s.inputType === "text"
+            ? "text"
+            : "options";
     const helperText = normalizeText(
       s.helperText,
-      inputType === "text" ? "Type your answer." : "Choose one option.",
+      inputType === "text" || inputType === "email"
+        ? inputType === "email"
+          ? "Enter your email address."
+          : "Type your answer."
+        : "Choose one option.",
     );
 
     const sourceOptions = Array.isArray(s.options) ? s.options : [];
@@ -189,34 +218,35 @@ export function mergeBookingFlowQuickActionsOnly(base: BookingFlowConfig, quickF
     .map((label) => ({ label, startsBookingFlow: true }));
   return {
     ...base,
-    quickActions: qa.length > 0 ? qa : base.quickActions,
+    quickActions: qa,
   };
 }
 
 /** Update only the idle helper line; quick actions and steps unchanged. */
 export function mergeBookingFlowIdleText(base: BookingFlowConfig, idleFromAi: string): BookingFlowConfig {
-  const idle = idleFromAi.trim();
-  return { ...base, idleHelperText: idle || base.idleHelperText };
+  return { ...base, idleHelperText: idleFromAi.trim() };
 }
 
 export function mergeBookingFlowSteps(base: BookingFlowConfig, steps: BookingFlowStep[]): BookingFlowConfig {
   return { ...base, steps };
 }
 
-export function resolveBookingFlowConfig(raw: unknown, services?: string[]): BookingFlowConfig {
-  const fallback = buildDefaultBookingFlow(services);
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return fallback;
+export function resolveBookingFlowConfig(raw: unknown): BookingFlowConfig {
+  const empty = emptyBookingFlow();
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return empty;
   const rec = raw as Record<string, unknown>;
-  if (rec.version !== 1 || !Array.isArray(rec.steps)) return fallback;
-  const idleHelperText =
-    typeof rec.idleHelperText === "string" ? String(rec.idleHelperText).trim() : fallback.idleHelperText;
-  const quickActions = Array.isArray(rec.quickActions)
-    ? normalizeQuickActionsArray(rec.quickActions)
-    : fallback.quickActions;
-  const slotDurationMinutes = normalizeIntInRange(rec.slotDurationMinutes, fallback.slotDurationMinutes, 15, 240);
-  const minGapMinutes = normalizeIntInRange(rec.minGapMinutes, fallback.minGapMinutes, 0, 180);
+  if (Object.keys(rec).length === 0) return empty;
 
-  const normalizedSteps = normalizeBookingFlowStepsArray(rec.steps);
+  const version = rec.version;
+  const stepsRaw = rec.steps;
+  const hasStepsArray = Array.isArray(stepsRaw);
+  if (version !== 1 && !hasStepsArray) return empty;
+
+  const idleHelperText = typeof rec.idleHelperText === "string" ? String(rec.idleHelperText).trim() : "";
+  const quickActions = Array.isArray(rec.quickActions) ? normalizeQuickActionsArray(rec.quickActions) : [];
+  const slotDurationMinutes = normalizeIntInRange(rec.slotDurationMinutes, empty.slotDurationMinutes, 15, 240);
+  const minGapMinutes = normalizeIntInRange(rec.minGapMinutes, empty.minGapMinutes, 0, 180);
+  const steps = hasStepsArray ? normalizeBookingFlowStepsArray(stepsRaw) : [];
 
   return {
     version: 1,
@@ -224,7 +254,7 @@ export function resolveBookingFlowConfig(raw: unknown, services?: string[]): Boo
     quickActions,
     slotDurationMinutes,
     minGapMinutes,
-    steps: normalizedSteps,
+    steps,
   };
 }
 
@@ -241,9 +271,9 @@ export function readChatbotConfigFromParsedData(parsedData: unknown): ChatbotCon
 
   return {
     welcomeMessage: String(config.welcomeMessage || "").trim() || defaultWelcome,
-    themeColor: String(config.themeColor || "").trim() || "#22c55e",
-    iconColor: String(config.iconColor || "").trim() || "#0f172a",
-    bookingFlow: buildDefaultBookingFlow(),
+    themeColor: String(config.themeColor || "").trim() || "#6366f1",
+    iconColor: String(config.iconColor || "").trim() || "#ffffff",
+    bookingFlow: emptyBookingFlow(),
   };
 }
 
@@ -263,17 +293,16 @@ export function resolveChatbotConfigData(
   legacyParsedData: unknown,
 ): ChatbotConfigData {
   if (settings) {
-    const services = parseServicesList(settings.services);
     return {
       welcomeMessage: String(settings.welcomeMessage || "").trim() || defaultWelcome,
-      themeColor: String(settings.themeColor || "").trim() || "#22c55e",
-      iconColor: String(settings.iconColor || "").trim() || "#0f172a",
-      bookingFlow: resolveBookingFlowConfig(settings.bookingFlow, services),
+      themeColor: String(settings.themeColor || "").trim() || "#6366f1",
+      iconColor: String(settings.iconColor || "").trim() || "#ffffff",
+      bookingFlow: resolveBookingFlowConfig(settings.bookingFlow),
     };
   }
   const legacy = readChatbotConfigFromParsedData(legacyParsedData);
   return {
     ...legacy,
-    bookingFlow: buildDefaultBookingFlow(),
+    bookingFlow: emptyBookingFlow(),
   };
 }

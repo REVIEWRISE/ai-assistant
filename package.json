@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint",
     "db:migrate": "prisma db push",
+    "db:sync": "sh scripts/db-sync.sh",
     "db:seed": "prisma db seed",
     "db:setup": "npm run db:migrate && npm run db:seed",
     "cron:review-sync": "tsx scripts/review-sync-cron.ts"
@@ -20,6 +21,7 @@
     "@prisma/client": "^6.19.2",
     "bcryptjs": "^3.0.3",
     "next": "16.1.6",
+    "nodemailer": "^8.0.8",
     "pg": "^8.20.0",
     "prisma": "^6.19.2",
     "react": "19.2.3",
@@ -28,15 +30,16 @@
     "sonner": "^2.0.7"
   },
   "devDependencies": {
-    "tsx": "^4.21.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.0",
     "@types/pg": "^8.18.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

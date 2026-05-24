@@ -51,27 +51,27 @@ export function CalendarServiceManager({
   }, [activeFilter, providers]);
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
+    <section className="vr-app-panel p-4 lg:p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-slate-900">
+          <h3 className="text-base font-semibold text-[var(--color-text)]">
             Calendar Provider Integrations
           </h3>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
             Connect calendar providers before AI can check availability and book appointments.
           </p>
         </div>
         <div className="flex gap-2 text-xs">
-          <span className="rounded-full bg-emerald-100 px-3 py-1.5 font-semibold text-emerald-700">
+          <span className="inline-flex rounded-full vr-app-status-success px-3 py-1.5 font-semibold">
             Connected: {connectedCount}
           </span>
-          <span className="rounded-full bg-slate-100 px-3 py-1.5 font-semibold text-slate-700">
+          <span className="inline-flex rounded-full vr-app-status-muted px-3 py-1.5 font-semibold">
             Not connected: {providers.length - connectedCount}
           </span>
           <button
             type="button"
             onClick={() => setCollapsed((prev) => !prev)}
-            className="flex items-center gap-1 rounded-full bg-slate-900 px-3 py-1.5 font-semibold text-white transition hover:bg-slate-700"
+            className="flex items-center gap-1 rounded-full vr-btn-primary px-3 py-1.5 font-semibold"
           >
             {collapsed ? "Expand" : "Collapse"}
             <svg
@@ -99,8 +99,8 @@ export function CalendarServiceManager({
                   onClick={() => setActiveFilter(filter.id)}
                   className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                     active
-                      ? "bg-slate-900 text-white"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+                      : "bg-[var(--color-raised)] text-[var(--color-text)] hover:bg-[var(--color-surface)]"
                   }`}
                 >
                   {filter.label}
@@ -110,7 +110,7 @@ export function CalendarServiceManager({
           </div>
 
           {filteredProviders.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+            <div className="vr-app-empty-state px-4 py-6 text-center text-sm">
               No providers match this filter.
             </div>
           ) : (
@@ -122,10 +122,10 @@ export function CalendarServiceManager({
                     key={provider.name}
                     className={`relative overflow-hidden rounded-3xl border p-5 shadow-sm ${provider.tone}`}
                   >
-                    <div className="absolute right-0 top-0 h-20 w-24 bg-white/30 blur-2xl" />
+                    <div className="absolute right-0 top-0 h-20 w-24 bg-[color-mix(in_srgb,var(--color-bg)_30%,transparent)] blur-2xl" />
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/70 bg-white/80">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
                           {provider.logoUrl ? (
                             <Image
                               src={provider.logoUrl}
@@ -136,39 +136,37 @@ export function CalendarServiceManager({
                               className="h-8 w-8 object-contain"
                             />
                           ) : (
-                            <span className="text-[10px] font-semibold text-slate-500">
+                            <span className="text-[10px] font-semibold text-[var(--color-text-muted)]">
                               No logo
                             </span>
                           )}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-slate-900">
+                          <p className="text-sm font-semibold text-[var(--color-text)]">
                             {provider.name}
                           </p>
-                          <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                          <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                             {provider.type}
                           </p>
                         </div>
                       </div>
                       <span
                         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                          connected
-                            ? "bg-emerald-200/70 text-emerald-800"
-                            : "bg-slate-200/70 text-slate-700"
+                          connected ? "vr-app-status-success" : "vr-app-status-muted"
                         }`}
                       >
                         <span
                           className={`h-1.5 w-1.5 rounded-full ${
-                            connected ? "bg-emerald-600" : "bg-slate-500"
+                            connected ? "bg-[var(--color-success)]" : "bg-[var(--color-text-subtle)]"
                           }`}
                         />
                         {provider.status}
                       </span>
                     </div>
-                    <div className="mt-4 space-y-2 text-xs text-slate-700">
-                      <div className="flex items-center justify-between rounded-xl border border-white/70 bg-white/70 px-3 py-2">
+                    <div className="mt-4 space-y-2 text-xs text-[var(--color-text)]">
+                      <div className="flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
                         <p className="font-semibold">Last Activity</p>
-                        <p className="text-[11px] font-semibold text-slate-600">
+                        <p className="text-[11px] font-semibold text-[var(--color-text-muted)]">
                           {provider.lastSync}
                         </p>
                       </div>
@@ -177,8 +175,8 @@ export function CalendarServiceManager({
                       href={provider.connectHref}
                       className={`mt-4 inline-flex w-full items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold transition ${
                         connected
-                          ? "bg-white/90 text-slate-700 hover:bg-white"
-                          : "bg-slate-900 text-white hover:bg-slate-700"
+                          ? "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)]"
+                          : "vr-btn-primary"
                       }`}
                     >
                       {connected ? "Manage Connection" : "Connect Provider"}

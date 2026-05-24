@@ -10,7 +10,7 @@ services:
         condition: service_healthy
     env_file:
       - .env.production
-    command: sh -c "npx --yes prisma@6 db push --accept-data-loss --skip-generate && npx prisma db seed && node server.js"
+    command: sh -c "sh scripts/db-sync.sh && node server.js"
     ports:
       - "3015:3000"
     volumes:

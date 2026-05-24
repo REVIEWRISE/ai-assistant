@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   buildChatbotReply,
   parseBookingUtterance,
+  normalizeCustomerEmail,
   parsedBookingFromGuidedAnswers,
+  stepIdIndicatesCustomerEmail,
   stepIdIndicatesCustomerName,
   stepIdIndicatesPartySize,
   type ParsedBookingUtterance,
@@ -162,6 +164,24 @@ function pickCustomerNameFromAnswers(flow: BookingFlowConfig, answers: DynamicAn
   return null;
 }
 
+function isEmailStep(step: BookingFlowStep): boolean {
+  const question = step.question.toLowerCase();
+  return (
+    step.inputType === "email" ||
+    stepIdIndicatesCustomerEmail(step.id) ||
+    /\b(your email|email address|contact email)\b/.test(question)
+  );
+}
+
+function pickCustomerEmailFromAnswers(flow: BookingFlowConfig, answers: DynamicAnswers): string | null {
+  for (const step of flow.steps) {
+    if (!isEmailStep(step)) continue;
+    const normalized = normalizeCustomerEmail(String(answers[step.id] ?? ""));
+    if (normalized) return normalized;
+  }
+  return null;
+}
+
 function formatDateTimeValue(localIso: string): string {
   if (!localIso) return "";
   const d = new Date(localIso);
@@ -266,6 +286,8 @@ export function FloatingBookingChatbot({
           organizationId,
           message: trimmed,
           customerName: pickCustomerNameFromAnswers(bookingFlow, answers),
+          customerEmail:
+            pickCustomerEmailFromAnswers(bookingFlow, answers) ?? parsed.customerEmail,
           history,
           ...(options?.guidedParsed != null
             ? { bookingFlowQa: buildBookingFlowQaFromAnswers(bookingFlow, answers) }
@@ -275,6 +297,7 @@ export function FloatingBookingChatbot({
             serviceDescription: parsed.serviceDescription,
             partySize: parsed.partySize,
             customerName: parsed.customerName,
+            customerEmail: parsed.customerEmail,
             startTimeIso: parsed.startTime?.toISOString() ?? null,
             endTimeIso: parsed.endTime?.toISOString() ?? null,
           },
@@ -328,7 +351,8 @@ export function FloatingBookingChatbot({
         resetBookingFlow();
         return;
       }
-      if (step.inputType === "datetime" || step.inputType === "text") return;
+      if (step.inputType === "datetime" || step.inputType === "text" || step.inputType === "email")
+        return;
       const selectedOption = step.options.find((opt) => stepLabel(step, opt) === action);
       if (selectedOption == null) return;
       pushUserMessage(stepLabel(step, selectedOption));
@@ -413,9 +437,13 @@ export function FloatingBookingChatbot({
   function handleTextPick() {
     if (sending) return;
     const step = bookingFlow.steps[activeStepIndex];
-    if (!step || step.inputType !== "text") return;
+    if (!step || (step.inputType !== "text" && step.inputType !== "email")) return;
     const value = textDraft.trim();
     if (!value) return;
+    if (step.inputType === "email" && !normalizeCustomerEmail(value)) {
+      pushBotMessage("Please enter a valid email address (for example you@example.com).");
+      return;
+    }
     pushUserMessage(value);
     const nextAnswers = { ...answers, [step.id]: value };
     setAnswers(nextAnswers);
@@ -434,7 +462,13 @@ export function FloatingBookingChatbot({
     if (bookingStepState === "collecting") {
       const step = bookingFlow.steps[activeStepIndex];
       if (!step) return ["Back to menu"];
-      if (step.inputType === "datetime" || step.inputType === "text") return ["Back to menu"];
+      if (
+        step.inputType === "datetime" ||
+        step.inputType === "text" ||
+        step.inputType === "email"
+      ) {
+        return ["Back to menu"];
+      }
       return [...step.options.map((opt) => stepLabel(step, opt)), "Back to menu"];
     }
     if (bookingStepState === "confirm") return ["Confirm booking", "Change details", "Cancel"];
@@ -442,76 +476,109 @@ export function FloatingBookingChatbot({
   }, [bookingStepState, bookingFlow.steps, activeStepIndex, quickActions]);
 
   return (
-    <div className="fixed bottom-5 right-5 z-40">
+    <div
+      className="chatbot-widget fixed bottom-5 right-5 z-40 text-[var(--color-text)]"
+      style={
+        {
+          "--chat-accent": themeColor,
+          "--chat-accent-fg": iconColor,
+        } as CSSProperties
+      }
+    >
       {!open ? (
         <button
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Open booking assistant"
-          style={{ backgroundColor: themeColor, color: iconColor }}
-          className="flex h-14 w-14 items-center justify-center rounded-full shadow-[0_12px_40px_-12px_rgba(24,24,27,0.35)] ring-4 ring-white/95 transition hover:scale-[1.04] hover:opacity-95 active:scale-[0.98]"
+          style={{ backgroundColor: "var(--chat-accent)", color: "var(--chat-accent-fg)" }}
+          className="flex h-14 w-14 items-center justify-center rounded-full shadow-[var(--shadow-lg)] ring-4 ring-[color-mix(in_srgb,var(--color-bg)_92%,transparent)] transition hover:scale-[1.04] hover:brightness-105 active:scale-[0.98]"
         >
           <BookingChatbotIcon className="h-6 w-6" />
         </button>
       ) : (
-        <div className="relative flex h-[min(88dvh,700px)] max-h-[min(88dvh,700px)] w-[380px] flex-col overflow-hidden rounded-[1.75rem] bg-gradient-to-b from-white/95 via-white/88 to-[#faf8f5]/95 text-zinc-900 shadow-[0_24px_64px_-28px_rgba(24,24,27,0.18),0_8px_28px_-12px_rgba(24,24,27,0.08),inset_0_1px_0_0_rgba(255,255,255,1)] ring-1 ring-zinc-200/70 backdrop-blur-md">
-          <div className="relative flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/60 px-4 py-3.5">
+        <div className="relative flex h-[min(88dvh,700px)] max-h-[min(88dvh,700px)] w-[380px] flex-col overflow-hidden rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)] ring-1 ring-[color-mix(in_srgb,var(--color-primary)_8%,var(--color-border))]">
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(ellipse_90%_70%_at_50%_-20%,color-mix(in_srgb,var(--color-primary)_18%,transparent),transparent)]"
+            aria-hidden
+          />
+          <div className="relative flex shrink-0 items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3.5">
             <div className="flex min-w-0 flex-1 items-start gap-3">
               <span
-                style={{ backgroundColor: themeColor, color: iconColor, boxShadow: "0 4px 14px -2px rgba(24,24,27,0.12)" }}
-                className="box-border flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ring-black/[0.06]"
+                style={{
+                  backgroundColor: "var(--chat-accent)",
+                  color: "var(--chat-accent-fg)",
+                  boxShadow: "var(--shadow-sm)",
+                }}
+                className="box-border flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ring-[color-mix(in_srgb,var(--chat-accent)_20%,var(--color-border))]"
               >
                 <BookingChatbotIcon className="h-5 w-5" />
               </span>
               <div className="min-w-0 pt-0.5">
-                <div className="inline-flex items-center rounded-full border border-amber-200/60 bg-gradient-to-b from-white/90 to-amber-50/50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-900/85 ring-1 ring-amber-200/45">
+                <div className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--color-primary)_22%,var(--color-border))] bg-[var(--color-primary-soft)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--color-primary-h)]">
                   Booking assistant
                 </div>
-                <p className="mt-1.5 truncate text-sm font-semibold tracking-tight text-zinc-950">{organizationName}</p>
+                <p className="mt-1.5 truncate text-sm font-semibold tracking-tight text-[var(--color-text)]">
+                  {organizationName}
+                </p>
               </div>
             </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="rounded-xl p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Close"
+              className="rounded-xl p-2 text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
+            >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
                 <path d="M6 6l12 12M6 18L18 6" />
               </svg>
             </button>
           </div>
-          <div ref={messagesViewportRef} className="relative min-h-0 flex-1 overflow-y-auto border-b border-zinc-200/50 px-4 py-4">
+          <div ref={messagesViewportRef} className="relative min-h-0 flex-1 overflow-y-auto border-b border-[var(--color-border-muted)] bg-[var(--color-bg)] px-4 py-4">
             <div className="flex flex-col gap-3">
               {messages.map((message) => (
-                <div key={message.id} className={`max-w-[90%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${message.role === "bot" ? "border border-zinc-200/70 bg-white/90 text-zinc-800 shadow-sm" : "ml-auto bg-gradient-to-b from-zinc-900 to-zinc-800 text-white shadow-md shadow-zinc-900/15 ring-1 ring-zinc-950/10"}`}>
+                <div
+                  key={message.id}
+                  className={`max-w-[90%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                    message.role === "bot"
+                      ? "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] shadow-[var(--shadow-sm)]"
+                      : "ml-auto bg-[var(--chat-accent)] text-[var(--chat-accent-fg)] shadow-[var(--shadow-sm)] ring-1 ring-[color-mix(in_srgb,var(--chat-accent)_25%,transparent)]"
+                  }`}
+                >
                   {message.text}
                 </div>
               ))}
               {sending ? (
-                <div className="inline-flex w-fit max-w-[90%] self-start rounded-xl border border-zinc-200/70 bg-white/90 px-3.5 py-2.5 text-zinc-800 shadow-sm">
+                <div className="inline-flex w-fit max-w-[90%] self-start rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 shadow-[var(--shadow-sm)]">
                   <div className="flex items-center gap-1.5" aria-label="Assistant is typing">
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400 [animation-delay:0ms]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400 [animation-delay:120ms]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400 [animation-delay:240ms]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--color-primary)] [animation-delay:0ms]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--color-primary)] [animation-delay:120ms]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--color-primary)] [animation-delay:240ms]" />
                   </div>
                 </div>
               ) : null}
             </div>
           </div>
-          <div className="relative shrink-0 border-t border-zinc-200/50 bg-white/35 px-4 py-3 backdrop-blur-sm">
-            <p className="mb-2.5 text-xs leading-relaxed text-zinc-500">{helperText}</p>
+          <div className="relative shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 backdrop-blur-sm">
+            <p className="mb-2.5 text-xs leading-relaxed text-[var(--color-text-muted)]">{helperText}</p>
             {bookingStepState === "collecting" &&
             bookingFlow.steps[activeStepIndex]?.inputType === "datetime" ? (
-              <div className="mb-2.5 rounded-xl border border-zinc-200/90 bg-[#faf8f5]/90 p-2.5">
-                <label className="mb-1 block text-[11px] font-semibold text-zinc-600">Pick date and time</label>
+              <div className="mb-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-raised)] p-2.5">
+                <label className="mb-1 block text-[11px] font-semibold text-[var(--color-text-muted)]">
+                  Pick date and time
+                </label>
                 <div className="flex items-center gap-2">
                   <input
                     type="datetime-local"
                     value={dateTimeDraft}
                     onChange={(e) => setDateTimeDraft(e.target.value)}
-                    className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm"
+                    className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]"
                   />
                   <button
                     type="button"
                     onClick={handleDateTimePick}
                     disabled={!dateTimeDraft || sending}
-                    className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                    className="rounded-lg px-3 py-2 text-xs font-semibold text-[var(--chat-accent-fg)] disabled:opacity-50"
+                    style={{ backgroundColor: "var(--chat-accent)" }}
                   >
                     Use
                   </button>
@@ -519,12 +586,17 @@ export function FloatingBookingChatbot({
               </div>
             ) : null}
             {bookingStepState === "collecting" &&
-            bookingFlow.steps[activeStepIndex]?.inputType === "text" ? (
-              <div className="mb-2.5 rounded-xl border border-zinc-200/90 bg-[#faf8f5]/90 p-2.5">
-                <label className="mb-1 block text-[11px] font-semibold text-zinc-600">Type your answer</label>
+            (bookingFlow.steps[activeStepIndex]?.inputType === "text" ||
+              bookingFlow.steps[activeStepIndex]?.inputType === "email") ? (
+              <div className="mb-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-raised)] p-2.5">
+                <label className="mb-1 block text-[11px] font-semibold text-[var(--color-text-muted)]">
+                  {bookingFlow.steps[activeStepIndex]?.inputType === "email"
+                    ? "Your email"
+                    : "Type your answer"}
+                </label>
                 <div className="flex items-center gap-2">
                   <input
-                    type="text"
+                    type={bookingFlow.steps[activeStepIndex]?.inputType === "email" ? "email" : "text"}
                     value={textDraft}
                     onChange={(e) => setTextDraft(e.target.value)}
                     onKeyDown={(e) => {
@@ -533,14 +605,19 @@ export function FloatingBookingChatbot({
                         handleTextPick();
                       }
                     }}
-                    className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm"
-                    placeholder="Type here..."
+                    className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-2 text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]"
+                    placeholder={
+                      bookingFlow.steps[activeStepIndex]?.inputType === "email"
+                        ? "you@example.com"
+                        : "Type here..."
+                    }
                   />
                   <button
                     type="button"
                     onClick={handleTextPick}
                     disabled={!textDraft.trim() || sending}
-                    className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                    className="rounded-lg px-3 py-2 text-xs font-semibold text-[var(--chat-accent-fg)] disabled:opacity-50"
+                    style={{ backgroundColor: "var(--chat-accent)" }}
                   >
                     Use
                   </button>
@@ -548,7 +625,7 @@ export function FloatingBookingChatbot({
               </div>
             ) : null}
             {bookingStepState === "idle" && actionButtons.length === 0 ? (
-              <p className="mb-2 text-xs leading-relaxed text-zinc-500">
+              <p className="mb-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
                 No quick-start buttons configured for this assistant.
               </p>
             ) : null}
@@ -564,14 +641,15 @@ export function FloatingBookingChatbot({
                     }
                   }}
                   placeholder="Type a question..."
-                  className="w-full rounded-xl border border-zinc-200/90 bg-[#faf8f5]/90 px-3.5 py-2.5 text-sm text-zinc-900 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-400 focus:bg-white focus:ring-2 focus:ring-teal-200/50"
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5 text-sm text-[var(--color-text)] shadow-[var(--shadow-sm)] outline-none transition placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
                 />
                 <button
                   type="button"
                   onClick={() => void handleManualSend()}
                   disabled={sending || !input.trim()}
                   aria-label="Send message"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-zinc-900 to-zinc-800 text-white shadow-lg shadow-zinc-900/20 ring-1 ring-zinc-950/10 transition hover:from-zinc-800 hover:to-zinc-700 disabled:opacity-50"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--chat-accent-fg)] shadow-[var(--shadow-md)] transition hover:brightness-105 disabled:opacity-50"
+                  style={{ backgroundColor: "var(--chat-accent)" }}
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -591,7 +669,13 @@ export function FloatingBookingChatbot({
             ) : null}
             <div className="grid grid-cols-1 gap-2">
               {actionButtons.map((action) => (
-                <button key={action} type="button" onClick={() => void handleAction(action)} disabled={sending} className="rounded-xl border border-zinc-200/90 bg-[#faf8f5]/90 px-3.5 py-2.5 text-left text-sm text-zinc-800 shadow-sm transition hover:border-teal-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50">
+                <button
+                  key={action}
+                  type="button"
+                  onClick={() => void handleAction(action)}
+                  disabled={sending}
+                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5 text-left text-sm text-[var(--color-text)] shadow-[var(--shadow-sm)] transition hover:border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] hover:bg-[var(--color-primary-soft)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
                   {action}
                 </button>
               ))}

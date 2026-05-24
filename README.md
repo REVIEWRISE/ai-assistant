@@ -24,6 +24,12 @@ Next.js + Prisma + Postgres app for AI-assisted appointment/chatbot workflows.
 cat > .env.local <<'EOF'
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+BOOKING_EMAIL_FROM=
+BOOKING_NOTIFY_EMAIL=
 SEED_ADMIN_EMAIL=
 SEED_ADMIN_PASSWORD=
 SEED_ADMIN_NAME=
@@ -74,6 +80,12 @@ DATABASE_URL=postgresql://ai_user:ai_password@localhost:5432/ai_assistant
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+BOOKING_EMAIL_FROM=
+BOOKING_NOTIFY_EMAIL=
 SEED_ADMIN_EMAIL=
 SEED_ADMIN_PASSWORD=
 SEED_ADMIN_NAME=
@@ -90,6 +102,26 @@ npm run db:setup
 ```bash
 npm run dev
 ```
+
+## Booking confirmation emails
+
+After a visitor books through the embedded chatbot, the app can email:
+
+- **Guest confirmation** — when they provide an email in the booking flow
+- **Team notification** — to workspace members (and optional `BOOKING_NOTIFY_EMAIL`)
+
+Set in `.env.local` (Gmail SMTP — use a [Google App Password](https://myaccount.google.com/apppasswords), not your normal login password):
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASSWORD=your-16-char-app-password
+BOOKING_EMAIL_FROM=VyntRise Bookings <you@gmail.com>
+BOOKING_NOTIFY_EMAIL=ops@yourdomain.com
+```
+
+If `SMTP_USER` / `SMTP_PASSWORD` are unset, bookings still save; emails are skipped.
 
 ## Useful Scripts
 

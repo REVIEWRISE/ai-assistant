@@ -27,9 +27,9 @@ function FormattedPreviewBody({ text }: { text: string }) {
     if (bulletLines.length === 0) return;
     const key = `ul-${blockKey++}`;
     blocks.push(
-      <ul key={key} className="my-1 list-disc space-y-0.5 pl-5 marker:text-slate-400">
+      <ul key={key} className="my-1 list-disc space-y-0.5 pl-5 marker:text-[var(--color-text-subtle)]">
         {bulletLines.map((b, i) => (
-          <li key={i} className="text-slate-700">
+          <li key={i} className="text-[var(--color-text)]">
             {renderBoldSegments(b, `${key}-li-${i}`)}
           </li>
         ))}
@@ -48,14 +48,14 @@ function FormattedPreviewBody({ text }: { text: string }) {
       const title = headingMatch[2].trim();
       const cls =
         level === 1
-          ? "text-base font-semibold tracking-tight text-slate-900"
+          ? "text-base font-semibold tracking-tight text-[var(--color-text)]"
           : level === 2
-            ? "text-[15px] font-semibold text-slate-900"
-            : "text-sm font-semibold text-slate-800";
+            ? "text-[15px] font-semibold text-[var(--color-text)]"
+            : "text-sm font-semibold text-[var(--color-text)]";
       blocks.push(
         <div
           key={`hd-${idx}-${blockKey++}`}
-          className={`${cls} mt-3 border-b border-slate-100 pb-1 first:mt-0`}
+          className={`${cls} mt-3 border-b border-[var(--color-border-muted)] pb-1 first:mt-0`}
         >
           {renderBoldSegments(title, `hd-${idx}`)}
         </div>,
@@ -77,7 +77,7 @@ function FormattedPreviewBody({ text }: { text: string }) {
     }
 
     blocks.push(
-      <p key={`p-${idx}`} className="my-0.5 text-slate-700">
+      <p key={`p-${idx}`} className="my-0.5 text-[var(--color-text)]">
         {renderBoldSegments(line.trimEnd(), `p-${idx}`)}
       </p>,
     );
@@ -103,35 +103,35 @@ export function KnowledgePreview({
     <div className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
             {hasDigest ? "Formatted digest" : "Preview"}
           </p>
           {hasDigest ? (
-            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-600">
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-[var(--color-text-muted)]">
               This is an AI-generated digest for quick reading and chat context. It is meant to be shorter than the
               import. The complete scrape ({rawLen.toLocaleString()} characters) is stored as{" "}
-              <span className="font-semibold text-slate-800">imported text</span> below—nothing was dropped from the
+              <span className="font-semibold text-[var(--color-text)]">imported text</span> below—nothing was dropped from the
               crawl when building that field.
             </p>
           ) : (
-            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-600">
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-[var(--color-text-muted)]">
               Showing the start of your imported text. Open “Full imported text” to see everything that was saved.
             </p>
           )}
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5">
         <FormattedPreviewBody text={digestText} />
       </div>
 
       {showRawPanel ? (
-        <details className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2">
-          <summary className="cursor-pointer select-none text-sm font-semibold text-slate-800">
+        <details className="rounded-xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_80%,transparent)] px-3 py-2">
+          <summary className="cursor-pointer select-none text-sm font-semibold text-[var(--color-text)]">
             Full imported text
-            <span className="ml-2 font-normal text-slate-500">({rawLen.toLocaleString()} characters)</span>
+            <span className="ml-2 font-normal text-[var(--color-text-muted)]">({rawLen.toLocaleString()} characters)</span>
           </summary>
-          <div className="mt-2 max-h-[min(28rem,65vh)] overflow-auto rounded-lg border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-700 whitespace-pre-wrap break-words">
+          <div className="mt-2 max-h-[min(28rem,65vh)] overflow-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs leading-relaxed text-[var(--color-text)] whitespace-pre-wrap break-words">
             {raw}
           </div>
         </details>

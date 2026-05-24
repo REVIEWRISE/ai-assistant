@@ -1,5 +1,11 @@
 import { ProfileTabs } from "@/components/profile-tabs";
 import { ProfileToasts } from "@/components/profile-toasts";
+import {
+  AppPageHero,
+  AppPageHeroStat,
+  AppPageHeroStatGrid,
+  AppPageHeroStatPanel,
+} from "@/components/app-page-hero";
 import { getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
 import { prisma } from "@/lib/prisma";
 import { isHrefAllowedForNav, redirectPathWhenMenuForbidden } from "@/lib/nav-access";
@@ -76,52 +82,35 @@ export default async function ProfileSettingsPage() {
   return (
     <div className="space-y-4 lg:space-y-6">
       <ProfileToasts />
-      <section className="rounded-3xl border border-slate-200 bg-[linear-gradient(120deg,#0f172a,#1e293b_45%,#334155)] p-5 text-white shadow-sm lg:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">
-              Account Settings
-            </p>
-            <h1 className="mt-2 text-2xl font-semibold leading-tight lg:text-3xl">
-              Manage your profile and workspace preferences.
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-200">
-              Keep your profile, notifications, and security settings aligned
-              with how your team operates day-to-day.
-            </p>
-          </div>
-
-          <div className="basis-full w-full rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-base font-bold text-slate-900">
-                {initials}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white">{user.fullName}</p>
-                <p className="text-xs text-slate-300">
-                  {roleName} • {orgName}
-                </p>
-              </div>
+      <AppPageHero
+        eyebrow="Account Settings"
+        title={
+          <>
+            Manage your profile and{" "}
+            <span className="vr-brand-gradient-text">workspace preferences</span>
+          </>
+        }
+        description="Keep your profile and security settings aligned with how your team operates day-to-day."
+      >
+        <AppPageHeroStatPanel>
+          <div className="mb-3 flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-base font-bold text-[var(--color-text)]">
+              {initials}
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-              <div className="rounded-lg bg-white/10 px-2 py-1.5">
-                <p className="text-slate-300">Role</p>
-                <p className="font-semibold text-white">{roleName}</p>
-              </div>
-              <div className="rounded-lg bg-white/10 px-2 py-1.5">
-                <p className="text-slate-300">Status</p>
-                <p className="font-semibold text-white">{statusLabel}</p>
-              </div>
-              <div className="rounded-lg bg-white/10 px-2 py-1.5">
-                <p className="text-slate-300">Email</p>
-                <p className="font-semibold text-white">
-                  {user.emailVerified ? "Verified" : "Unverified"}
-                </p>
-              </div>
+            <div>
+              <p className="text-sm font-semibold text-white">{user.fullName}</p>
+              <p className="text-xs text-slate-300">
+                {roleName} • {orgName}
+              </p>
             </div>
           </div>
-        </div>
-      </section>
+          <AppPageHeroStatGrid columns="3">
+            <AppPageHeroStat label="Role" value={roleName} />
+            <AppPageHeroStat label="Status" value={statusLabel} />
+            <AppPageHeroStat label="Email" value={user.emailVerified ? "Verified" : "Unverified"} />
+          </AppPageHeroStatGrid>
+        </AppPageHeroStatPanel>
+      </AppPageHero>
 
       <ProfileTabs
         fullName={user.fullName}

@@ -8,6 +8,7 @@ export type ParsedBookingUtterance = {
   serviceDescription: string | null;
   partySize: number | null;
   customerName: string | null;
+  customerEmail: string | null;
   startTime: Date | null;
   endTime: Date | null;
 };
@@ -69,6 +70,34 @@ export function stepIdIndicatesCustomerName(id: string): boolean {
   const prefix = i > 0 ? segs[i - 1] : "";
   if (NON_CUSTOMER_NAME_PREFIX.has(prefix)) return false;
   return true;
+}
+
+const CUSTOMER_EMAIL_ID_TOKENS = new Set([
+  "email",
+  "contact_email",
+  "guest_email",
+  "customer_email",
+  "your_email",
+]);
+
+export function stepIdIndicatesCustomerEmail(id: string): boolean {
+  return idSegments(id).some((s) => CUSTOMER_EMAIL_ID_TOKENS.has(s));
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+
+export function normalizeCustomerEmail(raw: string | null | undefined): string | null {
+  const email = String(raw ?? "")
+    .trim()
+    .toLowerCase()
+    .slice(0, 320);
+  if (!email || !EMAIL_RE.test(email)) return null;
+  return email;
+}
+
+export function extractEmailFromText(text: string): string | null {
+  const match = text.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
+  return match ? normalizeCustomerEmail(match[0]) : null;
 }
 
 const PARTY_SIZE_ID_TOKENS = new Set([
@@ -304,6 +333,7 @@ export function parseBookingUtterance(
       serviceDescription: null,
       partySize: null,
       customerName: null,
+      customerEmail: null,
       startTime: null,
       endTime: null,
     };
@@ -314,6 +344,7 @@ export function parseBookingUtterance(
   const partySize = parsePartySize(trimmed);
   const isBookingIntent = BOOKING_HINT.test(trimmed) || (BOOKING_FOLLOWUP_HINT.test(trimmed) && (hasDateLikeInfo || hasClock || partySize != null));
   const customerName = parseCustomerName(trimmed);
+  const customerEmail = extractEmailFromText(trimmed);
 
   if (!isBookingIntent) {
     return {
@@ -321,6 +352,7 @@ export function parseBookingUtterance(
       serviceDescription: inferService(trimmed),
       partySize,
       customerName,
+      customerEmail,
       startTime: null,
       endTime: null,
     };
@@ -351,6 +383,7 @@ export function parseBookingUtterance(
     serviceDescription,
     partySize,
     customerName,
+    customerEmail,
     startTime,
     endTime,
   };
@@ -367,6 +400,7 @@ export function parsedBookingFromGuidedAnswers(
 ): ParsedBookingUtterance {
   let partySize: number | null = null;
   let customerName: string | null = null;
+  let customerEmail: string | null = null;
   let startTime: Date | null = null;
 
   for (const step of flow.steps) {
@@ -375,7 +409,13 @@ export function parsedBookingFromGuidedAnswers(
     const id = step.id.toLowerCase();
     const q = step.question.toLowerCase();
     const inputType =
-      step.inputType === "datetime" ? "datetime" : step.inputType === "text" ? "text" : "options";
+      step.inputType === "datetime"
+        ? "datetime"
+        : step.inputType === "email"
+          ? "email"
+          : step.inputType === "text"
+            ? "text"
+            : "options";
 
     if (inputType === "datetime") {
       const d = new Date(raw);
@@ -402,6 +442,15 @@ export function parsedBookingFromGuidedAnswers(
       continue;
     }
 
+    if (
+      inputType === "email" ||
+      stepIdIndicatesCustomerEmail(id) ||
+      /\b(your email|email address|contact email)\b/i.test(q)
+    ) {
+      customerEmail = normalizeCustomerEmail(raw);
+      continue;
+    }
+
     if (inputType === "options" && /^\d{1,2}$/.test(raw) && /\b(guest|guests|people|party|pax)\b/i.test(q)) {
       const n = parseInt(raw, 10);
       if (n >= 1 && n <= 99 && partySize == null) partySize = n;
@@ -418,6 +467,7 @@ export function parsedBookingFromGuidedAnswers(
     serviceDescription,
     partySize,
     customerName,
+    customerEmail,
     startTime,
     endTime,
   };

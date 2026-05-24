@@ -50,6 +50,7 @@ jobs:
     - name: Deploy to VPS
       uses: appleboy/ssh-action@v1.0.3
       env:
+        ENV_FILE_CONTENTS: ${{ secrets.ENV_FILE_CONTENTS }}
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         SEED_ADMIN_EMAIL: ${{ secrets.SEED_ADMIN_EMAIL }}
@@ -59,16 +60,40 @@ jobs:
         POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
         NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+        SMTP_HOST: ${{ secrets.SMTP_HOST }}
+        SMTP_PORT: ${{ secrets.SMTP_PORT }}
+        SMTP_USER: ${{ secrets.SMTP_USER }}
+        SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        BOOKING_EMAIL_FROM: ${{ secrets.BOOKING_EMAIL_FROM }}
+        BOOKING_NOTIFY_EMAIL: ${{ secrets.BOOKING_NOTIFY_EMAIL }}
       with:
         host: ${{ secrets.SERVER_HOST }}
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
         port: ${{ secrets.SERVER_PORT }}
-        envs: DATABASE_URL,OPENAI_API_KEY,SEED_ADMIN_EMAIL,SEED_ADMIN_NAME,SEED_ADMIN_PASSWORD,POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,NEXT_PUBLIC_APP_URL
+        envs: ENV_FILE_CONTENTS,DATABASE_URL,OPENAI_API_KEY,SEED_ADMIN_EMAIL,SEED_ADMIN_NAME,SEED_ADMIN_PASSWORD,POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,NEXT_PUBLIC_APP_URL,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASSWORD,BOOKING_EMAIL_FROM,BOOKING_NOTIFY_EMAIL
         script: |
           cd ${{ secrets.APP_DIR }}
           chmod +x scripts/*.sh
-          printf "DATABASE_URL=%s\nOPENAI_API_KEY=%s\nSEED_ADMIN_EMAIL=%s\nSEED_ADMIN_NAME=%s\nSEED_ADMIN_PASSWORD=%s\nPOSTGRES_USER=%s\nPOSTGRES_PASSWORD=%s\nPOSTGRES_DB=%s\nNEXT_PUBLIC_APP_URL=%s\n" \
-            "$DATABASE_URL" "$OPENAI_API_KEY" "$SEED_ADMIN_EMAIL" "$SEED_ADMIN_NAME" "$SEED_ADMIN_PASSWORD" \
-            "$POSTGRES_USER" "$POSTGRES_PASSWORD" "$POSTGRES_DB" "$NEXT_PUBLIC_APP_URL" > .env.production
+          if [ -n "$ENV_FILE_CONTENTS" ]; then
+            printf '%s\n' "$ENV_FILE_CONTENTS" > .env.production
+          else
+            printf '%s\n' \
+              "DATABASE_URL=${DATABASE_URL}" \
+              "OPENAI_API_KEY=${OPENAI_API_KEY}" \
+              "SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL}" \
+              "SEED_ADMIN_NAME=${SEED_ADMIN_NAME}" \
+              "SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD}" \
+              "POSTGRES_USER=${POSTGRES_USER}" \
+              "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
+              "POSTGRES_DB=${POSTGRES_DB}" \
+              "NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}" \
+              "SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}" \
+              "SMTP_PORT=${SMTP_PORT:-587}" \
+              "SMTP_USER=${SMTP_USER}" \
+              "SMTP_PASSWORD=${SMTP_PASSWORD}" \
+              "BOOKING_EMAIL_FROM=${BOOKING_EMAIL_FROM}" \
+              "BOOKING_NOTIFY_EMAIL=${BOOKING_NOTIFY_EMAIL}" \
+              > .env.production
+          fi
           ./scripts/deploy.sh "${{ secrets.APP_DIR }}"

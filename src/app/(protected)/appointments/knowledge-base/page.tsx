@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { KnowledgeBaseToasts } from "@/components/knowledge-base-toasts";
+import { AppPageHero } from "@/components/app-page-hero";
 import { KnowledgeImportSources } from "@/components/knowledge-import-sources";
 import { KnowledgePreview } from "@/components/knowledge-preview";
 import { KnowledgeBaseAppendNotes } from "@/components/knowledge-base-append-notes";
@@ -57,27 +58,26 @@ export default async function AppointmentKnowledgeBasePage() {
   return (
     <div className="space-y-5">
       <KnowledgeBaseToasts />
-      <section className="rounded-3xl border border-slate-200 bg-[linear-gradient(120deg,#0f172a,#1e293b_45%,#334155)] p-5 text-white shadow-sm lg:p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">
-          Knowledge Base
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold leading-tight lg:text-3xl">
-          Build booking intelligence from your business content
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-200">
-          Import your public website so AI understands your services and booking context.
-        </p>
-      </section>
+      <AppPageHero
+        eyebrow="Knowledge Base"
+        title={
+          <>
+            Build booking intelligence from your{" "}
+            <span className="vr-brand-gradient-text">business content</span>
+          </>
+        }
+        description="Import your public website so AI understands your services and booking context."
+      />
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+      <section className="vr-app-panel p-5 lg:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Import from website</h2>
-            <p className="text-sm text-slate-600">
+            <h2 className="text-lg font-semibold text-[var(--color-text)]">Import from website</h2>
+            <p className="text-sm text-[var(--color-text-muted)]">
               Add business context by importing your website URL.
             </p>
           </div>
-          <div className="inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">
+          <div className="inline-flex rounded-full border border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--color-primary-h)]">
             Auto-saved as Draft
           </div>
         </div>
@@ -88,31 +88,31 @@ export default async function AppointmentKnowledgeBasePage() {
         />
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+      <section className="vr-app-panel p-5 lg:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Current Knowledge Draft</h2>
-            <p className="text-sm text-slate-600">
-              Active organization: <span className="font-semibold">{session.activeOrganization.name}</span>
+            <h2 className="text-lg font-semibold text-[var(--color-text)]">Current Knowledge Draft</h2>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              Active organization: <span className="font-semibold text-[var(--color-text)]">{session.activeOrganization.name}</span>
             </p>
           </div>
           {session.activeOrganization.knowledgeBase ? (
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <div
-                className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
+              <span
+                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
                   session.activeOrganization.knowledgeBase.status === "approved"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                    : "border-slate-200 bg-slate-50 text-slate-700"
+                    ? "vr-app-status-success"
+                    : "vr-app-status-muted"
                 }`}
               >
                 Status: {session.activeOrganization.knowledgeBase.status}
-              </div>
+              </span>
               {session.activeOrganization.knowledgeBase.status !== "approved" ? (
                 <form action={approveKnowledgeBase} className="inline-flex">
                   <input type="hidden" name="organization_id" value={session.activeOrganization.id} />
                   <button
                     type="submit"
-                    className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 sm:text-sm sm:px-4 sm:py-2"
+                    className="rounded-xl vr-btn-primary px-3 py-1.5 text-xs font-semibold sm:text-sm sm:px-4 sm:py-2"
                   >
                     Approve for Agent
                   </button>
@@ -122,14 +122,14 @@ export default async function AppointmentKnowledgeBasePage() {
                 <input type="hidden" name="organization_id" value={session.activeOrganization.id} />
                 <button
                   type="submit"
-                  className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-800 transition hover:bg-rose-100 sm:text-sm sm:px-4 sm:py-2"
+                  className="rounded-xl border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)] px-3 py-1.5 text-xs font-semibold text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))] transition hover:brightness-95 sm:text-sm sm:px-4 sm:py-2"
                 >
                   Clear Draft
                 </button>
               </form>
             </div>
           ) : (
-            <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+            <div className="inline-flex rounded-full vr-app-status-muted px-3 py-1 text-xs font-semibold">
               Status: empty
             </div>
           )}
@@ -138,21 +138,21 @@ export default async function AppointmentKnowledgeBasePage() {
         {session.activeOrganization.knowledgeBase ? (
           <div className="mt-4 space-y-3">
             <div className="grid gap-3 sm:grid-cols-3 text-xs">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-slate-500">Source Type</p>
-                <p className="font-semibold text-slate-900">{session.activeOrganization.knowledgeBase.sourceType}</p>
+              <div className="vr-app-meta-cell">
+                <p className="text-[var(--color-text-muted)]">Source Type</p>
+                <p className="font-semibold text-[var(--color-text)]">{session.activeOrganization.knowledgeBase.sourceType}</p>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-slate-500">Last Imported</p>
-                <p className="font-semibold text-slate-900">
+              <div className="vr-app-meta-cell">
+                <p className="text-[var(--color-text-muted)]">Last Imported</p>
+                <p className="font-semibold text-[var(--color-text)]">
                   {session.activeOrganization.knowledgeBase.lastImportedAt
                     ? new Date(session.activeOrganization.knowledgeBase.lastImportedAt).toLocaleString()
                     : "—"}
                 </p>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-slate-500">Source</p>
-                <p className="font-semibold text-slate-900">
+              <div className="vr-app-meta-cell">
+                <p className="text-[var(--color-text-muted)]">Source</p>
+                <p className="font-semibold text-[var(--color-text)]">
                   {session.activeOrganization.knowledgeBase.sourceUrl ??
                     session.activeOrganization.knowledgeBase.sourceFileName ??
                     "Manual notes"}
@@ -171,7 +171,7 @@ export default async function AppointmentKnowledgeBasePage() {
             />
           </div>
         ) : (
-          <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+          <div className="mt-4 vr-app-empty-state p-5 text-sm">
             No knowledge imported yet. Enter your website URL above to create a draft.
           </div>
         )}

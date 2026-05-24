@@ -24,7 +24,7 @@ function SidebarNavLoading({ collapsed }: { collapsed: boolean }) {
       <div className="space-y-2 px-1" aria-label="Loading workspace menus">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="flex justify-center py-1">
-            <div className="h-9 w-9 animate-pulse rounded-xl bg-slate-200/80" />
+            <div className="h-9 w-9 animate-pulse rounded-xl bg-[var(--color-raised)]/80" />
           </div>
         ))}
         <span className="sr-only">Loading workspace menus</span>
@@ -34,12 +34,12 @@ function SidebarNavLoading({ collapsed }: { collapsed: boolean }) {
 
   return (
     <div className="space-y-2" aria-label="Loading workspace menus">
-      <p className="px-1 text-xs text-slate-500">Loading workspace menus…</p>
+      <p className="px-1 text-xs text-[var(--color-text-muted)]">Loading workspace menus…</p>
       {[0, 1, 2, 3, 4].map((i) => (
         <div key={i} className="flex items-center gap-3 rounded-2xl px-3 py-2.5">
-          <div className="h-8 w-8 shrink-0 animate-pulse rounded-lg bg-slate-200/80" />
+          <div className="h-8 w-8 shrink-0 animate-pulse rounded-lg bg-[var(--color-raised)]/80" />
           <div
-            className="h-4 flex-1 animate-pulse rounded-md bg-slate-200/80"
+            className="h-4 flex-1 animate-pulse rounded-md bg-[var(--color-raised)]/80"
             style={{ maxWidth: i === 1 ? "72%" : i === 3 ? "55%" : "85%" }}
           />
         </div>
@@ -185,7 +185,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (authRoute) {
     return (
-      <div className="min-h-screen bg-white text-slate-900">
+      <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
         <main className="min-h-screen">{children}</main>
       </div>
     );
@@ -196,11 +196,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#f7f4ed,_#edf2f4_50%,_#f4f6f8)] text-slate-900">
+    <div className="app-shell relative min-h-screen overflow-hidden">
+      <div className="app-shell-mesh pointer-events-none absolute inset-0" aria-hidden />
+      <div className="app-shell-grid pointer-events-none absolute inset-0 opacity-30" aria-hidden />
       <NavAccessGuard allowedNavPaths={allowedNavPaths} enabled={allowedNavPaths !== null} />
-      <div className="flex w-full gap-4 px-4 py-4 lg:gap-6 lg:px-6">
+      <div className="relative flex w-full gap-4 px-4 py-4 lg:gap-6 lg:px-6">
         <aside
-          className={`hidden shrink-0 rounded-3xl border border-slate-200/70 bg-white/80 shadow-sm backdrop-blur transition-all lg:block ${sidebarCollapsed ? "w-20 p-3" : "w-68 p-5"
+          className={`vr-app-surface hidden shrink-0 rounded-3xl transition-all lg:block ${sidebarCollapsed ? "w-20 p-3" : "w-68 p-5"
             }`}
         >
           <div className="mb-6 flex items-start justify-between gap-2">
@@ -213,9 +215,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   size="sm"
                   primary={BRAND_NAME}
                   secondary={PRODUCT_NAME}
-                  className="text-slate-900 [&_p:first-child]:text-[10px] [&_p:first-child]:font-semibold [&_p:first-child]:uppercase [&_p:first-child]:tracking-[0.16em] [&_p:first-child]:text-[var(--color-primary)] [&_p:last-child]:text-sm [&_p:last-child]:font-semibold [&_p:last-child]:leading-snug [&_p:last-child]:text-slate-900"
+                  className="text-[var(--color-text)] [&_p:first-child]:text-[10px] [&_p:first-child]:font-semibold [&_p:first-child]:uppercase [&_p:first-child]:tracking-[0.16em] [&_p:first-child]:text-[var(--color-primary)] [&_p:last-child]:text-sm [&_p:last-child]:font-semibold [&_p:last-child]:leading-snug [&_p:last-child]:text-[var(--color-text)]"
                 />
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-sm text-[var(--color-text-muted)]">
                   Appointment, reviews, and lead operations in one place.
                 </p>
               </div>
@@ -224,21 +226,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               type="button"
               onClick={() => setSidebarCollapsed((prev) => !prev)}
               aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className={`group flex h-9 w-9 items-center justify-center rounded-xl border transition ${sidebarCollapsed
-                  ? "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
-                  : "border-white/15 bg-white/10 text-slate-600 hover:bg-slate-100"
-                }`}
+              className="group flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface)]"
             >
               <span className="relative flex h-4 w-4 items-center justify-center">
-                <span className="absolute h-0.5 w-4 rounded-full bg-slate-600 transition" />
-                <span className="absolute h-0.5 w-4 translate-y-1.5 rounded-full bg-slate-600 transition" />
-                <span className="absolute h-0.5 w-4 -translate-y-1.5 rounded-full bg-slate-600 transition" />
+                <span className="absolute h-0.5 w-4 rounded-full bg-[var(--color-text-muted)] transition" />
+                <span className="absolute h-0.5 w-4 translate-y-1.5 rounded-full bg-[var(--color-text-muted)] transition" />
+                <span className="absolute h-0.5 w-4 -translate-y-1.5 rounded-full bg-[var(--color-text-muted)] transition" />
               </span>
             </button>
           </div>
           {(!navPermissionsReady || !hasNoMenuAccess) && !sidebarCollapsed ? (
             <div className="mb-2 px-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                 Workspaces
               </p>
             </div>
@@ -257,7 +256,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   title="No menu access assigned to your role. Contact your administrator or sign out from the profile menu."
                 >
                   <span
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-700"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-[color-mix(in_srgb,var(--color-warning)_35%,var(--color-border))] bg-[var(--color-warning-soft)] text-[var(--color-warning)]"
                     aria-hidden
                   >
                     <svg
@@ -277,9 +276,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </span>
                 </div>
               ) : (
-                <div className="rounded-2xl border border-amber-200/80 bg-amber-50/90 px-3 py-3">
-                  <p className="text-sm font-semibold text-slate-800">No menu access</p>
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+                <div className="rounded-2xl border border-[color-mix(in_srgb,var(--color-warning)_35%,var(--color-border))] bg-[var(--color-warning-soft)] px-3 py-3">
+                  <p className="text-sm font-semibold text-[var(--color-text)]">No menu access</p>
+                  <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-text-muted)]">
                     Your administrator has not assigned any workspace menus to your role yet. Use
                     the profile menu above to sign out, or contact your admin if you think this is
                     a mistake.
@@ -300,11 +299,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               const showChildren = hasChildren && isSubmenuOpen && !sidebarCollapsed;
               const rowClass = `group flex w-full items-center gap-3 rounded-2xl py-2.5 text-sm font-medium transition ${sidebarCollapsed ? "px-0 justify-center" : "px-3"} ${
                 highlighted
-                  ? "border border-slate-900 bg-slate-900 text-white shadow-sm"
-                  : "border border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100"
+                  ? "vr-app-nav-active"
+                  : "vr-app-nav-idle hover:border-[var(--color-border)] hover:bg-[var(--color-surface)]"
               }`;
               const iconClass = `flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                highlighted ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700 group-hover:bg-slate-300"
+                highlighted
+                  ? "bg-white/20 text-white"
+                  : "bg-[var(--color-raised)] text-[var(--color-text)] group-hover:bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--color-raised))]"
               }`;
 
               return (
@@ -331,7 +332,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       {!sidebarCollapsed ? (
                         <svg
                           viewBox="0 0 24 24"
-                          className={`h-4 w-4 shrink-0 transition ${isSubmenuOpen ? "rotate-180" : ""} ${highlighted ? "text-white/80" : "text-slate-500"}`}
+                          className={`h-4 w-4 shrink-0 transition ${isSubmenuOpen ? "rotate-180" : ""} ${highlighted ? "text-white/80" : "text-[var(--color-text-muted)]"}`}
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="2"
@@ -348,7 +349,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     </Link>
                   )}
                   {showChildren && !sidebarCollapsed ? (
-                    <div className="ml-3 rounded-2xl border border-slate-200/70 bg-slate-50/80 p-2">
+                    <div className="ml-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
                       {item.children?.map((child) => {
                         const childActive = isActive(pathname, child.href);
                         return (
@@ -356,12 +357,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             key={child.href}
                             href={child.href}
                             className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition ${childActive
-                                ? "bg-slate-900 text-white shadow-sm"
-                                : "text-slate-600 hover:bg-white"
+                                ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] shadow-sm"
+                                : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg)]"
                               }`}
                           >
                             <span
-                              className={`h-2 w-2 rounded-full ${childActive ? "bg-white" : "bg-slate-300"
+                              className={`h-2 w-2 rounded-full ${childActive ? "bg-white" : "bg-[var(--color-border-hover)]"
                                 }`}
                             />
                             {child.label}
@@ -377,7 +378,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </aside>
 
-        <div className="flex min-h-[calc(100vh-2rem)] flex-1 flex-col rounded-3xl border border-slate-200/70 bg-white/85 shadow-sm backdrop-blur">
+        <div className="vr-app-surface flex min-h-[calc(100vh-2rem)] flex-1 flex-col rounded-3xl">
           <TopHeader
             pathname={pathname}
             navItems={visibleNavItems.map((item) => ({
@@ -389,7 +390,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onToggleProfile={() => setProfileOpen((prev) => !prev)}
             onCloseProfile={() => setProfileOpen(false)}
             profileAvatar={
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-primary)] text-xs font-semibold text-[var(--color-primary-fg)]">
                 {profileName
                   .split(" ")
                   .map((part: string) => part[0])

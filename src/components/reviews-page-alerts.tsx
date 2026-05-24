@@ -7,9 +7,9 @@ import { getReviewStatusMessage } from "@/lib/reviews-status-messages";
 import { toast } from "@/lib/toast";
 
 const variantStyles = {
-  success: "border-emerald-200 bg-emerald-50 text-emerald-950",
-  error: "border-rose-200 bg-rose-50 text-rose-950",
-  warning: "border-amber-200 bg-amber-50 text-amber-950",
+  success: "vr-app-alert vr-app-alert-success",
+  error: "vr-app-alert vr-app-alert-danger",
+  warning: "vr-app-alert vr-app-alert-warning",
 } as const;
 
 export function ReviewsPageAlerts() {
@@ -48,10 +48,7 @@ export function ReviewsPageAlerts() {
   if (!message || dismissedKey === toastKey) return null;
 
   return (
-    <section
-      role="status"
-      className={`rounded-2xl border px-4 py-4 shadow-sm lg:px-5 ${variantStyles[message.variant]}`}
-    >
+    <section role="status" className={`shadow-sm lg:px-5 ${variantStyles[message.variant]}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-semibold">{message.title}</p>
@@ -60,7 +57,7 @@ export function ReviewsPageAlerts() {
         <button
           type="button"
           onClick={dismissBanner}
-          className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold opacity-70 transition hover:bg-black/5 hover:opacity-100"
+          className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold opacity-70 transition hover:bg-[color-mix(in_srgb,var(--color-text)_5%,transparent)] hover:opacity-100"
           aria-label="Dismiss message"
         >
           Dismiss
@@ -81,7 +78,7 @@ export function ReviewsPageAlerts() {
             href="https://business.google.com/"
             target="_blank"
             rel="noreferrer"
-            className="rounded-lg border border-current/20 bg-white/70 px-3 py-2 text-xs font-semibold transition hover:bg-white"
+            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
           >
             Open Google Business Profile
           </Link>
