@@ -64,6 +64,18 @@ function normalizeOption(raw: unknown): BookingFlowOption | null {
   return { label, value };
 }
 
+/** Empty flow for new orgs or before the user configures / generates anything. */
+export function emptyBookingFlow(): BookingFlowConfig {
+  return {
+    version: 1,
+    idleHelperText: "",
+    quickActions: [],
+    slotDurationMinutes: 30,
+    minGapMinutes: 0,
+    steps: [],
+  };
+}
+
 export function buildDefaultBookingFlow(services?: string[]): BookingFlowConfig {
   const serviceOptions = (services ?? [])
     .map((s) => s.trim())
@@ -189,34 +201,35 @@ export function mergeBookingFlowQuickActionsOnly(base: BookingFlowConfig, quickF
     .map((label) => ({ label, startsBookingFlow: true }));
   return {
     ...base,
-    quickActions: qa.length > 0 ? qa : base.quickActions,
+    quickActions: qa,
   };
 }
 
 /** Update only the idle helper line; quick actions and steps unchanged. */
 export function mergeBookingFlowIdleText(base: BookingFlowConfig, idleFromAi: string): BookingFlowConfig {
-  const idle = idleFromAi.trim();
-  return { ...base, idleHelperText: idle || base.idleHelperText };
+  return { ...base, idleHelperText: idleFromAi.trim() };
 }
 
 export function mergeBookingFlowSteps(base: BookingFlowConfig, steps: BookingFlowStep[]): BookingFlowConfig {
   return { ...base, steps };
 }
 
-export function resolveBookingFlowConfig(raw: unknown, services?: string[]): BookingFlowConfig {
-  const fallback = buildDefaultBookingFlow(services);
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return fallback;
+export function resolveBookingFlowConfig(raw: unknown, _services?: string[]): BookingFlowConfig {
+  const empty = emptyBookingFlow();
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return empty;
   const rec = raw as Record<string, unknown>;
-  if (rec.version !== 1 || !Array.isArray(rec.steps)) return fallback;
-  const idleHelperText =
-    typeof rec.idleHelperText === "string" ? String(rec.idleHelperText).trim() : fallback.idleHelperText;
-  const quickActions = Array.isArray(rec.quickActions)
-    ? normalizeQuickActionsArray(rec.quickActions)
-    : fallback.quickActions;
-  const slotDurationMinutes = normalizeIntInRange(rec.slotDurationMinutes, fallback.slotDurationMinutes, 15, 240);
-  const minGapMinutes = normalizeIntInRange(rec.minGapMinutes, fallback.minGapMinutes, 0, 180);
+  if (Object.keys(rec).length === 0) return empty;
 
-  const normalizedSteps = normalizeBookingFlowStepsArray(rec.steps);
+  const version = rec.version;
+  const stepsRaw = rec.steps;
+  const hasStepsArray = Array.isArray(stepsRaw);
+  if (version !== 1 && !hasStepsArray) return empty;
+
+  const idleHelperText = typeof rec.idleHelperText === "string" ? String(rec.idleHelperText).trim() : "";
+  const quickActions = Array.isArray(rec.quickActions) ? normalizeQuickActionsArray(rec.quickActions) : [];
+  const slotDurationMinutes = normalizeIntInRange(rec.slotDurationMinutes, empty.slotDurationMinutes, 15, 240);
+  const minGapMinutes = normalizeIntInRange(rec.minGapMinutes, empty.minGapMinutes, 0, 180);
+  const steps = hasStepsArray ? normalizeBookingFlowStepsArray(stepsRaw) : [];
 
   return {
     version: 1,
@@ -224,7 +237,7 @@ export function resolveBookingFlowConfig(raw: unknown, services?: string[]): Boo
     quickActions,
     slotDurationMinutes,
     minGapMinutes,
-    steps: normalizedSteps,
+    steps,
   };
 }
 
@@ -243,7 +256,7 @@ export function readChatbotConfigFromParsedData(parsedData: unknown): ChatbotCon
     welcomeMessage: String(config.welcomeMessage || "").trim() || defaultWelcome,
     themeColor: String(config.themeColor || "").trim() || "#6366f1",
     iconColor: String(config.iconColor || "").trim() || "#ffffff",
-    bookingFlow: buildDefaultBookingFlow(),
+    bookingFlow: emptyBookingFlow(),
   };
 }
 
@@ -274,6 +287,6 @@ export function resolveChatbotConfigData(
   const legacy = readChatbotConfigFromParsedData(legacyParsedData);
   return {
     ...legacy,
-    bookingFlow: buildDefaultBookingFlow(),
+    bookingFlow: emptyBookingFlow(),
   };
 }

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import {
   buildDefaultBookingFlow,
+  emptyBookingFlow,
   mergeBookingFlowIdleText,
   mergeBookingFlowQuickActionsOnly,
   mergeBookingFlowSteps,
@@ -204,7 +205,18 @@ export async function generateChatbotFromKnowledge(
 
   const servicesList = parseServicesList(org?.chatbotSettings?.services);
   const scope = parseGenerateScope(String(formData.get("generate_scope") || "").trim());
-  const existingFlow = resolveBookingFlowConfig(org?.chatbotSettings?.bookingFlow, servicesList);
+
+  const bookingFlowDraftRaw = String(formData.get("booking_flow") || "").trim();
+  let existingFlow = emptyBookingFlow();
+  if (bookingFlowDraftRaw) {
+    try {
+      existingFlow = resolveBookingFlowConfig(JSON.parse(bookingFlowDraftRaw), servicesList);
+    } catch {
+      existingFlow = resolveBookingFlowConfig(org?.chatbotSettings?.bookingFlow, servicesList);
+    }
+  } else {
+    existingFlow = resolveBookingFlowConfig(org?.chatbotSettings?.bookingFlow, servicesList);
+  }
 
   let digest = "";
   const pd = org?.knowledgeBase?.parsedData;
@@ -245,33 +257,35 @@ Hard rules:
 - Use snake_case ids (e.g. visit_type, preferred_time, party_size).
 - Base offerings and wording on the knowledge source; do not invent services or policies that are clearly absent.`;
 
-  const systemIntro = `You write a single short intro line for a small booking widget (shown above quick action chips, before any questions). Output a single JSON object only (no markdown fences).
+  const systemIntro = `You write ONLY the intro line for a small booking widget (shown above quick action chips). Output a single JSON object only (no markdown fences).
 
-Use either top-level "idleHelperText" OR nested bookingFlow.idleHelperText (string only).
+CRITICAL: Include exactly one string field — idleHelperText. No other keys. No bookingFlow wrapper unless it contains only idleHelperText.
 
-Example shape:
-{ "idleHelperText": "…" }
-
-Rules:
-- idleHelperText is required: one or two short sentences, friendly and specific to the business when the source allows.
-- Do not include quickActions, steps, or any other keys.
-- Base wording on the knowledge source; do not invent policies absent from the source.`;
-
-  const systemOpening = `You write only the quick-start action chips for a small booking widget (tappable shortcuts under the intro line, before any questions). Output a single JSON object only (no markdown fences).
-
-Use either top-level "quickActions" OR nested bookingFlow.quickActions:
-{
-  "quickActions": string[]
-}
+Example:
+{ "idleHelperText": "Welcome! Tell us what you need and we will help you book or answer questions." }
 
 Rules:
-- quickActions: required — 4–6 distinct short strings (mix booking intents and common questions). Under 60 chars each.
-- Do not include idleHelperText, intro copy, steps, or any other keys.
+- idleHelperText: one or two short sentences, friendly and specific to the business when the source allows.
+- Do NOT output quickActions, steps, version, or any other fields.
 - Base wording on the knowledge source; do not invent policies absent from the source.`;
 
-  const systemSteps = `You design only the guided booking question steps (no intro line, no quick action chips). Output a single JSON object only (no markdown fences).
+  const systemOpening = `You write ONLY quick-start action chips for a small booking widget (tappable shortcuts under the intro line). Output a single JSON object only (no markdown fences).
 
-Use either top-level "steps" OR nested bookingFlow.steps with this shape:
+CRITICAL: Include exactly one field — quickActions (string array). No other keys.
+
+Example:
+{ "quickActions": ["Book a table", "Opening hours", "Menu options", "Contact us"] }
+
+Rules:
+- quickActions: 4–6 distinct short strings (mix booking intents and common questions). Under 60 chars each.
+- Do NOT output idleHelperText, steps, version, or any other fields.
+- Base wording on the knowledge source; do not invent policies absent from the source.`;
+
+  const systemSteps = `You design ONLY the guided booking question steps. Output a single JSON object only (no markdown fences).
+
+CRITICAL: Include exactly one field — steps (array). No other keys.
+
+Shape:
 {
   "steps": Array<{
     "id": string,
@@ -288,6 +302,7 @@ Hard rules:
 - For inputType "options", options must be a non-empty array (max 12). label and value non-empty; value may match label.
 - For inputType "text", options must be [].
 - Use snake_case ids.
+- Do NOT output idleHelperText, quickActions, version, or any other fields.
 - Base offerings on the knowledge source; do not invent services or policies clearly absent.`;
 
   const user = `Organization name: ${org?.name ?? "Business"}

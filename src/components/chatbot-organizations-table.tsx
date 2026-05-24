@@ -32,6 +32,19 @@ function slugifyStepId(value: string, index: number): string {
   return base || `step_${index + 1}`;
 }
 
+function bookingFlowStepsToDraft(steps: BookingFlowConfig["steps"]): BookingFlowDraftStep[] {
+  return steps.map((step, idx) => ({
+    id: step.id || `step_${idx + 1}`,
+    question: step.question || "",
+    helperText: step.helperText || "",
+    inputType: (step.inputType === "datetime" ? "datetime" : step.inputType === "text" ? "text" : "options") as
+      | "options"
+      | "datetime"
+      | "text",
+    optionsText: step.options.map((o) => o.label).join("\n"),
+  }));
+}
+
 function SaveBookingFlowSubmitButton({ idleLabel }: { idleLabel: string }) {
   const { pending } = useFormStatus();
   return (
@@ -200,61 +213,13 @@ export function ChatbotOrganizationsTable({
     setQuickActionItems(normalizeQuickActionsArray(flow.quickActions ?? []));
     setSlotDurationMinutes(String(flow.slotDurationMinutes ?? 30));
     setMinGapMinutes(String(flow.minGapMinutes ?? 0));
-    const draftSteps = flow.steps.map((step, idx) => ({
-      id: step.id || `step_${idx + 1}`,
-      question: step.question || "",
-      helperText: step.helperText || "",
-      inputType: (step.inputType === "datetime" ? "datetime" : step.inputType === "text" ? "text" : "options") as
-        | "options"
-        | "datetime"
-        | "text",
-      optionsText: step.options.map((o) => o.label).join("\n"),
-    }));
-    setFlowSteps(draftSteps);
+    setFlowSteps(bookingFlowStepsToDraft(flow.steps));
   }, []);
 
   function openBookingFlow(row: ChatbotOrgRow) {
     setFlowGenerateError(null);
     applyBookingFlowToEditors(row.config.bookingFlow);
     setFlowModalOrg(row);
-  }
-
-  async function runFlowGenerate(scope: "intro" | "opening" | "steps") {
-    if (!flowModalOrg) return;
-    setFlowGenerateError(null);
-    setFlowGeneratePending(true);
-    setFlowGenerateActiveScope(scope);
-    try {
-      const fd = new FormData();
-      fd.set("organization_id", flowModalOrg.id);
-      fd.set("generate_scope", scope);
-      const res = await onGenerateChatbot(fd);
-      if (res.ok) {
-        applyBookingFlowToEditors(res.bookingFlow);
-        setFlowModalOrg((prev) =>
-          prev
-            ? {
-                ...prev,
-                config: { ...prev.config, bookingFlow: res.bookingFlow },
-              }
-            : null,
-        );
-      } else {
-        const msg: Record<string, string> = {
-          org_missing: "Missing organization.",
-          denied: "You do not have access to this organization.",
-          no_api_key: "Add OPENAI_API_KEY to your environment to generate a flow.",
-          no_kb: "Import a knowledge base with enough text first, then try again.",
-          failed: "Generation failed. Try again in a moment.",
-        };
-        setFlowGenerateError(msg[res.error] ?? "Something went wrong.");
-      }
-    } catch {
-      setFlowGenerateError("Generation failed. Try again in a moment.");
-    } finally {
-      setFlowGeneratePending(false);
-      setFlowGenerateActiveScope(null);
-    }
   }
 
   const bookingFlowJson = useMemo(() => {
@@ -307,6 +272,51 @@ export function ChatbotOrganizationsTable({
       steps,
     });
   }, [flowSteps, idleHelperText, minGapMinutes, quickActionItems, slotDurationMinutes]);
+
+  async function runFlowGenerate(scope: "intro" | "opening" | "steps") {
+    if (!flowModalOrg) return;
+    setFlowGenerateError(null);
+    setFlowGeneratePending(true);
+    setFlowGenerateActiveScope(scope);
+    try {
+      const fd = new FormData();
+      fd.set("organization_id", flowModalOrg.id);
+      fd.set("generate_scope", scope);
+      fd.set("booking_flow", bookingFlowJson);
+      const res = await onGenerateChatbot(fd);
+      if (res.ok) {
+        if (scope === "intro") {
+          setIdleHelperText(res.bookingFlow.idleHelperText);
+        } else if (scope === "opening") {
+          setQuickActionItems(normalizeQuickActionsArray(res.bookingFlow.quickActions));
+        } else {
+          setFlowSteps(bookingFlowStepsToDraft(res.bookingFlow.steps));
+        }
+        setFlowModalOrg((prev) =>
+          prev
+            ? {
+                ...prev,
+                config: { ...prev.config, bookingFlow: res.bookingFlow },
+              }
+            : null,
+        );
+      } else {
+        const msg: Record<string, string> = {
+          org_missing: "Missing organization.",
+          denied: "You do not have access to this organization.",
+          no_api_key: "Add OPENAI_API_KEY to your environment to generate a flow.",
+          no_kb: "Import a knowledge base with enough text first, then try again.",
+          failed: "Generation failed. Try again in a moment.",
+        };
+        setFlowGenerateError(msg[res.error] ?? "Something went wrong.");
+      }
+    } catch {
+      setFlowGenerateError("Generation failed. Try again in a moment.");
+    } finally {
+      setFlowGeneratePending(false);
+      setFlowGenerateActiveScope(null);
+    }
+  }
 
   const sorted = useMemo(
     () => rows.slice().sort((a, b) => a.name.localeCompare(b.name)),

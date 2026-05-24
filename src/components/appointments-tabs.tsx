@@ -236,14 +236,11 @@ function displayBookedCustomerName(row: BookedAppointmentRow): string {
 }
 
 /**
- * Calendar day cells: show the guest when we have one; otherwise fall back to the stored
- * service line only (no parsing `raw_message`, which can concatenate org + product labels).
+ * Calendar day cells: show the guest when we have one; otherwise a neutral label.
  */
 function calendarCellTitle(row: BookedAppointmentRow): string {
   const guest = displayBookedCustomerName(row);
   if (guest && guest !== "Website guest") return guest;
-  const svc = row.serviceDescription?.trim();
-  if (svc) return svc;
   return "Booking";
 }
 
@@ -861,9 +858,6 @@ function BookedAppointmentsPanel({
                                       {row.displayStatus}
                                     </span>
                                   </div>
-                                  {row.serviceDescription?.trim() ? (
-                                    <p className="mt-1 line-clamp-2 text-xs text-slate-600">{row.serviceDescription.trim()}</p>
-                                  ) : null}
                                 </div>
                               </button>
                             </li>
@@ -992,11 +986,6 @@ function BookedAppointmentsPanel({
                                       {row.displayStatus}
                                     </span>
                                   </div>
-                                  {row.serviceDescription?.trim() ? (
-                                    <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-600">
-                                      {row.serviceDescription.trim()}
-                                    </p>
-                                  ) : null}
                                   {row.bookingFlowQa && row.bookingFlowQa.length > 0 ? (
                                     <p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-slate-500">
                                       <span className="font-semibold text-slate-600">
@@ -1009,25 +998,6 @@ function BookedAppointmentsPanel({
                                       ) : null}
                                     </p>
                                   ) : null}
-                                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">
-                                    <span className="inline-flex items-center gap-1">
-                                      <span
-                                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDotClass(row.displayStatus)}`}
-                                        aria-hidden
-                                      />
-                                      {row.source}
-                                    </span>
-                                    {row.calendarProviderName ? (
-                                      <>
-                                        <span className="text-slate-300" aria-hidden>
-                                          ·
-                                        </span>
-                                        <span className="normal-case tracking-normal text-slate-500">
-                                          {row.calendarProviderName}
-                                        </span>
-                                      </>
-                                    ) : null}
-                                  </div>
                                 </div>
                                 <div
                                   className="flex shrink-0 items-center pr-1 sm:pr-2"
@@ -1128,31 +1098,6 @@ function BookedAppointmentsPanel({
                         </dl>
                       </div>
                     ) : null}
-                    {row.serviceDescription?.trim() ? (
-                      <p className="mt-3 border-t border-slate-100 pt-3 text-sm">
-                        <span className="font-semibold text-slate-600">Service: </span>
-                        <span className="text-slate-900">{row.serviceDescription.trim()}</span>
-                      </p>
-                    ) : null}
-                    {row.rawMessage ? (
-                      <details className="group mt-3 rounded-lg border border-slate-100 bg-slate-50/80 px-2 py-1.5">
-                        <summary className="cursor-pointer list-none text-xs font-medium text-slate-600 marker:content-none [&::-webkit-details-marker]:hidden">
-                          <span className="underline decoration-slate-300 decoration-dotted underline-offset-2 group-open:no-underline">
-                            Original chat message
-                          </span>
-                        </summary>
-                        <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-relaxed text-slate-600">
-                          {row.rawMessage}
-                        </p>
-                      </details>
-                    ) : null}
-                    <p className="mt-3 text-xs text-slate-600">
-                      <span className="font-semibold text-slate-700">Source:</span> {row.source}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-600">
-                      <span className="font-semibold text-slate-700">Provider:</span>{" "}
-                      {row.calendarProviderName ?? "Not assigned"}
-                    </p>
                   </div>
                 ))}
               </div>
