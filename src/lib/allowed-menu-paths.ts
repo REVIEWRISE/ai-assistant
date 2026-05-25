@@ -3,33 +3,33 @@ import { getAllStaticNavHrefs } from "@/lib/nav-config";
 import { normalizeNavPath } from "@/lib/nav-access";
 
 export async function getAllowedMenuPathsForUser(userId: string): Promise<Set<string>> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      userRoles: { include: { role: true } },
-    },
-  });
+  const [user, globalAccessCount, menuPaths] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      include: { userRoles: { include: { role: true } } },
+    }),
+    prisma.menuAccess.count(),
+    prisma.menuItem.findMany({ select: { path: true } }),
+  ]);
 
   if (!user) {
     return new Set(["/logout"].map(normalizeNavPath));
   }
 
-  const globalAccessCount = await prisma.menuAccess.count();
-  if (globalAccessCount === 0) {
-    const dbMenus = await prisma.menuItem.findMany({ select: { path: true } });
-    if (dbMenus.length === 0) {
-      return new Set(getAllStaticNavHrefs().map(normalizeNavPath));
-    }
-    return new Set(dbMenus.map((m) => normalizeNavPath(m.path)));
-  }
-
-  const isAdmin = user.userRoles.some((ur) => ur.role.name === "Admin");
-  if (isAdmin) {
-    const items = await prisma.menuItem.findMany({ select: { path: true } });
+  const pathsFromMenus = (items: { path: string }[]) => {
     if (items.length === 0) {
       return new Set(getAllStaticNavHrefs().map(normalizeNavPath));
     }
     return new Set(items.map((m) => normalizeNavPath(m.path)));
+  };
+
+  if (globalAccessCount === 0) {
+    return pathsFromMenus(menuPaths);
+  }
+
+  const isAdmin = user.userRoles.some((ur) => ur.role.name === "Admin");
+  if (isAdmin) {
+    return pathsFromMenus(menuPaths);
   }
 
   const roleIds = user.userRoles.map((ur) => ur.role.id);

@@ -343,7 +343,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       ) : null}
                     </button>
                   ) : (
-                    <Link href={item.href} onClick={closeAllSubmenus} className={rowClass}>
+                    <Link href={item.href} prefetch onClick={closeAllSubmenus} className={rowClass}>
                       <span className={iconClass}>{item.icon}</span>
                       <span className={sidebarCollapsed ? "sr-only" : "leading-none"}>{item.label}</span>
                     </Link>
@@ -356,6 +356,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           <Link
                             key={child.href}
                             href={child.href}
+                            prefetch
                             className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition ${childActive
                                 ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] shadow-sm"
                                 : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg)]"
