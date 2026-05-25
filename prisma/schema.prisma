@@ -44,6 +44,7 @@ model Session {
 model Organization {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name      String
+  logoUrl   String?  @map("logo_url")
   timezone  String   @default("UTC")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 

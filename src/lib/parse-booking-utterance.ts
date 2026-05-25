@@ -118,6 +118,100 @@ export function stepIdIndicatesPartySize(id: string): boolean {
   return idSegments(id).some((s) => PARTY_SIZE_ID_TOKENS.has(s));
 }
 
+const SERVICE_STEP_ID_TOKENS = new Set([
+  "service",
+  "services",
+  "offering",
+  "offerings",
+  "booking",
+  "booking_type",
+  "appointment_type",
+  "visit",
+  "visit_type",
+  "treatment",
+  "menu",
+  "package",
+]);
+
+export function stepIdIndicatesService(id: string): boolean {
+  const segs = idSegments(id);
+  return segs.some((s) => SERVICE_STEP_ID_TOKENS.has(s));
+}
+
+export function stepQuestionIndicatesService(question: string): boolean {
+  return /\b(what would you like to book|which service|pick a service|select a service|choose a service|type of (?:service|appointment|visit|booking)|service type)\b/i.test(
+    question,
+  );
+}
+
+const GENERIC_BOOKING_SERVICE_LABELS = new Set(["table reservation", "reservation"]);
+
+export function isGenericBookingServiceLabel(label: string | null | undefined): boolean {
+  if (!label) return false;
+  return GENERIC_BOOKING_SERVICE_LABELS.has(label.trim().toLowerCase());
+}
+
+type GuidedFlowStep = {
+  id: string;
+  question: string;
+  inputType?: string;
+  options?: Array<{ label: string; value: string }>;
+};
+
+function resolveServiceLabelFromStepAnswer(step: GuidedFlowStep, raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  const options = step.options ?? [];
+  if (step.inputType === "options" || options.length > 0) {
+    const opt = options.find((o) => String(o.value) === trimmed || o.label === trimmed);
+    return (opt?.label ?? trimmed).slice(0, 500);
+  }
+  return trimmed.slice(0, 500);
+}
+
+/** Reads the service/offering the visitor picked in the guided booking flow. */
+export function pickServiceDescriptionFromGuidedAnswers(
+  flow: { steps: GuidedFlowStep[] },
+  answers: Record<string, string | number>,
+): string | null {
+  for (const step of flow.steps) {
+    const raw = String(answers[step.id] ?? "").trim();
+    if (!raw) continue;
+    if (!stepIdIndicatesService(step.id) && !stepQuestionIndicatesService(step.question)) continue;
+    const label = resolveServiceLabelFromStepAnswer(step, raw);
+    return label || null;
+  }
+  return null;
+}
+
+/** Reads service from persisted booking-flow Q&A (server-side email / display). */
+export function pickServiceDescriptionFromBookingFlowQa(
+  qa: Array<{ question: string; answer: string }> | null | undefined,
+): string | null {
+  if (!qa?.length) return null;
+  for (const item of qa) {
+    if (!stepQuestionIndicatesService(item.question) && !/\bservice\b/i.test(item.question)) {
+      continue;
+    }
+    const answer = item.answer.trim();
+    if (answer) return answer.slice(0, 500);
+  }
+  return null;
+}
+
+export function resolveBookingServiceDescription(params: {
+  parsed: ParsedBookingUtterance;
+  bookingFlowQa?: Array<{ question: string; answer: string }> | null;
+}): string | null {
+  const fromQa = pickServiceDescriptionFromBookingFlowQa(params.bookingFlowQa);
+  if (fromQa) return fromQa;
+
+  const fromParsed = params.parsed.serviceDescription?.trim() || null;
+  if (fromParsed && !isGenericBookingServiceLabel(fromParsed)) return fromParsed;
+  if (fromParsed && isGenericBookingServiceLabel(fromParsed)) return null;
+  return fromParsed;
+}
+
 const BOOKING_HINT =
   /\b(book|booking|bookings|reserve|reservation|reservations|table\s+for|a\s+table|schedule|appointment)\b/i;
 const BOOKING_FOLLOWUP_HINT =
@@ -358,7 +452,7 @@ export function parseBookingUtterance(
     };
   }
 
-  const serviceDescription = inferService(trimmed) ?? "Table reservation";
+  const serviceDescription = inferService(trimmed);
 
   const dayBase = resolveDayBase(trimmed, reference) ?? startOfLocalDay(reference);
   const clock = parseClock(trimmed);
@@ -394,7 +488,7 @@ export function parseBookingUtterance(
  * Used when the visitor confirms after completing the dynamic question flow.
  */
 export function parsedBookingFromGuidedAnswers(
-  flow: { steps: Array<{ id: string; inputType?: string; question: string }> },
+  flow: { steps: GuidedFlowStep[] },
   answers: Record<string, string | number>,
   slotMinutes?: number,
 ): ParsedBookingUtterance {
@@ -402,6 +496,7 @@ export function parsedBookingFromGuidedAnswers(
   let customerName: string | null = null;
   let customerEmail: string | null = null;
   let startTime: Date | null = null;
+  let serviceDescription: string | null = pickServiceDescriptionFromGuidedAnswers(flow, answers);
 
   for (const step of flow.steps) {
     const raw = String(answers[step.id] ?? "").trim();
@@ -460,7 +555,9 @@ export function parsedBookingFromGuidedAnswers(
   const endTime = startTime ? new Date(startTime.getTime() + resolveSlotMinutes(slotMinutes) * 60_000) : null;
 
   const joined = flow.steps.map((s) => String(answers[s.id] ?? "").trim()).filter(Boolean).join(" ");
-  const serviceDescription = inferService(joined) ?? "Table reservation";
+  if (!serviceDescription) {
+    serviceDescription = inferService(joined);
+  }
 
   return {
     isBookingIntent: true,

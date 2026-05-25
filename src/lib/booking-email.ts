@@ -2,19 +2,16 @@ import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
 import { prisma } from "@/lib/prisma";
 import {
-  formatBookingSummary,
-  normalizeCustomerEmail,
-  type ParsedBookingUtterance,
-} from "@/lib/parse-booking-utterance";
+  buildGuestConfirmationHtml,
+  buildTeamNotificationHtml,
+  displayGuestName,
+  type BookingEmailContentParams,
+} from "@/lib/booking-email-template";
+import { loadOrganizationEmailBranding } from "@/lib/organization-email-branding";
+import { normalizeCustomerEmail } from "@/lib/parse-booking-utterance";
 
-type SendBookingEmailsParams = {
-  appointmentId: string;
-  organizationId: string;
-  organizationName: string;
-  customerName: string;
-  customerEmail: string | null;
-  parsed: ParsedBookingUtterance;
-  calendarSynced: boolean;
+export type SendBookingEmailsParams = BookingEmailContentParams & {
+  routedProviderId?: string | null;
 };
 
 type SendResult = { ok: true } | { ok: false; skipped?: boolean; error?: string };
@@ -96,78 +93,6 @@ async function sendSmtpMessage(params: {
   }
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function formatWhen(parsed: ParsedBookingUtterance): string {
-  if (!parsed.startTime) return "To be confirmed";
-  return new Intl.DateTimeFormat(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(parsed.startTime);
-}
-
-function buildGuestConfirmationHtml(params: SendBookingEmailsParams): string {
-  const summary = formatBookingSummary(params.parsed);
-  const org = escapeHtml(params.organizationName);
-  const name = escapeHtml(params.customerName);
-  const when = escapeHtml(formatWhen(params.parsed));
-  const service = params.parsed.serviceDescription
-    ? escapeHtml(params.parsed.serviceDescription)
-    : null;
-  const party =
-    params.parsed.partySize != null ? escapeHtml(String(params.parsed.partySize)) : null;
-  const calendarNote = params.calendarSynced
-    ? "<p>Your time is on our calendar. If anything changes, we will reach out.</p>"
-    : "<p>Our team will confirm availability shortly.</p>";
-
-  return `
-    <div style="font-family:system-ui,sans-serif;line-height:1.5;color:#0f172a;max-width:520px">
-      <p>Hi ${name},</p>
-      <p>Thanks for booking with <strong>${org}</strong>. Here is what we received:</p>
-      <ul>
-        ${service ? `<li><strong>Service:</strong> ${service}</li>` : ""}
-        ${party ? `<li><strong>Party size:</strong> ${party}</li>` : ""}
-        <li><strong>When:</strong> ${when}</li>
-        ${summary ? `<li><strong>Summary:</strong> ${escapeHtml(summary)}</li>` : ""}
-      </ul>
-      ${calendarNote}
-      <p style="color:#64748b;font-size:13px">Reference: ${escapeHtml(params.appointmentId.slice(0, 8))}</p>
-    </div>
-  `.trim();
-}
-
-function buildTeamNotificationHtml(params: SendBookingEmailsParams): string {
-  const summary = formatBookingSummary(params.parsed);
-  const org = escapeHtml(params.organizationName);
-  const name = escapeHtml(params.customerName);
-  const email = params.customerEmail ? escapeHtml(params.customerEmail) : "—";
-  const when = escapeHtml(formatWhen(params.parsed));
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000";
-  const overviewUrl = `${appUrl.replace(/\/$/, "")}/appointments/overview`;
-
-  return `
-    <div style="font-family:system-ui,sans-serif;line-height:1.5;color:#0f172a;max-width:520px">
-      <p><strong>New booking</strong> for ${org}</p>
-      <ul>
-        <li><strong>Guest:</strong> ${name}</li>
-        <li><strong>Email:</strong> ${email}</li>
-        <li><strong>When:</strong> ${when}</li>
-        ${summary ? `<li><strong>Details:</strong> ${escapeHtml(summary)}</li>` : ""}
-      </ul>
-      <p><a href="${escapeHtml(overviewUrl)}">View in Appointments overview</a></p>
-    </div>
-  `.trim();
-}
-
 async function loadOrganizationNotifyEmails(organizationId: string): Promise<string[]> {
   const extra = normalizeCustomerEmail(process.env.BOOKING_NOTIFY_EMAIL);
   const members = await prisma.organizationMember.findMany({
@@ -195,20 +120,34 @@ export async function sendBookingConfirmationEmails(
 ): Promise<{ guest?: SendResult; team?: SendResult }> {
   const results: { guest?: SendResult; team?: SendResult } = {};
 
+  const branding = await loadOrganizationEmailBranding(
+    params.organizationId,
+    params.routedProviderId,
+  );
+  const emailParams: BookingEmailContentParams = {
+    ...params,
+    organizationName: branding.organizationName,
+    organizationLogoUrl: branding.logoUrl,
+  };
+
   if (params.customerEmail) {
     results.guest = await sendSmtpMessage({
       to: [params.customerEmail],
-      subject: `Booking received — ${params.organizationName}`,
-      html: buildGuestConfirmationHtml(params),
+      subject: `Booking received — ${branding.organizationName}`,
+      html: buildGuestConfirmationHtml(emailParams),
     });
   }
 
   const notifyTo = await loadOrganizationNotifyEmails(params.organizationId);
   if (notifyTo.length > 0) {
+    const guestLabel = displayGuestName(params.customerName);
+    const teamSubject = guestLabel
+      ? `New booking — ${guestLabel} (${branding.organizationName})`
+      : `New booking — ${branding.organizationName}`;
     results.team = await sendSmtpMessage({
       to: notifyTo,
-      subject: `New booking — ${params.customerName} (${params.organizationName})`,
-      html: buildTeamNotificationHtml(params),
+      subject: teamSubject,
+      html: buildTeamNotificationHtml(emailParams),
     });
   }
 

@@ -5,6 +5,7 @@ import {
   buildChatbotReply,
   parseBookingUtterance,
   normalizeCustomerEmail,
+  pickServiceDescriptionFromGuidedAnswers,
   parsedBookingFromGuidedAnswers,
   stepIdIndicatesCustomerEmail,
   stepIdIndicatesCustomerName,
@@ -80,7 +81,8 @@ function stepValue(step: BookingFlowStep, option: BookingFlowOption | number): s
 }
 
 function buildBookingPrompt(flow: BookingFlowConfig, answers: DynamicAnswers): string {
-  const parts: string[] = ["book a table"];
+  const pickedService = pickServiceDescriptionFromGuidedAnswers(flow, answers);
+  const parts: string[] = [pickedService ? `book ${pickedService}` : "book appointment"];
 
   for (const step of flow.steps) {
     const raw = String(answers[step.id] ?? "").trim();

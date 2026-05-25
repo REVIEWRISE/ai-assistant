@@ -44,6 +44,10 @@ Use **either**:
 
 See `.env.production.example` in the repo for a complete template.
 
+#### Organization logo in booking emails
+
+Upload a **company logo** per organization under **Appointments → Organization → Edit organization**. The logo is stored at `organizations.logo_url` and shown in the email header (absolute URL from `NEXT_PUBLIC_APP_URL`). If no org logo is set, the app may fall back to the connected calendar provider’s logo.
+
 #### Required for booking confirmation emails
 
 | Secret | Description |
