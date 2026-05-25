@@ -11,7 +11,7 @@ fi
 cd "$APP_DIR"
 
 # Persist provider logos and other uploads across container rebuilds
-mkdir -p "$APP_DIR/data/uploads/providers"
+mkdir -p "$APP_DIR/data/uploads/providers" "$APP_DIR/data/uploads/organizations"
 chmod -R 775 "$APP_DIR/data/uploads" 2>/dev/null || true
 
 # .env.production is already created by GitHub Action from secrets

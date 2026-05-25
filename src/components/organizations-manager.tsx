@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Panel } from "@/components/ui";
@@ -8,6 +9,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 type OrganizationRow = {
   id: string;
   name: string;
+  logoUrl?: string | null;
   createdAt: string | Date;
 };
 
@@ -213,7 +215,7 @@ export function OrganizationsManager({
                     <p className="mt-1 text-sm text-[var(--color-text-muted)]">
                       {modal.type === "create"
                         ? "Create a workspace organization for appointment operations."
-                        : "Update organization name."}
+                        : "Update organization name and company logo for emails."}
                     </p>
                   </div>
                   <button
@@ -230,12 +232,37 @@ export function OrganizationsManager({
 
                 <form
                   action={modal.type === "create" ? onCreateOrganization : onUpdateOrganization}
+                  encType="multipart/form-data"
                   className="mt-4 space-y-4"
                 >
                   {modal.type === "edit" ? (
                     <input type="hidden" name="organization_id" value={modal.organization.id} />
                   ) : null}
                   <input type="hidden" name="return_to" value={returnTo} />
+                  {modal.type === "edit" ? (
+                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+                      <p className="text-sm font-semibold text-[var(--color-text)]">Company logo</p>
+                      <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                        Shown in booking confirmation emails. PNG, JPG, or SVG recommended.
+                      </p>
+                      {modal.organization.logoUrl ? (
+                        <Image
+                          src={modal.organization.logoUrl}
+                          alt=""
+                          width={56}
+                          height={56}
+                          unoptimized
+                          className="mt-3 h-14 w-14 rounded-xl border border-[var(--color-border)] bg-white object-contain p-1"
+                        />
+                      ) : null}
+                      <input
+                        type="file"
+                        name="logo"
+                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                        className="mt-3 block w-full text-xs text-[var(--color-text-muted)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary-soft)] file:px-3 file:py-2 file:text-xs file:font-semibold file:text-[var(--color-primary-h)]"
+                      />
+                    </div>
+                  ) : null}
                   <label className="block text-sm text-[var(--color-text)]">
                     Organization name
                     <input

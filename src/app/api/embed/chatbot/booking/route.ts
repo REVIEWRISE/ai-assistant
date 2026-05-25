@@ -19,6 +19,7 @@ import {
   describeBookingGaps,
   formatBookingSummary,
   parsedBookingHasSaveableSlot,
+  resolveBookingServiceDescription,
   type ParsedBookingUtterance,
 } from "@/lib/parse-booking-utterance";
 import { sendBookingConfirmationEmails } from "@/lib/booking-email";
@@ -290,6 +291,10 @@ export async function POST(request: Request) {
           (explicitCustomerName || parsed.customerName || "Website guest").slice(0, 200);
         const safeCustomerEmail =
           explicitCustomerEmail ?? parsed.customerEmail ?? null;
+        const resolvedServiceDescription = resolveBookingServiceDescription({
+          parsed,
+          bookingFlowQa,
+        });
         const created = await prisma.appointment.create({
           data: {
             organizationId,
@@ -299,7 +304,7 @@ export async function POST(request: Request) {
             endTime: parsed.endTime!,
             status: "requested",
             source: "chatbot_embed",
-            serviceDescription: parsed.serviceDescription?.slice(0, 500) ?? null,
+            serviceDescription: resolvedServiceDescription?.slice(0, 500) ?? null,
             partySize: parsed.partySize,
             bookingFlowQa: bookingFlowQa ?? undefined,
             rawMessage: message.slice(0, 4000),
@@ -330,6 +335,7 @@ export async function POST(request: Request) {
           ...parsed,
           customerName: safeCustomerName,
           customerEmail: safeCustomerEmail,
+          serviceDescription: resolvedServiceDescription,
         };
 
         const dispatchBookingEmails = () => {
@@ -340,7 +346,9 @@ export async function POST(request: Request) {
             customerName: safeCustomerName,
             customerEmail: safeCustomerEmail,
             parsed: parsedForEmail,
+            bookingFlowQa,
             calendarSynced,
+            routedProviderId: route?.providerId ?? null,
           })
             .then((results) => {
               if (results.guest?.ok === false && !results.guest.skipped) {

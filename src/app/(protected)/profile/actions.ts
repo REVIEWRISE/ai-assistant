@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { saveOrganizationLogo } from "@/lib/organization-logo";
 import { getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
 import { isHrefAllowedForNav, redirectPathWhenMenuForbidden } from "@/lib/nav-access";
 
@@ -220,11 +221,17 @@ export async function updateOrganizationName(formData: FormData) {
     redirect(`${destination}?error=organization_owner_required`);
   }
 
+  const logoFile = formData.get("logo");
+  const updateData: { name: string; logoUrl?: string } = { name: organizationName };
+
+  if (logoFile instanceof File && logoFile.size > 0) {
+    const logoUrl = await saveOrganizationLogo(logoFile, organizationId);
+    if (logoUrl) updateData.logoUrl = logoUrl;
+  }
+
   await prisma.organization.update({
     where: { id: organizationId },
-    data: {
-      name: organizationName,
-    },
+    data: updateData,
   });
 
   redirect(`${destination}?success=organization_updated`);

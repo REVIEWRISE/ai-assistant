@@ -31,14 +31,14 @@ export default async function AppointmentOrganizationPage() {
     },
     select: {
       activeOrganization: {
-        select: { name: true, timezone: true, createdAt: true },
+        select: { name: true, logoUrl: true, timezone: true, createdAt: true },
       },
       activeOrganizationId: true,
       user: {
         select: {
           organizationMembers: {
             select: {
-              organization: { select: { id: true, name: true, createdAt: true } },
+              organization: { select: { id: true, name: true, logoUrl: true, createdAt: true } },
             },
             orderBy: { createdAt: "asc" },
           },
