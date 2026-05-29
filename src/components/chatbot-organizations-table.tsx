@@ -9,6 +9,7 @@ import { normalizeQuickActionsArray, type BookingFlowConfig, type ChatbotConfigD
 import { PRODUCT_NAME } from "@/lib/brand";
 import { CHATBOT_EMBED_IFRAME_OPEN } from "@/lib/chatbot-embed-layout";
 import type { GenerateBookingFlowResult } from "@/app/(protected)/appointments/chatbot/actions";
+import { ChatbotCrmIntegrationModal } from "@/components/chatbot-crm-integration-modal";
 
 type BookingFlowDraftStep = {
   id: string;
@@ -175,6 +176,7 @@ type ChatbotOrganizationsTableProps = {
   embedBaseUrl: string;
   rows: ChatbotOrgRow[];
   onSaveChatbot: (formData: FormData) => void | Promise<void>;
+  onSaveCrmIntegration: (formData: FormData) => void | Promise<void>;
   onGenerateChatbot: (formData: FormData) => Promise<GenerateBookingFlowResult>;
 };
 
@@ -182,10 +184,12 @@ export function ChatbotOrganizationsTable({
   embedBaseUrl,
   rows,
   onSaveChatbot,
+  onSaveCrmIntegration,
   onGenerateChatbot,
 }: ChatbotOrganizationsTableProps) {
   const [configureModalOrg, setConfigureModalOrg] = useState<ChatbotOrgRow | null>(null);
   const [flowModalOrg, setFlowModalOrg] = useState<ChatbotOrgRow | null>(null);
+  const [crmModalOrg, setCrmModalOrg] = useState<ChatbotOrgRow | null>(null);
   const [previewTheme, setPreviewTheme] = useState("#22c55e");
   const [previewIcon, setPreviewIcon] = useState("#0f172a");
   const [previewWelcome, setPreviewWelcome] = useState("");
@@ -336,7 +340,7 @@ export function ChatbotOrganizationsTable({
       subtitle="Every workspace you created or were added to appears here. Open Configure for any row—settings are saved per organization."
     >
       <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-        <div className="vr-app-table-header hidden grid-cols-[72px_1fr_140px_260px] items-center gap-2 px-4 py-3 lg:grid">
+        <div className="vr-app-table-header hidden grid-cols-[72px_1fr_140px_320px] items-center gap-2 px-4 py-3 lg:grid">
           <div>#</div>
           <div>Organization</div>
           <div>Session</div>
@@ -346,7 +350,7 @@ export function ChatbotOrganizationsTable({
           {paged.map((row, index) => (
             <div
               key={row.id}
-              className="grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] lg:grid-cols-[72px_1fr_140px_260px]"
+              className="grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] lg:grid-cols-[72px_1fr_140px_320px]"
             >
               <div className="text-xs font-semibold text-[var(--color-text-muted)]">
                 <span className="inline-flex min-w-[40px] items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
@@ -384,6 +388,17 @@ export function ChatbotOrganizationsTable({
                   className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
                 >
                   Booking flow
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCrmModalOrg(row)}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                    row.config.crmIntegration.enabled
+                      ? "border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-primary-soft)] text-[var(--color-primary-h)] hover:brightness-95"
+                      : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)]"
+                  }`}
+                >
+                  {row.config.crmIntegration.enabled ? "CRM · On" : "CRM sync"}
                 </button>
               </div>
             </div>
@@ -1146,6 +1161,16 @@ export function ChatbotOrganizationsTable({
             document.body,
           )
         : null}
+
+      {crmModalOrg ? (
+        <ChatbotCrmIntegrationModal
+          organizationId={crmModalOrg.id}
+          organizationName={crmModalOrg.name}
+          initialConfig={crmModalOrg.config.crmIntegration}
+          onSave={onSaveCrmIntegration}
+          onClose={() => setCrmModalOrg(null)}
+        />
+      ) : null}
     </Panel>
   );
 }

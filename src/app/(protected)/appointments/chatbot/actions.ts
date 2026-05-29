@@ -15,6 +15,7 @@ import {
   resolveBookingFlowConfig,
   type BookingFlowConfig,
 } from "@/lib/chatbot-config";
+import { parseCrmIntegrationForm } from "@/lib/crm-integration";
 import { getOpenAiApiKey } from "@/lib/openai-chat-reply";
 import { truncateKnowledgeRawTextForPrompt } from "@/lib/knowledge-base-raw-truncate";
 
@@ -149,6 +150,75 @@ export async function saveChatbotConfig(formData: FormData) {
   });
 
   redirect(`${CHATBOT_ROUTE}?success=saved`);
+}
+
+export async function saveCrmIntegration(formData: FormData) {
+  const session = await requireSessionForChatbot();
+  const organizationId = String(formData.get("organization_id") || "").trim();
+  if (!organizationId) {
+    redirect(`${CHATBOT_ROUTE}?error=chatbot_org_missing`);
+  }
+
+  const membership = await prisma.organizationMember.findFirst({
+    where: {
+      userId: session.userId,
+      organizationId,
+    },
+    select: { id: true },
+  });
+
+  if (!membership) {
+    redirect(`${CHATBOT_ROUTE}?error=chatbot_org_denied`);
+  }
+
+  const crm = parseCrmIntegrationForm({
+    enabled: formData.get("crm_enabled"),
+    webhookUrl: formData.get("crm_webhook_url"),
+    signingSecret: formData.get("crm_signing_secret"),
+  });
+
+  const existing = await prisma.organizationChatbotSettings.findUnique({
+    where: { organizationId },
+    select: {
+      welcomeMessage: true,
+      themeColor: true,
+      iconColor: true,
+      services: true,
+      bookingFlow: true,
+    },
+  });
+
+  const crmIntegration = {
+    enabled: crm.enabled,
+    webhookUrl: crm.webhookUrl,
+    signingSecret: crm.signingSecret,
+    events: crm.events,
+  } as Prisma.InputJsonValue;
+
+  if (existing) {
+    await prisma.organizationChatbotSettings.update({
+      where: { organizationId },
+      data: {
+        crmIntegration,
+        updatedAt: new Date(),
+      },
+    });
+  } else {
+    await prisma.organizationChatbotSettings.create({
+      data: {
+        organizationId,
+        welcomeMessage:
+          "Hi there, I can help you with bookings and answer questions from our knowledge base.",
+        themeColor: "#22c55e",
+        iconColor: "#0f172a",
+        services: emptyServicesJson,
+        bookingFlow: emptyBookingFlow() as unknown as Prisma.InputJsonValue,
+        crmIntegration,
+      },
+    });
+  }
+
+  redirect(`${CHATBOT_ROUTE}?success=crm_saved`);
 }
 
 export type GenerateBookingFlowResult =
