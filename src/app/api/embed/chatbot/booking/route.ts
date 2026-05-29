@@ -23,6 +23,7 @@ import {
   type ParsedBookingUtterance,
 } from "@/lib/parse-booking-utterance";
 import { sendBookingConfirmationEmails } from "@/lib/booking-email";
+import { enqueueBookingCrmWebhook } from "@/lib/booking-crm-webhook";
 import { parseBookingFlowQaPayload } from "@/lib/booking-flow-qa";
 import { normalizeCustomerEmail } from "@/lib/parse-booking-utterance";
 import { resolveBookingFlowConfig } from "@/lib/chatbot-config";
@@ -146,7 +147,7 @@ export async function POST(request: Request) {
   });
   const chatbotSettings = await prisma.organizationChatbotSettings.findUnique({
     where: { organizationId },
-    select: { bookingFlow: true, services: true },
+    select: { bookingFlow: true, services: true, crmIntegration: true },
   });
 
   if (!org) {
@@ -468,6 +469,25 @@ export async function POST(request: Request) {
         }
 
         dispatchBookingEmails();
+
+        enqueueBookingCrmWebhook({
+          organizationId,
+          organizationName: org.name,
+          crmIntegration: chatbotSettings?.crmIntegration,
+          appointment: {
+            id: created.id,
+            customerName: safeCustomerName,
+            customerEmail: safeCustomerEmail,
+            startTime: parsed.startTime!,
+            endTime: parsed.endTime!,
+            status: "requested",
+            source: "chatbot_embed",
+            serviceDescription: resolvedServiceDescription?.slice(0, 500) ?? null,
+            partySize: parsed.partySize,
+            bookingFlowQa: bookingFlowQa ?? null,
+            rawMessage: message.slice(0, 4000),
+          },
+        });
       } catch {
         saved = false;
         calendarOutcome = "not_applicable";

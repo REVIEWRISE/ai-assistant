@@ -68,9 +68,10 @@ model OrganizationChatbotSettings {
   ctaLabel       String   @default("Continue to secure booking") @map("cta_label")
   themeColor     String   @default("#22c55e") @map("theme_color")
   iconColor      String   @default("#0f172a") @map("icon_color")
-  services       Json     @default(dbgenerated("'[]'::jsonb")) @map("services") @db.JsonB
-  bookingFlow    Json     @default(dbgenerated("'{}'::jsonb")) @map("booking_flow") @db.JsonB
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  services         Json     @default(dbgenerated("'[]'::jsonb")) @map("services") @db.JsonB
+  bookingFlow      Json     @default(dbgenerated("'{}'::jsonb")) @map("booking_flow") @db.JsonB
+  crmIntegration   Json     @default(dbgenerated("'{}'::jsonb")) @map("crm_integration") @db.JsonB
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)

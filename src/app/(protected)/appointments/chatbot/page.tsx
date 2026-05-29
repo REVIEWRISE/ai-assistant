@@ -10,7 +10,8 @@ import {
 } from "@/components/app-page-hero";
 import { getAppOrigin } from "@/lib/app-origin";
 import { resolveChatbotConfigData } from "@/lib/chatbot-config";
-import { generateChatbotFromKnowledge, saveChatbotConfig } from "./actions";
+import { organizationChatbotSettingsSelect } from "@/lib/chatbot-settings-select";
+import { generateChatbotFromKnowledge, saveChatbotConfig, saveCrmIntegration } from "./actions";
 import Link from "next/link";
 
 export default async function AppointmentChatbotPage({
@@ -37,13 +38,7 @@ export default async function AppointmentChatbotPage({
                   name: true,
                   createdAt: true,
                   chatbotSettings: {
-                    select: {
-                      welcomeMessage: true,
-                      themeColor: true,
-                      iconColor: true,
-                      bookingFlow: true,
-                      services: true,
-                    },
+                    select: organizationChatbotSettingsSelect,
                   },
                   knowledgeBase: {
                     select: {
@@ -142,6 +137,10 @@ export default async function AppointmentChatbotPage({
         <div className="vr-app-alert vr-app-alert-success">Chatbot settings saved.</div>
       ) : null}
 
+      {params.success === "crm_saved" ? (
+        <div className="vr-app-alert vr-app-alert-success">CRM integration saved.</div>
+      ) : null}
+
       {params.error && errorMessages[params.error] ? (
         <div className="vr-app-alert vr-app-alert-danger">{errorMessages[params.error]}</div>
       ) : null}
@@ -150,6 +149,7 @@ export default async function AppointmentChatbotPage({
         embedBaseUrl={embedBaseUrl}
         rows={rows}
         onSaveChatbot={saveChatbotConfig}
+        onSaveCrmIntegration={saveCrmIntegration}
         onGenerateChatbot={generateChatbotFromKnowledge}
       />
     </div>

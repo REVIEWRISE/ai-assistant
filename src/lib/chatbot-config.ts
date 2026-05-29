@@ -1,8 +1,11 @@
+import { resolveCrmIntegrationConfig, type CrmIntegrationConfig } from "@/lib/crm-integration";
+
 export type ChatbotConfigData = {
   welcomeMessage: string;
   themeColor: string;
   iconColor: string;
   bookingFlow: BookingFlowConfig;
+  crmIntegration: CrmIntegrationConfig;
 };
 
 export type BookingFlowOption = {
@@ -274,6 +277,7 @@ export function readChatbotConfigFromParsedData(parsedData: unknown): ChatbotCon
     themeColor: String(config.themeColor || "").trim() || "#6366f1",
     iconColor: String(config.iconColor || "").trim() || "#ffffff",
     bookingFlow: emptyBookingFlow(),
+    crmIntegration: resolveCrmIntegrationConfig(null),
   };
 }
 
@@ -283,6 +287,7 @@ type ChatbotSettingsRow = {
   iconColor: string;
   services?: unknown;
   bookingFlow?: unknown;
+  crmIntegration?: unknown;
 } | null | undefined;
 
 /**
@@ -298,11 +303,13 @@ export function resolveChatbotConfigData(
       themeColor: String(settings.themeColor || "").trim() || "#6366f1",
       iconColor: String(settings.iconColor || "").trim() || "#ffffff",
       bookingFlow: resolveBookingFlowConfig(settings.bookingFlow),
+      crmIntegration: resolveCrmIntegrationConfig(settings.crmIntegration),
     };
   }
   const legacy = readChatbotConfigFromParsedData(legacyParsedData);
   return {
     ...legacy,
     bookingFlow: emptyBookingFlow(),
+    crmIntegration: resolveCrmIntegrationConfig(null),
   };
 }

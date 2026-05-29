@@ -8,4 +8,7 @@ else
   npx prisma db push --skip-generate
 fi
 
+echo "[db-sync] Regenerating Prisma client..."
+npx prisma generate
+
 echo "[db-sync] Done."
