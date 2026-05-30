@@ -5,6 +5,32 @@ import {
   resolveCrmIntegrationConfig,
   type CrmIntegrationConfig,
 } from "@/lib/crm-integration";
+import { resolveBookingFlowConfig, type BookingFlowConfig } from "@/lib/chatbot-config";
+import type { BookingFlowQaItem } from "@/lib/booking-flow-qa";
+
+export type BookingFlowSnapshot = {
+  version: 1;
+  slotDurationMinutes: number;
+  minGapMinutes: number;
+  steps: Array<{
+    id: string;
+    question: string;
+    inputType: string;
+  }>;
+};
+
+export function buildBookingFlowSnapshot(flow: BookingFlowConfig): BookingFlowSnapshot {
+  return {
+    version: flow.version,
+    slotDurationMinutes: flow.slotDurationMinutes,
+    minGapMinutes: flow.minGapMinutes,
+    steps: flow.steps.map((step) => ({
+      id: step.id,
+      question: step.question,
+      inputType: step.inputType ?? "options",
+    })),
+  };
+}
 
 export type BookingCrmWebhookPayload = {
   event: "booking.created";
@@ -13,6 +39,8 @@ export type BookingCrmWebhookPayload = {
     id: string;
     name: string;
   };
+  /** Flow definition at send time (step ids + questions). Answers live in appointment.bookingFlowQa. */
+  bookingFlow: BookingFlowSnapshot;
   appointment: {
     id: string;
     customerName: string;
@@ -23,7 +51,7 @@ export type BookingCrmWebhookPayload = {
     source: string;
     serviceDescription: string | null;
     partySize: number | null;
-    bookingFlowQa: Array<{ question: string; answer: string }> | null;
+    bookingFlowQa: BookingFlowQaItem[] | null;
     rawMessage: string | null;
   };
 };
@@ -32,6 +60,7 @@ export type DispatchBookingCrmWebhookParams = {
   organizationId: string;
   organizationName: string;
   crmIntegration?: unknown;
+  bookingFlow?: unknown;
   appointment: {
     id: string;
     customerName: string;
@@ -42,7 +71,7 @@ export type DispatchBookingCrmWebhookParams = {
     source: string;
     serviceDescription: string | null;
     partySize: number | null;
-    bookingFlowQa: Array<{ question: string; answer: string }> | null;
+    bookingFlowQa: BookingFlowQaItem[] | null;
     rawMessage: string | null;
   };
 };
@@ -63,6 +92,8 @@ export async function dispatchBookingCrmWebhook(
     return { dispatched: false };
   }
 
+  const flowSnapshot = buildBookingFlowSnapshot(resolveBookingFlowConfig(params.bookingFlow));
+
   const payload: BookingCrmWebhookPayload = {
     event: "booking.created",
     sentAt: new Date().toISOString(),
@@ -70,6 +101,7 @@ export async function dispatchBookingCrmWebhook(
       id: params.organizationId,
       name: params.organizationName,
     },
+    bookingFlow: flowSnapshot,
     appointment: {
       id: params.appointment.id,
       customerName: params.appointment.customerName,

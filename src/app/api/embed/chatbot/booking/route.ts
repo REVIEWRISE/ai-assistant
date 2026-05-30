@@ -474,6 +474,7 @@ export async function POST(request: Request) {
           organizationId,
           organizationName: org.name,
           crmIntegration: chatbotSettings?.crmIntegration,
+          bookingFlow: chatbotSettings?.bookingFlow,
           appointment: {
             id: created.id,
             customerName: safeCustomerName,

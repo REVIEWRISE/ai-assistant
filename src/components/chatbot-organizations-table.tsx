@@ -1166,6 +1166,7 @@ export function ChatbotOrganizationsTable({
         <ChatbotCrmIntegrationModal
           organizationId={crmModalOrg.id}
           organizationName={crmModalOrg.name}
+          bookingFlow={crmModalOrg.config.bookingFlow}
           initialConfig={crmModalOrg.config.crmIntegration}
           onSave={onSaveCrmIntegration}
           onClose={() => setCrmModalOrg(null)}
