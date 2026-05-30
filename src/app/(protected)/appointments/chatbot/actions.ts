@@ -172,7 +172,6 @@ export async function saveCrmIntegration(formData: FormData) {
   }
 
   const crm = parseCrmIntegrationForm({
-    enabled: formData.get("crm_enabled"),
     webhookUrl: formData.get("crm_webhook_url"),
     signingSecret: formData.get("crm_signing_secret"),
   });

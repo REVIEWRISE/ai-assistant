@@ -2,61 +2,56 @@
 
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import type { BookingFlowConfig } from "@/lib/chatbot-config";
+import {
+  buildBookingCrmWebhookExamplePayload,
+  formatBookingCrmWebhookExampleJson,
+} from "@/lib/booking-crm-webhook-example";
 import {
   crmIntegrationIsDispatchReady,
+  parseCrmIntegrationForm,
   type CrmIntegrationConfig,
 } from "@/lib/crm-integration";
-
-const EXAMPLE_PAYLOAD = `{
-  "event": "booking.created",
-  "sentAt": "2026-05-29T12:00:00.000Z",
-  "organization": { "id": "…", "name": "Your business" },
-  "appointment": {
-    "id": "…",
-    "customerName": "Jane Doe",
-    "customerEmail": "jane@example.com",
-    "startTime": "2026-06-01T19:30:00.000Z",
-    "endTime": "2026-06-01T21:00:00.000Z",
-    "status": "requested",
-    "source": "chatbot_embed",
-    "serviceDescription": "Dinner",
-    "partySize": 4,
-    "bookingFlowQa": [{ "question": "…", "answer": "…" }],
-    "rawMessage": "…"
-  }
-}`;
 
 export function ChatbotCrmIntegrationModal({
   organizationId,
   organizationName,
+  bookingFlow,
   initialConfig,
   onSave,
   onClose,
 }: {
   organizationId: string;
   organizationName: string;
+  bookingFlow: BookingFlowConfig;
   initialConfig: CrmIntegrationConfig;
   onSave: (formData: FormData) => void | Promise<void>;
   onClose: () => void;
 }) {
-  const [enabled, setEnabled] = useState(initialConfig.enabled);
   const [webhookUrl, setWebhookUrl] = useState(initialConfig.webhookUrl);
   const [signingSecret, setSigningSecret] = useState(initialConfig.signingSecret);
 
-  const draftConfig = useMemo(
-    (): CrmIntegrationConfig => ({
-      enabled,
-      webhookUrl: webhookUrl.trim(),
-      signingSecret: signingSecret.trim(),
-      events: ["booking.created"],
-    }),
-    [enabled, signingSecret, webhookUrl],
+  const examplePayloadJson = useMemo(
+    () =>
+      formatBookingCrmWebhookExampleJson(
+        buildBookingCrmWebhookExamplePayload({
+          organizationId,
+          organizationName,
+          bookingFlow,
+        }),
+      ),
+    [bookingFlow, organizationId, organizationName],
   );
 
-  const ready = crmIntegrationIsDispatchReady({
-    ...draftConfig,
-    enabled: enabled && webhookUrl.trim().length > 0,
-  });
+  const flowStepCount = bookingFlow.steps.length;
+
+  const ready = useMemo(
+    () =>
+      crmIntegrationIsDispatchReady(
+        parseCrmIntegrationForm({ webhookUrl, signingSecret }),
+      ),
+    [signingSecret, webhookUrl],
+  );
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] px-4 py-6">
@@ -91,23 +86,6 @@ export function ChatbotCrmIntegrationModal({
           <form action={onSave} className="mt-5 space-y-4">
             <input type="hidden" name="organization_id" value={organizationId} />
 
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <input
-                type="checkbox"
-                name="crm_enabled"
-                checked={enabled}
-                onChange={(e) => setEnabled(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)]"
-              />
-              <span>
-                <span className="block text-sm font-semibold text-[var(--color-text)]">Enable CRM webhook</span>
-                <span className="mt-1 block text-xs text-[var(--color-text-muted)]">
-                  Sends <code className="rounded bg-[var(--color-raised)] px-1 text-[11px]">booking.created</code> after
-                  each successful chatbot booking.
-                </span>
-              </span>
-            </label>
-
             <label className="block text-sm font-semibold text-[var(--color-text)]">
               Webhook URL
               <input
@@ -119,7 +97,8 @@ export function ChatbotCrmIntegrationModal({
                 className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
               />
               <span className="mt-1 block text-xs font-normal text-[var(--color-text-muted)]">
-                Must be a public HTTPS (or HTTP for local dev) endpoint that accepts POST with JSON body.
+                Save a valid URL to start sending <code className="rounded bg-[var(--color-raised)] px-1 text-[11px]">booking.created</code>{" "}
+                after each chatbot booking. Clear the field and save to turn off.
               </span>
             </label>
 
@@ -150,16 +129,33 @@ export function ChatbotCrmIntegrationModal({
             >
               {ready
                 ? "Active — new chatbot bookings will POST to your webhook."
-                : enabled
-                  ? "Add a valid webhook URL to activate delivery."
-                  : "Disabled — no outbound CRM calls until you enable and save."}
+                : webhookUrl.trim()
+                  ? "Enter a valid http(s) URL to activate delivery."
+                  : "Inactive — add a webhook URL and save to enable."}
             </div>
 
-            <details className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+            <details className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]" open>
               <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-[var(--color-text)]">
-                Example payload &amp; headers
+                Payload preview for this organization
               </summary>
               <div className="space-y-2 border-t border-[var(--color-border-muted)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
+                <p>
+                  The outer shape is always the same. What changes per organization is{" "}
+                  <code className="rounded bg-[var(--color-raised)] px-1">bookingFlow</code> (your step definitions) and{" "}
+                  <code className="rounded bg-[var(--color-raised)] px-1">appointment.bookingFlowQa</code> (visitor
+                  answers keyed by <code className="rounded bg-[var(--color-raised)] px-1">stepId</code>). This preview
+                  uses your saved booking flow
+                  {flowStepCount > 0 ? (
+                    <>
+                      {" "}
+                      (<span className="font-semibold text-[var(--color-text)]">{flowStepCount}</span> question
+                      {flowStepCount === 1 ? "" : "s"})
+                    </>
+                  ) : (
+                    <> (no question steps yet — configure under Booking flow)</>
+                  )}
+                  .
+                </p>
                 <p>
                   <span className="font-semibold text-[var(--color-text)]">Headers:</span>{" "}
                   <code className="rounded bg-[var(--color-raised)] px-1">Content-Type: application/json</code>,{" "}
@@ -171,9 +167,14 @@ export function ChatbotCrmIntegrationModal({
                     </>
                   ) : null}
                 </p>
-                <pre className="max-h-56 overflow-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-[11px] leading-relaxed text-[var(--color-text)]">
-                  {EXAMPLE_PAYLOAD}
+                <pre className="max-h-72 overflow-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-[11px] leading-relaxed text-[var(--color-text)]">
+                  {examplePayloadJson}
                 </pre>
+                <p className="text-[11px] leading-snug">
+                  Map CRM fields with{" "}
+                  <code className="rounded bg-[var(--color-raised)] px-1">appointment.bookingFlowQa.find(q =&gt; q.stepId === &quot;your_step_id&quot;)</code>
+                  . Values are sample placeholders; real bookings send actual visitor answers.
+                </p>
               </div>
             </details>
 

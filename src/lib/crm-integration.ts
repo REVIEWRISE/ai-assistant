@@ -1,6 +1,7 @@
 export type CrmIntegrationEvent = "booking.created";
 
 export type CrmIntegrationConfig = {
+  /** True when webhookUrl is a valid http(s) URL. Derived on read/save — not a separate toggle. */
   enabled: boolean;
   webhookUrl: string;
   /** Optional HMAC-SHA256 secret; sent as X-VyntRise-Signature when set. */
@@ -44,25 +45,29 @@ export function resolveCrmIntegrationConfig(raw: unknown): CrmIntegrationConfig 
     : [...DEFAULT_EVENTS];
 
   return {
-    enabled: Boolean(rec.enabled) && webhookUrl.length > 0 && isHttpUrl(webhookUrl),
-    webhookUrl: isHttpUrl(webhookUrl) ? webhookUrl : "",
+    enabled: deriveEnabled(webhookUrl),
+    webhookUrl,
     signingSecret: signingSecret.slice(0, 256),
     events: events.length > 0 ? events : [...DEFAULT_EVENTS],
   };
 }
 
-/** Parse form fields without requiring a valid URL (for save drafts). */
+function deriveEnabled(webhookUrl: string): boolean {
+  const trimmed = webhookUrl.trim();
+  return trimmed.length > 0 && isHttpUrl(trimmed);
+}
+
+/** Parse CRM form: active when webhook URL is non-empty and valid. Clear URL to disable. */
 export function parseCrmIntegrationForm(raw: {
-  enabled?: unknown;
   webhookUrl?: unknown;
   signingSecret?: unknown;
 }): CrmIntegrationConfig {
   const webhookUrl = String(raw.webhookUrl ?? "").trim();
   const signingSecret = String(raw.signingSecret ?? "").trim();
-  const enabled = raw.enabled === true || raw.enabled === "true" || raw.enabled === "on";
+  const enabled = deriveEnabled(webhookUrl);
 
   return {
-    enabled: enabled && webhookUrl.length > 0,
+    enabled,
     webhookUrl,
     signingSecret: signingSecret.slice(0, 256),
     events: [...DEFAULT_EVENTS],

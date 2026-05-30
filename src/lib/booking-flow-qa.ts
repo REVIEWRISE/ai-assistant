@@ -1,6 +1,8 @@
 import type { BookingFlowConfig, BookingFlowStep } from "@/lib/chatbot-config";
 
 export type BookingFlowQaItem = {
+  /** Stable key from booking flow step id (for CRM field mapping). */
+  stepId: string;
   question: string;
   answer: string;
 };
@@ -50,6 +52,7 @@ export function buildBookingFlowQaFromAnswers(
     if (!answer) continue;
     const question = (step.question || step.id).trim().slice(0, MAX_Q);
     out.push({
+      stepId: step.id,
       question: question || step.id,
       answer: answer.slice(0, MAX_A),
     });
@@ -67,7 +70,11 @@ export function parseBookingFlowQaPayload(raw: unknown): BookingFlowQaItem[] | n
     const q = typeof rec.question === "string" ? rec.question.trim() : "";
     const a = typeof rec.answer === "string" ? rec.answer.trim() : "";
     if (!q || !a) continue;
-    out.push({ question: q.slice(0, MAX_Q), answer: a.slice(0, MAX_A) });
+    const stepId =
+      typeof rec.stepId === "string" && rec.stepId.trim()
+        ? rec.stepId.trim().slice(0, 120)
+        : q.slice(0, 120);
+    out.push({ stepId, question: q.slice(0, MAX_Q), answer: a.slice(0, MAX_A) });
     if (out.length >= MAX_ITEMS) break;
   }
   return out.length ? out : null;
