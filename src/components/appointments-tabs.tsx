@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import type { AppointmentAnalytics } from "@/lib/appointment-analytics";
 import type { BookingFlowQaItem } from "@/lib/booking-flow-qa";
+import { BookedCrmSyncForm } from "@/components/booked-crm-sync-form";
 import { CalendarServiceManager } from "@/components/calendar-service-manager";
 import { Panel } from "@/components/ui";
 
@@ -35,6 +36,9 @@ type BookedAppointmentRow = {
   providerSyncError: string | null;
   routedProviderId: string | null;
   routedConnectionUserId: string | null;
+  crmSyncStatus: string;
+  crmSyncError: string | null;
+  crmSyncAttempts: number;
 };
 
 type CalendarRouteOption = {
@@ -79,6 +83,8 @@ type AppointmentsTabsProps = {
   providerLoad: ProviderLoadItem[];
   calendarRouteOptions: CalendarRouteOption[];
   retryCalendarSync: (formData: FormData) => void | Promise<void>;
+  retryCrmSync: (formData: FormData) => void | Promise<void>;
+  crmWebhookConfigured: boolean;
   appointmentAnalytics: AppointmentAnalytics;
 };
 
@@ -497,9 +503,13 @@ function CalendarPeriodModeSwitch({
 function BookedAppointmentsPanel({
   upcoming,
   recentPast,
+  crmWebhookConfigured,
+  retryCrmSync,
 }: {
   upcoming: BookedAppointmentRow[];
   recentPast: BookedAppointmentRow[];
+  crmWebhookConfigured: boolean;
+  retryCrmSync: (formData: FormData) => void | Promise<void>;
 }) {
   const allRows = useMemo(
     () =>
@@ -1102,6 +1112,20 @@ function BookedAppointmentsPanel({
                         </dl>
                       </div>
                     ) : null}
+                    {crmWebhookConfigured && row.source === "chatbot_embed" ? (
+                      <div className="mt-3 border-t border-[var(--color-border-muted)] pt-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                          CRM sync
+                        </p>
+                        <BookedCrmSyncForm
+                          appointmentId={row.id}
+                          crmSyncStatus={row.crmSyncStatus}
+                          crmSyncError={row.crmSyncError}
+                          crmSyncAttempts={row.crmSyncAttempts}
+                          action={retryCrmSync}
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -1156,6 +1180,8 @@ export function AppointmentsTabs({
   providerLoad,
   calendarRouteOptions: _calendarRouteOptions,
   retryCalendarSync: _retryCalendarSync,
+  retryCrmSync,
+  crmWebhookConfigured,
   appointmentAnalytics,
 }: AppointmentsTabsProps) {
   void _calendarRouteOptions;
@@ -1195,6 +1221,8 @@ export function AppointmentsTabs({
         <BookedAppointmentsPanel
           upcoming={bookedAppointments.upcoming}
           recentPast={bookedAppointments.recentPast}
+          crmWebhookConfigured={crmWebhookConfigured}
+          retryCrmSync={retryCrmSync}
         />
       ) : null}
 
