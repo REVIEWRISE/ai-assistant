@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { listOrgCalendarRoutes } from "@/lib/booking-org-gate";
+import { retryAppointmentCrmWebhookDelivery } from "@/lib/booking-crm-webhook";
+import { crmIntegrationIsDispatchReady, resolveCrmIntegrationConfig } from "@/lib/crm-integration";
 import {
   markAppointmentCalendarSyncFailed,
   syncAppointmentToExternalCalendar,
@@ -103,4 +105,48 @@ export async function retryAppointmentCalendarSync(formData: FormData) {
   }
 
   redirect(`${OVERVIEW_ROUTE}?success=calendar_synced`);
+}
+
+export async function retryAppointmentCrmSync(formData: FormData) {
+  const organizationId = await requireActiveOrganizationId();
+
+  const appointmentId = String(formData.get("appointment_id") || "").trim();
+  if (!UUID_RE.test(appointmentId)) {
+    redirect(`${OVERVIEW_ROUTE}?error=crm_sync_invalid`);
+  }
+
+  const appointment = await prisma.appointment.findFirst({
+    where: { id: appointmentId, organizationId },
+    select: { id: true, crmSyncStatus: true, source: true },
+  });
+
+  if (!appointment) {
+    redirect(`${OVERVIEW_ROUTE}?error=crm_sync_not_found`);
+  }
+
+  if (appointment.crmSyncStatus === "synced") {
+    redirect(`${OVERVIEW_ROUTE}?error=crm_sync_already_done`);
+  }
+
+  const settings = await prisma.organizationChatbotSettings.findUnique({
+    where: { organizationId },
+    select: { crmIntegration: true },
+  });
+
+  if (!crmIntegrationIsDispatchReady(resolveCrmIntegrationConfig(settings?.crmIntegration))) {
+    redirect(`${OVERVIEW_ROUTE}?error=crm_sync_not_configured`);
+  }
+
+  const result = await retryAppointmentCrmWebhookDelivery(appointmentId, organizationId);
+
+  if (!result.dispatched) {
+    redirect(`${OVERVIEW_ROUTE}?error=crm_sync_not_configured`);
+  }
+
+  if (!result.ok) {
+    const q = encodeURIComponent((result.error ?? "CRM webhook failed").slice(0, 240));
+    redirect(`${OVERVIEW_ROUTE}?error=crm_sync_failed&detail=${q}`);
+  }
+
+  redirect(`${OVERVIEW_ROUTE}?success=crm_synced`);
 }

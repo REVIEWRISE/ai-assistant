@@ -13,7 +13,8 @@ import { prisma } from "@/lib/prisma";
 import { getAppointmentAnalytics } from "@/lib/appointment-analytics";
 import { listOrgCalendarRoutes } from "@/lib/booking-org-gate";
 import { redirect } from "next/navigation";
-import { retryAppointmentCalendarSync } from "./actions";
+import { crmIntegrationIsDispatchReady, resolveCrmIntegrationConfig } from "@/lib/crm-integration";
+import { retryAppointmentCalendarSync, retryAppointmentCrmSync } from "./actions";
 
 type CalendarProviderItem = {
   id: string;
@@ -48,6 +49,9 @@ type AppointmentOverviewRow = {
   providerSyncError: string | null;
   routedProviderId: string | null;
   routedConnectionUserId: string | null;
+  crmSyncStatus: string;
+  crmSyncError: string | null;
+  crmSyncAttempts: number;
 };
 
 function displayStatusForAppointment(a: {
@@ -78,6 +82,9 @@ function mapAppointmentRow(a: {
   routedProviderId: string | null;
   routedConnectionUserId: string | null;
   providerSyncError: string | null;
+  crmSyncStatus: string;
+  crmSyncError: string | null;
+  crmSyncAttempts: number;
 }): AppointmentOverviewRow {
   return {
     id: a.id,
@@ -96,6 +103,9 @@ function mapAppointmentRow(a: {
     providerSyncError: a.providerSyncError,
     routedProviderId: a.routedProviderId,
     routedConnectionUserId: a.routedConnectionUserId,
+    crmSyncStatus: a.crmSyncStatus,
+    crmSyncError: a.crmSyncError,
+    crmSyncAttempts: a.crmSyncAttempts,
   };
 }
 
@@ -106,6 +116,11 @@ const overviewFlashErrors: Record<string, string> = {
   calendar_sync_no_connection: "No live calendar connection for this workspace. Connect one under Integrations.",
   calendar_sync_invalid_route: "That calendar connection is not available.",
   calendar_sync_failed: "The calendar provider rejected the event. Check the message below or try another calendar.",
+  crm_sync_invalid: "Something was wrong with that CRM retry request.",
+  crm_sync_not_found: "That booking could not be found.",
+  crm_sync_already_done: "This booking was already sent to your CRM webhook.",
+  crm_sync_not_configured: "No CRM webhook URL is configured. Add one under Configure chatbot → CRM sync.",
+  crm_sync_failed: "The CRM webhook failed. Check the message below or retry.",
 };
 
 export default async function AppointmentsOverviewPage({
@@ -165,6 +180,9 @@ export default async function AppointmentsOverviewPage({
     routedProviderId: true,
     routedConnectionUserId: true,
     routedProvider: { select: { name: true } },
+    crmSyncStatus: true,
+    crmSyncError: true,
+    crmSyncAttempts: true,
   } as const;
 
   const [upcomingNext24h, upcomingNext7d, upcomingAppointments, recentPastAppointments] = await Promise.all([
@@ -205,10 +223,18 @@ export default async function AppointmentsOverviewPage({
     recentPast: recentPastAppointments.map(mapAppointmentRow),
   };
 
-  const [calendarRouteOptions, appointmentAnalytics] = await Promise.all([
+  const [calendarRouteOptions, appointmentAnalytics, chatbotSettings] = await Promise.all([
     listOrgCalendarRoutes(activeOrganization.id),
     getAppointmentAnalytics(activeOrganization.id, now),
+    prisma.organizationChatbotSettings.findUnique({
+      where: { organizationId: activeOrganization.id },
+      select: { crmIntegration: true },
+    }),
   ]);
+
+  const crmWebhookConfigured = crmIntegrationIsDispatchReady(
+    resolveCrmIntegrationConfig(chatbotSettings?.crmIntegration),
+  );
 
   const calendarProviders: CalendarProviderItem[] = providerRows.map((provider: typeof providerRows[number]) => {
     const connection = provider.connections[0];
@@ -264,10 +290,15 @@ export default async function AppointmentsOverviewPage({
           Booking posted to the selected calendar successfully.
         </div>
       ) : null}
+      {successFlag === "crm_synced" ? (
+        <div className="vr-app-alert vr-app-alert-success">
+          Booking sent to your CRM webhook successfully.
+        </div>
+      ) : null}
       {errorFlag ? (
         <div className="vr-app-alert vr-app-alert-danger">
           <p className="font-semibold">{overviewFlashErrors[errorFlag] ?? "Calendar action failed."}</p>
-          {errorFlag === "calendar_sync_failed" && errorDetail ? (
+          {(errorFlag === "calendar_sync_failed" || errorFlag === "crm_sync_failed") && errorDetail ? (
             <p className="mt-1 text-xs opacity-90">{errorDetail}</p>
           ) : null}
         </div>
@@ -299,6 +330,8 @@ export default async function AppointmentsOverviewPage({
         providerLoad={providerLoad}
         calendarRouteOptions={calendarRouteOptions}
         retryCalendarSync={retryAppointmentCalendarSync}
+        retryCrmSync={retryAppointmentCrmSync}
+        crmWebhookConfigured={crmWebhookConfigured}
         appointmentAnalytics={appointmentAnalytics}
       />
     </div>

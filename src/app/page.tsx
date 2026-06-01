@@ -55,7 +55,7 @@ export default async function Home() {
 
       <LandingFooter isLoggedIn={isLoggedIn} />
 
-      {/* <LandingChatbotDemo /> */}
+      <LandingChatbotDemo />
     </div>
   );
 }

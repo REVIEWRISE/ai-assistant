@@ -158,6 +158,9 @@ model Appointment {
   providerSyncStatus         String   @default("pending") @map("provider_sync_status")
   externalCalendarEventId    String?  @map("external_calendar_event_id")
   providerSyncError          String?  @map("provider_sync_error")
+  crmSyncStatus              String   @default("not_applicable") @map("crm_sync_status")
+  crmSyncError               String?  @map("crm_sync_error")
+  crmSyncAttempts            Int      @default(0) @map("crm_sync_attempts")
   createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   organization           Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)

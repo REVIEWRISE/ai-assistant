@@ -8,10 +8,10 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint",
-    "db:migrate": "prisma db push && prisma generate",
+    "db:migrate": "sh scripts/db-migrate.sh",
     "postinstall": "prisma generate",
     "db:sync": "sh scripts/db-sync.sh",
-    "db:seed": "prisma db seed",
+    "db:seed": "sh scripts/with-env.sh prisma db seed",
     "db:setup": "npm run db:migrate && npm run db:seed",
     "cron:review-sync": "tsx scripts/review-sync-cron.ts"
   },
