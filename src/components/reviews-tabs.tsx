@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Bar,
   BarChart,
@@ -224,14 +224,21 @@ export function ReviewsTabs({
   onConnectProvider,
   onSyncProvider,
 }: ReviewsTabsProps) {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const tabFromUrl = parseTabKey(searchParams.get("tab"));
-  const [activeTab, setActiveTab] = useState<TabKey>(tabFromUrl ?? "integrations");
+  const activeTab = parseTabKey(searchParams.get("tab")) ?? "integrations";
   const [selectedReview, setSelectedReview] = useState<InboxItem | null>(null);
 
-  useEffect(() => {
-    if (tabFromUrl) setActiveTab(tabFromUrl);
-  }, [tabFromUrl]);
+  function selectTab(tab: TabKey) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === "integrations") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tab);
+    }
+    const query = params.toString();
+    router.replace(query ? `/reviews?${query}` : "/reviews", { scroll: false });
+  }
 
   const getStatusTone = (status: string): string => {
     if (status === "Safe to auto-publish" || status === "Replied on Google") {
@@ -252,7 +259,7 @@ export function ReviewsTabs({
             <button
               key={tab.key}
               type="button"
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => selectTab(tab.key)}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                 active
                   ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
