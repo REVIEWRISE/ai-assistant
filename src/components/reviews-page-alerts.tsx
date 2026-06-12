@@ -12,6 +12,13 @@ const variantStyles = {
   warning: "vr-app-alert vr-app-alert-warning",
 } as const;
 
+/** Success states that only use a toast — no persistent banner. */
+const toastOnlySuccess = new Set([
+  "provider_connected",
+  "review_sync_done",
+  "review_sync_up_to_date",
+]);
+
 export function ReviewsPageAlerts() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -30,10 +37,19 @@ export function ReviewsPageAlerts() {
 
     if (message.variant === "success") {
       toast.success(message.title);
-      return;
+    } else {
+      toast.error(message.title);
     }
-    toast.error(message.title);
-  }, [toastKey, message]);
+
+    if (success && toastOnlySuccess.has(success)) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("success");
+      params.delete("error");
+      params.delete("detail");
+      const query = params.toString();
+      router.replace(query ? `/reviews?${query}` : "/reviews", { scroll: false });
+    }
+  }, [toastKey, message, router, searchParams, success]);
 
   function dismissBanner() {
     if (toastKey) setDismissedKey(toastKey);
@@ -46,6 +62,7 @@ export function ReviewsPageAlerts() {
   }
 
   if (!message || dismissedKey === toastKey) return null;
+  if (success && toastOnlySuccess.has(success)) return null;
 
   return (
     <section role="status" className={`shadow-sm lg:px-5 ${variantStyles[message.variant]}`}>

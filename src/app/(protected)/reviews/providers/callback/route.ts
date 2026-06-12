@@ -109,6 +109,7 @@ export async function GET(request: Request) {
       ...tokenData,
       account_id: location.accountId,
       location_id: location.locationId,
+      location_name: location.locationName,
       location_title: location.title,
     };
 

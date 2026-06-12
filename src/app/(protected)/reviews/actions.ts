@@ -15,8 +15,11 @@ function readTokenRecord(raw: unknown): Record<string, unknown> {
 export async function completeReviewProviderLocation(formData: FormData) {
   const providerId = String(formData.get("provider_id") || "").trim();
   const locationKey = String(formData.get("location_key") || "").trim();
-  const [accountId, locationId, ...titleParts] = locationKey.split("::");
-  const locationTitle = titleParts.join("::");
+  const parts = locationKey.split("::");
+  const accountId = parts[0] ?? "";
+  const locationId = parts[1] ?? "";
+  const locationTitle = parts[2] ? decodeURIComponent(parts[2]) : "";
+  const locationName = parts[3] ? decodeURIComponent(parts[3]) : "";
 
   if (!providerId || !accountId || !locationId) {
     redirect(`${REVIEWS_ROUTE}?error=missing_required_connection_fields`);
@@ -49,6 +52,7 @@ export async function completeReviewProviderLocation(formData: FormData) {
     ...readTokenRecord(connection.tokenData),
     account_id: accountId,
     location_id: locationId,
+    location_name: locationName,
     location_title: locationTitle,
   };
 
@@ -198,9 +202,19 @@ export async function syncReviewProvider(formData: FormData) {
   if (result.status === "provider_not_connected") {
     redirect(`${REVIEWS_ROUTE}?error=provider_not_connected`);
   }
+  if (result.status === "missing_location") {
+    redirect(`${REVIEWS_ROUTE}?error=review_sync_missing_location`);
+  }
+  if (result.status === "api_failed") {
+    const q = encodeURIComponent(result.error.slice(0, 240));
+    redirect(`${REVIEWS_ROUTE}?error=review_sync_api_failed&detail=${q}`);
+  }
   if (result.status === "empty") {
     redirect(`${REVIEWS_ROUTE}?success=review_sync_empty`);
   }
+  if (result.inserted === 0) {
+    redirect(`${REVIEWS_ROUTE}?tab=workflow&success=review_sync_up_to_date`);
+  }
 
-  redirect(`${REVIEWS_ROUTE}?success=review_sync_done`);
+  redirect(`${REVIEWS_ROUTE}?tab=workflow&success=review_sync_done`);
 }

@@ -19,8 +19,13 @@ export const reviewSuccessMessages: Record<string, ReviewStatusMessage> = {
     variant: "success",
   },
   review_sync_empty: {
-    title: "Sync complete",
-    body: "No new reviews were found for this location.",
+    title: "No reviews returned",
+    body: "Google did not return any reviews for the linked location. Confirm the review is on that business profile, then try again.",
+    variant: "warning",
+  },
+  review_sync_up_to_date: {
+    title: "Already up to date",
+    body: "Reviews were fetched but everything is already in your inbox.",
     variant: "success",
   },
 };
@@ -116,6 +121,20 @@ export const reviewErrorMessages: Record<string, ReviewStatusMessage> = {
     ],
     variant: "warning",
   },
+  review_sync_missing_location: {
+    title: "Business location not linked",
+    body: "Reconnect Google and choose which location to sync reviews from.",
+    variant: "error",
+  },
+  review_sync_api_failed: {
+    title: "Could not fetch reviews",
+    body: "Google or your reviews API rejected the request.",
+    hints: [
+      "Confirm Google My Business API is enabled in the same Google Cloud project as your OAuth client",
+      "Account Management and Business Information APIs are not enough — reviews require My Business API (mybusiness.googleapis.com)",
+    ],
+    variant: "error",
+  },
   gbp_accounts_api_failed: {
     title: "Couldn't access your Business Profile account",
     body: "Google sign-in worked, but the Business Profile account API rejected our request.",
@@ -140,6 +159,20 @@ export function getReviewStatusMessage(args: {
     const base = reviewErrorMessages[args.error];
     const detail = args.detail?.trim();
     if (!detail || args.error === "gbp_rate_limited") return base;
+    const myBusinessApiDisabled =
+      /mybusiness\.googleapis\.com/i.test(detail) ||
+      /google my business api has not been used/i.test(detail);
+    if (args.error === "review_sync_api_failed" && myBusinessApiDisabled) {
+      return {
+        ...base,
+        body: "Google rejected the reviews request because Google My Business API is disabled for your OAuth project.",
+        hints: [
+          "Open Google Cloud Console → APIs & Services → Library → search “Google My Business API” → Enable",
+          "Use the same project as your OAuth client_id on the review provider",
+          "Wait a few minutes after enabling, then click Sync now again",
+        ],
+      };
+    }
     return {
       ...base,
       body: `${base.body} Google reported: ${detail}`,
