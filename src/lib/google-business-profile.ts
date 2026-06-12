@@ -307,11 +307,151 @@ export async function listGoogleBusinessProfileLocations(accessToken: string): P
   return result.locations;
 }
 
-export function buildGbpReviewsUrl(accountId: string, locationId: string, pageToken?: string) {
-  const params = new URLSearchParams({
-    pageSize: "50",
-    orderBy: "updateTime desc",
-  });
+export type GbpReviewsListPage = {
+  reviews: Record<string, unknown>[];
+  totalReviewCount: number | null;
+  nextPageToken: string | null;
+};
+
+function isGbpLocationParent(value: string): boolean {
+  return /^accounts\/[^/]+\/locations\/[^/]+$/.test(value.trim());
+}
+
+export function buildGbpReviewsUrlFromParent(parent: string, pageToken?: string): string {
+  const normalized = parent.trim().replace(/^\/+/, "");
+  const params = new URLSearchParams({ pageSize: "50" });
   if (pageToken) params.set("pageToken", pageToken);
-  return `https://mybusiness.googleapis.com/v4/accounts/${encodeURIComponent(accountId)}/locations/${encodeURIComponent(locationId)}/reviews?${params}`;
+  return `https://mybusiness.googleapis.com/v4/${normalized}/reviews?${params}`;
+}
+
+/** @deprecated Use buildGbpReviewsUrlFromParent with full parent resource name. */
+export function buildGbpReviewsUrl(accountId: string, locationId: string, pageToken?: string) {
+  return buildGbpReviewsUrlFromParent(`accounts/${accountId}/locations/${locationId}`, pageToken);
+}
+
+export function gbpLocationParentFromToken(tokenData: Record<string, unknown>): string[] {
+  const accountId = readString(tokenData.account_id);
+  const locationId = readString(tokenData.location_id);
+  const locationName = readString(tokenData.location_name);
+  const candidates: string[] = [];
+  if (isGbpLocationParent(locationName)) candidates.push(locationName);
+  if (accountId && locationId) candidates.push(`accounts/${accountId}/locations/${locationId}`);
+  if (accountId && locationName.startsWith("locations/")) {
+    candidates.push(`accounts/${accountId}/${locationName}`);
+  }
+  return [...new Set(candidates)];
+}
+
+/** Resolve GBP review list parents — v1 location ids may not work with v4 reviews; include v4 fallbacks. */
+export async function resolveGbpReviewsParentCandidates(
+  accessToken: string,
+  tokenData: Record<string, unknown>,
+): Promise<string[]> {
+  const candidates = gbpLocationParentFromToken(tokenData);
+  const accountId = readString(tokenData.account_id);
+  const locationId = readString(tokenData.location_id);
+  const locationTitle = readString(tokenData.location_title).toLowerCase();
+
+  if (accountId) {
+    const map = new Map<string, GbpLocationOption>();
+    await listLocationsV4(accessToken, accountId, map);
+    for (const loc of map.values()) {
+      const parent = `accounts/${loc.accountId}/locations/${loc.locationId}`;
+      const matchesId = Boolean(locationId && loc.locationId === locationId);
+      const matchesTitle = Boolean(locationTitle && loc.title.toLowerCase() === locationTitle);
+      if (!locationId || matchesId || matchesTitle) {
+        candidates.push(parent);
+        if (isGbpLocationParent(loc.locationName)) candidates.push(loc.locationName);
+      }
+    }
+  }
+
+  return [...new Set(candidates.filter(isGbpLocationParent))];
+}
+
+export async function fetchGbpReviewsListPage(
+  accessToken: string,
+  parent: string,
+  pageToken?: string,
+): Promise<
+  | { ok: true; page: GbpReviewsListPage }
+  | { ok: false; status: number; body: string }
+> {
+  const res = await fetch(buildGbpReviewsUrlFromParent(parent, pageToken), {
+    method: "GET",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const body = await res.text().catch(() => "");
+  if (!res.ok) {
+    return { ok: false, status: res.status, body: body.slice(0, 500) };
+  }
+  let json: Record<string, unknown>;
+  try {
+    json = asRecord(JSON.parse(body));
+  } catch {
+    return { ok: false, status: res.status, body: "Invalid JSON from Google reviews API" };
+  }
+  const rows = Array.isArray(json.reviews) ? json.reviews.map(asRecord) : [];
+  const totalRaw = json.totalReviewCount;
+  const totalReviewCount =
+    typeof totalRaw === "number" && Number.isFinite(totalRaw) ? Math.floor(totalRaw) : null;
+  return {
+    ok: true,
+    page: {
+      reviews: rows,
+      totalReviewCount,
+      nextPageToken: readString(json.nextPageToken) || null,
+    },
+  };
+}
+
+export async function fetchAllGbpReviewsForToken(
+  accessToken: string,
+  tokenData: Record<string, unknown>,
+): Promise<
+  | { ok: true; reviews: Record<string, unknown>[]; parent: string; totalReviewCount: number | null }
+  | { ok: false; error: string }
+> {
+  const parents = await resolveGbpReviewsParentCandidates(accessToken, tokenData);
+  if (parents.length === 0) {
+    return { ok: false, error: "missing_location" };
+  }
+
+  let lastError = "Google reviews API returned no data";
+  for (const parent of parents) {
+    const collected: Record<string, unknown>[] = [];
+    let pageToken: string | undefined;
+    let totalReviewCount: number | null = null;
+    let sawSuccess = false;
+
+    for (let page = 0; page < 20; page += 1) {
+      const result = await fetchGbpReviewsListPage(accessToken, parent, pageToken);
+      if (!result.ok) {
+        lastError = `Google reviews API (${parent}) HTTP ${result.status}: ${result.body}`;
+        break;
+      }
+      sawSuccess = true;
+      if (result.page.totalReviewCount != null) totalReviewCount = result.page.totalReviewCount;
+      collected.push(...result.page.reviews);
+      pageToken = result.page.nextPageToken ?? undefined;
+      if (!pageToken) break;
+    }
+
+    if (collected.length > 0) {
+      return { ok: true, reviews: collected, parent, totalReviewCount };
+    }
+
+    if (sawSuccess && (totalReviewCount ?? 0) > 0) {
+      return {
+        ok: false,
+        error: `Google reports ${totalReviewCount} review(s) for this location but returned an empty list. Confirm the business is verified in Google Business Profile and reconnect the location.`,
+      };
+    }
+
+    if (sawSuccess && collected.length === 0 && (totalReviewCount ?? 0) === 0) {
+      return { ok: true, reviews: [], parent, totalReviewCount: 0 };
+    }
+  }
+
+  return { ok: false, error: lastError };
 }

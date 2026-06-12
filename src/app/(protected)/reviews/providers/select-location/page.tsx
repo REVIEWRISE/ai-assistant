@@ -82,7 +82,7 @@ export default async function SelectReviewProviderLocationPage({
               <input
                 type="radio"
                 name="location_key"
-                value={`${location.accountId}::${location.locationId}::${location.title}`}
+                value={`${location.accountId}::${location.locationId}::${encodeURIComponent(location.title)}::${encodeURIComponent(location.locationName)}`}
                 required
                 className="mt-1 accent-[var(--color-primary)]"
               />

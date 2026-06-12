@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Bar,
   BarChart,
@@ -17,6 +18,7 @@ import { ReviewServiceManager } from "@/components/review-service-manager";
 import { Panel } from "@/components/ui";
 
 type InboxItem = {
+  id: string;
   rating: string;
   quote: string;
   response: string;
@@ -24,6 +26,27 @@ type InboxItem = {
   tone: string;
   status: string;
 };
+
+const inboxTableGridClass =
+  "md:grid-cols-[minmax(0,0.95fr)_88px_minmax(0,1.35fr)_minmax(0,1.1fr)_minmax(0,148px)_96px]";
+
+type ReviewActionKind = "replied" | "auto_ready" | "needs_review" | "manual_approval";
+
+function getReviewActionKind(status: string): ReviewActionKind {
+  if (status === "Replied on Google") return "replied";
+  if (status === "Safe to auto-publish") return "auto_ready";
+  if (status === "Needs human review") return "needs_review";
+  return "manual_approval";
+}
+
+function reviewHasDraftResponse(response: string): boolean {
+  return response.trim().toLowerCase() !== "no drafted response yet.";
+}
+
+function responsePanelTitle(status: string): string {
+  if (status === "Replied on Google") return "Reply on Google";
+  return "Suggested Response";
+}
 
 type ReviewService = {
   id: string;
@@ -54,6 +77,11 @@ type PendingItem = {
 };
 
 type TabKey = "integrations" | "workflow" | "analytics";
+
+function parseTabKey(raw: string | null): TabKey | null {
+  if (raw === "integrations" || raw === "workflow" || raw === "analytics") return raw;
+  return null;
+}
 
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "integrations", label: "Integrations" },
@@ -196,11 +224,24 @@ export function ReviewsTabs({
   onConnectProvider,
   onSyncProvider,
 }: ReviewsTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>("integrations");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeTab = parseTabKey(searchParams.get("tab")) ?? "integrations";
   const [selectedReview, setSelectedReview] = useState<InboxItem | null>(null);
 
+  function selectTab(tab: TabKey) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === "integrations") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tab);
+    }
+    const query = params.toString();
+    router.replace(query ? `/reviews?${query}` : "/reviews", { scroll: false });
+  }
+
   const getStatusTone = (status: string): string => {
-    if (status === "Safe to auto-publish") {
+    if (status === "Safe to auto-publish" || status === "Replied on Google") {
       return "vr-app-status-success";
     }
     if (status === "Needs human review") {
@@ -218,7 +259,7 @@ export function ReviewsTabs({
             <button
               key={tab.key}
               type="button"
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => selectTab(tab.key)}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                 active
                   ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
@@ -290,7 +331,7 @@ export function ReviewsTabs({
                 <div className="space-y-3 md:hidden">
                   {inbox.map((review) => (
                     <div
-                      key={`${review.rating}-${review.quote}-mobile`}
+                      key={review.id}
                       className="rounded-xl border border-[var(--color-border)] p-3 text-sm"
                     >
                       <div className="mb-2 flex items-center justify-between gap-2">
@@ -320,67 +361,54 @@ export function ReviewsTabs({
               ) : null}
 
               {inbox.length > 0 ? (
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="min-w-full border-separate border-spacing-0 text-left text-sm text-[var(--color-text)]">
-                    <thead>
-                      <tr>
-                        <th className="border-b border-[var(--color-border)] px-3 py-2 font-semibold text-[var(--color-text)]">
-                          Source
-                        </th>
-                        <th className="border-b border-[var(--color-border)] px-3 py-2 font-semibold text-[var(--color-text)]">
-                          Rating
-                        </th>
-                        <th className="border-b border-[var(--color-border)] px-3 py-2 font-semibold text-[var(--color-text)]">
-                          Review
-                        </th>
-                        <th className="border-b border-[var(--color-border)] px-3 py-2 font-semibold text-[var(--color-text)]">
-                          Response
-                        </th>
-                        <th className="border-b border-[var(--color-border)] px-3 py-2 font-semibold text-[var(--color-text)]">
-                          Status
-                        </th>
-                        <th className="border-b border-[var(--color-border)] px-3 py-2 font-semibold text-[var(--color-text)]">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {inbox.map((review) => {
-                        return (
-                          <tr key={`${review.rating}-${review.quote}`} className="align-top">
-                            <td className="border-b border-[var(--color-border-muted)] px-3 py-3 font-medium text-[var(--color-text)]">
-                              {review.source}
-                            </td>
-                            <td className="border-b border-[var(--color-border-muted)] px-3 py-3">
-                              {review.rating}
-                            </td>
-                            <td className="border-b border-[var(--color-border-muted)] px-3 py-3">
-                              &quot;{review.quote}&quot;
-                            </td>
-                            <td className="border-b border-[var(--color-border-muted)] px-3 py-3 text-[var(--color-text-muted)]">
-                              <span className="line-clamp-2">{review.response}</span>
-                            </td>
-                            <td className="border-b border-[var(--color-border-muted)] px-3 py-3">
-                              <span
-                                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusTone(review.status)}`}
-                              >
-                                {review.status}
-                              </span>
-                            </td>
-                            <td className="border-b border-[var(--color-border-muted)] px-3 py-3">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedReview(review)}
-                                className="rounded-lg border border-[var(--color-border-hover)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
-                              >
-                                Open
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                <div className="hidden overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] md:block">
+                  <div
+                    className={`vr-app-table-header hidden items-center gap-3 px-4 py-3 md:grid ${inboxTableGridClass}`}
+                  >
+                    <div>Source</div>
+                    <div>Rating</div>
+                    <div>Review</div>
+                    <div>Response</div>
+                    <div>Status</div>
+                    <div className="text-right">Action</div>
+                  </div>
+                  <div className="divide-y divide-[var(--color-border-muted)]">
+                    {inbox.map((review) => (
+                      <div
+                        key={review.id}
+                        className={`group grid items-start gap-3 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] md:items-center ${inboxTableGridClass}`}
+                      >
+                        <div className="min-w-0 font-semibold">{review.source}</div>
+                        <div className="whitespace-nowrap text-[var(--color-warning)]">{review.rating}</div>
+                        <div className="min-w-0">
+                          <p className="line-clamp-2 leading-relaxed" title={review.quote}>
+                            &quot;{review.quote}&quot;
+                          </p>
+                        </div>
+                        <div className="min-w-0 text-[var(--color-text-muted)]">
+                          <p className="line-clamp-2 leading-relaxed" title={review.response}>
+                            {review.response}
+                          </p>
+                        </div>
+                        <div className="min-w-0">
+                          <span
+                            className={`inline-flex max-w-full whitespace-normal rounded-full px-2.5 py-1 text-xs font-semibold leading-snug ${getStatusTone(review.status)}`}
+                          >
+                            {review.status}
+                          </span>
+                        </div>
+                        <div className="flex justify-start md:justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedReview(review)}
+                            className="rounded-lg border border-[var(--color-border-hover)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] group-hover:border-[var(--color-border)]"
+                          >
+                            Open
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : null}
             </Panel>
@@ -470,7 +498,7 @@ export function ReviewsTabs({
                 </div>
                 <div className="rounded-2xl border border-[var(--color-border)] p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-                    Suggested Response
+                    {responsePanelTitle(selectedReview.status)}
                   </p>
                   <p className="mt-2 leading-relaxed">{selectedReview.response}</p>
                 </div>
@@ -480,20 +508,77 @@ export function ReviewsTabs({
                 <p className="text-xs text-[var(--color-text-muted)]">
                   Source: {selectedReview.source} • Rating: {selectedReview.rating}
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="rounded-lg border border-[var(--color-border-hover)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
-                  >
-                    Edit Response
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-lg vr-btn-primary px-3 py-2 text-sm font-semibold"
-                  >
-                    Approve and Send
-                  </button>
-                </div>
+                {(() => {
+                  const actionKind = getReviewActionKind(selectedReview.status);
+                  const hasDraft = reviewHasDraftResponse(selectedReview.response);
+
+                  if (actionKind === "replied") {
+                    return (
+                      <p className="text-xs font-medium text-[var(--color-text-muted)]">
+                        Already replied on Google — no further action needed.
+                      </p>
+                    );
+                  }
+
+                  return (
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {actionKind === "needs_review" ? (
+                        <>
+                          <button
+                            type="button"
+                            className="rounded-lg border border-[var(--color-border-hover)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+                          >
+                            Edit Response
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!hasDraft}
+                            title={hasDraft ? undefined : "Draft a response before sending"}
+                            className="rounded-lg vr-btn-primary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Send after review
+                          </button>
+                        </>
+                      ) : null}
+                      {actionKind === "manual_approval" ? (
+                        <>
+                          <button
+                            type="button"
+                            className="rounded-lg border border-[var(--color-border-hover)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+                          >
+                            Edit Response
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!hasDraft}
+                            title={hasDraft ? undefined : "Draft a response before approving"}
+                            className="rounded-lg vr-btn-primary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Approve and Send
+                          </button>
+                        </>
+                      ) : null}
+                      {actionKind === "auto_ready" ? (
+                        <>
+                          <button
+                            type="button"
+                            className="rounded-lg border border-[var(--color-border-hover)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+                          >
+                            Edit Response
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!hasDraft}
+                            title={hasDraft ? undefined : "Draft a response before sending"}
+                            className="rounded-lg vr-btn-primary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Approve and Auto-Send
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>

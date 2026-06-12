@@ -1,22 +1,33 @@
 import { prisma } from "@/lib/prisma";
-import { buildGbpReviewsUrl } from "@/lib/google-business-profile";
+import { fetchAllGbpReviewsForToken } from "@/lib/google-business-profile";
 import {
   asOAuthProviderConfig,
   getValidOAuthAccessToken,
   isOAuthProviderConfig,
+  parseOAuthScopes,
 } from "@/lib/google-oauth";
 
 type RequiredFieldRule = { key: string; required: boolean };
 type ProviderConfig = Record<string, unknown>;
 type ConnectionTokenData = Record<string, unknown>;
 type NormalizedIncomingReview = {
+  googleReviewId: string | null;
   rating: number;
   reviewText: string;
+  responseText: string | null;
+  status: "pending" | "responded";
+};
+
+type FetchReviewsResult = {
+  reviews: NormalizedIncomingReview[];
+  error?: string;
 };
 
 export type SyncReviewProviderResult =
   | { status: "provider_not_found"; inserted: 0; fetched: 0 }
   | { status: "provider_not_connected"; inserted: 0; fetched: 0 }
+  | { status: "missing_location"; inserted: 0; fetched: 0 }
+  | { status: "api_failed"; inserted: 0; fetched: 0; error: string }
   | { status: "synced"; inserted: number; fetched: number }
   | { status: "empty"; inserted: 0; fetched: 0 };
 
@@ -49,6 +60,43 @@ function asRecord(v: unknown): Record<string, unknown> {
 
 function parseIntegration(config: ProviderConfig): string {
   return readString(config.integration).toLowerCase().replace(/-/g, "_");
+}
+
+export function detectReviewIntegration(provider: {
+  name: string;
+  apiUrl: string | null;
+  config: unknown;
+}): "google_business_profile" | "generic_http_reviews" | null {
+  const config = asRecord(provider.config);
+  const integration = parseIntegration(config);
+  if (
+    integration === "google_business_profile" ||
+    integration === "google" ||
+    integration === "gbp"
+  ) {
+    return "google_business_profile";
+  }
+  if (integration === "generic_http_reviews" || integration === "custom_http_json") {
+    return "generic_http_reviews";
+  }
+  if (isOAuthProviderConfig(config)) {
+    const oauthConfig = asOAuthProviderConfig(config);
+    const scopes = parseOAuthScopes(oauthConfig).toLowerCase();
+    if (scopes.includes("business.manage") || scopes.includes("plus.business.manage")) {
+      return "google_business_profile";
+    }
+    if (readString(oauthConfig.auth_url).includes("accounts.google.com")) {
+      return "google_business_profile";
+    }
+  }
+  const name = provider.name.toLowerCase();
+  if (name.includes("google") && isOAuthProviderConfig(config)) {
+    return "google_business_profile";
+  }
+  if (readString(config.reviews_url) || readString(provider.apiUrl)) {
+    return "generic_http_reviews";
+  }
+  return null;
 }
 
 function parseGoogleStarRating(v: unknown): number | null {
@@ -84,18 +132,58 @@ function normalizeGenericItem(item: Record<string, unknown>): NormalizedIncoming
     readString(item.comment) ||
     readString(item.content);
   if (!ratingNum || ratingNum < 1 || ratingNum > 5 || !reviewText) return null;
-  return { rating: ratingNum, reviewText: reviewText.slice(0, 8000) };
+  return {
+    googleReviewId: null,
+    rating: ratingNum,
+    reviewText: reviewText.slice(0, 8000),
+    responseText: null,
+    status: "pending",
+  };
+}
+
+function parseGoogleReviewId(rec: Record<string, unknown>): string | null {
+  const direct = readString(rec.reviewId);
+  if (direct) return direct.slice(0, 200);
+  const name = readString(rec.name);
+  const match = name.match(/\/reviews\/([^/]+)$/);
+  return match?.[1]?.slice(0, 200) ?? null;
+}
+
+function normalizeGoogleBusinessProfileReview(rec: Record<string, unknown>): NormalizedIncomingReview | null {
+  const rating = parseGoogleStarRating(rec.starRating);
+  if (!rating) return null;
+
+  const comment = readString(rec.comment);
+  const reviewer = asRecord(rec.reviewer);
+  const reviewerName = readString(reviewer.displayName);
+  const reviewText =
+    comment ||
+    (reviewerName
+      ? `${reviewerName} left a ${rating}-star review (no written comment)`
+      : "(Rating only — no written comment)");
+  const replyRec = asRecord(rec.reviewReply);
+  const ownerReply = readString(replyRec.comment);
+
+  return {
+    googleReviewId: parseGoogleReviewId(rec),
+    rating,
+    reviewText: reviewText.slice(0, 8000),
+    responseText: ownerReply ? ownerReply.slice(0, 8000) : null,
+    status: ownerReply ? "responded" : "pending",
+  };
 }
 
 async function fetchGoogleBusinessProfileReviews(
   provider: { config: unknown },
   tokenData: ConnectionTokenData,
   persistTokenData?: (next: ConnectionTokenData) => Promise<void>,
-): Promise<NormalizedIncomingReview[]> {
+): Promise<FetchReviewsResult> {
   const config = asRecord(provider.config);
   const accountId = readString(tokenData.account_id) || readString(config.account_id);
   const locationId = readString(tokenData.location_id) || readString(config.location_id);
-  if (!accountId || !locationId) return [];
+  if (!accountId || !locationId) {
+    return { reviews: [], error: "missing_location" };
+  }
 
   let accessToken = readString(tokenData.access_token) || readString(tokenData.api_key);
   if (isOAuthProviderConfig(provider.config) && persistTokenData) {
@@ -106,42 +194,47 @@ async function fetchGoogleBusinessProfileReviews(
         await persistTokenData(next as ConnectionTokenData);
       },
     });
-    if ("error" in tokenResult) return [];
+    if ("error" in tokenResult) {
+      return { reviews: [], error: `Google token refresh failed: ${tokenResult.error}` };
+    }
     accessToken = tokenResult.accessToken;
   }
-  if (!accessToken) return [];
+  if (!accessToken) {
+    return { reviews: [], error: "missing_access_token" };
+  }
+
+  const gbpResult = await fetchAllGbpReviewsForToken(accessToken, tokenData);
+  if (!gbpResult.ok) {
+    if (gbpResult.error === "missing_location") {
+      return { reviews: [], error: "missing_location" };
+    }
+    console.error("[review-sync] Google reviews fetch failed", gbpResult.error);
+    return { reviews: [], error: gbpResult.error };
+  }
 
   const reviews: NormalizedIncomingReview[] = [];
-  let pageToken = "";
-  for (let page = 0; page < 5; page += 1) {
-    const url = buildGbpReviewsUrl(accountId, locationId, pageToken || undefined);
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (!res.ok) break;
-    const json = (await res.json()) as Record<string, unknown>;
-    const rows = Array.isArray(json.reviews) ? json.reviews : [];
-    for (const row of rows) {
-      const rec = asRecord(row);
-      const rating = parseGoogleStarRating(rec.starRating);
-      const reviewText = readString(rec.comment);
-      if (!rating || !reviewText) continue;
-      reviews.push({ rating, reviewText: reviewText.slice(0, 8000) });
-    }
-    pageToken = readString(json.nextPageToken);
-    if (!pageToken) break;
+  for (const row of gbpResult.reviews) {
+    const normalized = normalizeGoogleBusinessProfileReview(row);
+    if (normalized) reviews.push(normalized);
   }
-  return reviews;
+
+  if (reviews.length === 0 && (gbpResult.totalReviewCount ?? 0) > 0) {
+    return {
+      reviews: [],
+      error: `Google reports ${gbpResult.totalReviewCount} review(s) but we could not parse them. Try reconnecting your location.`,
+    };
+  }
+
+  return { reviews };
 }
 
 async function fetchGenericHttpReviews(
   provider: { apiUrl: string | null; config: unknown },
   tokenData: ConnectionTokenData,
-): Promise<NormalizedIncomingReview[]> {
+): Promise<FetchReviewsResult> {
   const config = asRecord(provider.config);
   const url = readString(config.reviews_url) || readString(provider.apiUrl);
-  if (!url) return [];
+  if (!url) return { reviews: [] };
   const authHeader = readString(config.auth_header) || "Authorization";
   const authTokenField = readString(config.auth_token_field) || "api_key";
   const authScheme = readString(config.auth_scheme).toLowerCase() || "bearer";
@@ -151,7 +244,10 @@ async function fetchGenericHttpReviews(
     headers[authHeader] = authScheme === "none" ? token : `${authScheme} ${token}`.trim();
   }
   const res = await fetch(url, { method: "GET", headers });
-  if (!res.ok) return [];
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    return { reviews: [], error: `Reviews API returned HTTP ${res.status}: ${text.slice(0, 300)}` };
+  }
   const json = (await res.json()) as unknown;
   const rec = asRecord(json);
   const items = Array.isArray(json)
@@ -161,25 +257,25 @@ async function fetchGenericHttpReviews(
       : Array.isArray(rec.data)
         ? rec.data
         : [];
-  return items
+  const reviews = items
     .map((item) => normalizeGenericItem(asRecord(item)))
     .filter((x): x is NormalizedIncomingReview => x != null);
+  return { reviews };
 }
 
 async function fetchReviewsByIntegration(args: {
-  provider: { apiUrl: string | null; config: unknown };
+  provider: { name: string; apiUrl: string | null; config: unknown };
   tokenData: ConnectionTokenData;
   persistTokenData?: (next: ConnectionTokenData) => Promise<void>;
-}): Promise<NormalizedIncomingReview[]> {
-  const config = asRecord(args.provider.config);
-  const integration = parseIntegration(config);
+}): Promise<FetchReviewsResult> {
+  const integration = detectReviewIntegration(args.provider);
   if (integration === "google_business_profile") {
     return fetchGoogleBusinessProfileReviews(args.provider, args.tokenData, args.persistTokenData);
   }
-  if (integration === "generic_http_reviews" || integration === "custom_http_json" || integration === "") {
+  if (integration === "generic_http_reviews") {
     return fetchGenericHttpReviews(args.provider, args.tokenData);
   }
-  return [];
+  return { reviews: [], error: "Review provider integration is not configured." };
 }
 
 export function parseRequiredFieldRules(rawConfig: unknown): RequiredFieldRule[] {
@@ -221,7 +317,7 @@ export async function syncSingleConnectedReviewProvider(args: {
   if (!connection?.connected) return { status: "provider_not_connected", inserted: 0, fetched: 0 };
 
   const tokenData = asRecord(connection.tokenData);
-  const fetched = await fetchReviewsByIntegration({
+  const fetchResult = await fetchReviewsByIntegration({
     provider,
     tokenData,
     persistTokenData: async (next) => {
@@ -231,7 +327,15 @@ export async function syncSingleConnectedReviewProvider(args: {
       });
     },
   });
-  const candidates = fetched.slice(0, 200);
+
+  if (fetchResult.error === "missing_location") {
+    return { status: "missing_location", inserted: 0, fetched: 0 };
+  }
+  if (fetchResult.error) {
+    return { status: "api_failed", inserted: 0, fetched: 0, error: fetchResult.error };
+  }
+
+  const candidates = fetchResult.reviews.slice(0, 200);
   if (candidates.length === 0) {
     await prisma.providerConnection.update({
       where: { userId_providerId: { userId: args.userId, providerId: provider.id } },
@@ -242,20 +346,28 @@ export async function syncSingleConnectedReviewProvider(args: {
 
   const existing = await prisma.review.findMany({
     where: { organizationId: args.organizationId, provider: provider.name },
-    select: { reviewText: true, rating: true },
+    select: { reviewText: true, rating: true, externalReviewId: true },
     take: 5000,
   });
-  const existingSet = new Set(existing.map((r) => `${r.rating}::${r.reviewText.trim()}`));
-  const toInsert = candidates.filter((r) => !existingSet.has(`${r.rating}::${r.reviewText.trim()}`));
+  const existingByGoogleId = new Set(
+    existing.map((r) => r.externalReviewId).filter((id): id is string => Boolean(id)),
+  );
+  const existingByContent = new Set(existing.map((r) => `${r.rating}::${r.reviewText.trim()}`));
+  const toInsert = candidates.filter((r) => {
+    if (r.googleReviewId && existingByGoogleId.has(r.googleReviewId)) return false;
+    return !existingByContent.has(`${r.rating}::${r.reviewText.trim()}`);
+  });
 
   if (toInsert.length > 0) {
     await prisma.review.createMany({
       data: toInsert.map((r) => ({
         organizationId: args.organizationId,
         provider: provider.name,
+        externalReviewId: r.googleReviewId,
         rating: r.rating,
         reviewText: r.reviewText,
-        status: "pending",
+        responseText: r.responseText,
+        status: r.status,
       })),
     });
   }

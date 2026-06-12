@@ -20,6 +20,9 @@ function toStars(rating: number): string {
 
 function toInboxStatus(status: string, rating: number): string {
   const normalized = status.trim().toLowerCase();
+  if (normalized === "responded") {
+    return "Replied on Google";
+  }
   if (normalized === "pending") {
     if (rating >= 4) return "Safe to auto-publish";
     if (rating <= 2) return "Needs human review";
@@ -209,10 +212,11 @@ export default async function ReviewsPage() {
   });
 
   const inboxRows = await prisma.review.findMany({
-    where: { organizationId, status: "pending" },
+    where: { organizationId, status: { in: ["pending", "responded"] } },
     orderBy: { createdAt: "desc" },
     take: 50,
     select: {
+      id: true,
       provider: true,
       rating: true,
       reviewText: true,
@@ -223,6 +227,7 @@ export default async function ReviewsPage() {
   const inbox = inboxRows.map((row) => {
     const displayStatus = toInboxStatus(row.status, row.rating);
     return {
+      id: row.id,
       rating: toStars(row.rating),
       quote: row.reviewText,
       response: row.responseText?.trim() || "No drafted response yet.",
