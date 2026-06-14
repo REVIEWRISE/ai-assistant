@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useFormStatus } from "react-dom";
 import { createPortal } from "react-dom";
 import { Panel } from "@/components/ui";
@@ -8,10 +8,12 @@ import { BookingChatbotIcon } from "@/components/floating-booking-chatbot";
 import { normalizeQuickActionsArray, type BookingFlowConfig, type ChatbotConfigData } from "@/lib/chatbot-config";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { CHATBOT_EMBED_IFRAME_OPEN } from "@/lib/chatbot-embed-layout";
-import type { GenerateBookingFlowResult } from "@/app/(protected)/appointments/chatbot/actions";
+import type { GenerateBookingFlowResult, GenerateVoiceGreetingResult } from "@/app/(protected)/appointments/chatbot/actions";
 import { ChatbotCrmIntegrationModal } from "@/components/chatbot-crm-integration-modal";
+import { ChatbotVoiceBookingModal } from "@/components/chatbot-voice-booking-modal";
 
 type BookingFlowDraftStep = {
+  clientKey: string;
   id: string;
   question: string;
   helperText: string;
@@ -20,9 +22,26 @@ type BookingFlowDraftStep = {
 };
 
 type QuickActionDraft = {
+  clientKey: string;
   label: string;
   startsBookingFlow: boolean;
 };
+
+function newDraftKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `draft-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function quickActionsToDraft(
+  actions: BookingFlowConfig["quickActions"] | string[] | undefined,
+): QuickActionDraft[] {
+  return normalizeQuickActionsArray(actions ?? []).map((item) => ({
+    ...item,
+    clientKey: newDraftKey(),
+  }));
+}
 
 function slugifyStepId(value: string, index: number): string {
   const base = value
@@ -35,6 +54,7 @@ function slugifyStepId(value: string, index: number): string {
 
 function bookingFlowStepsToDraft(steps: BookingFlowConfig["steps"]): BookingFlowDraftStep[] {
   return steps.map((step, idx) => ({
+    clientKey: newDraftKey(),
     id: step.id || `step_${idx + 1}`,
     question: step.question || "",
     helperText: step.helperText || "",
@@ -56,6 +76,203 @@ function SaveBookingFlowSubmitButton({ idleLabel }: { idleLabel: string }) {
     >
       {pending ? "Saving…" : idleLabel}
     </button>
+  );
+}
+
+function ChatbotOrgActionsMenu({
+  row,
+  isOpen,
+  onToggle,
+  onClose,
+  onConfigure,
+  onBookingFlow,
+  onVoice,
+  onCrm,
+}: {
+  row: ChatbotOrgRow;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onConfigure: () => void;
+  onBookingFlow: () => void;
+  onVoice: () => void;
+  onCrm: () => void;
+}) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState<{ bottom: number; left: number } | null>(null);
+
+  function computeMenuPosition(rect: DOMRect) {
+    const menuWidth = 260;
+    const gap = 8;
+    const viewportPadding = 8;
+    const bottom = window.innerHeight - rect.top + gap;
+    let left = rect.right - menuWidth;
+
+    left = Math.min(
+      Math.max(viewportPadding, left),
+      window.innerWidth - menuWidth - viewportPadding,
+    );
+
+    return { bottom, left };
+  }
+
+  function handleTriggerClick() {
+    if (isOpen) {
+      onClose();
+      return;
+    }
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect) {
+      setMenuPosition(computeMenuPosition(rect));
+    }
+    onToggle();
+  }
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function updatePosition() {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (rect) {
+        setMenuPosition(computeMenuPosition(rect));
+      }
+    }
+
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      onClose();
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isOpen, onClose]);
+
+  const menuItems = [
+    {
+      id: "configure",
+      label: "Configure chatbot",
+      description: "Welcome message, theme colors, and website embed code",
+      onClick: onConfigure,
+      active: false,
+      primary: true,
+    },
+    {
+      id: "booking-flow",
+      label: "Edit booking flow",
+      description: "Guided booking questions and quick-start actions",
+      onClick: onBookingFlow,
+      active: false,
+      primary: false,
+    },
+    {
+      id: "voice",
+      label: row.config.voiceBooking.enabled ? "Voice booking · On" : "Set up voice booking",
+      description: row.config.voiceBooking.enabled
+        ? `${row.config.voiceBooking.agentName} speaks on your embed widget`
+        : "Add a spoken greeting and voice profile for visitors",
+      onClick: onVoice,
+      active: row.config.voiceBooking.enabled,
+      primary: false,
+    },
+    {
+      id: "crm",
+      label: row.config.crmIntegration.enabled ? "CRM sync · On" : "Connect CRM sync",
+      description: row.config.crmIntegration.enabled
+        ? "Completed bookings are sent to your webhook"
+        : "Send completed bookings to your CRM webhook",
+      onClick: onCrm,
+      active: row.config.crmIntegration.enabled,
+      primary: false,
+    },
+  ];
+
+  return (
+    <div className="flex justify-end">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={handleTriggerClick}
+        aria-label={`Open organization settings menu for ${row.name}`}
+        title={`Settings for ${row.name}`}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition ${
+          isOpen
+            ? "border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]"
+            : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+        }`}
+      >
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+          <circle cx="12" cy="5" r="1.75" />
+          <circle cx="12" cy="12" r="1.75" />
+          <circle cx="12" cy="19" r="1.75" />
+        </svg>
+      </button>
+
+      {isOpen && menuPosition
+        ? createPortal(
+            <div
+              ref={menuRef}
+              role="menu"
+              style={{ bottom: menuPosition.bottom, left: menuPosition.left }}
+              className="fixed z-[120] min-w-[16.25rem] max-w-[16.25rem] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] py-1 shadow-[var(--shadow-lg)]"
+            >
+              {menuItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    item.onClick();
+                    onClose();
+                  }}
+                  className={`flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left transition ${
+                    item.primary || item.active
+                      ? "hover:bg-[var(--color-primary-soft)]"
+                      : "hover:bg-[var(--color-surface)]"
+                  }`}
+                >
+                  <span
+                    className={`text-sm ${
+                      item.primary || item.active
+                        ? "font-semibold text-[var(--color-primary-h)]"
+                        : "font-semibold text-[var(--color-text)]"
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                  <span className="text-[11px] leading-snug text-[var(--color-text-muted)]">
+                    {item.description}
+                  </span>
+                </button>
+              ))}
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
   );
 }
 
@@ -177,7 +394,9 @@ type ChatbotOrganizationsTableProps = {
   rows: ChatbotOrgRow[];
   onSaveChatbot: (formData: FormData) => void | Promise<void>;
   onSaveCrmIntegration: (formData: FormData) => void | Promise<void>;
+  onSaveVoiceBooking: (formData: FormData) => void | Promise<void>;
   onGenerateChatbot: (formData: FormData) => Promise<GenerateBookingFlowResult>;
+  onGenerateVoiceGreeting: (formData: FormData) => Promise<GenerateVoiceGreetingResult>;
 };
 
 export function ChatbotOrganizationsTable({
@@ -185,11 +404,14 @@ export function ChatbotOrganizationsTable({
   rows,
   onSaveChatbot,
   onSaveCrmIntegration,
+  onSaveVoiceBooking,
   onGenerateChatbot,
+  onGenerateVoiceGreeting,
 }: ChatbotOrganizationsTableProps) {
   const [configureModalOrg, setConfigureModalOrg] = useState<ChatbotOrgRow | null>(null);
   const [flowModalOrg, setFlowModalOrg] = useState<ChatbotOrgRow | null>(null);
   const [crmModalOrg, setCrmModalOrg] = useState<ChatbotOrgRow | null>(null);
+  const [voiceModalOrg, setVoiceModalOrg] = useState<ChatbotOrgRow | null>(null);
   const [previewTheme, setPreviewTheme] = useState("#22c55e");
   const [previewIcon, setPreviewIcon] = useState("#0f172a");
   const [previewWelcome, setPreviewWelcome] = useState("");
@@ -203,6 +425,7 @@ export function ChatbotOrganizationsTable({
   const [flowGenerateError, setFlowGenerateError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(5);
+  const [openActionsMenuOrgId, setOpenActionsMenuOrgId] = useState<string | null>(null);
 
   function openConfigure(row: ChatbotOrgRow) {
     const { config } = row;
@@ -214,7 +437,7 @@ export function ChatbotOrganizationsTable({
 
   const applyBookingFlowToEditors = useCallback((flow: BookingFlowConfig) => {
     setIdleHelperText(flow.idleHelperText ?? "");
-    setQuickActionItems(normalizeQuickActionsArray(flow.quickActions ?? []));
+    setQuickActionItems(quickActionsToDraft(flow.quickActions ?? []));
     setSlotDurationMinutes(String(flow.slotDurationMinutes ?? 30));
     setMinGapMinutes(String(flow.minGapMinutes ?? 0));
     setFlowSteps(bookingFlowStepsToDraft(flow.steps));
@@ -292,7 +515,7 @@ export function ChatbotOrganizationsTable({
         if (scope === "intro") {
           setIdleHelperText(res.bookingFlow.idleHelperText);
         } else if (scope === "opening") {
-          setQuickActionItems(normalizeQuickActionsArray(res.bookingFlow.quickActions));
+          setQuickActionItems(quickActionsToDraft(res.bookingFlow.quickActions));
         } else {
           setFlowSteps(bookingFlowStepsToDraft(res.bookingFlow.steps));
         }
@@ -340,7 +563,7 @@ export function ChatbotOrganizationsTable({
       subtitle="Every workspace you created or were added to appears here. Open Configure for any row—settings are saved per organization."
     >
       <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-        <div className="vr-app-table-header hidden grid-cols-[72px_1fr_140px_320px] items-center gap-2 px-4 py-3 lg:grid">
+        <div className="vr-app-table-header hidden grid-cols-[72px_1fr_140px_56px] items-center gap-2 px-4 py-3 lg:grid">
           <div>#</div>
           <div>Organization</div>
           <div>Session</div>
@@ -350,7 +573,7 @@ export function ChatbotOrganizationsTable({
           {paged.map((row, index) => (
             <div
               key={row.id}
-              className="grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] lg:grid-cols-[72px_1fr_140px_320px]"
+              className="grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] lg:grid-cols-[72px_1fr_140px_56px]"
             >
               <div className="text-xs font-semibold text-[var(--color-text-muted)]">
                 <span className="inline-flex min-w-[40px] items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
@@ -374,33 +597,18 @@ export function ChatbotOrganizationsTable({
                   </span>
                 )}
               </div>
-              <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
-                <button
-                  type="button"
-                  onClick={() => openConfigure(row)}
-                  className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
-                >
-                  Configure
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openBookingFlow(row)}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
-                >
-                  Booking flow
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCrmModalOrg(row)}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                    row.config.crmIntegration.enabled
-                      ? "border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-primary-soft)] text-[var(--color-primary-h)] hover:brightness-95"
-                      : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)]"
-                  }`}
-                >
-                  {row.config.crmIntegration.enabled ? "CRM · On" : "CRM sync"}
-                </button>
-              </div>
+              <ChatbotOrgActionsMenu
+                row={row}
+                isOpen={openActionsMenuOrgId === row.id}
+                onToggle={() =>
+                  setOpenActionsMenuOrgId((current) => (current === row.id ? null : row.id))
+                }
+                onClose={() => setOpenActionsMenuOrgId(null)}
+                onConfigure={() => openConfigure(row)}
+                onBookingFlow={() => openBookingFlow(row)}
+                onVoice={() => setVoiceModalOrg(row)}
+                onCrm={() => setCrmModalOrg(row)}
+              />
             </div>
           ))}
         </div>
@@ -811,7 +1019,7 @@ export function ChatbotOrganizationsTable({
                           <div className="space-y-2">
                             {quickActionItems.map((item, idx) => (
                               <div
-                                key={`qa-${idx}-${item.label}`}
+                                key={item.clientKey}
                                 className="flex flex-col gap-2 rounded-lg border border-[var(--color-border-muted)] bg-[var(--color-surface)] p-2.5 sm:flex-row sm:items-center sm:gap-2"
                               >
                                 <input
@@ -857,7 +1065,7 @@ export function ChatbotOrganizationsTable({
                               onClick={() =>
                                 setQuickActionItems((prev) => [
                                   ...prev,
-                                  { label: "", startsBookingFlow: true },
+                                  { clientKey: newDraftKey(), label: "", startsBookingFlow: true },
                                 ])
                               }
                               className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface)]"
@@ -967,7 +1175,7 @@ export function ChatbotOrganizationsTable({
                         </div>
                         <div className="space-y-3">
                       {flowSteps.map((step, index) => (
-                        <div key={`${step.id}-${index}`} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 shadow-sm">
+                        <div key={step.clientKey} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 shadow-sm">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                               <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--color-primary)] px-2 text-[11px] font-bold text-[var(--color-primary-fg)]">
@@ -1128,6 +1336,7 @@ export function ChatbotOrganizationsTable({
                               setFlowSteps((prev) => [
                                 ...prev,
                                 {
+                                  clientKey: newDraftKey(),
                                   id: `step_${prev.length + 1}`,
                                   question: "",
                                   helperText: "",
@@ -1161,6 +1370,17 @@ export function ChatbotOrganizationsTable({
             document.body,
           )
         : null}
+
+      {voiceModalOrg ? (
+        <ChatbotVoiceBookingModal
+          organizationId={voiceModalOrg.id}
+          organizationName={voiceModalOrg.name}
+          initialConfig={voiceModalOrg.config.voiceBooking}
+          onSave={onSaveVoiceBooking}
+          onGenerateGreeting={onGenerateVoiceGreeting}
+          onClose={() => setVoiceModalOrg(null)}
+        />
+      ) : null}
 
       {crmModalOrg ? (
         <ChatbotCrmIntegrationModal

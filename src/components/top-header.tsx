@@ -42,10 +42,6 @@ const headerByRoute: Record<string, HeaderCopy> = {
     eyebrow: "Review Response",
     title: "Reputation and Reply Operations",
   },
-  "/leads": {
-    eyebrow: "Lead Capture",
-    title: "Qualification and Handoff Operations",
-  },
   "/profile": {
     eyebrow: "Account",
     title: "Profile Settings",

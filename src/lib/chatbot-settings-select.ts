@@ -8,6 +8,7 @@ export const organizationChatbotSettingsSelect = {
   bookingFlow: true,
   services: true,
   crmIntegration: true,
+  voiceBooking: true,
 } satisfies Prisma.OrganizationChatbotSettingsSelect;
 
 export type OrganizationChatbotSettingsPayload = Prisma.OrganizationChatbotSettingsGetPayload<{
