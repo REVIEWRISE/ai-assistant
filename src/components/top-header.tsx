@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { CustomSelect } from "@/components/custom-select";
 
 type MobileNavItem = {
   href: string;
@@ -172,24 +173,17 @@ export function TopHeader({
         </div>
         <div className="flex items-center gap-2">
           {organizations.length > 0 ? (
-            <label className="sr-only" htmlFor="top-header-org-switch">
-              Switch organization
-            </label>
-          ) : null}
-          {organizations.length > 0 ? (
-            <select
-              id="top-header-org-switch"
-              value={activeOrganizationId ?? ""}
-              onChange={(e) => onSwitchOrganization?.(e.target.value)}
+            <CustomSelect
+              value={activeOrganizationId ?? organizations[0]?.id ?? ""}
+              onChange={(organizationId) => onSwitchOrganization?.(organizationId)}
+              options={organizations.map((org) => ({ value: org.id, label: org.name }))}
+              placeholder="Select organization"
               disabled={switchingOrganization}
-              className="max-w-[220px] rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 text-sm font-medium text-[var(--color-text)] transition hover:bg-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {organizations.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name}
-                </option>
-              ))}
-            </select>
+              aria-label="Switch organization"
+              className="mt-0 w-[min(100%,220px)]"
+              triggerClassName="rounded-xl py-1.5 font-medium hover:bg-[var(--color-surface)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
+              menuClassName="min-w-[220px]"
+            />
           ) : null}
           <button
             type="button"

@@ -21,15 +21,19 @@ export function KpiCard({ label, value, delta }: KpiCardProps) {
 type PanelProps = {
   title: string;
   subtitle?: string;
+  action?: ReactNode;
   children: ReactNode;
 };
 
-export function Panel({ title, subtitle, children }: PanelProps) {
+export function Panel({ title, subtitle, action, children }: PanelProps) {
   return (
     <section className="vr-app-panel p-4 lg:p-5">
-      <div className="mb-4">
-        <h3 className="text-base font-semibold text-[var(--color-text)]">{title}</h3>
-        {subtitle ? <p className="mt-1 text-sm text-[var(--color-text-muted)]">{subtitle}</p> : null}
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-[var(--color-text)]">{title}</h3>
+          {subtitle ? <p className="mt-1 text-sm text-[var(--color-text-muted)]">{subtitle}</p> : null}
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
       </div>
       {children}
     </section>

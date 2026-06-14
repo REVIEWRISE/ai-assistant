@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { GenerateVoiceGreetingResult } from "@/app/(protected)/appointments/chatbot/actions";
 import { CustomSelect } from "@/components/custom-select";
+import { ChatbotWidgetPreview } from "@/components/chatbot-widget-preview";
+import type { BookingFlowConfig } from "@/lib/chatbot-config";
 import {
   VOICE_PROFILE_PRESETS,
   type VoiceBookingConfig,
@@ -52,6 +54,10 @@ export function ChatbotVoiceBookingModal({
   organizationId,
   organizationName,
   initialConfig,
+  themeColor,
+  iconColor,
+  welcomeMessage,
+  bookingFlow,
   onSave,
   onGenerateGreeting,
   onClose,
@@ -59,6 +65,10 @@ export function ChatbotVoiceBookingModal({
   organizationId: string;
   organizationName: string;
   initialConfig: VoiceBookingConfig;
+  themeColor: string;
+  iconColor: string;
+  welcomeMessage: string;
+  bookingFlow: BookingFlowConfig;
   onSave: (formData: FormData) => void | Promise<void>;
   onGenerateGreeting: (formData: FormData) => Promise<GenerateVoiceGreetingResult>;
   onClose: () => void;
@@ -91,6 +101,19 @@ export function ChatbotVoiceBookingModal({
     [customGreeting, selectedProfile],
   );
   const canPreviewVoice = isVoicePreviewSupported() && voicesReady;
+  const draftVoiceBooking = useMemo(
+    (): VoiceBookingConfig => ({
+      enabled: voiceActive,
+      agentName,
+      greetingStyle,
+      formality,
+      tone,
+      profileId,
+      pace,
+      customGreeting,
+    }),
+    [voiceActive, agentName, greetingStyle, formality, tone, profileId, pace, customGreeting],
+  );
 
   function selectProfile(id: VoiceProfileId) {
     stopVoiceProfilePreview();
@@ -150,7 +173,7 @@ export function ChatbotVoiceBookingModal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] px-4 py-6">
-      <div className="max-h-[92vh] w-full max-w-[min(96vw,48rem)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]">
+      <div className="max-h-[92vh] w-full max-w-[min(96vw,90rem)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]">
         <div className="max-h-[92vh] overflow-y-auto p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -176,7 +199,8 @@ export function ChatbotVoiceBookingModal({
             </button>
           </div>
 
-          <form action={onSave} className="mt-5 space-y-5">
+          <div className="mt-5 flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
+            <form action={onSave} className="min-w-0 flex-1 space-y-5 lg:basis-0 lg:flex-[2]">
             <input type="hidden" name="organization_id" value={organizationId} />
             <input type="hidden" name="voice_agent_name" value={voiceActive ? agentName : ""} />
             <input type="hidden" name="voice_greeting_style" value={greetingStyle} />
@@ -442,6 +466,35 @@ export function ChatbotVoiceBookingModal({
               </button>
             </div>
           </form>
+
+          <aside className="w-full min-w-0 flex-1 lg:sticky lg:top-0 lg:basis-0 lg:flex-[5]">
+            <div className="h-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                Live preview
+              </p>
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                See how voice booking looks on your embed widget as you edit settings.
+              </p>
+              {voiceActive && !customGreeting.trim() ? (
+                <p className="mt-3 rounded-lg border border-[color-mix(in_srgb,var(--color-primary)_25%,var(--color-border))] bg-[var(--color-primary-soft)] px-3 py-2 text-xs text-[var(--color-text-muted)]">
+                  Generate or type a spoken greeting to preview the voice tab and greeting visitors will hear.
+                </p>
+              ) : null}
+              <div className="mt-4">
+                <ChatbotWidgetPreview
+                  organizationId={organizationId}
+                  organizationName={organizationName}
+                  welcomeMessage={welcomeMessage}
+                  themeColor={themeColor}
+                  iconColor={iconColor}
+                  bookingFlow={bookingFlow}
+                  voiceBooking={draftVoiceBooking}
+                  defaultMode="voice"
+                />
+              </div>
+            </div>
+          </aside>
+          </div>
         </div>
       </div>
     </div>,
