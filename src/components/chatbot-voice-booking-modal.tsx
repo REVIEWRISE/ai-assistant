@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { GenerateVoiceGreetingResult } from "@/app/(protected)/appointments/chatbot/actions";
+import { CustomSelect } from "@/components/custom-select";
 import {
   VOICE_PROFILE_PRESETS,
   type VoiceBookingConfig,
@@ -231,48 +232,33 @@ export function ChatbotVoiceBookingModal({
                 />
               </label>
               <div className="grid gap-3 sm:grid-cols-3">
-                <label className="block text-xs font-semibold text-[var(--color-text)]">
-                  Greeting style
-                  <select
+                <div>
+                  <p className="text-xs font-semibold text-[var(--color-text)]">Greeting style</p>
+                  <CustomSelect
                     value={greetingStyle}
-                    onChange={(e) => setGreetingStyle(e.target.value as VoiceGreetingStyle)}
-                    className="mt-1.5 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-2 text-sm text-[var(--color-text)]"
-                  >
-                    {GREETING_STYLE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block text-xs font-semibold text-[var(--color-text)]">
-                  Formality
-                  <select
+                    onChange={setGreetingStyle}
+                    options={GREETING_STYLE_OPTIONS}
+                    aria-label="Greeting style"
+                  />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-[var(--color-text)]">Formality</p>
+                  <CustomSelect
                     value={formality}
-                    onChange={(e) => setFormality(e.target.value as VoiceFormality)}
-                    className="mt-1.5 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-2 text-sm text-[var(--color-text)]"
-                  >
-                    {FORMALITY_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block text-xs font-semibold text-[var(--color-text)]">
-                  Tone
-                  <select
+                    onChange={setFormality}
+                    options={FORMALITY_OPTIONS}
+                    aria-label="Formality"
+                  />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-[var(--color-text)]">Tone</p>
+                  <CustomSelect
                     value={tone}
-                    onChange={(e) => setTone(e.target.value as VoiceTone)}
-                    className="mt-1.5 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-2 text-sm text-[var(--color-text)]"
-                  >
-                    {TONE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    onChange={setTone}
+                    options={TONE_OPTIONS}
+                    aria-label="Tone"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -310,26 +296,99 @@ export function ChatbotVoiceBookingModal({
             </section>
 
             <section className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
-              <div className="flex flex-wrap items-end justify-between gap-2">
-                <div>
-                  <h3 className="text-sm font-semibold text-[var(--color-text)]">Voice profile</h3>
-                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                    Choose from {VOICE_PROFILE_PRESETS.length} pre-built profiles. Adjust pace to fine-tune delivery.
-                  </p>
-                </div>
-                <label className="block min-w-[140px] text-xs font-semibold text-[var(--color-text)]">
-                  Pace ({pace.toFixed(2)}×)
-                  <input
-                    type="range"
-                    min={0.8}
-                    max={1.2}
-                    step={0.02}
-                    value={pace}
-                    onChange={(e) => setPace(Number(e.target.value))}
-                    className="mt-1 w-full accent-[var(--color-primary)]"
-                  />
-                </label>
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--color-text)]">Voice profile</h3>
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                  Preview your selection, then choose from {VOICE_PROFILE_PRESETS.length} pre-built profiles below.
+                </p>
               </div>
+
+              <div className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--color-primary)_30%,var(--color-border))] bg-[var(--color-primary-soft)]">
+                <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <div
+                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-primary)_25%,var(--color-border))] bg-[var(--color-bg)] text-sm font-bold text-[var(--color-primary-h)]"
+                      aria-hidden
+                    >
+                      {selectedProfile.label.slice(0, 1)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-h)]">
+                        Selected voice
+                      </p>
+                      <p className="mt-0.5 truncate text-base font-semibold text-[var(--color-text)]">
+                        {selectedProfile.label}
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <span className="inline-flex rounded-md border border-[color-mix(in_srgb,var(--color-primary)_20%,var(--color-border))] bg-[var(--color-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-text)]">
+                          {selectedProfile.accent}
+                        </span>
+                        <span className="inline-flex rounded-md border border-[color-mix(in_srgb,var(--color-primary)_20%,var(--color-border))] bg-[var(--color-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-text)]">
+                          {selectedProfile.gender === "female" ? "Female" : "Male"}
+                        </span>
+                        <span className="inline-flex rounded-md border border-[color-mix(in_srgb,var(--color-primary)_20%,var(--color-border))] bg-[var(--color-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-text)]">
+                          {pace.toFixed(2)}× pace
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={!canPreviewVoice}
+                    onClick={() => void runVoicePreview()}
+                    title={
+                      canPreviewVoice
+                        ? previewPlaying
+                          ? "Stop preview"
+                          : "Hear the selected voice profile"
+                        : "Voice preview is not available in this browser"
+                    }
+                    className={`inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto ${
+                      previewPlaying
+                        ? "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)]"
+                        : "bg-[var(--color-primary)] text-[var(--color-primary-fg)] hover:bg-[var(--color-primary-h)]"
+                    }`}
+                  >
+                    {previewPlaying ? (
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+                        <rect x="6" y="6" width="12" height="12" rx="1.5" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+                        <path d="M8 5.14v14.72a1 1 0 0 0 1.5.86l11.03-7.36a1 1 0 0 0 0-1.72L9.5 4.28A1 1 0 0 0 8 5.14z" />
+                      </svg>
+                    )}
+                    {previewPlaying ? "Stop preview" : "Try voice"}
+                  </button>
+                </div>
+
+                <div className="border-t border-[color-mix(in_srgb,var(--color-primary)_20%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-bg)_55%,var(--color-primary-soft))] px-4 py-3">
+                  <label className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-[var(--color-text)]">Speech pace</p>
+                      <p className="text-[11px] text-[var(--color-text-muted)]">
+                        Default for {selectedProfile.label} is {selectedProfile.defaultPace.toFixed(2)}×
+                      </p>
+                    </div>
+                    <div className="flex min-w-[200px] items-center gap-3 sm:max-w-[240px] sm:flex-1 sm:justify-end">
+                      <span className="text-[11px] font-medium text-[var(--color-text-muted)]">0.8×</span>
+                      <input
+                        type="range"
+                        min={0.8}
+                        max={1.2}
+                        step={0.02}
+                        value={pace}
+                        onChange={(e) => setPace(Number(e.target.value))}
+                        className="w-full accent-[var(--color-primary)]"
+                        aria-label="Speech pace"
+                      />
+                      <span className="text-[11px] font-medium text-[var(--color-text-muted)]">1.2×</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
               <div className="grid gap-2 sm:grid-cols-2">
                 {VOICE_PROFILE_PRESETS.map((profile) => {
                   const selected = profile.id === profileId;
@@ -353,27 +412,7 @@ export function ChatbotVoiceBookingModal({
                   );
                 })}
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[11px] text-[var(--color-text-muted)]">
-                  Selected: <span className="font-semibold text-[var(--color-text)]">{selectedProfile.label}</span> ·{" "}
-                  {selectedProfile.accent} · default pace {selectedProfile.defaultPace.toFixed(2)}×
-                </p>
-                <button
-                  type="button"
-                  disabled={!canPreviewVoice}
-                  onClick={() => void runVoicePreview()}
-                  title={
-                    canPreviewVoice
-                      ? previewPlaying
-                        ? "Stop preview"
-                        : "Hear the selected voice profile"
-                      : "Voice preview is not available in this browser"
-                  }
-                  className="shrink-0 rounded-lg border border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary-h)] shadow-sm transition hover:bg-[var(--color-primary-soft)] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {previewPlaying ? "Stop" : "Try voice"}
-                </button>
-              </div>
+
               {previewError ? (
                 <p className="text-xs font-medium text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))]">
                   {previewError}
