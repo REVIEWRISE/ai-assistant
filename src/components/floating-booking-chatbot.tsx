@@ -32,6 +32,7 @@ import {
   stopVoiceProfilePreview,
   waitForSpeechVoices,
 } from "@/lib/voice-preview";
+import { VoiceListeningWave } from "@/components/voice-listening-wave";
 
 type InteractionMode = "chat" | "voice";
 
@@ -295,39 +296,35 @@ export function FloatingBookingChatbot({
     }
   }, [open, interactionMode, voiceEnabled, voiceBooking, voiceProfile, canSpeak]);
 
+  const isVoiceOpening = interactionMode === "voice" && voiceEnabled && bookingStepState === "idle";
+
   const helperText = useMemo(() => {
-    if (interactionMode === "voice" && voiceEnabled) {
-      if (listening) return "Listening… speak now.";
-      if (bookingStepState === "collecting") {
-        const step = bookingFlow.steps[activeStepIndex];
-        if (
-          step?.inputType === "datetime" ||
-          step?.inputType === "text" ||
-          step?.inputType === "email"
-        ) {
-          return "Use the field below for this step, or switch to chat.";
-        }
-        return "Say an option aloud or tap a button below.";
-      }
-      if (bookingStepState === "confirm") return "Say confirm, change, or cancel—or tap a button.";
-      return `Tap the mic and tell ${voiceBooking?.agentName ?? "us"} what you need.`;
-    }
     if (bookingStepState === "collecting") {
       const step = bookingFlow.steps[activeStepIndex];
       return step?.helperText || "Choose an option.";
     }
     if (bookingStepState === "confirm") return "Confirm your booking details.";
+    if (isVoiceOpening) {
+      return `Speak or type to book with ${voiceBooking?.agentName ?? "the assistant"}.`;
+    }
     return bookingFlow.idleHelperText || "Tap an option to start.";
   }, [
-    interactionMode,
-    voiceEnabled,
-    listening,
-    voiceBooking?.agentName,
     bookingStepState,
     bookingFlow.steps,
     bookingFlow.idleHelperText,
     activeStepIndex,
+    isVoiceOpening,
+    voiceBooking?.agentName,
   ]);
+
+  const voiceHint =
+    interactionMode === "voice" && voiceEnabled
+      ? listening
+        ? "Listening… speak now, or keep using the buttons below."
+        : bookingStepState === "idle"
+          ? "Use the mic or keyboard — the assistant will guide you through booking."
+          : null
+      : null;
 
   const quickActions = useMemo(
     () => normalizeQuickActionsArray(bookingFlow.quickActions),
@@ -374,10 +371,31 @@ export function FloatingBookingChatbot({
     stopVoiceProfilePreview();
     setListening(false);
     setVoiceError(null);
+
+    if (mode === "voice" && voiceEnabled) {
+      voiceGreetingPlayedRef.current = false;
+      voiceGreetingSpokenRef.current = false;
+      setMessages((prev) =>
+        prev.filter((m) => m.id !== "welcome" && m.text.trim() !== welcomeMessage.trim()),
+      );
+    }
+
     if (mode === "chat") {
       voiceGreetingPlayedRef.current = false;
       voiceGreetingSpokenRef.current = false;
+      const greeting = voiceBooking?.customGreeting?.trim();
+      setMessages((prev) => {
+        const withoutVoiceGreeting = greeting
+          ? prev.filter((m) => m.text.trim() !== greeting)
+          : prev;
+        const hasWelcome = withoutVoiceGreeting.some(
+          (m) => m.role === "bot" && m.text.trim() === welcomeMessage.trim(),
+        );
+        if (hasWelcome) return withoutVoiceGreeting;
+        return [{ id: "welcome", role: "bot", text: welcomeMessage }, ...withoutVoiceGreeting];
+      });
     }
+
     setInteractionMode(mode);
   }
 
@@ -416,7 +434,7 @@ export function FloatingBookingChatbot({
         step?.inputType === "text" ||
         step?.inputType === "email"
       ) {
-        pushBotMessage("Please use the field below for this step, or switch to chat.");
+        pushBotMessage("Please use the field below for this step.");
         return;
       }
       const exact = actionButtons.find((a) => a.toLowerCase() === trimmed.toLowerCase());
@@ -687,8 +705,9 @@ export function FloatingBookingChatbot({
       return [...step.options.map((opt) => stepLabel(step, opt)), "Back to menu"];
     }
     if (bookingStepState === "confirm") return ["Confirm booking", "Change details", "Cancel"];
+    if (interactionMode === "voice" && voiceEnabled) return [];
     return quickActions.map((q) => q.label);
-  }, [bookingStepState, bookingFlow.steps, activeStepIndex, quickActions]);
+  }, [bookingStepState, bookingFlow.steps, activeStepIndex, quickActions, interactionMode, voiceEnabled]);
 
   return (
     <div
@@ -775,6 +794,11 @@ export function FloatingBookingChatbot({
                   </div>
                 </div>
               ) : null}
+              {listening && interactionMode === "voice" && voiceEnabled ? (
+                <div className="ml-auto flex max-w-[90%] flex-col items-end gap-1.5">
+                  <VoiceListeningWave label="Listening to you" />
+                </div>
+              ) : null}
             </div>
           </div>
           <div className="relative shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 backdrop-blur-sm">
@@ -805,6 +829,9 @@ export function FloatingBookingChatbot({
               </div>
             ) : null}
             <p className="mb-2.5 text-xs leading-relaxed text-[var(--color-text-muted)]">{helperText}</p>
+            {voiceHint ? (
+              <p className="mb-2.5 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{voiceHint}</p>
+            ) : null}
             {voiceError ? (
               <p className="mb-2 text-xs font-medium text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))]">
                 {voiceError}
@@ -874,7 +901,7 @@ export function FloatingBookingChatbot({
                 </div>
               </div>
             ) : null}
-            {bookingStepState === "idle" && actionButtons.length === 0 ? (
+            {bookingStepState === "idle" && actionButtons.length === 0 && !isVoiceOpening ? (
               <p className="mb-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
                 No quick-start buttons configured for this assistant.
               </p>
@@ -890,11 +917,7 @@ export function FloatingBookingChatbot({
                       void handleManualSend();
                     }
                   }}
-                  placeholder={
-                    interactionMode === "voice" && voiceEnabled
-                      ? "Or type here…"
-                      : "Type a question..."
-                  }
+                  placeholder="Type a question..."
                   className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5 text-sm text-[var(--color-text)] shadow-[var(--shadow-sm)] outline-none transition placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
                 />
                 {interactionMode === "voice" && voiceEnabled ? (
@@ -913,64 +936,41 @@ export function FloatingBookingChatbot({
                     className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-[var(--shadow-md)] transition disabled:opacity-50 ${
                       listening
                         ? "bg-[var(--color-danger)] text-white ring-2 ring-[color-mix(in_srgb,var(--color-danger)_35%,transparent)]"
-                        : "text-[var(--chat-accent-fg)] hover:brightness-105"
+                        : "border border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-bg)] text-[var(--color-primary-h)] hover:bg-[var(--color-primary-soft)]"
                     }`}
-                    style={listening ? undefined : { backgroundColor: "var(--chat-accent)" }}
                   >
                     {listening ? (
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-xl bg-[color-mix(in_srgb,var(--color-danger)_35%,transparent)]" aria-hidden />
-                    ) : null}
-                    <svg viewBox="0 0 24 24" className="relative h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                      <path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z" />
-                      <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
-                      <path d="M12 18v4M8 22h8" />
-                    </svg>
+                      <VoiceListeningWave active compact barCount={4} barClassName="bg-white" className="relative" />
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                        <path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z" />
+                        <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+                        <path d="M12 18v4M8 22h8" />
+                      </svg>
+                    )}
                   </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => void handleManualSend()}
-                    disabled={sending || !input.trim()}
-                    aria-label="Send message"
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--chat-accent-fg)] shadow-[var(--shadow-md)] transition hover:brightness-105 disabled:opacity-50"
-                    style={{ backgroundColor: "var(--chat-accent)" }}
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-5 w-5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden
-                    >
-                      <path d="M22 2 11 13" />
-                      <path d="M22 2 15 22 11 13 2 9 22 2z" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            ) : null}
-            {interactionMode === "voice" && voiceEnabled && bookingStepState !== "idle" ? (
-              <div className="mb-2.5 flex justify-center">
+                ) : null}
                 <button
                   type="button"
-                  onClick={toggleVoiceListen}
-                  disabled={sending || !canUseMic}
-                  aria-label={listening ? "Stop listening" : "Start voice input"}
-                  className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition disabled:opacity-50 ${
-                    listening
-                      ? "bg-[var(--color-danger)] text-white"
-                      : "border border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-bg)] text-[var(--color-primary-h)] hover:bg-[var(--color-primary-soft)]"
-                  }`}
+                  onClick={() => void handleManualSend()}
+                  disabled={sending || !input.trim()}
+                  aria-label="Send message"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--chat-accent-fg)] shadow-[var(--shadow-md)] transition hover:brightness-105 disabled:opacity-50"
+                  style={{ backgroundColor: "var(--chat-accent)" }}
                 >
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                    <path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z" />
-                    <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
-                    <path d="M12 18v4M8 22h8" />
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M22 2 11 13" />
+                    <path d="M22 2 15 22 11 13 2 9 22 2z" />
                   </svg>
-                  {listening ? "Listening…" : "Tap to speak"}
                 </button>
               </div>
             ) : null}
