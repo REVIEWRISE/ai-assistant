@@ -25,7 +25,7 @@ export function CustomSelect<T extends string>({
   options,
   placeholder = "Select…",
   disabled = false,
-  className = "",
+  className = "mt-1.5",
   triggerClassName = "",
   menuClassName = "",
   "aria-label": ariaLabel,

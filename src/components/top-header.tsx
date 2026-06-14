@@ -180,7 +180,7 @@ export function TopHeader({
               placeholder="Select organization"
               disabled={switchingOrganization}
               aria-label="Switch organization"
-              className="w-[min(100%,220px)]"
+              className="mt-0 w-[min(100%,220px)]"
               triggerClassName="rounded-xl py-1.5 font-medium hover:bg-[var(--color-surface)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
               menuClassName="min-w-[220px]"
             />
