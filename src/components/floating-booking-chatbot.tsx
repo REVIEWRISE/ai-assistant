@@ -19,6 +19,7 @@ import {
   type BookingFlowOption,
   type BookingFlowStep,
 } from "@/lib/chatbot-config";
+import type { VoiceBookingConfig } from "@/lib/voice-booking";
 
 export function BookingChatbotIcon({ className }: { className?: string }) {
   return (
@@ -54,6 +55,7 @@ type FloatingBookingChatbotProps = {
   themeColor: string;
   iconColor: string;
   bookingFlow: BookingFlowConfig;
+  voiceBooking?: VoiceBookingConfig;
 };
 
 function shouldMergeWithRecentBookingContext(text: string): boolean {
@@ -203,6 +205,7 @@ export function FloatingBookingChatbot({
   themeColor,
   iconColor,
   bookingFlow,
+  voiceBooking,
 }: FloatingBookingChatbotProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -480,6 +483,8 @@ export function FloatingBookingChatbot({
   return (
     <div
       className="chatbot-widget fixed bottom-5 right-5 z-40 text-[var(--color-text)]"
+      data-voice-booking={voiceBooking?.enabled ? "true" : "false"}
+      data-voice-agent={voiceBooking?.agentName || undefined}
       style={
         {
           "--chat-accent": themeColor,

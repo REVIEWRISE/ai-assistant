@@ -1,4 +1,5 @@
 import { resolveCrmIntegrationConfig, type CrmIntegrationConfig } from "@/lib/crm-integration";
+import { resolveVoiceBookingConfig, type VoiceBookingConfig } from "@/lib/voice-booking";
 
 export type ChatbotConfigData = {
   welcomeMessage: string;
@@ -6,6 +7,7 @@ export type ChatbotConfigData = {
   iconColor: string;
   bookingFlow: BookingFlowConfig;
   crmIntegration: CrmIntegrationConfig;
+  voiceBooking: VoiceBookingConfig;
 };
 
 export type BookingFlowOption = {
@@ -278,6 +280,7 @@ export function readChatbotConfigFromParsedData(parsedData: unknown): ChatbotCon
     iconColor: String(config.iconColor || "").trim() || "#ffffff",
     bookingFlow: emptyBookingFlow(),
     crmIntegration: resolveCrmIntegrationConfig(null),
+    voiceBooking: resolveVoiceBookingConfig(null),
   };
 }
 
@@ -288,6 +291,7 @@ type ChatbotSettingsRow = {
   services?: unknown;
   bookingFlow?: unknown;
   crmIntegration?: unknown;
+  voiceBooking?: unknown;
 } | null | undefined;
 
 /**
@@ -304,6 +308,7 @@ export function resolveChatbotConfigData(
       iconColor: String(settings.iconColor || "").trim() || "#ffffff",
       bookingFlow: resolveBookingFlowConfig(settings.bookingFlow),
       crmIntegration: resolveCrmIntegrationConfig(settings.crmIntegration),
+      voiceBooking: resolveVoiceBookingConfig(settings.voiceBooking),
     };
   }
   const legacy = readChatbotConfigFromParsedData(legacyParsedData);
@@ -311,5 +316,6 @@ export function resolveChatbotConfigData(
     ...legacy,
     bookingFlow: emptyBookingFlow(),
     crmIntegration: resolveCrmIntegrationConfig(null),
+    voiceBooking: resolveVoiceBookingConfig(null),
   };
 }

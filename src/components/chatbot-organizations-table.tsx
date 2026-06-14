@@ -8,8 +8,9 @@ import { BookingChatbotIcon } from "@/components/floating-booking-chatbot";
 import { normalizeQuickActionsArray, type BookingFlowConfig, type ChatbotConfigData } from "@/lib/chatbot-config";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { CHATBOT_EMBED_IFRAME_OPEN } from "@/lib/chatbot-embed-layout";
-import type { GenerateBookingFlowResult } from "@/app/(protected)/appointments/chatbot/actions";
+import type { GenerateBookingFlowResult, GenerateVoiceGreetingResult } from "@/app/(protected)/appointments/chatbot/actions";
 import { ChatbotCrmIntegrationModal } from "@/components/chatbot-crm-integration-modal";
+import { ChatbotVoiceBookingModal } from "@/components/chatbot-voice-booking-modal";
 
 type BookingFlowDraftStep = {
   clientKey: string;
@@ -196,7 +197,9 @@ type ChatbotOrganizationsTableProps = {
   rows: ChatbotOrgRow[];
   onSaveChatbot: (formData: FormData) => void | Promise<void>;
   onSaveCrmIntegration: (formData: FormData) => void | Promise<void>;
+  onSaveVoiceBooking: (formData: FormData) => void | Promise<void>;
   onGenerateChatbot: (formData: FormData) => Promise<GenerateBookingFlowResult>;
+  onGenerateVoiceGreeting: (formData: FormData) => Promise<GenerateVoiceGreetingResult>;
 };
 
 export function ChatbotOrganizationsTable({
@@ -204,11 +207,14 @@ export function ChatbotOrganizationsTable({
   rows,
   onSaveChatbot,
   onSaveCrmIntegration,
+  onSaveVoiceBooking,
   onGenerateChatbot,
+  onGenerateVoiceGreeting,
 }: ChatbotOrganizationsTableProps) {
   const [configureModalOrg, setConfigureModalOrg] = useState<ChatbotOrgRow | null>(null);
   const [flowModalOrg, setFlowModalOrg] = useState<ChatbotOrgRow | null>(null);
   const [crmModalOrg, setCrmModalOrg] = useState<ChatbotOrgRow | null>(null);
+  const [voiceModalOrg, setVoiceModalOrg] = useState<ChatbotOrgRow | null>(null);
   const [previewTheme, setPreviewTheme] = useState("#22c55e");
   const [previewIcon, setPreviewIcon] = useState("#0f172a");
   const [previewWelcome, setPreviewWelcome] = useState("");
@@ -359,7 +365,7 @@ export function ChatbotOrganizationsTable({
       subtitle="Every workspace you created or were added to appears here. Open Configure for any row—settings are saved per organization."
     >
       <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-        <div className="vr-app-table-header hidden grid-cols-[72px_1fr_140px_320px] items-center gap-2 px-4 py-3 lg:grid">
+        <div className="vr-app-table-header hidden grid-cols-[72px_1fr_140px_380px] items-center gap-2 px-4 py-3 lg:grid">
           <div>#</div>
           <div>Organization</div>
           <div>Session</div>
@@ -369,7 +375,7 @@ export function ChatbotOrganizationsTable({
           {paged.map((row, index) => (
             <div
               key={row.id}
-              className="grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] lg:grid-cols-[72px_1fr_140px_320px]"
+              className="grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] lg:grid-cols-[72px_1fr_140px_380px]"
             >
               <div className="text-xs font-semibold text-[var(--color-text-muted)]">
                 <span className="inline-flex min-w-[40px] items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
@@ -407,6 +413,17 @@ export function ChatbotOrganizationsTable({
                   className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
                 >
                   Booking flow
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVoiceModalOrg(row)}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                    row.config.voiceBooking.enabled
+                      ? "border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-primary-soft)] text-[var(--color-primary-h)] hover:brightness-95"
+                      : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)]"
+                  }`}
+                >
+                  {row.config.voiceBooking.enabled ? "Voice · On" : "Voice"}
                 </button>
                 <button
                   type="button"
@@ -1181,6 +1198,17 @@ export function ChatbotOrganizationsTable({
             document.body,
           )
         : null}
+
+      {voiceModalOrg ? (
+        <ChatbotVoiceBookingModal
+          organizationId={voiceModalOrg.id}
+          organizationName={voiceModalOrg.name}
+          initialConfig={voiceModalOrg.config.voiceBooking}
+          onSave={onSaveVoiceBooking}
+          onGenerateGreeting={onGenerateVoiceGreeting}
+          onClose={() => setVoiceModalOrg(null)}
+        />
+      ) : null}
 
       {crmModalOrg ? (
         <ChatbotCrmIntegrationModal

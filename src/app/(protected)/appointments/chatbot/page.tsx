@@ -11,7 +11,7 @@ import {
 import { getAppOrigin } from "@/lib/app-origin";
 import { resolveChatbotConfigData } from "@/lib/chatbot-config";
 import { organizationChatbotSettingsSelect } from "@/lib/chatbot-settings-select";
-import { generateChatbotFromKnowledge, saveChatbotConfig, saveCrmIntegration } from "./actions";
+import { generateChatbotFromKnowledge, generateVoiceBookingGreeting, saveChatbotConfig, saveCrmIntegration, saveVoiceBooking } from "./actions";
 import Link from "next/link";
 
 export default async function AppointmentChatbotPage({
@@ -141,6 +141,10 @@ export default async function AppointmentChatbotPage({
         <div className="vr-app-alert vr-app-alert-success">CRM integration saved.</div>
       ) : null}
 
+      {params.success === "voice_saved" ? (
+        <div className="vr-app-alert vr-app-alert-success">Voice booking settings saved.</div>
+      ) : null}
+
       {params.error && errorMessages[params.error] ? (
         <div className="vr-app-alert vr-app-alert-danger">{errorMessages[params.error]}</div>
       ) : null}
@@ -150,7 +154,9 @@ export default async function AppointmentChatbotPage({
         rows={rows}
         onSaveChatbot={saveChatbotConfig}
         onSaveCrmIntegration={saveCrmIntegration}
+        onSaveVoiceBooking={saveVoiceBooking}
         onGenerateChatbot={generateChatbotFromKnowledge}
+        onGenerateVoiceGreeting={generateVoiceBookingGreeting}
       />
     </div>
   );

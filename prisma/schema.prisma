@@ -71,6 +71,7 @@ model OrganizationChatbotSettings {
   services         Json     @default(dbgenerated("'[]'::jsonb")) @map("services") @db.JsonB
   bookingFlow      Json     @default(dbgenerated("'{}'::jsonb")) @map("booking_flow") @db.JsonB
   crmIntegration   Json     @default(dbgenerated("'{}'::jsonb")) @map("crm_integration") @db.JsonB
+  voiceBooking     Json     @default(dbgenerated("'{}'::jsonb")) @map("voice_booking") @db.JsonB
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 

@@ -16,6 +16,7 @@ import {
   type BookingFlowConfig,
 } from "@/lib/chatbot-config";
 import { parseCrmIntegrationForm } from "@/lib/crm-integration";
+import { parseVoiceBookingForm, resolveAgentNameForProfile } from "@/lib/voice-booking";
 import { getOpenAiApiKey } from "@/lib/openai-chat-reply";
 import { truncateKnowledgeRawTextForPrompt } from "@/lib/knowledge-base-raw-truncate";
 
@@ -218,6 +219,229 @@ export async function saveCrmIntegration(formData: FormData) {
   }
 
   redirect(`${CHATBOT_ROUTE}?success=crm_saved`);
+}
+
+export type GenerateVoiceGreetingResult =
+  | { ok: true; greeting: string }
+  | { ok: false; error: "org_missing" | "denied" | "no_api_key" | "failed" };
+
+export async function generateVoiceBookingGreeting(
+  formData: FormData,
+): Promise<GenerateVoiceGreetingResult> {
+  const session = await requireSessionForChatbot();
+  const organizationId = String(formData.get("organization_id") || "").trim();
+  if (!organizationId) {
+    return { ok: false, error: "org_missing" };
+  }
+
+  const membership = await prisma.organizationMember.findFirst({
+    where: {
+      userId: session.userId,
+      organizationId,
+    },
+    select: { id: true },
+  });
+
+  if (!membership) {
+    return { ok: false, error: "denied" };
+  }
+
+  const apiKey = getOpenAiApiKey();
+  if (!apiKey) {
+    return { ok: false, error: "no_api_key" };
+  }
+
+  const voice = parseVoiceBookingForm({
+    agentName: formData.get("voice_agent_name"),
+    greetingStyle: formData.get("voice_greeting_style"),
+    formality: formData.get("voice_formality"),
+    tone: formData.get("voice_tone"),
+    profileId: formData.get("voice_profile_id"),
+    pace: formData.get("voice_pace"),
+    customGreeting: "",
+  });
+
+  const org = await prisma.organization.findFirst({
+    where: { id: organizationId },
+    select: {
+      name: true,
+      knowledgeBase: { select: { rawText: true, parsedData: true } },
+    },
+  });
+
+  let digest = "";
+  const pd = org?.knowledgeBase?.parsedData;
+  if (pd && typeof pd === "object" && !Array.isArray(pd)) {
+    const rec = pd as Record<string, unknown>;
+    if (typeof rec.formattedPreview === "string") {
+      digest = `\n\nBusiness digest:\n${rec.formattedPreview.trim().slice(0, 3000)}`;
+    }
+  }
+
+  const raw = String(org?.knowledgeBase?.rawText ?? "").trim();
+  const kbExcerpt =
+    raw.length >= 200
+      ? `\n\nKnowledge source excerpt:\n${truncateKnowledgeRawTextForPrompt(raw, 8000)}${digest}`
+      : digest;
+
+  const agentName = resolveAgentNameForProfile(voice.agentName, voice.profileId);
+  const orgName = org?.name?.trim() || "the business";
+
+  const system = `You write a single spoken greeting for a voice booking assistant on a business website widget. Output a single JSON object only (no markdown fences) with one key: greeting (string).
+
+Rules:
+- One or two sentences, natural when read aloud (max 280 characters).
+- Introduce the agent by first name and mention the business by name.
+- The wording must clearly reflect ALL of: greeting style, formality level, and tone (see user message).
+- Offer to help the visitor book an appointment or reservation.
+- Plain spoken English only: no markdown, emojis, brackets, or stage directions.`;
+
+  const user = `Organization: ${orgName}
+Agent name: ${agentName}
+Greeting style: ${voice.greetingStyle} (${voiceGreetingStyleHint(voice.greetingStyle)})
+Formality: ${voice.formality}
+Tone: ${voice.tone}${kbExcerpt}`;
+
+  const model = process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini";
+
+  let content = "";
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.55,
+        max_tokens: 300,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      return { ok: false, error: "failed" };
+    }
+    const data = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string | null } }>;
+    };
+    content = data.choices?.[0]?.message?.content?.trim() ?? "";
+  } catch {
+    return { ok: false, error: "failed" };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return { ok: false, error: "failed" };
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { ok: false, error: "failed" };
+  }
+
+  const greeting = String((parsed as Record<string, unknown>).greeting ?? "").trim().slice(0, 400);
+  if (!greeting) {
+    return { ok: false, error: "failed" };
+  }
+
+  return { ok: true, greeting };
+}
+
+function voiceGreetingStyleHint(style: string): string {
+  switch (style) {
+    case "professional":
+      return "clear, competent business tone";
+    case "casual":
+      return "relaxed and approachable";
+    case "concierge":
+      return "polished hospitality, attentive service";
+    case "warm":
+    default:
+      return "friendly, welcoming";
+  }
+}
+
+export async function saveVoiceBooking(formData: FormData) {
+  const session = await requireSessionForChatbot();
+  const organizationId = String(formData.get("organization_id") || "").trim();
+  if (!organizationId) {
+    redirect(`${CHATBOT_ROUTE}?error=chatbot_org_missing`);
+  }
+
+  const membership = await prisma.organizationMember.findFirst({
+    where: {
+      userId: session.userId,
+      organizationId,
+    },
+    select: { id: true },
+  });
+
+  if (!membership) {
+    redirect(`${CHATBOT_ROUTE}?error=chatbot_org_denied`);
+  }
+
+  const voice = parseVoiceBookingForm({
+    agentName: formData.get("voice_agent_name"),
+    greetingStyle: formData.get("voice_greeting_style"),
+    formality: formData.get("voice_formality"),
+    tone: formData.get("voice_tone"),
+    profileId: formData.get("voice_profile_id"),
+    pace: formData.get("voice_pace"),
+    customGreeting: formData.get("voice_custom_greeting"),
+  });
+
+  const existing = await prisma.organizationChatbotSettings.findUnique({
+    where: { organizationId },
+    select: {
+      welcomeMessage: true,
+      themeColor: true,
+      iconColor: true,
+      services: true,
+      bookingFlow: true,
+    },
+  });
+
+  const voiceBooking = {
+    enabled: voice.enabled,
+    agentName: voice.agentName,
+    greetingStyle: voice.greetingStyle,
+    formality: voice.formality,
+    tone: voice.tone,
+    profileId: voice.profileId,
+    pace: voice.pace,
+    customGreeting: voice.customGreeting,
+  } as Prisma.InputJsonValue;
+
+  if (existing) {
+    await prisma.organizationChatbotSettings.update({
+      where: { organizationId },
+      data: {
+        voiceBooking,
+        updatedAt: new Date(),
+      },
+    });
+  } else {
+    await prisma.organizationChatbotSettings.create({
+      data: {
+        organizationId,
+        welcomeMessage:
+          "Hi there, I can help you with bookings and answer questions from our knowledge base.",
+        themeColor: "#22c55e",
+        iconColor: "#0f172a",
+        services: emptyServicesJson,
+        bookingFlow: emptyBookingFlow() as unknown as Prisma.InputJsonValue,
+        voiceBooking,
+      },
+    });
+  }
+
+  redirect(`${CHATBOT_ROUTE}?success=voice_saved`);
 }
 
 export type GenerateBookingFlowResult =
