@@ -12,6 +12,10 @@ type CustomSelectProps<T extends string> = {
   onChange: (value: T) => void;
   options: Array<CustomSelectOption<T>>;
   placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+  triggerClassName?: string;
+  menuClassName?: string;
   "aria-label": string;
 };
 
@@ -20,6 +24,10 @@ export function CustomSelect<T extends string>({
   onChange,
   options,
   placeholder = "Select…",
+  disabled = false,
+  className = "",
+  triggerClassName = "",
+  menuClassName = "",
   "aria-label": ariaLabel,
 }: CustomSelectProps<T>) {
   const [open, setOpen] = useState(false);
@@ -51,15 +59,19 @@ export function CustomSelect<T extends string>({
   }, [open]);
 
   return (
-    <div ref={containerRef} className="relative mt-1.5">
+    <div ref={containerRef} className={`relative ${className}`}>
       <button
         type="button"
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listboxId}
-        onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-2 text-left text-sm text-[var(--color-text)] outline-none transition hover:border-[var(--color-border-hover)] focus:border-[var(--color-primary)]"
+        disabled={disabled}
+        onClick={() => {
+          if (disabled) return;
+          setOpen((prev) => !prev);
+        }}
+        className={`flex w-full items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-2 text-left text-sm text-[var(--color-text)] outline-none transition hover:border-[var(--color-border-hover)] focus:border-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60 ${triggerClassName}`}
       >
         <span className={selected ? "text-[var(--color-text)]" : "text-[var(--color-text-muted)]"}>
           {selected?.label ?? placeholder}
@@ -81,7 +93,7 @@ export function CustomSelect<T extends string>({
           id={listboxId}
           role="listbox"
           aria-label={ariaLabel}
-          className="absolute z-30 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1 shadow-[var(--shadow-lg)]"
+          className={`absolute z-30 mt-1 max-h-52 w-full min-w-full overflow-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1 shadow-[var(--shadow-lg)] ${menuClassName}`}
         >
           {options.map((option) => {
             const isSelected = option.value === value;
