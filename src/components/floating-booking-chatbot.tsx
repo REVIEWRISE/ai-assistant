@@ -63,6 +63,24 @@ type ChatMessage = {
 type BookingStepState = "idle" | "collecting" | "confirm";
 type DynamicAnswers = Record<string, string | number>;
 
+function buildInitialMessages(
+  welcomeMessage: string,
+  initialInteractionMode: InteractionMode,
+  voiceBooking?: VoiceBookingConfig,
+): ChatMessage[] {
+  const greeting = voiceBooking?.customGreeting?.trim() ?? "";
+  const voiceReady = Boolean(voiceBooking?.enabled && greeting);
+  if (initialInteractionMode === "voice" && voiceReady) {
+    return [{ id: "voice-greeting-initial", role: "bot", text: greeting }];
+  }
+  return [{ id: "welcome", role: "bot", text: welcomeMessage }];
+}
+
+function stripWelcomeMessage(messages: ChatMessage[], welcomeMessage: string): ChatMessage[] {
+  const trimmedWelcome = welcomeMessage.trim();
+  return messages.filter((m) => m.id !== "welcome" && m.text.trim() !== trimmedWelcome);
+}
+
 type FloatingBookingChatbotProps = {
   organizationId: string;
   organizationName: string;
@@ -71,6 +89,9 @@ type FloatingBookingChatbotProps = {
   iconColor: string;
   bookingFlow: BookingFlowConfig;
   voiceBooking?: VoiceBookingConfig;
+  /** Admin preview: always open, no launcher, bookings not saved. */
+  preview?: boolean;
+  initialInteractionMode?: InteractionMode;
 };
 
 function shouldMergeWithRecentBookingContext(text: string): boolean {
@@ -221,8 +242,10 @@ export function FloatingBookingChatbot({
   iconColor,
   bookingFlow,
   voiceBooking,
+  preview = false,
+  initialInteractionMode = "chat",
 }: FloatingBookingChatbotProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(preview);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [bookingStepState, setBookingStepState] = useState<BookingStepState>("idle");
@@ -232,13 +255,18 @@ export function FloatingBookingChatbot({
   const [textDraft, setTextDraft] = useState("");
   const confirmSubmitLockRef = useRef(false);
   const messagesViewportRef = useRef<HTMLDivElement>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([{ id: "welcome", role: "bot", text: welcomeMessage }]);
-  const [interactionMode, setInteractionMode] = useState<InteractionMode>("chat");
+  const [messages, setMessages] = useState<ChatMessage[]>(() =>
+    buildInitialMessages(welcomeMessage, initialInteractionMode, voiceBooking),
+  );
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>(initialInteractionMode);
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [voicesReady, setVoicesReady] = useState(false);
   const interactionModeRef = useRef<InteractionMode>("chat");
-  const voiceGreetingPlayedRef = useRef(false);
+  const voiceGreetingPlayedRef = useRef(
+    initialInteractionMode === "voice" &&
+      Boolean(voiceBooking?.enabled && voiceBooking.customGreeting.trim()),
+  );
   const voiceGreetingSpokenRef = useRef(false);
 
   const voiceEnabled = Boolean(voiceBooking?.enabled && voiceBooking.customGreeting.trim());
@@ -281,8 +309,9 @@ export function FloatingBookingChatbot({
     if (!voiceGreetingPlayedRef.current) {
       voiceGreetingPlayedRef.current = true;
       setMessages((prev) => {
-        if (prev.some((m) => m.role === "bot" && m.text === greeting)) return prev;
-        return [...prev, { id: `voice-greeting-${Date.now()}`, role: "bot", text: greeting }];
+        const withoutWelcome = stripWelcomeMessage(prev, welcomeMessage);
+        if (withoutWelcome.some((m) => m.role === "bot" && m.text === greeting)) return withoutWelcome;
+        return [...withoutWelcome, { id: `voice-greeting-${Date.now()}`, role: "bot", text: greeting }];
       });
     }
 
@@ -294,7 +323,7 @@ export function FloatingBookingChatbot({
         text: greeting,
       }).catch(() => {});
     }
-  }, [open, interactionMode, voiceEnabled, voiceBooking, voiceProfile, canSpeak]);
+  }, [open, interactionMode, voiceEnabled, voiceBooking, voiceProfile, canSpeak, welcomeMessage]);
 
   const isVoiceOpening = interactionMode === "voice" && voiceEnabled && bookingStepState === "idle";
 
@@ -336,13 +365,6 @@ export function FloatingBookingChatbot({
     window.parent.postMessage({ type: "ai-assistant-chatbot-state", open }, "*");
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const viewport = messagesViewportRef.current;
-    if (!viewport) return;
-    viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
-  }, [messages, sending, open]);
-
   function pushUserMessage(text: string) {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -375,9 +397,7 @@ export function FloatingBookingChatbot({
     if (mode === "voice" && voiceEnabled) {
       voiceGreetingPlayedRef.current = false;
       voiceGreetingSpokenRef.current = false;
-      setMessages((prev) =>
-        prev.filter((m) => m.id !== "welcome" && m.text.trim() !== welcomeMessage.trim()),
-      );
+      setMessages((prev) => stripWelcomeMessage(prev, welcomeMessage));
     }
 
     if (mode === "chat") {
@@ -495,6 +515,14 @@ export function FloatingBookingChatbot({
     const trimmed = messageText.trim();
     if (!trimmed || sending) return;
     pushUserMessage(options?.displayText ?? trimmed);
+    if (preview) {
+      pushBotMessage(
+        options?.guidedParsed != null
+          ? "Preview only — your booking flow works. Real visitors get a confirmation here."
+          : "Preview only — messages are not sent. Save and use the embed to test live replies.",
+      );
+      return;
+    }
     setSending(true);
     const reference = new Date();
     const previousUserTail = messages
@@ -709,11 +737,19 @@ export function FloatingBookingChatbot({
     return quickActions.map((q) => q.label);
   }, [bookingStepState, bookingFlow.steps, activeStepIndex, quickActions, interactionMode, voiceEnabled]);
 
+  useEffect(() => {
+    if (!open) return;
+    const viewport = messagesViewportRef.current;
+    if (!viewport) return;
+    viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
+  }, [messages, sending, open, actionButtons, bookingStepState, activeStepIndex]);
+
   return (
     <div
-      className="chatbot-widget fixed bottom-5 right-5 z-40 text-[var(--color-text)]"
+      className={`chatbot-widget text-[var(--color-text)] ${preview ? "relative w-full" : "fixed bottom-5 right-5 z-40"}`}
       data-voice-booking={voiceBooking?.enabled ? "true" : "false"}
       data-voice-agent={voiceBooking?.agentName || undefined}
+      data-chatbot-preview={preview ? "true" : undefined}
       style={
         {
           "--chat-accent": themeColor,
@@ -721,7 +757,7 @@ export function FloatingBookingChatbot({
         } as CSSProperties
       }
     >
-      {!open ? (
+      {!preview && !open ? (
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -732,7 +768,13 @@ export function FloatingBookingChatbot({
           <BookingChatbotIcon className="h-6 w-6" />
         </button>
       ) : (
-        <div className="relative flex h-[min(88dvh,700px)] max-h-[min(88dvh,700px)] w-[380px] flex-col overflow-hidden rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)] ring-1 ring-[color-mix(in_srgb,var(--color-primary)_8%,var(--color-border))]">
+        <div
+          className={`relative mx-auto flex w-full flex-col overflow-hidden rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)] ring-1 ring-[color-mix(in_srgb,var(--color-primary)_8%,var(--color-border))] ${
+            preview
+              ? "h-[min(520px,72vh)] max-h-[min(520px,72vh)] max-w-[380px]"
+              : "h-[min(88dvh,700px)] max-h-[min(88dvh,700px)] w-[380px]"
+          }`}
+        >
           <div
             className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(ellipse_90%_70%_at_50%_-20%,color-mix(in_srgb,var(--color-primary)_18%,transparent),transparent)]"
             aria-hidden
@@ -760,16 +802,18 @@ export function FloatingBookingChatbot({
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Close"
-              className="rounded-xl p-2 text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
-            >
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-                <path d="M6 6l12 12M6 18L18 6" />
-              </svg>
-            </button>
+            {preview ? null : (
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+                className="rounded-xl p-2 text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                  <path d="M6 6l12 12M6 18L18 6" />
+                </svg>
+              </button>
+            )}
           </div>
           <div ref={messagesViewportRef} className="relative min-h-0 flex-1 overflow-y-auto border-b border-[var(--color-border-muted)] bg-[var(--color-bg)] px-4 py-4">
             <div className="flex flex-col gap-3">
@@ -797,6 +841,21 @@ export function FloatingBookingChatbot({
               {listening && interactionMode === "voice" && voiceEnabled ? (
                 <div className="ml-auto flex max-w-[90%] flex-col items-end gap-1.5">
                   <VoiceListeningWave label="Listening to you" />
+                </div>
+              ) : null}
+              {actionButtons.length > 0 ? (
+                <div className="grid grid-cols-1 gap-2 pt-1">
+                  {actionButtons.map((action) => (
+                    <button
+                      key={action}
+                      type="button"
+                      onClick={() => void handleAction(action)}
+                      disabled={sending}
+                      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5 text-left text-sm text-[var(--color-text)] shadow-[var(--shadow-sm)] transition hover:border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] hover:bg-[var(--color-primary-soft)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {action}
+                    </button>
+                  ))}
                 </div>
               ) : null}
             </div>
@@ -974,19 +1033,6 @@ export function FloatingBookingChatbot({
                 </button>
               </div>
             ) : null}
-            <div className="grid grid-cols-1 gap-2">
-              {actionButtons.map((action) => (
-                <button
-                  key={action}
-                  type="button"
-                  onClick={() => void handleAction(action)}
-                  disabled={sending}
-                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5 text-left text-sm text-[var(--color-text)] shadow-[var(--shadow-sm)] transition hover:border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] hover:bg-[var(--color-primary-soft)] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {action}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
       )}

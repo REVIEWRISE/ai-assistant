@@ -11,6 +11,7 @@ import { CHATBOT_EMBED_IFRAME_OPEN } from "@/lib/chatbot-embed-layout";
 import type { GenerateBookingFlowResult, GenerateVoiceGreetingResult } from "@/app/(protected)/appointments/chatbot/actions";
 import { ChatbotCrmIntegrationModal } from "@/components/chatbot-crm-integration-modal";
 import { ChatbotVoiceBookingModal } from "@/components/chatbot-voice-booking-modal";
+import { ChatbotWidgetPreview } from "@/components/chatbot-widget-preview";
 
 type BookingFlowDraftStep = {
   clientKey: string;
@@ -819,95 +820,18 @@ export function ChatbotOrganizationsTable({
                               Open chat panel
                             </p>
                             <p className="mt-1 text-[11px] leading-snug text-[var(--color-text-muted)]">
-                              The conversation UI visitors see after they tap the floating button.
+                              Live widget preview — switch between chat and voice when voice booking is enabled.
                             </p>
-                            <div
-                              className="relative mt-3 min-h-[260px] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-raised)] p-4 shadow-inner"
-                              aria-hidden
-                            >
-                              <div className="pointer-events-none absolute inset-0 opacity-50 [background-image:linear-gradient(color-mix(in_srgb,var(--color-border)_60%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_srgb,var(--color-border)_60%,transparent)_1px,transparent_1px)] [background-size:20px_20px]" />
-                              <div className="relative mx-auto w-full max-w-[380px] overflow-hidden rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-bg)] text-left shadow-[var(--shadow-lg)] ring-1 ring-[color-mix(in_srgb,var(--color-primary)_8%,var(--color-border))]">
-                                <div
-                                  className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(ellipse_90%_70%_at_50%_-20%,color-mix(in_srgb,var(--color-primary)_18%,transparent),transparent)]"
-                                  aria-hidden
-                                />
-                                <div className="relative flex items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3.5">
-                                  <div className="flex min-w-0 flex-1 items-start gap-3">
-                                    <span
-                                      style={{
-                                        backgroundColor: "var(--chat-accent)",
-                                        color: "var(--chat-accent-fg)",
-                                        boxShadow: "var(--shadow-sm)",
-                                      }}
-                                      className="box-border flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ring-[color-mix(in_srgb,var(--chat-accent)_20%,var(--color-border))]"
-                                    >
-                                      <BookingChatbotIcon className="h-5 w-5" />
-                                    </span>
-                                    <div className="min-w-0 pt-0.5">
-                                      <div className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--color-primary)_22%,var(--color-border))] bg-[var(--color-primary-soft)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--color-primary-h)]">
-                                        Booking assistant
-                                      </div>
-                                      <p className="mt-1.5 truncate text-sm font-semibold tracking-tight text-[var(--color-text)]">
-                                        {configureModalOrg.name}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <span className="shrink-0 rounded-xl p-2 text-[var(--color-text-muted)]" aria-hidden>
-                                    <svg
-                                      viewBox="0 0 24 24"
-                                      className="h-5 w-5"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                    >
-                                      <path d="M6 6l12 12M6 18L18 6" />
-                                    </svg>
-                                  </span>
-                                </div>
-                                <div className="relative max-h-[200px] overflow-y-auto border-b border-[var(--color-border-muted)] bg-[var(--color-bg)] px-4 py-4">
-                                  <div className="flex flex-col gap-3">
-                                    <div className="max-w-[90%] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-xs leading-relaxed text-[var(--color-text)] shadow-[var(--shadow-sm)]">
-                                      {previewWelcome.trim() || "Welcome message appears here."}
-                                    </div>
-                                    <div className="ml-auto max-w-[90%] rounded-xl bg-[var(--chat-accent)] px-3.5 py-2.5 text-xs font-medium leading-relaxed text-[var(--chat-accent-fg)] shadow-[var(--shadow-sm)] ring-1 ring-[color-mix(in_srgb,var(--chat-accent)_25%,transparent)]">
-                                      Tomorrow 7:30 PM, party of 4
-                                    </div>
-                                    <div className="max-w-[90%] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-xs leading-relaxed text-[var(--color-text)] shadow-[var(--shadow-sm)]">
-                                      Thanks — we can use your knowledge base to answer questions about what you
-                                      offer and your policies too.
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="relative border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 backdrop-blur-sm">
-                                  <p className="mb-2.5 text-xs leading-relaxed text-[var(--color-text-muted)]">
-                                    Add date, time, party size, or any question.
-                                  </p>
-                                  <div className="flex gap-2">
-                                    <div className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5 text-xs text-[var(--color-text-subtle)] shadow-[var(--shadow-sm)]">
-                                      Type a question...
-                                    </div>
-                                    <span
-                                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--chat-accent-fg)] shadow-[var(--shadow-sm)]"
-                                      style={{ backgroundColor: "var(--chat-accent)" }}
-                                      aria-hidden
-                                    >
-                                      <svg
-                                        viewBox="0 0 24 24"
-                                        className="h-5 w-5"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                      >
-                                        <path d="M22 2 11 13" />
-                                        <path d="M22 2 15 22 11 13 2 9 22 2z" />
-                                      </svg>
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
+                            <div className="mt-3">
+                              <ChatbotWidgetPreview
+                                organizationId={configureModalOrg.id}
+                                organizationName={configureModalOrg.name}
+                                welcomeMessage={previewWelcome}
+                                themeColor={previewTheme}
+                                iconColor={previewIcon}
+                                bookingFlow={configureModalOrg.config.bookingFlow}
+                                voiceBooking={configureModalOrg.config.voiceBooking}
+                              />
                             </div>
                           </div>
                         </div>
@@ -1376,6 +1300,10 @@ export function ChatbotOrganizationsTable({
           organizationId={voiceModalOrg.id}
           organizationName={voiceModalOrg.name}
           initialConfig={voiceModalOrg.config.voiceBooking}
+          themeColor={voiceModalOrg.config.themeColor}
+          iconColor={voiceModalOrg.config.iconColor}
+          welcomeMessage={voiceModalOrg.config.welcomeMessage}
+          bookingFlow={voiceModalOrg.config.bookingFlow}
           onSave={onSaveVoiceBooking}
           onGenerateGreeting={onGenerateVoiceGreeting}
           onClose={() => setVoiceModalOrg(null)}
