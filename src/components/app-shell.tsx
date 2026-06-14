@@ -18,20 +18,7 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function SidebarNavLoading({ collapsed }: { collapsed: boolean }) {
-  if (collapsed) {
-    return (
-      <div className="space-y-2 px-1" aria-label="Loading workspace menus">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="flex justify-center py-1">
-            <div className="h-9 w-9 animate-pulse rounded-xl bg-[var(--color-raised)]/80" />
-          </div>
-        ))}
-        <span className="sr-only">Loading workspace menus</span>
-      </div>
-    );
-  }
-
+function SidebarNavLoading() {
   return (
     <div className="space-y-2" aria-label="Loading workspace menus">
       <p className="px-1 text-xs text-[var(--color-text-muted)]">Loading workspace menus…</p>
@@ -53,7 +40,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [menuStateReady, setMenuStateReady] = useState(false);
   const [submenuTick, setSubmenuTick] = useState(0);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileName, setProfileName] = useState("User");
   const [profileEmail, setProfileEmail] = useState("user@example.com");
   const [profileRole, setProfileRole] = useState("Member");
@@ -201,41 +187,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="app-shell-grid pointer-events-none absolute inset-0 opacity-30" aria-hidden />
       <NavAccessGuard allowedNavPaths={allowedNavPaths} enabled={allowedNavPaths !== null} />
       <div className="relative flex w-full gap-4 px-4 py-4 lg:gap-6 lg:px-6">
-        <aside
-          className={`vr-app-surface hidden shrink-0 rounded-3xl transition-all lg:block ${sidebarCollapsed ? "w-20 p-3" : "w-68 p-5"
-            }`}
-        >
-          <div className="mb-6 flex items-start justify-between gap-2">
-            {sidebarCollapsed ? (
-              <BrandLogo href="/dashboard" size="sm" showWordmark={false} linkClassName="mx-auto" />
-            ) : (
-              <div className="min-w-0">
-                <BrandLogo
-                  href="/dashboard"
-                  size="sm"
-                  primary={BRAND_NAME}
-                  secondary={PRODUCT_NAME}
-                  className="text-[var(--color-text)] [&_p:first-child]:text-[10px] [&_p:first-child]:font-semibold [&_p:first-child]:uppercase [&_p:first-child]:tracking-[0.16em] [&_p:first-child]:text-[var(--color-primary)] [&_p:last-child]:text-sm [&_p:last-child]:font-semibold [&_p:last-child]:leading-snug [&_p:last-child]:text-[var(--color-text)]"
-                />
-                <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-                  Appointment, reviews, and lead operations in one place.
-                </p>
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => setSidebarCollapsed((prev) => !prev)}
-              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className="group flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface)]"
-            >
-              <span className="relative flex h-4 w-4 items-center justify-center">
-                <span className="absolute h-0.5 w-4 rounded-full bg-[var(--color-text-muted)] transition" />
-                <span className="absolute h-0.5 w-4 translate-y-1.5 rounded-full bg-[var(--color-text-muted)] transition" />
-                <span className="absolute h-0.5 w-4 -translate-y-1.5 rounded-full bg-[var(--color-text-muted)] transition" />
-              </span>
-            </button>
+        <aside className="vr-app-surface hidden w-68 shrink-0 rounded-3xl p-5 lg:block">
+          <div className="mb-6 min-w-0">
+            <BrandLogo
+              href="/dashboard"
+              size="sm"
+              primary={BRAND_NAME}
+              secondary={PRODUCT_NAME}
+              className="text-[var(--color-text)] [&_p:first-child]:text-[10px] [&_p:first-child]:font-semibold [&_p:first-child]:uppercase [&_p:first-child]:tracking-[0.16em] [&_p:first-child]:text-[var(--color-primary)] [&_p:last-child]:text-sm [&_p:last-child]:font-semibold [&_p:last-child]:leading-snug [&_p:last-child]:text-[var(--color-text)]"
+            />
+            <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+              Appointment, reviews, and lead operations in one place.
+            </p>
           </div>
-          {(!navPermissionsReady || !hasNoMenuAccess) && !sidebarCollapsed ? (
+          {(!navPermissionsReady || !hasNoMenuAccess) ? (
             <div className="mb-2 px-1">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                 Workspaces
@@ -248,43 +213,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             aria-label="Workspace navigation"
           >
             {!navPermissionsReady ? (
-              <SidebarNavLoading collapsed={sidebarCollapsed} />
+              <SidebarNavLoading />
             ) : hasNoMenuAccess ? (
-              sidebarCollapsed ? (
-                <div
-                  className="flex justify-center px-1 py-2"
-                  title="No menu access assigned to your role. Contact your administrator or sign out from the profile menu."
-                >
-                  <span
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-[color-mix(in_srgb,var(--color-warning)_35%,var(--color-border))] bg-[var(--color-warning-soft)] text-[var(--color-warning)]"
-                    aria-hidden
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M12 8v4M12 16h.01" />
-                    </svg>
-                  </span>
-                  <span className="sr-only">
-                    No menu access assigned to your role. Contact your administrator or sign out
-                    from the profile menu.
-                  </span>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-[color-mix(in_srgb,var(--color-warning)_35%,var(--color-border))] bg-[var(--color-warning-soft)] px-3 py-3">
-                  <p className="text-sm font-semibold text-[var(--color-text)]">No menu access</p>
-                  <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-text-muted)]">
-                    Your administrator has not assigned any workspace menus to your role yet. Use
-                    the profile menu above to sign out, or contact your admin if you think this is
-                    a mistake.
-                  </p>
-                </div>
-              )
+              <div className="rounded-2xl border border-[color-mix(in_srgb,var(--color-warning)_35%,var(--color-border))] bg-[var(--color-warning-soft)] px-3 py-3">
+                <p className="text-sm font-semibold text-[var(--color-text)]">No menu access</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-text-muted)]">
+                  Your administrator has not assigned any workspace menus to your role yet. Use
+                  the profile menu above to sign out, or contact your admin if you think this is
+                  a mistake.
+                </p>
+              </div>
             ) : (
               visibleNavItems.map((item: NavItem) => {
               const hasChildren = Boolean(item.children?.length);
@@ -296,8 +234,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 submenuTick >= 0 &&
                 (sessionStorage.getItem(submenuOpenKey) ?? "0") !== "0";
               const isSubmenuOpen = hasChildren && storedSubmenuOpen;
-              const showChildren = hasChildren && isSubmenuOpen && !sidebarCollapsed;
-              const rowClass = `group flex w-full items-center gap-3 rounded-2xl py-2.5 text-sm font-medium transition ${sidebarCollapsed ? "px-0 justify-center" : "px-3"} ${
+              const showChildren = hasChildren && isSubmenuOpen;
+              const rowClass = `group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition ${
                 highlighted
                   ? "vr-app-nav-active"
                   : "vr-app-nav-idle hover:border-[var(--color-border)] hover:bg-[var(--color-surface)]"
@@ -315,40 +253,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       type="button"
                       aria-expanded={isSubmenuOpen}
                       aria-label={isSubmenuOpen ? `Collapse ${item.label}` : `Expand ${item.label}`}
-                      onClick={() => {
-                        if (sidebarCollapsed) {
-                          setSidebarCollapsed(false);
-                          setSubmenuOpen(item.href, true);
-                          return;
-                        }
-                        setSubmenuOpen(item.href, !storedSubmenuOpen);
-                      }}
+                      onClick={() => setSubmenuOpen(item.href, !storedSubmenuOpen)}
                       className={rowClass}
                     >
                       <span className={iconClass}>{item.icon}</span>
-                      <span className={sidebarCollapsed ? "sr-only" : "flex-1 text-left leading-none"}>
-                        {item.label}
-                      </span>
-                      {!sidebarCollapsed ? (
-                        <svg
-                          viewBox="0 0 24 24"
-                          className={`h-4 w-4 shrink-0 transition ${isSubmenuOpen ? "rotate-180" : ""} ${highlighted ? "text-white/80" : "text-[var(--color-text-muted)]"}`}
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          aria-hidden
-                        >
-                          <path d="m6 9 6 6 6-6" />
-                        </svg>
-                      ) : null}
+                      <span className="flex-1 text-left leading-none">{item.label}</span>
+                      <svg
+                        viewBox="0 0 24 24"
+                        className={`h-4 w-4 shrink-0 transition ${isSubmenuOpen ? "rotate-180" : ""} ${highlighted ? "text-white/80" : "text-[var(--color-text-muted)]"}`}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        aria-hidden
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
                     </button>
                   ) : (
                     <Link href={item.href} prefetch onClick={closeAllSubmenus} className={rowClass}>
                       <span className={iconClass}>{item.icon}</span>
-                      <span className={sidebarCollapsed ? "sr-only" : "leading-none"}>{item.label}</span>
+                      <span className="leading-none">{item.label}</span>
                     </Link>
                   )}
-                  {showChildren && !sidebarCollapsed ? (
+                  {showChildren ? (
                     <div className="ml-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
                       {item.children?.map((child) => {
                         const childActive = isActive(pathname, child.href);

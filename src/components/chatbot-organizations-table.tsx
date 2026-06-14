@@ -12,6 +12,7 @@ import type { GenerateBookingFlowResult } from "@/app/(protected)/appointments/c
 import { ChatbotCrmIntegrationModal } from "@/components/chatbot-crm-integration-modal";
 
 type BookingFlowDraftStep = {
+  clientKey: string;
   id: string;
   question: string;
   helperText: string;
@@ -20,9 +21,26 @@ type BookingFlowDraftStep = {
 };
 
 type QuickActionDraft = {
+  clientKey: string;
   label: string;
   startsBookingFlow: boolean;
 };
+
+function newDraftKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `draft-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function quickActionsToDraft(
+  actions: BookingFlowConfig["quickActions"] | string[] | undefined,
+): QuickActionDraft[] {
+  return normalizeQuickActionsArray(actions ?? []).map((item) => ({
+    ...item,
+    clientKey: newDraftKey(),
+  }));
+}
 
 function slugifyStepId(value: string, index: number): string {
   const base = value
@@ -35,6 +53,7 @@ function slugifyStepId(value: string, index: number): string {
 
 function bookingFlowStepsToDraft(steps: BookingFlowConfig["steps"]): BookingFlowDraftStep[] {
   return steps.map((step, idx) => ({
+    clientKey: newDraftKey(),
     id: step.id || `step_${idx + 1}`,
     question: step.question || "",
     helperText: step.helperText || "",
@@ -214,7 +233,7 @@ export function ChatbotOrganizationsTable({
 
   const applyBookingFlowToEditors = useCallback((flow: BookingFlowConfig) => {
     setIdleHelperText(flow.idleHelperText ?? "");
-    setQuickActionItems(normalizeQuickActionsArray(flow.quickActions ?? []));
+    setQuickActionItems(quickActionsToDraft(flow.quickActions ?? []));
     setSlotDurationMinutes(String(flow.slotDurationMinutes ?? 30));
     setMinGapMinutes(String(flow.minGapMinutes ?? 0));
     setFlowSteps(bookingFlowStepsToDraft(flow.steps));
@@ -292,7 +311,7 @@ export function ChatbotOrganizationsTable({
         if (scope === "intro") {
           setIdleHelperText(res.bookingFlow.idleHelperText);
         } else if (scope === "opening") {
-          setQuickActionItems(normalizeQuickActionsArray(res.bookingFlow.quickActions));
+          setQuickActionItems(quickActionsToDraft(res.bookingFlow.quickActions));
         } else {
           setFlowSteps(bookingFlowStepsToDraft(res.bookingFlow.steps));
         }
@@ -811,7 +830,7 @@ export function ChatbotOrganizationsTable({
                           <div className="space-y-2">
                             {quickActionItems.map((item, idx) => (
                               <div
-                                key={`qa-${idx}-${item.label}`}
+                                key={item.clientKey}
                                 className="flex flex-col gap-2 rounded-lg border border-[var(--color-border-muted)] bg-[var(--color-surface)] p-2.5 sm:flex-row sm:items-center sm:gap-2"
                               >
                                 <input
@@ -857,7 +876,7 @@ export function ChatbotOrganizationsTable({
                               onClick={() =>
                                 setQuickActionItems((prev) => [
                                   ...prev,
-                                  { label: "", startsBookingFlow: true },
+                                  { clientKey: newDraftKey(), label: "", startsBookingFlow: true },
                                 ])
                               }
                               className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface)]"
@@ -967,7 +986,7 @@ export function ChatbotOrganizationsTable({
                         </div>
                         <div className="space-y-3">
                       {flowSteps.map((step, index) => (
-                        <div key={`${step.id}-${index}`} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 shadow-sm">
+                        <div key={step.clientKey} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 shadow-sm">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                               <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--color-primary)] px-2 text-[11px] font-bold text-[var(--color-primary-fg)]">
@@ -1128,6 +1147,7 @@ export function ChatbotOrganizationsTable({
                               setFlowSteps((prev) => [
                                 ...prev,
                                 {
+                                  clientKey: newDraftKey(),
                                   id: `step_${prev.length + 1}`,
                                   question: "",
                                   helperText: "",

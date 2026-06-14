@@ -60,17 +60,6 @@ export const APP_NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    href: "/leads",
-    label: "Lead Capture Chatbot",
-    shortLabel: "Leads",
-    icon: (
-      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M8 10h8M8 14h5" />
-        <path d="M21 12a8 8 0 1 1-3.3-6.5L21 3v6h-6l2.8-2.8A6 6 0 1 0 18 12" />
-      </svg>
-    ),
-  },
-  {
     href: "/settings/access",
     label: "Access Control",
     shortLabel: "Access",
