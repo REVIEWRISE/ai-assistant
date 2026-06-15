@@ -11,36 +11,20 @@ import { prisma } from "@/lib/prisma";
 import { isOAuthProviderConfig } from "@/lib/google-oauth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { connectReviewProvider, syncReviewProvider } from "./actions";
+import { connectReviewProvider, saveReviewRoutingRules, saveReviewSyncCron, syncReviewProvider } from "./actions";
+import {
+  inboxToneForStatus,
+  isAutoReadyPendingReview,
+  resolveReviewRoutingRules,
+  toInboxStatusFromRouting,
+} from "@/lib/review-routing";
+import {
+  resolveReviewSyncCronConfig,
+} from "@/lib/review-sync-cron";
 
 function toStars(rating: number): string {
   const clamped = Math.max(1, Math.min(5, Math.floor(rating)));
   return "★".repeat(clamped) + "☆".repeat(5 - clamped);
-}
-
-function toInboxStatus(status: string, rating: number): string {
-  const normalized = status.trim().toLowerCase();
-  if (normalized === "responded") {
-    return "Replied on Google";
-  }
-  if (normalized === "pending") {
-    if (rating >= 4) return "Safe to auto-publish";
-    if (rating <= 2) return "Needs human review";
-    return "Manual approval";
-  }
-  if (normalized === "approved" || normalized === "published" || normalized === "sent") {
-    return "Safe to auto-publish";
-  }
-  if (normalized === "rejected" || normalized === "failed") {
-    return "Needs human review";
-  }
-  return "Manual approval";
-}
-
-function toInboxTone(status: string): string {
-  if (status === "Safe to auto-publish") return "vr-app-status-success";
-  if (status === "Needs human review") return "vr-app-status-danger";
-  return "vr-app-status-warning";
 }
 
 function isAutoPublishedStatus(status: string): boolean {
@@ -138,6 +122,13 @@ export default async function ReviewsPage() {
     session.activeOrganizationId ?? session.user.organizationMembers[0]?.organizationId ?? null;
   if (!organizationId) redirect("/appointments/organization");
 
+  const reviewSettingsRow = await prisma.organizationReviewSettings.findUnique({
+    where: { organizationId },
+    select: { routingRules: true, syncCron: true },
+  });
+  const routingRules = resolveReviewRoutingRules(reviewSettingsRow?.routingRules);
+  const syncCronConfig = resolveReviewSyncCronConfig(reviewSettingsRow?.syncCron);
+
   const providerRows = await prisma.provider.findMany({
     where: { type: "review", status: "enabled" },
     orderBy: { createdAt: "asc" },
@@ -193,7 +184,7 @@ export default async function ReviewsPage() {
     if (!key) continue;
     const prev = statsByProvider.get(key) ?? { pending: 0, autoReady: 0 };
     const isPending = row.status.toLowerCase() === "pending";
-    const isAutoReady = isPending && row.rating >= 4;
+    const isAutoReady = isPending && isAutoReadyPendingReview(row.rating, routingRules);
     statsByProvider.set(key, {
       pending: prev.pending + (isPending ? 1 : 0),
       autoReady: prev.autoReady + (isAutoReady ? 1 : 0),
@@ -225,14 +216,14 @@ export default async function ReviewsPage() {
     },
   });
   const inbox = inboxRows.map((row) => {
-    const displayStatus = toInboxStatus(row.status, row.rating);
+    const displayStatus = toInboxStatusFromRouting(row.status, row.rating, routingRules);
     return {
       id: row.id,
       rating: toStars(row.rating),
       quote: row.reviewText,
       response: row.responseText?.trim() || "No drafted response yet.",
       source: row.provider,
-      tone: toInboxTone(displayStatus),
+      tone: inboxToneForStatus(displayStatus),
       status: displayStatus,
     };
   });
@@ -245,7 +236,9 @@ export default async function ReviewsPage() {
   const totals = {
     total: reviewRows.length,
     pending: reviewRows.filter((r) => r.status.toLowerCase() === "pending").length,
-    autoReady: reviewRows.filter((r) => r.status.toLowerCase() === "pending" && r.rating >= 4).length,
+    autoReady: reviewRows.filter(
+      (r) => r.status.toLowerCase() === "pending" && isAutoReadyPendingReview(r.rating, routingRules),
+    ).length,
   };
 
   const currentWeek = {
@@ -261,7 +254,7 @@ export default async function ReviewsPage() {
   for (const row of reviewRows) {
     const createdAt = row.createdAt;
     const isPending = row.status.toLowerCase() === "pending";
-    const isAutoReady = isPending && row.rating >= 4;
+    const isAutoReady = isPending && isAutoReadyPendingReview(row.rating, routingRules);
     if (createdAt >= currentWeekStart) {
       currentWeek.total += 1;
       if (isPending) currentWeek.pending += 1;
@@ -350,6 +343,9 @@ export default async function ReviewsPage() {
       </AppPageHero>
 
       <ReviewsTabs
+        organizationId={organizationId}
+        routingRules={routingRules}
+        syncCronConfig={syncCronConfig}
         reviewServices={reviewServices}
         pendingBySource={pendingBySource}
         inbox={inbox}
@@ -358,6 +354,8 @@ export default async function ReviewsPage() {
         serviceReviewVolume={serviceReviewVolume}
         onConnectProvider={connectReviewProvider}
         onSyncProvider={syncReviewProvider}
+        onSaveRoutingRules={saveReviewRoutingRules}
+        onSaveSyncCron={saveReviewSyncCron}
       />
     </div>
   );

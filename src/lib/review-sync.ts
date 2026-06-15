@@ -1,4 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import {
+  resolveReviewSyncCronConfig,
+  shouldRunReviewSyncCron,
+  type ReviewSyncCronConfig,
+} from "@/lib/review-sync-cron";
 import { fetchAllGbpReviewsForToken } from "@/lib/google-business-profile";
 import {
   asOAuthProviderConfig,
@@ -462,6 +467,142 @@ export async function syncAllConnectedReviewProviders(): Promise<SyncAllReviewPr
         error: error instanceof Error ? error.message : "Unknown sync error",
       });
     }
+  }
+
+  return result;
+}
+
+async function markReviewSyncCronRun(organizationId: string, existing: ReviewSyncCronConfig) {
+  const nextConfig: ReviewSyncCronConfig = {
+    ...existing,
+    lastRunAt: new Date().toISOString(),
+  };
+  await prisma.organizationReviewSettings.upsert({
+    where: { organizationId },
+    create: {
+      organizationId,
+      syncCron: nextConfig as unknown as object,
+    },
+    update: {
+      syncCron: nextConfig as unknown as object,
+      updatedAt: new Date(),
+    },
+  });
+}
+
+/** Sync review providers for organizations with scheduled sync enabled and due for a run. */
+export async function syncScheduledReviewProviders(): Promise<SyncAllReviewProvidersResult> {
+  const orgSettings = await prisma.organizationReviewSettings.findMany({
+    select: { organizationId: true, syncCron: true },
+  });
+
+  const nowMs = Date.now();
+  const dueOrgIds = new Set<string>();
+  const cronConfigByOrg = new Map<string, ReviewSyncCronConfig>();
+
+  for (const row of orgSettings) {
+    const config = resolveReviewSyncCronConfig(row.syncCron);
+    cronConfigByOrg.set(row.organizationId, config);
+    if (shouldRunReviewSyncCron(config, nowMs)) {
+      dueOrgIds.add(row.organizationId);
+    }
+  }
+
+  const connections = await prisma.providerConnection.findMany({
+    where: {
+      connected: true,
+      provider: { type: "review", status: "enabled" },
+    },
+    select: {
+      userId: true,
+      providerId: true,
+      provider: { select: { name: true } },
+    },
+    orderBy: { updatedAt: "asc" },
+  });
+
+  const result: SyncAllReviewProvidersResult = {
+    totalConnections: connections.length,
+    attempted: 0,
+    synced: 0,
+    empty: 0,
+    failed: 0,
+    totalInserted: 0,
+    details: [],
+  };
+
+  const orgsAttempted = new Set<string>();
+
+  for (const row of connections) {
+    const membership = await prisma.organizationMember.findFirst({
+      where: { userId: row.userId },
+      select: { organizationId: true },
+      orderBy: { createdAt: "asc" },
+    });
+    if (!membership?.organizationId) {
+      result.failed += 1;
+      result.details.push({
+        userId: row.userId,
+        providerId: row.providerId,
+        providerName: row.provider.name,
+        organizationId: null,
+        status: "organization_missing",
+        inserted: 0,
+        fetched: 0,
+      });
+      continue;
+    }
+
+    if (!dueOrgIds.has(membership.organizationId)) {
+      continue;
+    }
+
+    result.attempted += 1;
+    orgsAttempted.add(membership.organizationId);
+
+    try {
+      const syncResult = await syncSingleConnectedReviewProvider({
+        userId: row.userId,
+        providerId: row.providerId,
+        organizationId: membership.organizationId,
+      });
+      if (syncResult.status === "synced") {
+        result.synced += 1;
+        result.totalInserted += syncResult.inserted;
+      } else if (syncResult.status === "empty") {
+        result.empty += 1;
+      } else {
+        result.failed += 1;
+      }
+
+      result.details.push({
+        userId: row.userId,
+        providerId: row.providerId,
+        providerName: row.provider.name,
+        organizationId: membership.organizationId,
+        status: syncResult.status,
+        inserted: syncResult.inserted,
+        fetched: syncResult.fetched,
+        ...(syncResult.status === "api_failed" ? { error: syncResult.error } : {}),
+      });
+    } catch (error) {
+      result.failed += 1;
+      result.details.push({
+        userId: row.userId,
+        providerId: row.providerId,
+        providerName: row.provider.name,
+        organizationId: membership.organizationId,
+        status: "failed",
+        inserted: 0,
+        fetched: 0,
+        error: error instanceof Error ? error.message : "Unknown sync error",
+      });
+    }
+  }
+
+  for (const organizationId of orgsAttempted) {
+    const config = cronConfigByOrg.get(organizationId) ?? resolveReviewSyncCronConfig(null);
+    await markReviewSyncCronRun(organizationId, config);
   }
 
   return result;

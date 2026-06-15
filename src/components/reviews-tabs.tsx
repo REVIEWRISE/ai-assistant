@@ -15,7 +15,11 @@ import {
   YAxis,
 } from "recharts";
 import { ReviewServiceManager } from "@/components/review-service-manager";
+import { ReviewRoutingSettings } from "@/components/review-routing-settings";
+import { ReviewSyncCronSettings } from "@/components/review-sync-cron-settings";
 import { Panel } from "@/components/ui";
+import type { ReviewRoutingRules } from "@/lib/review-routing";
+import type { ReviewSyncCronConfig } from "@/lib/review-sync-cron";
 
 type InboxItem = {
   id: string;
@@ -76,10 +80,17 @@ type PendingItem = {
   autoReady: string;
 };
 
-type TabKey = "integrations" | "workflow" | "analytics";
+type TabKey = "integrations" | "workflow" | "analytics" | "configuration";
 
 function parseTabKey(raw: string | null): TabKey | null {
-  if (raw === "integrations" || raw === "workflow" || raw === "analytics") return raw;
+  if (
+    raw === "integrations" ||
+    raw === "workflow" ||
+    raw === "analytics" ||
+    raw === "configuration"
+  ) {
+    return raw;
+  }
   return null;
 }
 
@@ -87,6 +98,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "integrations", label: "Integrations" },
   { key: "workflow", label: "Inbox & Responses" },
   { key: "analytics", label: "Analytics" },
+  { key: "configuration", label: "Configuration" },
 ];
 
 function ChartTooltip({
@@ -204,6 +216,9 @@ function ServiceBarChart({
 }
 
 type ReviewsTabsProps = {
+  organizationId: string;
+  routingRules: ReviewRoutingRules;
+  syncCronConfig: ReviewSyncCronConfig;
   reviewServices: ReviewService[];
   pendingBySource: PendingItem[];
   inbox: InboxItem[];
@@ -212,9 +227,14 @@ type ReviewsTabsProps = {
   serviceReviewVolume: Array<{ service: string; total: number; autoPublished: number }>;
   onConnectProvider: (formData: FormData) => void | Promise<void>;
   onSyncProvider: (formData: FormData) => void | Promise<void>;
+  onSaveRoutingRules: (formData: FormData) => void | Promise<void>;
+  onSaveSyncCron: (formData: FormData) => void | Promise<void>;
 };
 
 export function ReviewsTabs({
+  organizationId,
+  routingRules,
+  syncCronConfig,
   reviewServices,
   pendingBySource,
   inbox,
@@ -223,6 +243,8 @@ export function ReviewsTabs({
   serviceReviewVolume,
   onConnectProvider,
   onSyncProvider,
+  onSaveRoutingRules,
+  onSaveSyncCron,
 }: ReviewsTabsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -454,6 +476,21 @@ export function ReviewsTabs({
               <ServiceBarChart items={serviceReviewVolume} />
             </Panel>
           </div>
+        </div>
+      ) : null}
+
+      {activeTab === "configuration" ? (
+        <div className="space-y-4">
+          <ReviewSyncCronSettings
+            organizationId={organizationId}
+            initialConfig={syncCronConfig}
+            onSave={onSaveSyncCron}
+          />
+          <ReviewRoutingSettings
+            organizationId={organizationId}
+            initialRules={routingRules}
+            onSave={onSaveRoutingRules}
+          />
         </div>
       ) : null}
 
