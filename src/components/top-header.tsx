@@ -164,14 +164,14 @@ export function TopHeader({
 
   return (
     <header className="sticky top-0 z-10 rounded-t-3xl border-b border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg)_92%,transparent)] px-4 py-3 backdrop-blur lg:px-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-h)]">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 shrink">
+          <p className="truncate text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-h)]">
             {copy.eyebrow}
           </p>
-          <h2 className="text-lg font-semibold text-[var(--color-text)]">{copy.title}</h2>
+          <h2 className="truncate text-lg font-semibold text-[var(--color-text)]">{copy.title}</h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 shrink-0 items-center gap-2">
           {organizations.length > 0 ? (
             <CustomSelect
               value={activeOrganizationId ?? organizations[0]?.id ?? ""}
@@ -202,25 +202,32 @@ export function TopHeader({
             </svg>
             <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[var(--color-danger)]" />
           </button>
-          <div className="relative">
+          <div className="relative min-w-0">
             <button
               type="button"
               onClick={onToggleProfile}
-              className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 text-sm font-medium text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
+              aria-label={`Profile menu for ${profileName}`}
+              className="flex max-w-[min(100vw-8rem,13rem)] items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 text-sm font-medium text-[var(--color-text)] transition hover:bg-[var(--color-surface)] sm:max-w-[14rem]"
             >
-              {profileAvatar}
-              <span className="hidden text-left sm:block">
-                <span className="block text-sm font-semibold text-[var(--color-text)]">
+              <span className="shrink-0">{profileAvatar}</span>
+              <span className="hidden min-w-0 flex-1 overflow-hidden text-left sm:block">
+                <span
+                  className="block truncate text-sm font-semibold leading-tight text-[var(--color-text)]"
+                  title={profileName}
+                >
                   {profileName}
                 </span>
-                <span className="block text-[11px] text-[var(--color-text-muted)]">
+                <span
+                  className="block truncate text-[11px] leading-tight text-[var(--color-text-muted)]"
+                  title={[profileRole ?? "Member", profileOrg].filter(Boolean).join(" • ")}
+                >
                   {profileRole ?? "Member"}
                   {profileOrg ? ` • ${profileOrg}` : ""}
                 </span>
               </span>
               <svg
                 viewBox="0 0 24 24"
-                className={`h-4 w-4 text-[var(--color-text-muted)] transition ${
+                className={`h-4 w-4 shrink-0 text-[var(--color-text-muted)] transition ${
                   profileOpen ? "rotate-180" : ""
                 }`}
                 fill="none"
@@ -233,8 +240,15 @@ export function TopHeader({
             {profileOpen ? (
               <div className="absolute right-0 mt-2 w-64 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]">
                 <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
-                  <p className="text-sm font-semibold text-[var(--color-text)]">{profileName}</p>
-                  <p className="text-xs text-[var(--color-text-muted)]">{profileEmail ?? "user@example.com"}</p>
+                  <p className="truncate text-sm font-semibold text-[var(--color-text)]" title={profileName}>
+                    {profileName}
+                  </p>
+                  <p
+                    className="truncate text-xs text-[var(--color-text-muted)]"
+                    title={profileEmail ?? "user@example.com"}
+                  >
+                    {profileEmail ?? "user@example.com"}
+                  </p>
                 </div>
                 {showProfilePageLink ? (
                   <div className="p-1.5">

@@ -387,6 +387,7 @@ export async function saveVoiceBooking(formData: FormData) {
   }
 
   const voice = parseVoiceBookingForm({
+    enabled: formData.get("voice_enabled"),
     agentName: formData.get("voice_agent_name"),
     greetingStyle: formData.get("voice_greeting_style"),
     formality: formData.get("voice_formality"),
