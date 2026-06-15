@@ -16,7 +16,6 @@ import {
 } from "@/lib/google-oauth";
 
 type RequiredFieldRule = { key: string; required: boolean };
-type ProviderConfig = Record<string, unknown>;
 type ConnectionTokenData = Record<string, unknown>;
 type NormalizedIncomingReview = {
   googleReviewId: string | null;

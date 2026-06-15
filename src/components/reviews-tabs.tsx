@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -270,19 +270,19 @@ export function ReviewsTabs({
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (!selectedReview) {
-      setDraftText("");
-      setIsEditing(false);
-      setActionError(null);
-      return;
-    }
-    setDraftText(
-      reviewHasDraftResponse(selectedReview.response) ? selectedReview.response : "",
-    );
+  function openReview(review: InboxItem) {
+    setSelectedReview(review);
+    setDraftText(reviewHasDraftResponse(review.response) ? review.response : "");
     setIsEditing(false);
     setActionError(null);
-  }, [selectedReview]);
+  }
+
+  function closeReview() {
+    setSelectedReview(null);
+    setDraftText("");
+    setIsEditing(false);
+    setActionError(null);
+  }
 
   function selectTab(tab: TabKey) {
     const params = new URLSearchParams(searchParams.toString());
@@ -339,7 +339,7 @@ export function ReviewsTabs({
         setActionError(result.error);
         return;
       }
-      setSelectedReview(null);
+      closeReview();
       router.refresh();
     });
   }
@@ -444,7 +444,7 @@ export function ReviewsTabs({
                       </div>
                       <button
                         type="button"
-                        onClick={() => setSelectedReview(review)}
+                        onClick={() => openReview(review)}
                         className="mt-3 rounded-lg border border-[var(--color-border-hover)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
                       >
                         Open
@@ -494,7 +494,7 @@ export function ReviewsTabs({
                         <div className="flex justify-start md:justify-end">
                           <button
                             type="button"
-                            onClick={() => setSelectedReview(review)}
+                            onClick={() => openReview(review)}
                             className="rounded-lg border border-[var(--color-border-hover)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] group-hover:border-[var(--color-border)]"
                           >
                             Open
@@ -580,7 +580,7 @@ export function ReviewsTabs({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setSelectedReview(null)}
+                    onClick={closeReview}
                     className="rounded-lg border border-white/30 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
                   >
                     Close
