@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { isOAuthProviderConfig } from "@/lib/google-oauth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { connectReviewProvider, saveReviewRoutingRules, saveReviewSyncCron, syncReviewProvider } from "./actions";
+import { connectReviewProvider, publishReviewReply, saveReviewDraft, saveReviewRoutingRules, saveReviewSyncCron, syncReviewProvider } from "./actions";
 import {
   inboxToneForStatus,
   isAutoReadyPendingReview,
@@ -21,6 +21,7 @@ import {
 import {
   resolveReviewSyncCronConfig,
 } from "@/lib/review-sync-cron";
+import { resolveReviewReplyAutomationConfig } from "@/lib/review-reply-automation";
 
 function toStars(rating: number): string {
   const clamped = Math.max(1, Math.min(5, Math.floor(rating)));
@@ -124,10 +125,11 @@ export default async function ReviewsPage() {
 
   const reviewSettingsRow = await prisma.organizationReviewSettings.findUnique({
     where: { organizationId },
-    select: { routingRules: true, syncCron: true },
+    select: { routingRules: true, syncCron: true, replyAutomation: true },
   });
   const routingRules = resolveReviewRoutingRules(reviewSettingsRow?.routingRules);
   const syncCronConfig = resolveReviewSyncCronConfig(reviewSettingsRow?.syncCron);
+  const replyAutomation = resolveReviewReplyAutomationConfig(reviewSettingsRow?.replyAutomation);
 
   const providerRows = await prisma.provider.findMany({
     where: { type: "review", status: "enabled" },
@@ -346,6 +348,7 @@ export default async function ReviewsPage() {
         organizationId={organizationId}
         routingRules={routingRules}
         syncCronConfig={syncCronConfig}
+        replyAutomation={replyAutomation}
         reviewServices={reviewServices}
         pendingBySource={pendingBySource}
         inbox={inbox}
@@ -356,6 +359,8 @@ export default async function ReviewsPage() {
         onSyncProvider={syncReviewProvider}
         onSaveRoutingRules={saveReviewRoutingRules}
         onSaveSyncCron={saveReviewSyncCron}
+        onSaveReviewDraft={saveReviewDraft}
+        onPublishReviewReply={publishReviewReply}
       />
     </div>
   );

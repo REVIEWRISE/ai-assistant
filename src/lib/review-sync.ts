@@ -4,12 +4,15 @@ import {
   shouldRunReviewSyncCron,
   type ReviewSyncCronConfig,
 } from "@/lib/review-sync-cron";
+import { draftRepliesForSyncedReviews } from "@/lib/review-reply-ai";
+import { autoPublishSyncedReviews } from "@/lib/review-reply-publish";
+import { resolveReviewReplyAutomationConfig } from "@/lib/review-reply-automation";
+import { detectReviewIntegration } from "@/lib/review-provider-integration";
 import { fetchAllGbpReviewsForToken } from "@/lib/google-business-profile";
 import {
   asOAuthProviderConfig,
   getValidOAuthAccessToken,
   isOAuthProviderConfig,
-  parseOAuthScopes,
 } from "@/lib/google-oauth";
 
 type RequiredFieldRule = { key: string; required: boolean };
@@ -61,47 +64,6 @@ function readString(v: unknown): string {
 
 function asRecord(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
-}
-
-function parseIntegration(config: ProviderConfig): string {
-  return readString(config.integration).toLowerCase().replace(/-/g, "_");
-}
-
-export function detectReviewIntegration(provider: {
-  name: string;
-  apiUrl: string | null;
-  config: unknown;
-}): "google_business_profile" | "generic_http_reviews" | null {
-  const config = asRecord(provider.config);
-  const integration = parseIntegration(config);
-  if (
-    integration === "google_business_profile" ||
-    integration === "google" ||
-    integration === "gbp"
-  ) {
-    return "google_business_profile";
-  }
-  if (integration === "generic_http_reviews" || integration === "custom_http_json") {
-    return "generic_http_reviews";
-  }
-  if (isOAuthProviderConfig(config)) {
-    const oauthConfig = asOAuthProviderConfig(config);
-    const scopes = parseOAuthScopes(oauthConfig).toLowerCase();
-    if (scopes.includes("business.manage") || scopes.includes("plus.business.manage")) {
-      return "google_business_profile";
-    }
-    if (readString(oauthConfig.auth_url).includes("accounts.google.com")) {
-      return "google_business_profile";
-    }
-  }
-  const name = provider.name.toLowerCase();
-  if (name.includes("google") && isOAuthProviderConfig(config)) {
-    return "google_business_profile";
-  }
-  if (readString(config.reviews_url) || readString(provider.apiUrl)) {
-    return "generic_http_reviews";
-  }
-  return null;
 }
 
 function parseGoogleStarRating(v: unknown): number | null {
@@ -364,6 +326,7 @@ export async function syncSingleConnectedReviewProvider(args: {
   });
 
   if (toInsert.length > 0) {
+    const insertedSince = new Date();
     await prisma.review.createMany({
       data: toInsert.map((r) => ({
         organizationId: args.organizationId,
@@ -375,6 +338,40 @@ export async function syncSingleConnectedReviewProvider(args: {
         status: r.status,
       })),
     });
+
+    const settingsRow = await prisma.organizationReviewSettings.findUnique({
+      where: { organizationId: args.organizationId },
+      select: { replyAutomation: true },
+    });
+    const automation = resolveReviewReplyAutomationConfig(settingsRow?.replyAutomation);
+    const draftResult = await draftRepliesForSyncedReviews({
+      organizationId: args.organizationId,
+      providerName: provider.name,
+      since: insertedSince,
+      automation,
+    });
+    if (draftResult.drafted > 0) {
+      console.info(
+        `[review-sync] drafted ${draftResult.drafted} AI reply(s) for org ${args.organizationId.slice(0, 8)}`,
+      );
+    }
+
+    const publishResult = await autoPublishSyncedReviews({
+      organizationId: args.organizationId,
+      providerName: provider.name,
+      userId: args.userId,
+      since: insertedSince,
+    });
+    if (publishResult.published > 0) {
+      console.info(
+        `[review-sync] auto-published ${publishResult.published} reply(s) for org ${args.organizationId.slice(0, 8)}`,
+      );
+    }
+    if (publishResult.failed > 0) {
+      console.warn(
+        `[review-sync] ${publishResult.failed} auto-publish attempt(s) failed for org ${args.organizationId.slice(0, 8)}`,
+      );
+    }
   }
 
   await prisma.providerConnection.update({

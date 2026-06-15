@@ -44,7 +44,7 @@ export function ReviewRoutingSettings({
   return (
     <Panel
       title="Approval routing by rating"
-      subtitle="Choose how pending reviews are classified before replies are sent"
+      subtitle="Choose what happens when a review syncs, based on its star rating"
     >
       <form action={onSave} className="space-y-4">
         <input type="hidden" name="organization_id" value={organizationId} />
@@ -58,9 +58,9 @@ export function ReviewRoutingSettings({
         ))}
 
         <p className="text-sm text-[var(--color-text-muted)]">
-          Each star rating is routed to a workflow bucket in your inbox. This does not publish replies
-          automatically yet — it controls labels like &quot;Safe to auto-publish&quot; and &quot;Needs human
-          review&quot;.
+          For each star rating, pick the workflow after sync. &quot;Safe to auto-publish&quot; drafts
+          (if enabled) and posts the reply to Google. &quot;Manual approval&quot; and &quot;Needs human
+          review&quot; keep the draft in your inbox until someone approves it.
         </p>
 
         <div className="overflow-hidden rounded-2xl border border-[var(--color-border)]">

@@ -7,11 +7,40 @@ import { prisma } from "@/lib/prisma";
 import { parseRequiredFieldRules, syncSingleConnectedReviewProvider } from "@/lib/review-sync";
 import { parseReviewRoutingForm } from "@/lib/review-routing";
 import { parseReviewSyncCronForm } from "@/lib/review-sync-cron";
+import { parseReviewReplyAutomationForm } from "@/lib/review-reply-automation";
+import {
+  publishReviewReplyToGoogle,
+  saveReviewResponseDraft,
+  type ReviewReplyActionResult,
+} from "@/lib/review-reply-publish";
 
 const REVIEWS_ROUTE = "/reviews";
 
 function readTokenRecord(raw: unknown): Record<string, unknown> {
   return raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+}
+
+async function requireReviewOrgSession(organizationId: string) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("ai_session")?.value;
+  if (!token) redirect("/login");
+
+  const session = await prisma.session.findFirst({
+    where: { token, expiresAt: { gt: new Date() } },
+    select: { userId: true, activeOrganizationId: true },
+  });
+  if (!session) redirect("/login");
+  if (!session.activeOrganizationId || session.activeOrganizationId !== organizationId) {
+    return null;
+  }
+
+  const membership = await prisma.organizationMember.findFirst({
+    where: { userId: session.userId, organizationId },
+    select: { id: true },
+  });
+  if (!membership) return null;
+
+  return session;
 }
 
 export async function completeReviewProviderLocation(formData: FormData) {
@@ -296,23 +325,56 @@ export async function saveReviewSyncCron(formData: FormData) {
     redirect(`${REVIEWS_ROUTE}?error=organization_required`);
   }
 
-  const syncCron = parseReviewSyncCronForm(
-    Object.fromEntries(
-      Array.from(formData.entries()).map(([key, value]) => [key, String(value)]),
-    ),
+  const formEntries = Object.fromEntries(
+    Array.from(formData.entries()).map(([key, value]) => [key, String(value)]),
   );
+  const syncCron = parseReviewSyncCronForm(formEntries);
+  const replyAutomation = parseReviewReplyAutomationForm(formEntries);
 
   await prisma.organizationReviewSettings.upsert({
     where: { organizationId },
     create: {
       organizationId,
       syncCron: syncCron as unknown as Prisma.InputJsonValue,
+      replyAutomation: replyAutomation as unknown as Prisma.InputJsonValue,
     },
     update: {
       syncCron: syncCron as unknown as Prisma.InputJsonValue,
+      replyAutomation: replyAutomation as unknown as Prisma.InputJsonValue,
       updatedAt: new Date(),
     },
   });
 
   redirect(`${REVIEWS_ROUTE}?tab=configuration&success=review_sync_cron_saved`);
+}
+
+export async function saveReviewDraft(
+  organizationId: string,
+  reviewId: string,
+  responseText: string,
+): Promise<ReviewReplyActionResult> {
+  const session = await requireReviewOrgSession(organizationId);
+  if (!session) {
+    return { ok: false, error: "You do not have access to this organization." };
+  }
+
+  return saveReviewResponseDraft({ organizationId, reviewId, responseText });
+}
+
+export async function publishReviewReply(
+  organizationId: string,
+  reviewId: string,
+  responseText: string,
+): Promise<ReviewReplyActionResult> {
+  const session = await requireReviewOrgSession(organizationId);
+  if (!session) {
+    return { ok: false, error: "You do not have access to this organization." };
+  }
+
+  return publishReviewReplyToGoogle({
+    organizationId,
+    reviewId,
+    responseText,
+    userId: session.userId,
+  });
 }
