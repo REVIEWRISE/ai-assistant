@@ -185,6 +185,23 @@ export function deriveVoiceBookingEnabled(agentName: string, customGreeting: str
   return agentName.trim().length > 0 && customGreeting.trim().length > 0;
 }
 
+function parseVoiceEnabledFlag(value: unknown): boolean | undefined {
+  if (value === true || value === "1" || value === "true" || value === "on") return true;
+  if (value === false || value === "0" || value === "false" || value === "off") return false;
+  return undefined;
+}
+
+function resolveVoiceEnabled(
+  storedEnabled: unknown,
+  agentName: string,
+  customGreeting: string,
+): boolean {
+  const flag = parseVoiceEnabledFlag(storedEnabled);
+  if (flag === false) return false;
+  if (flag === true) return deriveVoiceBookingEnabled(agentName, customGreeting);
+  return deriveVoiceBookingEnabled(agentName, customGreeting);
+}
+
 /** Agent display name: custom override, else the selected voice profile name. */
 export function resolveAgentNameForProfile(agentName: string, profileId: VoiceProfileId): string {
   const trimmed = agentName.trim().slice(0, 48);
@@ -208,20 +225,22 @@ export function resolveVoiceBookingConfig(raw: unknown): VoiceBookingConfig {
   const paceRaw = typeof rec.pace === "number" ? rec.pace : Number(rec.pace);
   const pace = Number.isFinite(paceRaw) ? clampPace(paceRaw) : preset.defaultPace;
   const agentName = resolveAgentNameForProfile(String(rec.agentName ?? ""), profileId);
+  const customGreeting = String(rec.customGreeting ?? "").trim().slice(0, 400);
 
   return {
-    enabled: deriveVoiceBookingEnabled(agentName, String(rec.customGreeting ?? "").trim()),
+    enabled: resolveVoiceEnabled(rec.enabled, agentName, customGreeting),
     agentName,
     greetingStyle: GREETING_STYLES.has(greetingStyleRaw) ? greetingStyleRaw : base.greetingStyle,
     formality: FORMALITIES.has(formalityRaw) ? formalityRaw : base.formality,
     tone: TONES.has(toneRaw) ? toneRaw : base.tone,
     profileId,
     pace,
-    customGreeting: String(rec.customGreeting ?? "").trim().slice(0, 400),
+    customGreeting,
   };
 }
 
 export function parseVoiceBookingForm(raw: {
+  enabled?: unknown;
   agentName?: unknown;
   greetingStyle?: unknown;
   formality?: unknown;
@@ -242,14 +261,11 @@ export function parseVoiceBookingForm(raw: {
   const pace = Number.isFinite(paceRaw) ? clampPace(paceRaw) : preset.defaultPace;
 
   const agentNameRaw = raw.agentName;
-  const agentName =
-    agentNameRaw === ""
-      ? ""
-      : resolveAgentNameForProfile(String(agentNameRaw ?? ""), profileId);
+  const agentName = resolveAgentNameForProfile(String(agentNameRaw ?? ""), profileId);
   const customGreeting = String(raw.customGreeting ?? "").trim().slice(0, 400);
 
   return {
-    enabled: deriveVoiceBookingEnabled(agentName, customGreeting),
+    enabled: resolveVoiceEnabled(raw.enabled, agentName, customGreeting),
     agentName,
     greetingStyle: GREETING_STYLES.has(greetingStyleRaw) ? greetingStyleRaw : "warm",
     formality: FORMALITIES.has(formalityRaw) ? formalityRaw : "balanced",
@@ -284,7 +300,7 @@ export function buildVoiceGreetingPreview(args: {
 }
 
 export function voiceBookingIsReady(config: VoiceBookingConfig): boolean {
-  return deriveVoiceBookingEnabled(config.agentName, config.customGreeting);
+  return config.enabled && deriveVoiceBookingEnabled(config.agentName, config.customGreeting);
 }
 
 const GREETING_STYLE_LABELS: Record<VoiceGreetingStyle, string> = {

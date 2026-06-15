@@ -87,6 +87,16 @@ export function ChatbotVoiceBookingModal({
   const [voicesReady, setVoicesReady] = useState(false);
 
   useEffect(() => {
+    setVoiceActive(initialConfig.enabled);
+    setGreetingStyle(initialConfig.greetingStyle);
+    setFormality(initialConfig.formality);
+    setTone(initialConfig.tone);
+    setProfileId(initialConfig.profileId);
+    setPace(initialConfig.pace);
+    setCustomGreeting(initialConfig.customGreeting);
+  }, [initialConfig]);
+
+  useEffect(() => {
     if (!isVoicePreviewSupported()) return;
     void waitForSpeechVoices().then(() => setVoicesReady(true));
     return () => stopVoiceProfilePreview();
@@ -202,7 +212,8 @@ export function ChatbotVoiceBookingModal({
           <div className="mt-5 flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
             <form action={onSave} className="min-w-0 flex-1 space-y-5 lg:basis-0 lg:flex-[2]">
             <input type="hidden" name="organization_id" value={organizationId} />
-            <input type="hidden" name="voice_agent_name" value={voiceActive ? agentName : ""} />
+            <input type="hidden" name="voice_enabled" value={voiceActive ? "1" : "0"} />
+            <input type="hidden" name="voice_agent_name" value={agentName} />
             <input type="hidden" name="voice_greeting_style" value={greetingStyle} />
             <input type="hidden" name="voice_formality" value={formality} />
             <input type="hidden" name="voice_tone" value={tone} />

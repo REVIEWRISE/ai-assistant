@@ -32,6 +32,7 @@ import {
   stopVoiceProfilePreview,
   waitForSpeechVoices,
 } from "@/lib/voice-preview";
+import { parseVoiceAnswerForStep } from "@/lib/voice-guided-step";
 import { VoiceListeningWave } from "@/components/voice-listening-wave";
 
 type InteractionMode = "chat" | "voice";
@@ -268,6 +269,10 @@ export function FloatingBookingChatbot({
       Boolean(voiceBooking?.enabled && voiceBooking.customGreeting.trim()),
   );
   const voiceGreetingSpokenRef = useRef(false);
+  const voiceGuidedFlowStartedRef = useRef(false);
+  const sendingRef = useRef(false);
+  const listeningRef = useRef(false);
+  const scheduleVoiceListenAfterPromptRef = useRef<() => void>(() => {});
 
   const voiceEnabled = Boolean(voiceBooking?.enabled && voiceBooking.customGreeting.trim());
   const voiceProfile = useMemo(
@@ -282,6 +287,14 @@ export function FloatingBookingChatbot({
   }, [interactionMode]);
 
   useEffect(() => {
+    sendingRef.current = sending;
+  }, [sending]);
+
+  useEffect(() => {
+    listeningRef.current = listening;
+  }, [listening]);
+
+  useEffect(() => {
     if (!isVoicePreviewSupported()) return;
     void waitForSpeechVoices().then(() => setVoicesReady(true));
     return () => {
@@ -290,10 +303,153 @@ export function FloatingBookingChatbot({
     };
   }, []);
 
+  const isVoiceOpening = interactionMode === "voice" && voiceEnabled && bookingStepState === "idle";
+
+  const isVoiceGuided =
+    interactionMode === "voice" && voiceEnabled && bookingStepState !== "idle";
+
+  const helperText = useMemo(() => {
+    if (bookingStepState === "collecting") {
+      const step = bookingFlow.steps[activeStepIndex];
+      if (isVoiceGuided) {
+        if (step?.helperText) return step.helperText;
+        if (step?.inputType === "datetime") return "Say when you'd like to come.";
+        if (step?.inputType === "email") return "Say your email address.";
+        if (step?.inputType === "text") return "Say your answer.";
+        const optionLabels = step?.options.map((opt) => stepLabel(step, opt)).join(", ");
+        return optionLabels ? `Say one of: ${optionLabels}.` : "Say your answer.";
+      }
+      return step?.helperText || "Choose an option.";
+    }
+    if (bookingStepState === "confirm") {
+      return isVoiceGuided
+        ? "Say confirm to book, change details, or cancel."
+        : "Confirm your booking details.";
+    }
+    if (isVoiceOpening) {
+      return `Speak or type to book with ${voiceBooking?.agentName ?? "the assistant"}.`;
+    }
+    return bookingFlow.idleHelperText || "Tap an option to start.";
+  }, [
+    bookingStepState,
+    bookingFlow.steps,
+    bookingFlow.idleHelperText,
+    activeStepIndex,
+    isVoiceOpening,
+    isVoiceGuided,
+    voiceBooking?.agentName,
+  ]);
+
+  const voiceHint =
+    interactionMode === "voice" && voiceEnabled
+      ? listening
+        ? "Listening… speak your answer now."
+        : bookingStepState === "collecting"
+          ? "Tap the mic and answer out loud — no need to tap the options."
+          : bookingStepState === "confirm"
+            ? "Tap the mic and say confirm, change details, or cancel."
+            : bookingStepState === "idle"
+              ? bookingFlow.steps.length > 0
+                ? "The assistant will walk you through each booking question."
+                : "Use the mic or keyboard — configure question steps to enable guided voice booking."
+              : null
+      : null;
+
+  const quickActions = useMemo(
+    () => normalizeQuickActionsArray(bookingFlow.quickActions),
+    [bookingFlow.quickActions],
+  );
+
+  useEffect(() => {
+    if (window.parent === window) return;
+    window.parent.postMessage({ type: "ai-assistant-chatbot-state", open }, "*");
+  }, [open]);
+
+  function pushUserMessage(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: "user", text: trimmed }]);
+  }
+
+  function pushBotMessage(text: string, options?: { autoListen?: boolean }) {
+    setMessages((prev) => [...prev, { id: `bot-${Date.now()}`, role: "bot", text }]);
+    const shouldAutoListen =
+      Boolean(options?.autoListen) &&
+      interactionModeRef.current === "voice" &&
+      voiceEnabled;
+    const speak =
+      interactionModeRef.current === "voice" &&
+      voiceEnabled &&
+      voiceBooking &&
+      voiceProfile &&
+      canSpeak;
+
+    if (!speak) {
+      if (shouldAutoListen) {
+        window.setTimeout(() => scheduleVoiceListenAfterPromptRef.current(), 450);
+      }
+      return;
+    }
+
+    void speakVoiceProfilePreview({
+      profile: voiceProfile,
+      pace: voiceBooking.pace,
+      text,
+    })
+      .catch(() => {})
+      .finally(() => {
+        if (shouldAutoListen) {
+          window.setTimeout(() => scheduleVoiceListenAfterPromptRef.current(), 450);
+        }
+      });
+  }
+
+  function voiceAutoListen(): boolean {
+    return interactionModeRef.current === "voice" && voiceEnabled;
+  }
+
+  function applyGuidedStepAnswer(rawValue: string | number, displayText: string) {
+    const step = bookingFlow.steps[activeStepIndex];
+    if (!step) return;
+    pushUserMessage(displayText);
+    const nextAnswers = { ...answers, [step.id]: rawValue };
+    setAnswers(nextAnswers);
+    const nextIndex = activeStepIndex + 1;
+    const autoListen = voiceAutoListen();
+    if (nextIndex >= bookingFlow.steps.length) {
+      pushBotMessage(`Confirm booking: ${buildBookingSummary(bookingFlow, nextAnswers)}?`, {
+        autoListen,
+      });
+      setBookingStepState("confirm");
+      return;
+    }
+    setActiveStepIndex(nextIndex);
+    setDateTimeDraft("");
+    setTextDraft("");
+    pushBotMessage(bookingFlow.steps[nextIndex].question, { autoListen });
+  }
+
+  function startVoiceGuidedBooking(): boolean {
+    if (interactionModeRef.current !== "voice" || !voiceEnabled) return false;
+    if (voiceGuidedFlowStartedRef.current || bookingFlow.steps.length === 0) return false;
+    const firstQuestion = bookingFlow.steps[0]?.question?.trim();
+    if (!firstQuestion) return false;
+
+    voiceGuidedFlowStartedRef.current = true;
+    setBookingStepState("collecting");
+    setActiveStepIndex(0);
+    setAnswers({});
+    setDateTimeDraft("");
+    setTextDraft("");
+    pushBotMessage(firstQuestion, { autoListen: true });
+    return true;
+  }
+
   useEffect(() => {
     if (!open) {
       voiceGreetingPlayedRef.current = false;
       voiceGreetingSpokenRef.current = false;
+      voiceGuidedFlowStartedRef.current = false;
       stopVoiceProfilePreview();
       stopVoiceListen();
       setListening(false);
@@ -321,71 +477,15 @@ export function FloatingBookingChatbot({
         profile: voiceProfile,
         pace: voiceBooking.pace,
         text: greeting,
-      }).catch(() => {});
+      })
+        .catch(() => {})
+        .finally(() => {
+          startVoiceGuidedBooking();
+        });
+    } else {
+      startVoiceGuidedBooking();
     }
-  }, [open, interactionMode, voiceEnabled, voiceBooking, voiceProfile, canSpeak, welcomeMessage]);
-
-  const isVoiceOpening = interactionMode === "voice" && voiceEnabled && bookingStepState === "idle";
-
-  const helperText = useMemo(() => {
-    if (bookingStepState === "collecting") {
-      const step = bookingFlow.steps[activeStepIndex];
-      return step?.helperText || "Choose an option.";
-    }
-    if (bookingStepState === "confirm") return "Confirm your booking details.";
-    if (isVoiceOpening) {
-      return `Speak or type to book with ${voiceBooking?.agentName ?? "the assistant"}.`;
-    }
-    return bookingFlow.idleHelperText || "Tap an option to start.";
-  }, [
-    bookingStepState,
-    bookingFlow.steps,
-    bookingFlow.idleHelperText,
-    activeStepIndex,
-    isVoiceOpening,
-    voiceBooking?.agentName,
-  ]);
-
-  const voiceHint =
-    interactionMode === "voice" && voiceEnabled
-      ? listening
-        ? "Listening… speak now, or keep using the buttons below."
-        : bookingStepState === "idle"
-          ? "Use the mic or keyboard — the assistant will guide you through booking."
-          : null
-      : null;
-
-  const quickActions = useMemo(
-    () => normalizeQuickActionsArray(bookingFlow.quickActions),
-    [bookingFlow.quickActions],
-  );
-
-  useEffect(() => {
-    if (window.parent === window) return;
-    window.parent.postMessage({ type: "ai-assistant-chatbot-state", open }, "*");
-  }, [open]);
-
-  function pushUserMessage(text: string) {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: "user", text: trimmed }]);
-  }
-
-  function speakIfVoiceMode(text: string) {
-    if (interactionModeRef.current !== "voice" || !voiceEnabled || !voiceBooking || !voiceProfile || !canSpeak) {
-      return;
-    }
-    void speakVoiceProfilePreview({
-      profile: voiceProfile,
-      pace: voiceBooking.pace,
-      text,
-    }).catch(() => {});
-  }
-
-  function pushBotMessage(text: string) {
-    setMessages((prev) => [...prev, { id: `bot-${Date.now()}`, role: "bot", text }]);
-    speakIfVoiceMode(text);
-  }
+  }, [open, interactionMode, voiceEnabled, voiceBooking, voiceProfile, canSpeak, welcomeMessage, bookingFlow.steps]);
 
   function setInteractionModeSafe(mode: InteractionMode) {
     if (mode === interactionMode) return;
@@ -397,12 +497,14 @@ export function FloatingBookingChatbot({
     if (mode === "voice" && voiceEnabled) {
       voiceGreetingPlayedRef.current = false;
       voiceGreetingSpokenRef.current = false;
+      voiceGuidedFlowStartedRef.current = false;
       setMessages((prev) => stripWelcomeMessage(prev, welcomeMessage));
     }
 
     if (mode === "chat") {
       voiceGreetingPlayedRef.current = false;
       voiceGreetingSpokenRef.current = false;
+      voiceGuidedFlowStartedRef.current = false;
       const greeting = voiceBooking?.customGreeting?.trim();
       setMessages((prev) => {
         const withoutVoiceGreeting = greeting
@@ -443,18 +545,36 @@ export function FloatingBookingChatbot({
     }
   }
 
+  scheduleVoiceListenAfterPromptRef.current = () => {
+    if (interactionModeRef.current !== "voice" || !voiceEnabled || !voiceProfile) return;
+    if (sendingRef.current || listeningRef.current) return;
+    if (!isSpeechRecognitionSupported()) return;
+    toggleVoiceListen();
+  };
+
   async function handleVoiceTranscript(transcript: string) {
     const trimmed = transcript.trim();
     if (!trimmed || sending) return;
 
     if (bookingStepState === "collecting") {
       const step = bookingFlow.steps[activeStepIndex];
-      if (
-        step?.inputType === "datetime" ||
-        step?.inputType === "text" ||
-        step?.inputType === "email"
-      ) {
-        pushBotMessage("Please use the field below for this step.");
+      if (!step) return;
+      if (/\b(back to menu|start over)\b/i.test(trimmed)) {
+        await handleAction("Back to menu");
+        return;
+      }
+      if (interactionMode === "voice" && voiceEnabled) {
+        const result = parseVoiceAnswerForStep(
+          step,
+          trimmed,
+          new Date(),
+          bookingFlow.slotDurationMinutes,
+        );
+        if (result.ok) {
+          applyGuidedStepAnswer(result.value, result.display);
+        } else {
+          pushBotMessage(result.message, { autoListen: true });
+        }
         return;
       }
       const exact = actionButtons.find((a) => a.toLowerCase() === trimmed.toLowerCase());
@@ -478,6 +598,10 @@ export function FloatingBookingChatbot({
         await handleAction("Cancel");
         return;
       }
+      if (interactionMode === "voice" && voiceEnabled) {
+        pushBotMessage("Say confirm to book, change details, or cancel.", { autoListen: true });
+        return;
+      }
       const exact = actionButtons.find((a) => a.toLowerCase() === lower);
       if (exact) {
         await handleAction(exact);
@@ -486,6 +610,23 @@ export function FloatingBookingChatbot({
     }
 
     if (bookingStepState === "idle") {
+      if (interactionMode === "voice" && voiceEnabled && bookingFlow.steps.length > 0) {
+        if (startVoiceGuidedBooking()) {
+          const step = bookingFlow.steps[0];
+          if (step) {
+            const result = parseVoiceAnswerForStep(
+              step,
+              trimmed,
+              new Date(),
+              bookingFlow.slotDurationMinutes,
+            );
+            if (result.ok) {
+              applyGuidedStepAnswer(result.value, result.display);
+            }
+          }
+          return;
+        }
+      }
       await handleSend(trimmed, { mergeWithRecentContext: true });
       return;
     }
@@ -584,6 +725,7 @@ export function FloatingBookingChatbot({
     setAnswers({});
     setDateTimeDraft("");
     setTextDraft("");
+    voiceGuidedFlowStartedRef.current = false;
   }
 
   async function handleAction(action: string) {
@@ -616,17 +758,7 @@ export function FloatingBookingChatbot({
         return;
       const selectedOption = step.options.find((opt) => stepLabel(step, opt) === action);
       if (selectedOption == null) return;
-      pushUserMessage(stepLabel(step, selectedOption));
-      const nextAnswers = { ...answers, [step.id]: stepValue(step, selectedOption) };
-      setAnswers(nextAnswers);
-      const nextIndex = activeStepIndex + 1;
-      if (nextIndex >= bookingFlow.steps.length) {
-        pushBotMessage(`Confirm booking: ${buildBookingSummary(bookingFlow, nextAnswers)}?`);
-        setBookingStepState("confirm");
-      } else {
-        setActiveStepIndex(nextIndex);
-        pushBotMessage(bookingFlow.steps[nextIndex].question);
-      }
+      applyGuidedStepAnswer(stepValue(step, selectedOption), stepLabel(step, selectedOption));
       return;
     }
     if (action === "Confirm booking") {
@@ -658,7 +790,9 @@ export function FloatingBookingChatbot({
         return;
       }
       setBookingStepState("collecting");
-      pushBotMessage(bookingFlow.steps[0]?.question || "When would you like to come?");
+      pushBotMessage(bookingFlow.steps[0]?.question || "When would you like to come?", {
+        autoListen: voiceAutoListen(),
+      });
       return;
     }
     if (action === "Cancel") {
@@ -681,18 +815,7 @@ export function FloatingBookingChatbot({
     if (!step || step.inputType !== "datetime") return;
     const formatted = formatDateTimeValue(dateTimeDraft);
     if (!formatted) return;
-    pushUserMessage(formatted);
-    const nextAnswers = { ...answers, [step.id]: dateTimeDraft };
-    setAnswers(nextAnswers);
-    const nextIndex = activeStepIndex + 1;
-    if (nextIndex >= bookingFlow.steps.length) {
-      pushBotMessage(`Confirm booking: ${buildBookingSummary(bookingFlow, nextAnswers)}?`);
-      setBookingStepState("confirm");
-    } else {
-      setActiveStepIndex(nextIndex);
-      setDateTimeDraft("");
-      pushBotMessage(bookingFlow.steps[nextIndex].question);
-    }
+    applyGuidedStepAnswer(dateTimeDraft, formatted);
   }
 
   function handleTextPick() {
@@ -705,22 +828,12 @@ export function FloatingBookingChatbot({
       pushBotMessage("Please enter a valid email address (for example you@example.com).");
       return;
     }
-    pushUserMessage(value);
-    const nextAnswers = { ...answers, [step.id]: value };
-    setAnswers(nextAnswers);
-    const nextIndex = activeStepIndex + 1;
-    if (nextIndex >= bookingFlow.steps.length) {
-      pushBotMessage(`Confirm booking: ${buildBookingSummary(bookingFlow, nextAnswers)}?`);
-      setBookingStepState("confirm");
-    } else {
-      setActiveStepIndex(nextIndex);
-      setTextDraft("");
-      pushBotMessage(bookingFlow.steps[nextIndex].question);
-    }
+    applyGuidedStepAnswer(value, value);
   }
 
   const actionButtons = useMemo(() => {
     if (bookingStepState === "collecting") {
+      if (interactionMode === "voice" && voiceEnabled) return [];
       const step = bookingFlow.steps[activeStepIndex];
       if (!step) return ["Back to menu"];
       if (
@@ -732,7 +845,10 @@ export function FloatingBookingChatbot({
       }
       return [...step.options.map((opt) => stepLabel(step, opt)), "Back to menu"];
     }
-    if (bookingStepState === "confirm") return ["Confirm booking", "Change details", "Cancel"];
+    if (bookingStepState === "confirm") {
+      if (interactionMode === "voice" && voiceEnabled) return [];
+      return ["Confirm booking", "Change details", "Cancel"];
+    }
     if (interactionMode === "voice" && voiceEnabled) return [];
     return quickActions.map((q) => q.label);
   }, [bookingStepState, bookingFlow.steps, activeStepIndex, quickActions, interactionMode, voiceEnabled]);
@@ -897,6 +1013,7 @@ export function FloatingBookingChatbot({
               </p>
             ) : null}
             {bookingStepState === "collecting" &&
+            !isVoiceGuided &&
             bookingFlow.steps[activeStepIndex]?.inputType === "datetime" ? (
               <div className="mb-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-raised)] p-2.5">
                 <label className="mb-1 block text-[11px] font-semibold text-[var(--color-text-muted)]">
@@ -922,6 +1039,7 @@ export function FloatingBookingChatbot({
               </div>
             ) : null}
             {bookingStepState === "collecting" &&
+            !isVoiceGuided &&
             (bookingFlow.steps[activeStepIndex]?.inputType === "text" ||
               bookingFlow.steps[activeStepIndex]?.inputType === "email") ? (
               <div className="mb-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-raised)] p-2.5">
@@ -964,6 +1082,38 @@ export function FloatingBookingChatbot({
               <p className="mb-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
                 No quick-start buttons configured for this assistant.
               </p>
+            ) : null}
+            {isVoiceGuided ? (
+              <div className="mb-2.5 flex justify-center">
+                <button
+                  type="button"
+                  onClick={toggleVoiceListen}
+                  disabled={sending || !canUseMic}
+                  aria-label={listening ? "Stop listening" : "Start voice input"}
+                  title={
+                    canUseMic
+                      ? listening
+                        ? "Stop listening"
+                        : "Tap to speak"
+                      : "Voice input is not supported in this browser"
+                  }
+                  className={`relative flex h-14 w-14 items-center justify-center rounded-2xl shadow-[var(--shadow-md)] transition disabled:opacity-50 ${
+                    listening
+                      ? "bg-[var(--color-danger)] text-white ring-2 ring-[color-mix(in_srgb,var(--color-danger)_35%,transparent)]"
+                      : "border border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-bg)] text-[var(--color-primary-h)] hover:bg-[var(--color-primary-soft)]"
+                  }`}
+                >
+                  {listening ? (
+                    <VoiceListeningWave active compact barCount={5} barClassName="bg-white" className="relative" />
+                  ) : (
+                    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                      <path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z" />
+                      <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+                      <path d="M12 18v4M8 22h8" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             ) : null}
             {bookingStepState === "idle" ? (
               <div className="mb-2.5 flex gap-2">
