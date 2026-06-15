@@ -28,6 +28,16 @@ export const reviewSuccessMessages: Record<string, ReviewStatusMessage> = {
     body: "Reviews were fetched but everything is already in your inbox.",
     variant: "success",
   },
+  review_routing_saved: {
+    title: "Routing rules saved",
+    body: "Pending reviews will use your updated star-rating workflow buckets.",
+    variant: "success",
+  },
+  review_sync_cron_saved: {
+    title: "Sync schedule saved",
+    body: "Automatic review sync will run on your chosen interval while the app is deployed.",
+    variant: "success",
+  },
 };
 
 export const reviewErrorMessages: Record<string, ReviewStatusMessage> = {

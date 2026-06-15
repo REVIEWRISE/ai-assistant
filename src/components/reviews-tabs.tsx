@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -15,7 +15,12 @@ import {
   YAxis,
 } from "recharts";
 import { ReviewServiceManager } from "@/components/review-service-manager";
+import { ReviewRoutingSettings } from "@/components/review-routing-settings";
+import { ReviewSyncCronSettings } from "@/components/review-sync-cron-settings";
 import { Panel } from "@/components/ui";
+import type { ReviewRoutingRules } from "@/lib/review-routing";
+import type { ReviewSyncCronConfig } from "@/lib/review-sync-cron";
+import type { ReviewReplyAutomationConfig } from "@/lib/review-reply-automation";
 
 type InboxItem = {
   id: string;
@@ -76,10 +81,17 @@ type PendingItem = {
   autoReady: string;
 };
 
-type TabKey = "integrations" | "workflow" | "analytics";
+type TabKey = "integrations" | "workflow" | "analytics" | "configuration";
 
 function parseTabKey(raw: string | null): TabKey | null {
-  if (raw === "integrations" || raw === "workflow" || raw === "analytics") return raw;
+  if (
+    raw === "integrations" ||
+    raw === "workflow" ||
+    raw === "analytics" ||
+    raw === "configuration"
+  ) {
+    return raw;
+  }
   return null;
 }
 
@@ -87,6 +99,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "integrations", label: "Integrations" },
   { key: "workflow", label: "Inbox & Responses" },
   { key: "analytics", label: "Analytics" },
+  { key: "configuration", label: "Configuration" },
 ];
 
 function ChartTooltip({
@@ -204,6 +217,10 @@ function ServiceBarChart({
 }
 
 type ReviewsTabsProps = {
+  organizationId: string;
+  routingRules: ReviewRoutingRules;
+  syncCronConfig: ReviewSyncCronConfig;
+  replyAutomation: ReviewReplyAutomationConfig;
   reviewServices: ReviewService[];
   pendingBySource: PendingItem[];
   inbox: InboxItem[];
@@ -212,9 +229,25 @@ type ReviewsTabsProps = {
   serviceReviewVolume: Array<{ service: string; total: number; autoPublished: number }>;
   onConnectProvider: (formData: FormData) => void | Promise<void>;
   onSyncProvider: (formData: FormData) => void | Promise<void>;
+  onSaveRoutingRules: (formData: FormData) => void | Promise<void>;
+  onSaveSyncCron: (formData: FormData) => void | Promise<void>;
+  onSaveReviewDraft: (
+    organizationId: string,
+    reviewId: string,
+    responseText: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  onPublishReviewReply: (
+    organizationId: string,
+    reviewId: string,
+    responseText: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
 export function ReviewsTabs({
+  organizationId,
+  routingRules,
+  syncCronConfig,
+  replyAutomation,
   reviewServices,
   pendingBySource,
   inbox,
@@ -223,11 +256,33 @@ export function ReviewsTabs({
   serviceReviewVolume,
   onConnectProvider,
   onSyncProvider,
+  onSaveRoutingRules,
+  onSaveSyncCron,
+  onSaveReviewDraft,
+  onPublishReviewReply,
 }: ReviewsTabsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeTab = parseTabKey(searchParams.get("tab")) ?? "integrations";
   const [selectedReview, setSelectedReview] = useState<InboxItem | null>(null);
+  const [draftText, setDraftText] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function openReview(review: InboxItem) {
+    setSelectedReview(review);
+    setDraftText(reviewHasDraftResponse(review.response) ? review.response : "");
+    setIsEditing(false);
+    setActionError(null);
+  }
+
+  function closeReview() {
+    setSelectedReview(null);
+    setDraftText("");
+    setIsEditing(false);
+    setActionError(null);
+  }
 
   function selectTab(tab: TabKey) {
     const params = new URLSearchParams(searchParams.toString());
@@ -249,6 +304,45 @@ export function ReviewsTabs({
     }
     return "vr-app-status-warning";
   };
+
+  function handleSaveDraft() {
+    if (!selectedReview) return;
+    const text = draftText.trim();
+    if (!text) {
+      setActionError("Enter a response before saving.");
+      return;
+    }
+    setActionError(null);
+    startTransition(async () => {
+      const result = await onSaveReviewDraft(organizationId, selectedReview.id, text);
+      if (!result.ok) {
+        setActionError(result.error);
+        return;
+      }
+      setSelectedReview({ ...selectedReview, response: text });
+      setIsEditing(false);
+      router.refresh();
+    });
+  }
+
+  function handlePublishReply() {
+    if (!selectedReview) return;
+    const text = draftText.trim();
+    if (!text) {
+      setActionError("Draft a response before sending.");
+      return;
+    }
+    setActionError(null);
+    startTransition(async () => {
+      const result = await onPublishReviewReply(organizationId, selectedReview.id, text);
+      if (!result.ok) {
+        setActionError(result.error);
+        return;
+      }
+      closeReview();
+      router.refresh();
+    });
+  }
 
   return (
     <section className="space-y-4">
@@ -350,7 +444,7 @@ export function ReviewsTabs({
                       </div>
                       <button
                         type="button"
-                        onClick={() => setSelectedReview(review)}
+                        onClick={() => openReview(review)}
                         className="mt-3 rounded-lg border border-[var(--color-border-hover)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
                       >
                         Open
@@ -400,7 +494,7 @@ export function ReviewsTabs({
                         <div className="flex justify-start md:justify-end">
                           <button
                             type="button"
-                            onClick={() => setSelectedReview(review)}
+                            onClick={() => openReview(review)}
                             className="rounded-lg border border-[var(--color-border-hover)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] group-hover:border-[var(--color-border)]"
                           >
                             Open
@@ -457,6 +551,22 @@ export function ReviewsTabs({
         </div>
       ) : null}
 
+      {activeTab === "configuration" ? (
+        <div className="space-y-4">
+          <ReviewSyncCronSettings
+            organizationId={organizationId}
+            initialConfig={syncCronConfig}
+            initialReplyAutomation={replyAutomation}
+            onSave={onSaveSyncCron}
+          />
+          <ReviewRoutingSettings
+            organizationId={organizationId}
+            initialRules={routingRules}
+            onSave={onSaveRoutingRules}
+          />
+        </div>
+      ) : null}
+
       {typeof document !== "undefined" && selectedReview
         ? createPortal(
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] p-4">
@@ -470,7 +580,7 @@ export function ReviewsTabs({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setSelectedReview(null)}
+                    onClick={closeReview}
                     className="rounded-lg border border-white/30 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
                   >
                     Close
@@ -500,9 +610,30 @@ export function ReviewsTabs({
                   <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
                     {responsePanelTitle(selectedReview.status)}
                   </p>
-                  <p className="mt-2 leading-relaxed">{selectedReview.response}</p>
+                  {isEditing ? (
+                    <textarea
+                      value={draftText}
+                      onChange={(event) => setDraftText(event.target.value)}
+                      rows={6}
+                      disabled={isPending}
+                      placeholder="Write your reply to this review…"
+                      className="mt-2 w-full resize-y rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm leading-relaxed text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+                    />
+                  ) : (
+                    <p className="mt-2 leading-relaxed">
+                      {reviewHasDraftResponse(selectedReview.response)
+                        ? selectedReview.response
+                        : draftText.trim() || selectedReview.response}
+                    </p>
+                  )}
                 </div>
               </div>
+
+              {actionError ? (
+                <p className="rounded-xl border border-[var(--color-danger)]/30 bg-[var(--color-danger-soft)] px-3 py-2 text-sm text-[var(--color-danger)]">
+                  {actionError}
+                </p>
+              ) : null}
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border)] pt-3">
                 <p className="text-xs text-[var(--color-text-muted)]">
@@ -510,7 +641,7 @@ export function ReviewsTabs({
                 </p>
                 {(() => {
                   const actionKind = getReviewActionKind(selectedReview.status);
-                  const hasDraft = reviewHasDraftResponse(selectedReview.response);
+                  const hasDraft = Boolean(draftText.trim()) || reviewHasDraftResponse(selectedReview.response);
 
                   if (actionKind === "replied") {
                     return (
@@ -522,59 +653,75 @@ export function ReviewsTabs({
 
                   return (
                     <div className="flex flex-wrap justify-end gap-2">
-                      {actionKind === "needs_review" ? (
+                      {isEditing ? (
                         <>
                           <button
                             type="button"
-                            className="rounded-lg border border-[var(--color-border-hover)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+                            disabled={isPending}
+                            onClick={() => {
+                              setIsEditing(false);
+                              setDraftText(
+                                reviewHasDraftResponse(selectedReview.response)
+                                  ? selectedReview.response
+                                  : "",
+                              );
+                              setActionError(null);
+                            }}
+                            className="rounded-lg border border-[var(--color-border-hover)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] disabled:opacity-50"
                           >
-                            Edit Response
+                            Cancel
                           </button>
                           <button
                             type="button"
-                            disabled={!hasDraft}
-                            title={hasDraft ? undefined : "Draft a response before sending"}
-                            className="rounded-lg vr-btn-primary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={isPending || !draftText.trim()}
+                            onClick={handleSaveDraft}
+                            className="rounded-lg border border-[var(--color-border-hover)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            Send after review
+                            {isPending ? "Saving…" : "Save draft"}
                           </button>
                         </>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => setIsEditing(true)}
+                          className="rounded-lg border border-[var(--color-border-hover)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] disabled:opacity-50"
+                        >
+                          Edit Response
+                        </button>
+                      )}
+                      {actionKind === "needs_review" ? (
+                        <button
+                          type="button"
+                          disabled={isPending || !hasDraft}
+                          title={hasDraft ? undefined : "Draft a response before sending"}
+                          onClick={handlePublishReply}
+                          className="rounded-lg vr-btn-primary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isPending ? "Sending…" : "Send after review"}
+                        </button>
                       ) : null}
                       {actionKind === "manual_approval" ? (
-                        <>
-                          <button
-                            type="button"
-                            className="rounded-lg border border-[var(--color-border-hover)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
-                          >
-                            Edit Response
-                          </button>
-                          <button
-                            type="button"
-                            disabled={!hasDraft}
-                            title={hasDraft ? undefined : "Draft a response before approving"}
-                            className="rounded-lg vr-btn-primary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            Approve and Send
-                          </button>
-                        </>
+                        <button
+                          type="button"
+                          disabled={isPending || !hasDraft}
+                          title={hasDraft ? undefined : "Draft a response before approving"}
+                          onClick={handlePublishReply}
+                          className="rounded-lg vr-btn-primary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isPending ? "Sending…" : "Approve and Send"}
+                        </button>
                       ) : null}
                       {actionKind === "auto_ready" ? (
-                        <>
-                          <button
-                            type="button"
-                            className="rounded-lg border border-[var(--color-border-hover)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
-                          >
-                            Edit Response
-                          </button>
-                          <button
-                            type="button"
-                            disabled={!hasDraft}
-                            title={hasDraft ? undefined : "Draft a response before sending"}
-                            className="rounded-lg vr-btn-primary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            Approve and Auto-Send
-                          </button>
-                        </>
+                        <button
+                          type="button"
+                          disabled={isPending || !hasDraft}
+                          title={hasDraft ? undefined : "Draft a response before sending"}
+                          onClick={handlePublishReply}
+                          className="rounded-lg vr-btn-primary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isPending ? "Sending…" : "Approve and Auto-Send"}
+                        </button>
                       ) : null}
                     </div>
                   );

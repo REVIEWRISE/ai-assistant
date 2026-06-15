@@ -2,12 +2,12 @@ import { loadEnvConfig } from "@next/env";
 
 async function main() {
   loadEnvConfig(process.cwd());
-  const { syncAllConnectedReviewProviders } = await import("../src/lib/review-sync");
+  const { syncScheduledReviewProviders } = await import("../src/lib/review-sync");
 
   const startedAt = new Date();
   console.log(`[review-sync-cron] started ${startedAt.toISOString()}`);
 
-  const result = await syncAllConnectedReviewProviders();
+  const result = await syncScheduledReviewProviders();
   console.log(
     `[review-sync-cron] finished attempted=${result.attempted} synced=${result.synced} empty=${result.empty} failed=${result.failed} inserted=${result.totalInserted}`,
   );

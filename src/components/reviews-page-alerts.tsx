@@ -17,6 +17,8 @@ const toastOnlySuccess = new Set([
   "provider_connected",
   "review_sync_done",
   "review_sync_up_to_date",
+  "review_routing_saved",
+  "review_sync_cron_saved",
 ]);
 
 export function ReviewsPageAlerts() {

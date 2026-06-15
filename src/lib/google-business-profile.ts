@@ -405,6 +405,44 @@ export async function fetchGbpReviewsListPage(
   };
 }
 
+export function buildGbpReviewReplyUrl(accountId: string, locationId: string, reviewId: string): string {
+  const account = accountId.trim();
+  const location = locationId.trim();
+  const review = reviewId.trim();
+  return `https://mybusiness.googleapis.com/v4/accounts/${encodeURIComponent(account)}/locations/${encodeURIComponent(location)}/reviews/${encodeURIComponent(review)}/reply`;
+}
+
+export async function publishGbpReviewReply(
+  accessToken: string,
+  accountId: string,
+  locationId: string,
+  reviewId: string,
+  comment: string,
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const trimmed = comment.trim();
+  if (!trimmed) {
+    return { ok: false, status: 400, error: "Reply text is required." };
+  }
+  if (!accountId.trim() || !locationId.trim() || !reviewId.trim()) {
+    return { ok: false, status: 400, error: "Missing Google review location or review id." };
+  }
+
+  const res = await fetch(buildGbpReviewReplyUrl(accountId, locationId, reviewId), {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ comment: trimmed }),
+  });
+  const body = await res.text().catch(() => "");
+  if (!res.ok) {
+    const error = summarizeApiError({ ok: false, status: res.status, body: body.slice(0, 500) });
+    return { ok: false, status: res.status, error };
+  }
+  return { ok: true };
+}
+
 export async function fetchAllGbpReviewsForToken(
   accessToken: string,
   tokenData: Record<string, unknown>,

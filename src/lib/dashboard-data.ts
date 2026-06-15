@@ -5,6 +5,12 @@ import { isHrefAllowedForNav } from "@/lib/nav-access";
 import { resolveChatbotConfigData } from "@/lib/chatbot-config";
 import { voiceBookingIsReady } from "@/lib/voice-booking";
 import { organizationChatbotSettingsSelect } from "@/lib/chatbot-settings-select";
+import {
+  formatReviewRoutingSummary,
+  isAutoReadyPendingReview,
+  isNeedsReviewPendingReview,
+  resolveReviewRoutingRules,
+} from "@/lib/review-routing";
 
 export type DashboardStat = {
   label: string;
@@ -182,7 +188,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
   if (showReviews && orgId) {
     fetches.push(
       (async () => {
-        const [reviews, connectedReviewProviders] = await Promise.all([
+        const [reviews, connectedReviewProviders, reviewSettingsRow] = await Promise.all([
           prisma.review.findMany({
             where: { organizationId: orgId },
             select: { status: true, rating: true },
@@ -194,14 +200,21 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
               connections: { some: { connected: true, userId } },
             },
           }),
+          prisma.organizationReviewSettings.findUnique({
+            where: { organizationId: orgId },
+            select: { routingRules: true },
+          }),
         ]);
+
+        const routingRules = resolveReviewRoutingRules(reviewSettingsRow?.routingRules);
+        const routingSummary = formatReviewRoutingSummary(routingRules);
 
         const pending = reviews.filter((r) => r.status.toLowerCase() === "pending").length;
         const autoReady = reviews.filter(
-          (r) => r.status.toLowerCase() === "pending" && r.rating >= 4,
+          (r) => r.status.toLowerCase() === "pending" && isAutoReadyPendingReview(r.rating, routingRules),
         ).length;
         const needsReview = reviews.filter(
-          (r) => r.status.toLowerCase() === "pending" && r.rating <= 2,
+          (r) => r.status.toLowerCase() === "pending" && isNeedsReviewPendingReview(r.rating, routingRules),
         ).length;
 
         sections.push({
@@ -212,8 +225,8 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           stats: [
             { label: "Total reviews", value: reviews.length },
             { label: "Pending inbox", value: pending },
-            { label: "Auto-send ready", value: autoReady, hint: "4–5★ pending" },
-            { label: "Needs human review", value: needsReview, hint: "1–2★ pending" },
+            { label: "Auto-send ready", value: autoReady, hint: routingSummary },
+            { label: "Needs human review", value: needsReview, hint: routingSummary },
             { label: "Connected providers", value: connectedReviewProviders },
           ],
         });

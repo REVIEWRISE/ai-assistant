@@ -445,6 +445,9 @@ export function FloatingBookingChatbot({
     return true;
   }
 
+  const startVoiceGuidedBookingRef = useRef(startVoiceGuidedBooking);
+  startVoiceGuidedBookingRef.current = startVoiceGuidedBooking;
+
   useEffect(() => {
     if (!open) {
       voiceGreetingPlayedRef.current = false;
@@ -480,10 +483,10 @@ export function FloatingBookingChatbot({
       })
         .catch(() => {})
         .finally(() => {
-          startVoiceGuidedBooking();
+          startVoiceGuidedBookingRef.current();
         });
     } else {
-      startVoiceGuidedBooking();
+      startVoiceGuidedBookingRef.current();
     }
   }, [open, interactionMode, voiceEnabled, voiceBooking, voiceProfile, canSpeak, welcomeMessage, bookingFlow.steps]);
 
