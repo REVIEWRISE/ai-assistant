@@ -35,7 +35,7 @@ export const reviewSuccessMessages: Record<string, ReviewStatusMessage> = {
   },
   review_sync_cron_saved: {
     title: "Sync schedule saved",
-    body: "Automatic review sync will run on your chosen interval when the platform cron job executes.",
+    body: "Automatic review sync will run on your chosen interval while the app is deployed.",
     variant: "success",
   },
 };

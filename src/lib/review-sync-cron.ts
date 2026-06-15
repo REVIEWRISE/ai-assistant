@@ -87,12 +87,12 @@ export function formatReviewSyncCronSummary(config: ReviewSyncCronConfig): strin
     `Every ${config.intervalMinutes} minutes`;
 
   if (!config.lastRunAt) {
-    return `${interval} · waiting for first scheduled run`;
+    return `${interval} · runs automatically on the server`;
   }
 
   const lastMs = Date.parse(config.lastRunAt);
   if (!Number.isFinite(lastMs)) {
-    return `${interval} · waiting for first scheduled run`;
+    return `${interval} · runs automatically on the server`;
   }
 
   const minutesAgo = Math.max(0, Math.round((Date.now() - lastMs) / 60_000));
@@ -110,6 +110,16 @@ export function formatReviewSyncCronSummary(config: ReviewSyncCronConfig): strin
 
 export function reviewSyncCronEndpointPath(): string {
   return "/api/cron/reviews/sync";
+}
+
+/** How often the in-process scheduler checks for due org syncs. */
+export const REVIEW_SYNC_SCHEDULER_TICK_MS = 60_000;
+
+export function shouldStartReviewSyncScheduler(): boolean {
+  const flag = process.env.REVIEW_SYNC_SCHEDULER?.trim().toLowerCase();
+  if (flag === "false" || flag === "0" || flag === "off") return false;
+  if (flag === "true" || flag === "1" || flag === "on") return true;
+  return process.env.NODE_ENV === "production";
 }
 
 export function isReviewSyncCronSecretConfigured(): boolean {

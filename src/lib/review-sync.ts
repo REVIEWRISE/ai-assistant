@@ -508,6 +508,18 @@ export async function syncScheduledReviewProviders(): Promise<SyncAllReviewProvi
     }
   }
 
+  if (dueOrgIds.size === 0) {
+    return {
+      totalConnections: 0,
+      attempted: 0,
+      synced: 0,
+      empty: 0,
+      failed: 0,
+      totalInserted: 0,
+      details: [],
+    };
+  }
+
   const connections = await prisma.providerConnection.findMany({
     where: {
       connected: true,

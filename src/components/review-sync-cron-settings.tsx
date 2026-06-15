@@ -40,8 +40,8 @@ export function ReviewSyncCronSettings({
         ) : null}
 
         <p className="text-sm text-[var(--color-text-muted)]">
-          When enabled, your organization is included whenever the platform review-sync cron runs.
-          New reviews still appear in the inbox after the next successful sync.
+          When enabled, new reviews are pulled automatically on your chosen interval while the app
+          is running in production. You can still use Sync now on Integrations anytime.
         </p>
 
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
