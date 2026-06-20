@@ -60,6 +60,18 @@ export const APP_NAV_ITEMS: NavItem[] = [
     ),
   },
   {
+    href: "/voice-agent",
+    label: "Voice Support",
+    shortLabel: "Voice",
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+        <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+        <path d="M12 18v4M8 22h8" />
+      </svg>
+    ),
+  },
+  {
     href: "/settings/access",
     label: "Access Control",
     shortLabel: "Access",

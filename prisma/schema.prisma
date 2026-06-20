@@ -58,6 +58,7 @@ model Organization {
   knowledgeBase  OrganizationKnowledgeBase?
   chatbotSettings OrganizationChatbotSettings?
   reviewSettings OrganizationReviewSettings?
+  voiceAgentSettings OrganizationVoiceAgentSettings?
 
   @@map("organizations")
 }
@@ -74,6 +75,20 @@ model OrganizationReviewSettings {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("organization_review_settings")
+}
+
+model OrganizationVoiceAgentSettings {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String   @unique @map("organization_id") @db.Uuid
+  retellConfig    Json     @default(dbgenerated("'{}'::jsonb")) @map("retell_config") @db.JsonB
+  phoneConfig     Json     @default(dbgenerated("'{}'::jsonb")) @map("phone_config") @db.JsonB
+  knowledgeConfig Json     @default(dbgenerated("'{}'::jsonb")) @map("knowledge_config") @db.JsonB
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_voice_agent_settings")
 }
 
 model OrganizationChatbotSettings {

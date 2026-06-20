@@ -61,6 +61,14 @@ Upload a **company logo** per organization under **Appointments → Organization
 
 `NEXT_PUBLIC_APP_URL` must be your **public** site URL (used in team notification links).
 
+#### Voice Support (Retell AI)
+
+| Secret | Description |
+| :--- | :--- |
+| `RETELL_API_KEY` | Retell dashboard → Settings → API Keys. Powers Voice Support sync (create agents, voices, prompts). |
+
+You can set `RETELL_API_KEY` as its own GitHub secret; deploy merges it into `.env.production` even when using `ENV_FILE_CONTENTS`.
+
 #### `ENV_FILE_CONTENTS` example
 
 ```env
@@ -70,6 +78,7 @@ POSTGRES_DB=ai_assistant
 NEXT_PUBLIC_APP_URL=https://your-domain.com
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
+RETELL_API_KEY=your_retell_api_key
 DATABASE_URL=postgresql://ai_user:secure_password@postgres:5432/ai_assistant
 SEED_ADMIN_EMAIL=admin@example.com
 SEED_ADMIN_PASSWORD=secure_password

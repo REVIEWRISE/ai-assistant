@@ -43,6 +43,10 @@ const headerByRoute: Record<string, HeaderCopy> = {
     eyebrow: "Review Response",
     title: "Reputation and Reply Operations",
   },
+  "/voice-agent": {
+    eyebrow: "Voice Support",
+    title: "Voice Agent",
+  },
   "/profile": {
     eyebrow: "Account",
     title: "Profile Settings",

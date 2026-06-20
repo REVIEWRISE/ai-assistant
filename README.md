@@ -80,6 +80,7 @@ DATABASE_URL=postgresql://ai_user:ai_password@localhost:5432/ai_assistant
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
+RETELL_API_KEY=
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=
@@ -90,6 +91,8 @@ SEED_ADMIN_EMAIL=
 SEED_ADMIN_PASSWORD=
 SEED_ADMIN_NAME=
 ```
+
+`RETELL_API_KEY` powers **Voice Support** with [Retell AI](https://www.retellai.com/): create a per-organization voice agent, sync prompts/knowledge on save, and link phone numbers. Find the key in the Retell dashboard under API keys.
 
 3. Run schema sync + seed:
 
