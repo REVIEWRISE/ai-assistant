@@ -27,7 +27,7 @@ export async function getAllowedMenuPathsForUser(userId: string): Promise<Set<st
     return pathsFromMenus(menuPaths);
   }
 
-  const isAdmin = user.userRoles.some((ur) => ur.role.name === "Admin");
+  const isAdmin = userHasAdminRole(user.userRoles.map((ur) => ur.role));
   if (isAdmin) {
     return pathsFromMenus(menuPaths);
   }
@@ -48,8 +48,12 @@ export async function getAllowedMenuPathsForUser(userId: string): Promise<Set<st
   return paths;
 }
 
+export function userHasAdminRole(roles: { name: string }[]): boolean {
+  return roles.some((r) => r.name === "Admin");
+}
+
 export function displayRoleFromUserRoles(roles: { name: string }[]): string {
-  if (roles.some((r) => r.name === "Admin")) return "Admin";
+  if (userHasAdminRole(roles)) return "Admin";
   const sorted = [...roles].sort((a, b) => a.name.localeCompare(b.name));
   return sorted[0]?.name ?? "Member";
 }
