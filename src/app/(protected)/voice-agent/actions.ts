@@ -69,6 +69,15 @@ async function requireVoiceAgentAdminSession(organizationId: string) {
   return session;
 }
 
+async function requireVoiceAgentMemberSession(organizationId: string) {
+  const session = await requireVoiceAgentOrgSession(organizationId);
+  const roles = session.user.userRoles.map((ur) => ur.role);
+  if (userHasAdminRole(roles)) {
+    redirect(`${VOICE_AGENT_ROUTE}?error=agent_settings_restricted`);
+  }
+  return session;
+}
+
 function formEntries(formData: FormData): Record<string, unknown> {
   return Object.fromEntries(Array.from(formData.entries()).map(([key, value]) => [key, String(value)]));
 }
@@ -102,7 +111,7 @@ export async function saveRetellVoiceAgentSettings(formData: FormData) {
   const organizationId = String(formData.get("organization_id") || "").trim();
   if (!organizationId) redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
 
-  await requireVoiceAgentOrgSession(organizationId);
+  await requireVoiceAgentMemberSession(organizationId);
 
   const { settings: stored, voices } = await loadVoiceAgentSettings(organizationId);
   const phone = stored.phone;
@@ -209,7 +218,7 @@ export async function pullRetellVoiceAgentSettings(formData: FormData) {
   const agentId = String(formData.get("retell_agent_id") || "").trim();
   if (!organizationId) redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
 
-  await requireVoiceAgentOrgSession(organizationId);
+  await requireVoiceAgentMemberSession(organizationId);
 
   const { settings: stored } = await loadVoiceAgentSettings(organizationId);
   const local = stored.retell;
@@ -245,7 +254,7 @@ export async function generateVoiceAgentOpeningMessageAction(
   const organizationId = String(formData.get("organization_id") || "").trim();
   if (!organizationId) return { ok: false, error: "failed" };
 
-  await requireVoiceAgentOrgSession(organizationId);
+  await requireVoiceAgentMemberSession(organizationId);
 
   const org = await prisma.organization.findFirst({
     where: { id: organizationId },
@@ -265,7 +274,7 @@ export async function generateVoiceAgentSystemPromptAction(
   const organizationId = String(formData.get("organization_id") || "").trim();
   if (!organizationId) return { ok: false, error: "failed" };
 
-  await requireVoiceAgentOrgSession(organizationId);
+  await requireVoiceAgentMemberSession(organizationId);
 
   const org = await prisma.organization.findFirst({
     where: { id: organizationId },

@@ -71,6 +71,9 @@ export default async function VoiceAgentPage({
   if (!session.activeOrganization) redirect("/appointments/organization");
 
   const isAdmin = userHasAdminRole(session.user.userRoles.map((ur) => ur.role));
+  if (isAdmin && params.tab === "agent") {
+    redirect("/voice-agent?tab=phone");
+  }
   if (!isAdmin && params.tab === "phone") {
     redirect("/voice-agent");
   }
@@ -120,7 +123,11 @@ export default async function VoiceAgentPage({
             <span className="vr-brand-gradient-text">Retell AI phone agent</span>
           </>
         }
-        description="Create a per-organization Retell voice agent here, or link an existing one. Saves push voice, prompts, and knowledge to Retell."
+        description={
+          isAdmin
+            ? "Link and manage the support phone number for your organization's Retell voice agent."
+            : "Create a per-organization Retell voice agent here, or link an existing one. Saves push voice, prompts, and knowledge to Retell."
+        }
       >
         <AppPageHeroStatPanel>
           <AppPageHeroStatGrid columns="2">
@@ -167,6 +174,7 @@ export default async function VoiceAgentPage({
       <VoiceAgentTabs
         organizationId={org.id}
         organizationName={org.name}
+        canManageAgent={!isAdmin}
         canManagePhone={isAdmin}
         retellApiConfigured={retellApiConfigured}
         voiceOptions={voiceOptions}
