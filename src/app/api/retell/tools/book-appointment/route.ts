@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   executeVoiceRetellBooking,
+  extractRetellToolArgs,
   parseVoiceRetellBookingArgs,
   resolveRetellPhoneBookingContext,
 } from "@/lib/voice-retell-booking";
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
   }
 
   const context = await resolveRetellPhoneBookingContext(
+    rawBody,
     body,
     request.headers.get("x-retell-signature"),
   );
@@ -22,10 +24,11 @@ export async function POST(request: Request) {
     return NextResponse.json(context.body, { status: context.status });
   }
 
-  const args = parseVoiceRetellBookingArgs(body.args);
+  const args = parseVoiceRetellBookingArgs(extractRetellToolArgs(body));
   if (!args) {
     return NextResponse.json(
       {
+        success: false,
         result:
           "Missing booking details. Collect customer name, service, party size, and start time, then try again.",
       },
@@ -40,5 +43,9 @@ export async function POST(request: Request) {
     callId: context.callId || undefined,
   });
 
-  return NextResponse.json({ result: result.message });
+  return NextResponse.json({
+    success: result.ok,
+    result: result.message,
+    appointment_id: result.ok ? result.appointmentId : undefined,
+  });
 }

@@ -27,6 +27,7 @@ import {
   resolveVoiceAgentKnowledgeConfig,
 } from "@/lib/retell-voice-agent";
 import { appendVoiceRetellBookingPrompt } from "@/lib/voice-retell-booking-prompt";
+import { verifyRetellWebhookSignature } from "@/lib/retell-webhook-verify";
 
 export { appendVoiceRetellBookingPrompt, VOICE_RETELL_BOOKING_PROMPT_MARKER } from "@/lib/voice-retell-booking-prompt";
 
@@ -178,7 +179,9 @@ export async function buildVoiceRetellBookingPromptSection(organizationId: strin
   }
 
   lines.push(
-    "If the caller only has questions, answer from business knowledge. Do not call book_appointment until all required details are confirmed.",
+    "If the caller only has questions, answer from business knowledge.",
+    "CRITICAL: Never tell the caller the booking is confirmed until book_appointment returns success.",
+    "You must call book_appointment during the call. Hanging up does not create a booking.",
   );
 
   return lines.join("\n");
@@ -402,6 +405,7 @@ export async function executeVoiceRetellBooking(args: {
     } as Prisma.AppointmentUncheckedCreateInput,
   });
 
+  let calendarSynced = false;
   let replyMessage = formatBookingSummary(parsed)
     ? `Booking confirmed: ${formatBookingSummary(parsed)}.`
     : "Booking confirmed.";
@@ -410,6 +414,8 @@ export async function executeVoiceRetellBooking(args: {
     replyMessage += " A confirmation email will be sent.";
   } else if (route) {
     replyMessage += " Someone from the team will confirm availability.";
+  } else {
+    replyMessage += " Saved in the system; connect a calendar under Appointments to sync automatically.";
   }
 
   if (route) {
@@ -429,7 +435,11 @@ export async function executeVoiceRetellBooking(args: {
             message: "That time conflicts with the calendar. Please offer another time.",
           };
         }
+        replyMessage = formatBookingSummary(parsed)
+          ? `Booking saved but calendar sync failed: ${formatBookingSummary(parsed)}. The team will follow up.`
+          : "Booking saved but calendar sync failed. The team will follow up.";
       } else {
+        calendarSynced = true;
         replyMessage = formatBookingSummary(parsed)
           ? `Reservation booked: ${formatBookingSummary(parsed)}.`
           : "Reservation booked.";
@@ -438,6 +448,9 @@ export async function executeVoiceRetellBooking(args: {
     } catch (syncErr) {
       const msg = syncErr instanceof Error ? syncErr.message : String(syncErr);
       await markAppointmentCalendarSyncFailed(created.id, args.organizationId, msg);
+      replyMessage = formatBookingSummary(parsed)
+        ? `Booking saved but calendar sync failed: ${formatBookingSummary(parsed)}. The team will follow up.`
+        : "Booking saved but calendar sync failed. The team will follow up.";
     }
   }
 
@@ -454,7 +467,7 @@ export async function executeVoiceRetellBooking(args: {
       serviceDescription: resolvedServiceDescription,
     },
     bookingFlowQa: null,
-    calendarSynced: Boolean(route),
+    calendarSynced,
     routedProviderId: route?.providerId ?? null,
   }).catch(() => undefined);
 
@@ -496,16 +509,48 @@ export async function executeVoiceRetellBooking(args: {
 }
 
 export function readRetellAgentIdFromWebhookBody(body: Record<string, unknown>): string {
-  return readRetellAgentIdFromCall(body.call);
+  const fromCall = readRetellAgentIdFromCall(body.call);
+  if (fromCall) return fromCall;
+  const topLevel = body.agent_id ?? body.agentId;
+  return typeof topLevel === "string" ? topLevel.trim() : "";
+}
+
+export function extractRetellToolArgs(body: Record<string, unknown>): unknown {
+  const nested = body.args;
+  if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+    return nested;
+  }
+
+  const flat: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(body)) {
+    if (key === "call" || key === "name" || key === "tool_name" || key === "args") continue;
+    flat[key] = value;
+  }
+  return Object.keys(flat).length ? flat : null;
 }
 
 export async function resolveRetellPhoneBookingContext(
+  rawBody: string,
   body: Record<string, unknown>,
   signature: string | null,
 ): Promise<RetellToolHttpResult | VoiceRetellToolContext> {
   const apiKey = process.env.RETELL_API_KEY?.trim();
-  if (apiKey && !signature) {
-    return { status: 401, body: { error: "Missing signature" } };
+  if (apiKey) {
+    const sig = signature?.trim() ?? "";
+    if (!sig) {
+      console.warn("[retell-tools] Missing X-Retell-Signature header");
+      return { status: 401, body: { error: "Missing signature" } };
+    }
+    if (!verifyRetellWebhookSignature(rawBody, sig, apiKey)) {
+      console.warn("[retell-tools] Invalid Retell webhook signature");
+      return {
+        status: 401,
+        body: {
+          error:
+            "Invalid signature. Use the Retell API key with the webhook badge for tool verification.",
+        },
+      };
+    }
   }
 
   const agentId = readRetellAgentIdFromWebhookBody(body);
@@ -521,14 +566,17 @@ export async function resolveRetellPhoneBookingContext(
   if (!orgMatch.knowledge.enablePhoneBooking) {
     return {
       status: 200,
-      body: { result: "Phone booking is not enabled for this organization." },
+      body: {
+        result: "Phone booking is not enabled for this organization.",
+        success: false,
+      },
     };
   }
 
   const callRec = body.call && typeof body.call === "object" && !Array.isArray(body.call)
     ? (body.call as Record<string, unknown>)
     : {};
-  const callIdRaw = callRec.call_id ?? callRec.callId;
+  const callIdRaw = callRec.call_id ?? callRec.callId ?? body.call_id ?? body.callId;
 
   return {
     organizationId: orgMatch.organizationId,
