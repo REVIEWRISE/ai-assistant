@@ -75,10 +75,17 @@ function readString(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
-export async function getRetellAgent(agentId: string): Promise<RetellApiResult<RetellAgentRecord>> {
+export async function getRetellAgent(
+  agentId: string,
+  version?: string | number,
+): Promise<RetellApiResult<RetellAgentRecord>> {
   const id = agentId.trim();
   if (!id) return { ok: false, status: 400, error: "Retell agent ID is required." };
-  return retellRequest<RetellAgentRecord>("GET", `/get-agent/${encodeURIComponent(id)}`);
+  const query =
+    version != null && String(version).trim()
+      ? `?version=${encodeURIComponent(String(version))}`
+      : "";
+  return retellRequest<RetellAgentRecord>("GET", `/get-agent/${encodeURIComponent(id)}${query}`);
 }
 
 export async function updateRetellAgent(
@@ -115,6 +122,43 @@ export async function createRetellAgent(
   body: Record<string, unknown>,
 ): Promise<RetellApiResult<RetellAgentRecord>> {
   return retellRequest<RetellAgentRecord>("POST", "/create-agent", body);
+}
+
+export async function createRetellAgentVersion(
+  agentId: string,
+  body: { base_version: number },
+): Promise<RetellApiResult<RetellAgentRecord>> {
+  const id = agentId.trim();
+  if (!id) return { ok: false, status: 400, error: "Retell agent ID is required." };
+  return retellRequest<RetellAgentRecord>(
+    "POST",
+    `/create-agent-version/${encodeURIComponent(id)}`,
+    body,
+  );
+}
+
+export async function publishRetellAgentVersion(
+  agentId: string,
+  version: number,
+): Promise<RetellApiResult<RetellAgentRecord>> {
+  const id = agentId.trim();
+  if (!id) return { ok: false, status: 400, error: "Retell agent ID is required." };
+  return retellRequest<RetellAgentRecord>(
+    "POST",
+    `/publish-agent-version/${encodeURIComponent(id)}`,
+    { version },
+  );
+}
+
+export function readRetellAgentVersion(agent: RetellAgentRecord): number | null {
+  const raw = agent.version ?? agent.agent_version;
+  if (typeof raw === "number" && Number.isFinite(raw)) return Math.floor(raw);
+  if (typeof raw === "string" && /^\d+$/.test(raw.trim())) return parseInt(raw.trim(), 10);
+  return null;
+}
+
+export function readRetellAgentIsPublished(agent: RetellAgentRecord): boolean {
+  return agent.is_published === true;
 }
 
 export function readRetellAgentId(agent: RetellAgentRecord): string {
