@@ -36,6 +36,7 @@ export type VoiceAgentPhoneConfig = {
 export type VoiceAgentKnowledgeConfig = {
   useOrganizationKnowledgeBase: boolean;
   requireApprovedKnowledgeBase: boolean;
+  enablePhoneBooking: boolean;
 };
 
 export type VoiceAgentSettings = {
@@ -199,6 +200,7 @@ export function defaultVoiceAgentKnowledgeConfig(): VoiceAgentKnowledgeConfig {
   return {
     useOrganizationKnowledgeBase: true,
     requireApprovedKnowledgeBase: true,
+    enablePhoneBooking: false,
   };
 }
 
@@ -268,6 +270,10 @@ export function resolveVoiceAgentKnowledgeConfig(raw: unknown): VoiceAgentKnowle
       rec.requireApprovedKnowledgeBase === undefined
         ? defaults.requireApprovedKnowledgeBase
         : parseEnabledFlag(rec.requireApprovedKnowledgeBase),
+    enablePhoneBooking:
+      rec.enablePhoneBooking === undefined
+        ? defaults.enablePhoneBooking
+        : parseEnabledFlag(rec.enablePhoneBooking),
   };
 }
 
@@ -339,5 +345,6 @@ export function parseVoiceAgentKnowledgeForm(raw: Record<string, unknown>): Voic
   return {
     useOrganizationKnowledgeBase: parseEnabledFlag(raw.use_org_knowledge_base),
     requireApprovedKnowledgeBase: parseEnabledFlag(raw.require_approved_knowledge_base),
+    enablePhoneBooking: parseEnabledFlag(raw.enable_phone_booking),
   };
 }

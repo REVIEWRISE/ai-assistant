@@ -185,7 +185,7 @@ export default async function AppointmentsOverviewPage({
     crmSyncAttempts: true,
   } as const;
 
-  const [upcomingNext24h, upcomingNext7d, upcomingAppointments, recentPastAppointments] = await Promise.all([
+  const [upcomingNext24h, upcomingNext7d, phoneBookingsTotal, upcomingAppointments, recentPastAppointments] = await Promise.all([
     prisma.appointment.count({
       where: {
         organizationId: activeOrganization.id,
@@ -196,6 +196,12 @@ export default async function AppointmentsOverviewPage({
       where: {
         organizationId: activeOrganization.id,
         startTime: { gte: now, lte: in7d },
+      },
+    }),
+    prisma.appointment.count({
+      where: {
+        organizationId: activeOrganization.id,
+        source: "voice_retell",
       },
     }),
     prisma.appointment.findMany({
@@ -316,10 +322,11 @@ export default async function AppointmentsOverviewPage({
       >
         <AppPageHeroBadge>Active organization: {activeOrganization.name}</AppPageHeroBadge>
         <AppPageHeroStatPanel>
-          <AppPageHeroStatGrid columns="3">
+          <AppPageHeroStatGrid columns="4">
             <AppPageHeroStat label="Connected Providers" value={connectedProviders} />
             <AppPageHeroStat label="Upcoming (24h)" value={upcomingNext24h} />
             <AppPageHeroStat label="Upcoming (7d)" value={upcomingNext7d} />
+            <AppPageHeroStat label="Phone (Voice AI)" value={phoneBookingsTotal} />
           </AppPageHeroStatGrid>
         </AppPageHeroStatPanel>
       </AppPageHero>

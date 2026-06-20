@@ -1,4 +1,14 @@
+import {
+  appendVoiceRetellBookingPrompt,
+  buildRetellBookingTools,
+  buildVoiceRetellBookingPromptSection,
+} from "@/lib/voice-retell-booking";
 import { loadOrgBookingContext } from "@/lib/booking-org-gate";
+import {
+  buildRetellGeneralPromptWithKnowledge,
+  RETELL_KNOWLEDGE_PROMPT_MARKER,
+  splitRetellGeneralPrompt,
+} from "@/lib/retell-voice-prompt";
 import {
   createRetellAgent,
   createRetellLlm,
@@ -29,7 +39,11 @@ import {
   type VoiceAgentPhoneConfig,
 } from "@/lib/retell-voice-agent";
 
-export const RETELL_KNOWLEDGE_PROMPT_MARKER = "\n\n--- BUSINESS KNOWLEDGE ---\n";
+export {
+  buildRetellGeneralPromptWithKnowledge,
+  RETELL_KNOWLEDGE_PROMPT_MARKER,
+  splitRetellGeneralPrompt,
+} from "@/lib/retell-voice-prompt";
 
 export type RetellSyncResult = { ok: true } | { ok: false; error: string };
 
@@ -54,22 +68,6 @@ function parseRetellLanguage(v: unknown): RetellLanguage {
   }
   if (raw.startsWith("en")) return "en-US";
   return "en-US";
-}
-
-export function splitRetellGeneralPrompt(generalPrompt: string): string {
-  const idx = generalPrompt.indexOf(RETELL_KNOWLEDGE_PROMPT_MARKER);
-  if (idx === -1) return generalPrompt.trim();
-  return generalPrompt.slice(0, idx).trim();
-}
-
-export function buildRetellGeneralPromptWithKnowledge(
-  basePrompt: string,
-  corpus: string,
-): string {
-  const base = basePrompt.trim();
-  const knowledge = corpus.trim();
-  if (!knowledge) return base;
-  return `${base}${RETELL_KNOWLEDGE_PROMPT_MARKER}${knowledge.slice(0, 12_000)}`;
 }
 
 function mapVoiceIdFromRetell(
@@ -220,7 +218,7 @@ export async function createVoiceAgentInRetell(args: {
     return { ok: false, error: "Select a Retell voice before creating the agent." };
   }
 
-  const promptResult = await buildKnowledgePrompt({
+  const promptResult = await buildLlmPayload({
     basePrompt: args.retell.systemPrompt,
     knowledge: args.knowledge,
     organizationId: args.organizationId,
@@ -231,6 +229,9 @@ export async function createVoiceAgentInRetell(args: {
     model: RETELL_DEFAULT_LLM_MODEL,
     general_prompt: promptResult.generalPrompt,
     begin_message: args.retell.openingMessage,
+    ...(promptResult.generalTools?.length
+      ? { general_tools: promptResult.generalTools }
+      : {}),
   });
   if (!llmCreate.ok) {
     return { ok: false, error: llmCreate.error };
@@ -267,29 +268,44 @@ export async function createVoiceAgentInRetell(args: {
   return { ok: true, agentId };
 }
 
-function buildKnowledgePrompt(args: {
+function buildLlmPayload(args: {
   basePrompt: string;
   knowledge: VoiceAgentKnowledgeConfig;
   organizationId: string;
-}): Promise<RetellSyncResult & { generalPrompt?: string }> {
+}): Promise<
+  RetellSyncResult & { generalPrompt?: string; generalTools?: Array<Record<string, unknown>> }
+> {
   return (async () => {
-    if (!args.knowledge.useOrganizationKnowledgeBase) {
-      return { ok: true as const, generalPrompt: args.basePrompt.trim() };
+    let generalPrompt = args.basePrompt.trim();
+
+    if (args.knowledge.useOrganizationKnowledgeBase || args.knowledge.enablePhoneBooking) {
+      const kb = await loadOrgBookingContext(args.organizationId);
+      if (args.knowledge.requireApprovedKnowledgeBase && kb.knowledgeStatus !== "approved") {
+        return {
+          ok: false as const,
+          error: "Approve your organization knowledge base before syncing to Retell.",
+        };
+      }
+
+      if (args.knowledge.useOrganizationKnowledgeBase) {
+        generalPrompt = buildRetellGeneralPromptWithKnowledge(generalPrompt, kb.knowledgeCorpus);
+      }
     }
 
-    const kb = await loadOrgBookingContext(args.organizationId);
-    if (args.knowledge.requireApprovedKnowledgeBase && kb.knowledgeStatus !== "approved") {
-      return {
-        ok: false as const,
-        error: "Approve your organization knowledge base before syncing to Retell.",
-      };
+    let generalTools: Array<Record<string, unknown>> = [];
+    if (args.knowledge.enablePhoneBooking) {
+      const bookingSection = await buildVoiceRetellBookingPromptSection(args.organizationId);
+      generalPrompt = appendVoiceRetellBookingPrompt(generalPrompt, bookingSection);
+      generalTools = await buildRetellBookingTools();
+      if (!generalTools.length) {
+        return {
+          ok: false as const,
+          error: "Set NEXT_PUBLIC_APP_URL to your public app URL before enabling phone booking.",
+        };
+      }
     }
 
-    const generalPrompt = buildRetellGeneralPromptWithKnowledge(
-      args.basePrompt,
-      kb.knowledgeCorpus,
-    );
-    return { ok: true as const, generalPrompt };
+    return { ok: true as const, generalPrompt, generalTools };
   })();
 }
 
@@ -349,7 +365,7 @@ async function syncRetellLlmPrompt(
     phone?: VoiceAgentPhoneConfig;
   },
 ): Promise<RetellSyncResult> {
-  const promptResult = await buildKnowledgePrompt({
+  const promptResult = await buildLlmPayload({
     basePrompt: args.retell.systemPrompt,
     knowledge: args.knowledge,
     organizationId: args.organizationId,
@@ -359,6 +375,7 @@ async function syncRetellLlmPrompt(
   const llmUpdate = await updateRetellLlm(llmId, {
     general_prompt: promptResult.generalPrompt,
     begin_message: args.retell.openingMessage,
+    general_tools: promptResult.generalTools ?? [],
   });
   if (!llmUpdate.ok) {
     return { ok: false, error: llmUpdate.error };

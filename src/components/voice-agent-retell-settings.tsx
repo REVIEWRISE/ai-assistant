@@ -6,7 +6,8 @@ import type { VoiceAgentAiResult } from "@/lib/voice-agent-ai";
 import { CustomSelect } from "@/components/custom-select";
 import { Panel } from "@/components/ui";
 import { toast } from "@/lib/toast";
-import { buildRetellGeneralPromptWithKnowledge } from "@/lib/retell-voice-sync";
+import { buildRetellGeneralPromptWithKnowledge } from "@/lib/retell-voice-prompt";
+import { appendVoiceRetellBookingPrompt } from "@/lib/voice-retell-booking-prompt";
 import {
   RETELL_LANGUAGE_OPTIONS,
   RETELL_VOICE_CUSTOM_VALUE,
@@ -286,11 +287,23 @@ export function VoiceAgentRetellSettings({
   const selectedVoicePreviewUrl = selectedVoice?.previewAudioUrl ?? "";
 
   const syncedPromptPreview = useMemo(() => {
-    if (!knowledgeConfig.useOrganizationKnowledgeBase || !knowledge.previewText.trim()) {
-      return config.systemPrompt.trim();
+    let prompt = config.systemPrompt.trim();
+    if (knowledgeConfig.useOrganizationKnowledgeBase && knowledge.previewText.trim()) {
+      prompt = buildRetellGeneralPromptWithKnowledge(prompt, knowledge.previewText);
     }
-    return buildRetellGeneralPromptWithKnowledge(config.systemPrompt, knowledge.previewText);
-  }, [config.systemPrompt, knowledge.previewText, knowledgeConfig.useOrganizationKnowledgeBase]);
+    if (knowledgeConfig.enablePhoneBooking) {
+      prompt = appendVoiceRetellBookingPrompt(
+        prompt,
+        "Phone booking enabled — your chatbot booking flow questions are appended when you save.",
+      );
+    }
+    return prompt;
+  }, [
+    config.systemPrompt,
+    knowledge.previewText,
+    knowledgeConfig.enablePhoneBooking,
+    knowledgeConfig.useOrganizationKnowledgeBase,
+  ]);
 
   function jumpToSection(key: SectionKey) {
     setActiveSection(key);
@@ -384,6 +397,11 @@ export function VoiceAgentRetellSettings({
           type="hidden"
           name="require_approved_knowledge_base"
           value={knowledgeConfig.requireApprovedKnowledgeBase ? "1" : "0"}
+        />
+        <input
+          type="hidden"
+          name="enable_phone_booking"
+          value={knowledgeConfig.enablePhoneBooking ? "1" : "0"}
         />
         {!linkExistingAgent ? <input type="hidden" name="retell_agent_id" value="" /> : null}
 
@@ -624,7 +642,7 @@ export function VoiceAgentRetellSettings({
               title="Require approval"
               description="Block sync until KB is approved."
               checked={knowledgeConfig.requireApprovedKnowledgeBase}
-              disabled={!knowledgeConfig.useOrganizationKnowledgeBase}
+              disabled={!knowledgeConfig.useOrganizationKnowledgeBase && !knowledgeConfig.enablePhoneBooking}
               onChange={() =>
                 setKnowledgeConfig((prev) => ({
                   ...prev,
@@ -634,6 +652,30 @@ export function VoiceAgentRetellSettings({
               ariaLabel="Toggle require approved knowledge base"
             />
           </div>
+
+          <ToggleRow
+            title="Enable phone booking"
+            description="Let callers book appointments on the support line using your chatbot booking flow and knowledge base."
+            checked={knowledgeConfig.enablePhoneBooking}
+            onChange={() =>
+              setKnowledgeConfig((prev) => ({
+                ...prev,
+                enablePhoneBooking: !prev.enablePhoneBooking,
+              }))
+            }
+            ariaLabel="Toggle phone booking on voice calls"
+          />
+
+          {knowledgeConfig.enablePhoneBooking ? (
+            <p className="text-xs text-[var(--color-text-muted)]">
+              Uses the same booking rules as your embed chatbot (approved knowledge base, services, calendar, and confirmation emails).
+              Configure steps under{" "}
+              <Link href="/appointments/chatbot" className="font-semibold text-[var(--color-primary-h)] underline">
+                Appointments → Chatbot
+              </Link>
+              .
+            </p>
+          ) : null}
 
           {knowledgeConfig.useOrganizationKnowledgeBase && knowledge.previewText.trim() ? (
             <CollapsibleBlock

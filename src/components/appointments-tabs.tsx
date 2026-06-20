@@ -13,6 +13,14 @@ import {
   YAxis,
 } from "recharts";
 import type { AppointmentAnalytics } from "@/lib/appointment-analytics";
+import {
+  appointmentSourceBadgeClass,
+  appointmentSourceLabel,
+  BOOKED_SOURCE_FILTER_OPTIONS,
+  bookingSourceSupportsCrmSync,
+  filterAppointmentsBySource,
+  type BookedSourceFilter,
+} from "@/lib/appointment-source";
 import type { BookingFlowQaItem } from "@/lib/booking-flow-qa";
 import { BookedCrmSyncForm } from "@/components/booked-crm-sync-form";
 import { CalendarServiceManager } from "@/components/calendar-service-manager";
@@ -227,6 +235,55 @@ function parseGuestLabelFromRawMessage(raw: string): string | null {
   if (parsed && parsed.length >= 2 && parsed.length <= 200) return parsed;
 
   return null;
+}
+
+function AppointmentSourceBadge({ source }: { source: string }) {
+  return (
+    <span
+      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] ${appointmentSourceBadgeClass(source)}`}
+    >
+      {appointmentSourceLabel(source)}
+    </span>
+  );
+}
+
+function BookedSourceFilterSwitch({
+  value,
+  onChange,
+  counts,
+}: {
+  value: BookedSourceFilter;
+  onChange: (value: BookedSourceFilter) => void;
+  counts: { all: number; chatbot_embed: number; voice_retell: number };
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {BOOKED_SOURCE_FILTER_OPTIONS.map((option) => {
+        const count =
+          option.key === "all"
+            ? counts.all
+            : option.key === "chatbot_embed"
+              ? counts.chatbot_embed
+              : counts.voice_retell;
+        const active = value === option.key;
+        return (
+          <button
+            key={option.key}
+            type="button"
+            onClick={() => onChange(option.key)}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              active
+                ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+                : "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)]"
+            }`}
+          >
+            {option.label}
+            <span className={active ? "opacity-90" : "text-[var(--color-text-muted)]"}> ({count})</span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 function displayBookedCustomerName(row: BookedAppointmentRow): string {
@@ -518,7 +575,20 @@ function BookedAppointmentsPanel({
       ),
     [upcoming, recentPast],
   );
-  const total = allRows.length;
+  const [sourceFilter, setSourceFilter] = useState<BookedSourceFilter>("all");
+  const sourceCounts = useMemo(
+    () => ({
+      all: allRows.length,
+      chatbot_embed: allRows.filter((row) => row.source === "chatbot_embed").length,
+      voice_retell: allRows.filter((row) => row.source === "voice_retell").length,
+    }),
+    [allRows],
+  );
+  const filteredRows = useMemo(
+    () => filterAppointmentsBySource(allRows, sourceFilter),
+    [allRows, sourceFilter],
+  );
+  const total = filteredRows.length;
   const [bookedViewMode, setBookedViewMode] = useState<BookedViewMode>("calendar");
   const [calendarPeriodMode, setCalendarPeriodMode] = useState<CalendarPeriodMode>("month");
   const [calendarFocus, setCalendarFocus] = useState(() => new Date());
@@ -526,7 +596,7 @@ function BookedAppointmentsPanel({
   const [openDateKey, setOpenDateKey] = useState<string | null>(null);
   const listSections = useMemo(() => {
     const sections: { dateKey: string; heading: string; rows: BookedAppointmentRow[] }[] = [];
-    for (const row of allRows) {
+    for (const row of filteredRows) {
       const key = dateKeyLocal(row.startTime);
       if (!key) continue;
       const last = sections[sections.length - 1];
@@ -541,10 +611,10 @@ function BookedAppointmentsPanel({
       }
     }
     return sections;
-  }, [allRows]);
+  }, [filteredRows]);
   const rowsByDate = useMemo(() => {
     const grouped = new Map<string, BookedAppointmentRow[]>();
-    for (const row of allRows) {
+    for (const row of filteredRows) {
       const key = dateKeyLocal(row.startTime);
       if (!key) continue;
       const current = grouped.get(key) ?? [];
@@ -552,7 +622,7 @@ function BookedAppointmentsPanel({
       grouped.set(key, current);
     }
     return grouped;
-  }, [allRows]);
+  }, [filteredRows]);
 
   const monthBase = useMemo(
     () => new Date(calendarFocus.getFullYear(), calendarFocus.getMonth(), 1),
@@ -582,14 +652,30 @@ function BookedAppointmentsPanel({
   }, [calendarPeriodMode, gridDays, visibleMonth, weekDays, rowsByDate, calendarFocus]);
   const activeDateKey = selectedDateKey ?? firstBookedKeyInRange;
   const modalRows = openDateKey ? rowsByDate.get(openDateKey) ?? [] : [];
+  if (allRows.length === 0) {
+    return (
+      <Panel
+        title="Booked appointments"
+        subtitle="Reservations from your chatbot, phone agent, and other sources appear here once guests pick a time."
+      >
+        <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
+          No appointments yet. When visitors book through your embedded chatbot or Retell phone agent, they will appear here.
+        </div>
+      </Panel>
+    );
+  }
+
   if (total === 0) {
     return (
       <Panel
         title="Booked appointments"
-        subtitle="Reservations from your chatbot and other sources appear here once guests pick a time."
+        subtitle="Filter by source to review chatbot and phone bookings separately."
       >
-        <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
-          No appointments yet. When visitors book through your embedded chatbot, they will appear here.
+        <div className="space-y-4">
+          <BookedSourceFilterSwitch value={sourceFilter} onChange={setSourceFilter} counts={sourceCounts} />
+          <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
+            No {appointmentSourceLabel(sourceFilter).toLowerCase()} bookings yet.
+          </div>
         </div>
       </Panel>
     );
@@ -598,9 +684,10 @@ function BookedAppointmentsPanel({
   return (
     <Panel
       title="Booked appointments"
-      subtitle="Month, week, or day calendar—or switch to the list for a timeline."
+      subtitle="Month, week, or day calendar—or switch to the list. Filter by chatbot vs phone (Voice AI)."
     >
       <div className="space-y-4">
+        <BookedSourceFilterSwitch value={sourceFilter} onChange={setSourceFilter} counts={sourceCounts} />
         <BookedViewModeSwitch value={bookedViewMode} onChange={setBookedViewMode} />
 
         {bookedViewMode === "calendar" ? (
@@ -863,11 +950,14 @@ function BookedAppointmentsPanel({
                                 <div className="min-w-0 flex-1">
                                   <div className="flex flex-wrap items-start justify-between gap-2">
                                     <p className="font-semibold text-[var(--color-text)]">{displayBookedCustomerName(row)}</p>
-                                    <span
-                                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusBadgeClass(row.displayStatus)}`}
-                                    >
-                                      {row.displayStatus}
-                                    </span>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <AppointmentSourceBadge source={row.source} />
+                                      <span
+                                        className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusBadgeClass(row.displayStatus)}`}
+                                      >
+                                        {row.displayStatus}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
                               </button>
@@ -991,11 +1081,14 @@ function BookedAppointmentsPanel({
                                     <p className="font-semibold leading-snug text-[var(--color-text)]">
                                       {displayBookedCustomerName(row)}
                                     </p>
-                                    <span
-                                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusBadgeClass(row.displayStatus)}`}
-                                    >
-                                      {row.displayStatus}
-                                    </span>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <AppointmentSourceBadge source={row.source} />
+                                      <span
+                                        className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusBadgeClass(row.displayStatus)}`}
+                                      >
+                                        {row.displayStatus}
+                                      </span>
+                                    </div>
                                   </div>
                                   {row.bookingFlowQa && row.bookingFlowQa.length > 0 ? (
                                     <p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-[var(--color-text-muted)]">
@@ -1085,11 +1178,14 @@ function BookedAppointmentsPanel({
                   <div key={row.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="font-semibold text-[var(--color-text)]">{displayBookedCustomerName(row)}</p>
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(row.displayStatus)}`}
-                      >
-                        {row.displayStatus}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <AppointmentSourceBadge source={row.source} />
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(row.displayStatus)}`}
+                        >
+                          {row.displayStatus}
+                        </span>
+                      </div>
                     </div>
                     <p className="mt-1 text-xs text-[var(--color-text-muted)]">{formatAppointmentSlot(row.startTime, row.endTime)}</p>
                     {row.customerEmail ? (
@@ -1112,7 +1208,7 @@ function BookedAppointmentsPanel({
                         </dl>
                       </div>
                     ) : null}
-                    {crmWebhookConfigured && row.source === "chatbot_embed" ? (
+                    {crmWebhookConfigured && bookingSourceSupportsCrmSync(row.source) ? (
                       <div className="mt-3 border-t border-[var(--color-border-muted)] pt-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
                           CRM sync

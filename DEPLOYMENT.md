@@ -67,6 +67,12 @@ Upload a **company logo** per organization under **Appointments → Organization
 | :--- | :--- |
 | `RETELL_API_KEY` | Retell dashboard → Settings → API Keys. Powers Voice Support sync (create agents, voices, prompts). |
 
+**Phone booking:** When enabled on Voice Support → Agent & Voice → Knowledge, Retell calls:
+- `POST /api/retell/tools/check-availability` — verify a slot before booking
+- `POST /api/retell/tools/book-appointment` — create the appointment
+
+`NEXT_PUBLIC_APP_URL` must be the public HTTPS URL Retell can reach (same as embed chatbot).
+
 You can set `RETELL_API_KEY` as its own GitHub secret; deploy merges it into `.env.production` even when using `ENV_FILE_CONTENTS`.
 
 #### `ENV_FILE_CONTENTS` example
