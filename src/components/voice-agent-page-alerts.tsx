@@ -17,6 +17,10 @@ const messages: Record<string, { title: string; variant: "success" | "error" }> 
   knowledge_created: { title: "Retell voice agent created with your knowledge settings.", variant: "success" },
   organization_required: { title: "Select an organization to configure the voice agent.", variant: "error" },
   admin_required: { title: "Only admins can manage phone and calling settings.", variant: "error" },
+  agent_settings_restricted: {
+    title: "Agent and voice settings are for organization members, not admins.",
+    variant: "error",
+  },
   retell_sync_failed: { title: "Retell sync failed.", variant: "error" },
 };
 

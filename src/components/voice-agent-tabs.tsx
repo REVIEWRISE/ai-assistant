@@ -33,9 +33,20 @@ function parseTabKey(raw: string | null): TabKey | null {
   return null;
 }
 
+function resolveDefaultTab(canManageAgent: boolean, canManagePhone: boolean): TabKey {
+  if (canManagePhone && !canManageAgent) return "phone";
+  return "agent";
+}
+
+function tabAllowed(tab: TabKey, canManageAgent: boolean, canManagePhone: boolean): boolean {
+  if (tab === "agent") return canManageAgent;
+  return canManagePhone;
+}
+
 export function VoiceAgentTabs({
   organizationId,
   organizationName,
+  canManageAgent,
   canManagePhone,
   retellApiConfigured,
   voiceOptions,
@@ -52,6 +63,7 @@ export function VoiceAgentTabs({
 }: {
   organizationId: string;
   organizationName: string;
+  canManageAgent: boolean;
   canManagePhone: boolean;
   retellApiConfigured: boolean;
   voiceOptions: RetellVoiceSelectOption[];
@@ -68,19 +80,23 @@ export function VoiceAgentTabs({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tabs = canManagePhone ? allTabs : allTabs.filter((tab) => tab.key !== "phone");
+  const defaultTab = resolveDefaultTab(canManageAgent, canManagePhone);
+  const tabs = allTabs.filter((tab) => tabAllowed(tab.key, canManageAgent, canManagePhone));
   const requestedTab = parseTabKey(searchParams.get("tab"));
   const activeTab =
-    requestedTab === "phone" && !canManagePhone ? "agent" : requestedTab ?? "agent";
+    requestedTab && tabAllowed(requestedTab, canManageAgent, canManagePhone)
+      ? requestedTab
+      : defaultTab;
 
   useEffect(() => {
-    if (requestedTab === "phone" && !canManagePhone) {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("tab");
-      const query = params.toString();
-      router.replace(query ? `/voice-agent?${query}` : "/voice-agent", { scroll: false });
-    }
-  }, [canManagePhone, requestedTab, router, searchParams]);
+    if (!requestedTab || tabAllowed(requestedTab, canManageAgent, canManagePhone)) return;
+
+    const params = new URLSearchParams(searchParams.toString());
+    if (defaultTab === "agent") params.delete("tab");
+    else params.set("tab", defaultTab);
+    const query = params.toString();
+    router.replace(query ? `/voice-agent?${query}` : "/voice-agent", { scroll: false });
+  }, [canManageAgent, canManagePhone, defaultTab, requestedTab, router, searchParams]);
 
   function selectTab(tab: TabKey) {
     const params = new URLSearchParams(searchParams.toString());
@@ -92,27 +108,29 @@ export function VoiceAgentTabs({
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {tabs.map((tab) => {
-          const active = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => selectTab(tab.key)}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                active
-                  ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
-                  : "bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)] border border-[var(--color-border)]"
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+      {tabs.length > 1 ? (
+        <div className="flex flex-wrap gap-2">
+          {tabs.map((tab) => {
+            const active = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => selectTab(tab.key)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  active
+                    ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+                    : "bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)] border border-[var(--color-border)]"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
-      {activeTab === "agent" ? (
+      {activeTab === "agent" && canManageAgent ? (
         <VoiceAgentRetellSettings
           organizationId={organizationId}
           organizationName={organizationName}
