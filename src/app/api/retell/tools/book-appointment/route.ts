@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       {
         success: false,
         result:
-          "Missing booking details. Collect customer name, service, party size, and start time, then try again.",
+          "Missing booking details. Ask each organization booking-flow question, collect answers, then call book_appointment with booking_flow_answers.",
       },
       { status: 200 },
     );

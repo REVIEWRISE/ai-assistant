@@ -27,8 +27,19 @@ import {
   resolveVoiceAgentKnowledgeConfig,
 } from "@/lib/retell-voice-agent";
 import { verifyRetellWebhookSignature } from "@/lib/retell-webhook-verify";
+import {
+  enrichVoiceRetellBookingArgs,
+  formatBookingFlowStepsForVoicePrompt,
+  parseFlexiblePartySize,
+  parseVoiceRetellBookingFlowAnswers,
+  type VoiceRetellBookingFlowAnswer,
+} from "@/lib/voice-retell-booking-flow";
+import type { BookingFlowQaItem } from "@/lib/booking-flow-qa";
+import type { OrgCalendarRoute } from "@/lib/booking-org-gate";
 
 export { appendVoiceRetellBookingPrompt, VOICE_RETELL_BOOKING_PROMPT_MARKER } from "@/lib/voice-retell-booking-prompt";
+
+export type { VoiceRetellBookingFlowAnswer } from "@/lib/voice-retell-booking-flow";
 
 export type VoiceRetellBookingArgs = {
   customer_name: string;
@@ -37,6 +48,7 @@ export type VoiceRetellBookingArgs = {
   party_size: number;
   start_time_iso: string;
   notes?: string;
+  booking_flow_answers?: VoiceRetellBookingFlowAnswer[];
 };
 
 export type VoiceRetellAvailabilityArgs = {
@@ -69,11 +81,7 @@ function readString(v: unknown): string {
 }
 
 function parsePartySize(value: unknown): number | null {
-  if (typeof value === "number" && value >= 1 && value <= 99) return Math.floor(value);
-  if (typeof value === "string" && /^\d+$/.test(value.trim())) {
-    return Math.min(99, Math.max(1, parseInt(value.trim(), 10)));
-  }
-  return null;
+  return parseFlexiblePartySize(value);
 }
 
 export function parseVoiceRetellAvailabilityArgs(raw: unknown): VoiceRetellAvailabilityArgs | null {
@@ -97,14 +105,17 @@ export function parseVoiceRetellBookingArgs(raw: unknown): VoiceRetellBookingArg
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const rec = raw as Record<string, unknown>;
 
+  const booking_flow_answers = parseVoiceRetellBookingFlowAnswers(rec.booking_flow_answers);
   const customerName = readString(rec.customer_name);
   const serviceDescription = readString(rec.service_description);
   const partySize = parsePartySize(rec.party_size);
   const startTimeIso = readString(rec.start_time_iso);
   const startTime = startTimeIso ? new Date(startTimeIso) : null;
 
-  if (!customerName || !serviceDescription || !partySize || !startTime || Number.isNaN(startTime.getTime())) {
-    return null;
+  if (!booking_flow_answers.length) {
+    if (!customerName || !serviceDescription || !partySize || !startTime || Number.isNaN(startTime.getTime())) {
+      return null;
+    }
   }
 
   const customerEmail = readString(rec.customer_email);
@@ -112,9 +123,10 @@ export function parseVoiceRetellBookingArgs(raw: unknown): VoiceRetellBookingArg
     customer_name: customerName.slice(0, 200),
     customer_email: customerEmail ? normalizeCustomerEmail(customerEmail) ?? undefined : undefined,
     service_description: serviceDescription.slice(0, 500),
-    party_size: partySize,
-    start_time_iso: startTime.toISOString(),
+    party_size: partySize ?? 0,
+    start_time_iso: startTime && !Number.isNaN(startTime.getTime()) ? startTime.toISOString() : startTimeIso,
     notes: readString(rec.notes).slice(0, 1000) || undefined,
+    booking_flow_answers,
   };
 }
 
@@ -167,10 +179,7 @@ export async function buildVoiceRetellBookingPromptSection(organizationId: strin
   }
 
   if (flow.steps.length) {
-    lines.push("Ask these booking questions before confirming:");
-    for (const step of flow.steps.slice(0, 12)) {
-      lines.push(`- ${step.question}`);
-    }
+    lines.push(...formatBookingFlowStepsForVoicePrompt(flow));
   } else {
     lines.push(
       "Required fields: service or visit type, party size, preferred date and time, customer full name, and email for confirmation.",
@@ -226,12 +235,12 @@ export async function buildRetellBookingTools() {
       type: "custom",
       name: "book_appointment",
       description:
-        "Create a confirmed appointment after check_availability passes and the caller confirms service, party size, date/time, name, and email.",
+        "Create a confirmed appointment after check_availability passes, all organization booking-flow questions are answered, and the caller confirms.",
       url: bookUrl,
       method: "POST",
       parameters: {
         type: "object",
-        required: ["customer_name", "service_description", "party_size", "start_time_iso"],
+        required: ["customer_name", "start_time_iso", "booking_flow_answers"],
         properties: {
           customer_name: {
             type: "string",
@@ -252,6 +261,25 @@ export async function buildRetellBookingTools() {
           start_time_iso: {
             type: "string",
             description: "Requested start time in ISO 8601 format (e.g. 2026-05-30T19:00:00.000Z).",
+          },
+          booking_flow_answers: {
+            type: "array",
+            description:
+              "Every answer collected from the organization's booking flow steps ({ step_id, answer }).",
+            items: {
+              type: "object",
+              required: ["step_id", "answer"],
+              properties: {
+                step_id: {
+                  type: "string",
+                  description: "Booking flow step id (e.g. service, when, party_size, contact_email).",
+                },
+                answer: {
+                  type: "string",
+                  description: "Caller's answer for that step.",
+                },
+              },
+            },
           },
           notes: {
             type: "string",
@@ -282,6 +310,82 @@ function argsToParsedBooking(
   };
 }
 
+function dispatchVoiceRetellBookingSideEffects(args: {
+  appointmentId: string;
+  organizationId: string;
+  organizationName: string;
+  route: OrgCalendarRoute | null;
+  parsed: ParsedBookingUtterance;
+  resolvedServiceDescription: string | null;
+  safeCustomerName: string;
+  safeCustomerEmail: string | null;
+  bookingFlowQa: BookingFlowQaItem[];
+  rawMessage: string;
+  crmIntegration: unknown;
+  bookingFlow: unknown;
+}) {
+  void (async () => {
+    let calendarSynced = false;
+
+    if (args.route) {
+      try {
+        const syncResult = await syncAppointmentToExternalCalendar({
+          appointmentId: args.appointmentId,
+          organizationId: args.organizationId,
+          organizationName: args.organizationName,
+          providerId: args.route.providerId,
+          connectionUserId: args.route.connectionUserId,
+        });
+        if (!syncResult.ok) {
+          await markAppointmentCalendarSyncFailed(args.appointmentId, args.organizationId, syncResult.error);
+        } else {
+          calendarSynced = true;
+        }
+      } catch (syncErr) {
+        const msg = syncErr instanceof Error ? syncErr.message : String(syncErr);
+        await markAppointmentCalendarSyncFailed(args.appointmentId, args.organizationId, msg);
+      }
+    }
+
+    await sendBookingConfirmationEmails({
+      appointmentId: args.appointmentId,
+      organizationId: args.organizationId,
+      organizationName: args.organizationName,
+      customerName: args.safeCustomerName,
+      customerEmail: args.safeCustomerEmail,
+      parsed: {
+        ...args.parsed,
+        customerName: args.safeCustomerName,
+        customerEmail: args.safeCustomerEmail,
+        serviceDescription: args.resolvedServiceDescription,
+      },
+      bookingFlowQa: args.bookingFlowQa,
+      calendarSynced,
+      routedProviderId: args.route?.providerId ?? null,
+    }).catch(() => undefined);
+
+    enqueueBookingCrmWebhook({
+      organizationId: args.organizationId,
+      organizationName: args.organizationName,
+      crmIntegration: args.crmIntegration,
+      bookingFlow: args.bookingFlow,
+      appointment: {
+        id: args.appointmentId,
+        customerName: args.safeCustomerName,
+        customerEmail: args.safeCustomerEmail,
+        startTime: args.parsed.startTime!,
+        endTime: args.parsed.endTime!,
+        status: "requested",
+        source: "voice_retell",
+        serviceDescription: args.resolvedServiceDescription?.slice(0, 500) ?? null,
+        partySize: args.parsed.partySize,
+        bookingFlowQa: args.bookingFlowQa,
+        rawMessage: args.rawMessage,
+      },
+    });
+  })();
+}
+
 export async function executeVoiceRetellBooking(args: {
   organizationId: string;
   organizationName: string;
@@ -293,7 +397,18 @@ export async function executeVoiceRetellBooking(args: {
     select: { bookingFlow: true, services: true, crmIntegration: true },
   });
   const flow = resolveBookingFlowConfig(chatbotSettings?.bookingFlow);
-  const parsed = argsToParsedBooking(args.bookingArgs, flow.slotDurationMinutes);
+  const enriched = enrichVoiceRetellBookingArgs(flow, args.bookingArgs);
+
+  if (enriched.missingRequired.length) {
+    return {
+      ok: false,
+      message: `Still need: ${enriched.missingRequired.slice(0, 6).join(", ")}. Ask the remaining booking-flow questions, then call book_appointment again.`,
+    };
+  }
+
+  const bookingArgs = enriched.args;
+  const bookingFlowQa = enriched.bookingFlowQa;
+  const parsed = argsToParsedBooking(bookingArgs, flow.slotDurationMinutes);
 
   if (!parsedBookingHasSaveableSlot(parsed) || parsed.startTime!.getTime() <= Date.now() - 120_000) {
     return {
@@ -302,13 +417,15 @@ export async function executeVoiceRetellBooking(args: {
     };
   }
 
+  const qaSummary = bookingFlowQa.map((qa) => `${qa.question}: ${qa.answer}`).join(" · ");
   const rawMessage = [
-    args.bookingArgs.service_description,
-    `party of ${args.bookingArgs.party_size}`,
-    args.bookingArgs.start_time_iso,
-    args.bookingArgs.customer_name,
-    args.bookingArgs.customer_email,
-    args.bookingArgs.notes,
+    qaSummary,
+    bookingArgs.service_description,
+    bookingArgs.party_size ? `party of ${bookingArgs.party_size}` : null,
+    bookingArgs.start_time_iso,
+    bookingArgs.customer_name,
+    bookingArgs.customer_email,
+    bookingArgs.notes,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -382,9 +499,12 @@ export async function executeVoiceRetellBooking(args: {
     }
   }
 
-  const resolvedServiceDescription = resolveBookingServiceDescription({ parsed, bookingFlowQa: null });
-  const safeCustomerName = args.bookingArgs.customer_name;
-  const safeCustomerEmail = args.bookingArgs.customer_email ?? null;
+  const resolvedServiceDescription = resolveBookingServiceDescription({
+    parsed,
+    bookingFlowQa,
+  });
+  const safeCustomerName = bookingArgs.customer_name;
+  const safeCustomerEmail = bookingArgs.customer_email ?? null;
 
   const created = await prisma.appointment.create({
     data: {
@@ -397,6 +517,7 @@ export async function executeVoiceRetellBooking(args: {
       source: "voice_retell",
       serviceDescription: resolvedServiceDescription?.slice(0, 500) ?? null,
       partySize: parsed.partySize,
+      bookingFlowQa: bookingFlowQa.length ? (bookingFlowQa as unknown as Prisma.InputJsonValue) : undefined,
       rawMessage: rawMessage.slice(0, 4000),
       routedProviderId: route?.providerId ?? null,
       routedConnectionUserId: route?.connectionUserId ?? null,
@@ -404,7 +525,6 @@ export async function executeVoiceRetellBooking(args: {
     } as Prisma.AppointmentUncheckedCreateInput,
   });
 
-  let calendarSynced = false;
   let replyMessage = formatBookingSummary(parsed)
     ? `Booking confirmed: ${formatBookingSummary(parsed)}.`
     : "Booking confirmed.";
@@ -417,77 +537,19 @@ export async function executeVoiceRetellBooking(args: {
     replyMessage += " Saved in the system. Your team can post it to a calendar from the Appointments dashboard.";
   }
 
-  if (route) {
-    try {
-      const syncResult = await syncAppointmentToExternalCalendar({
-        appointmentId: created.id,
-        organizationId: args.organizationId,
-        organizationName: args.organizationName,
-        providerId: route.providerId,
-        connectionUserId: route.connectionUserId,
-      });
-      if (!syncResult.ok) {
-        await markAppointmentCalendarSyncFailed(created.id, args.organizationId, syncResult.error);
-        if (syncResult.error.toLowerCase().includes("conflicts with an existing calendar event")) {
-          return {
-            ok: false,
-            message: "That time conflicts with the calendar. Please offer another time.",
-          };
-        }
-        replyMessage = formatBookingSummary(parsed)
-          ? `Booking saved but calendar sync failed: ${formatBookingSummary(parsed)}. The team will follow up.`
-          : "Booking saved but calendar sync failed. The team will follow up.";
-      } else {
-        calendarSynced = true;
-        replyMessage = formatBookingSummary(parsed)
-          ? `Reservation booked: ${formatBookingSummary(parsed)}.`
-          : "Reservation booked.";
-        if (safeCustomerEmail) replyMessage += " Confirmation email is on the way.";
-      }
-    } catch (syncErr) {
-      const msg = syncErr instanceof Error ? syncErr.message : String(syncErr);
-      await markAppointmentCalendarSyncFailed(created.id, args.organizationId, msg);
-      replyMessage = formatBookingSummary(parsed)
-        ? `Booking saved but calendar sync failed: ${formatBookingSummary(parsed)}. The team will follow up.`
-        : "Booking saved but calendar sync failed. The team will follow up.";
-    }
-  }
-
-  void sendBookingConfirmationEmails({
+  void dispatchVoiceRetellBookingSideEffects({
     appointmentId: created.id,
     organizationId: args.organizationId,
     organizationName: args.organizationName,
-    customerName: safeCustomerName,
-    customerEmail: safeCustomerEmail,
-    parsed: {
-      ...parsed,
-      customerName: safeCustomerName,
-      customerEmail: safeCustomerEmail,
-      serviceDescription: resolvedServiceDescription,
-    },
-    bookingFlowQa: null,
-    calendarSynced,
-    routedProviderId: route?.providerId ?? null,
-  }).catch(() => undefined);
-
-  enqueueBookingCrmWebhook({
-    organizationId: args.organizationId,
-    organizationName: args.organizationName,
+    route,
+    parsed,
+    resolvedServiceDescription,
+    safeCustomerName,
+    safeCustomerEmail,
+    bookingFlowQa,
+    rawMessage: rawMessage.slice(0, 4000),
     crmIntegration: chatbotSettings?.crmIntegration,
     bookingFlow: chatbotSettings?.bookingFlow,
-    appointment: {
-      id: created.id,
-      customerName: safeCustomerName,
-      customerEmail: safeCustomerEmail,
-      startTime: parsed.startTime!,
-      endTime: parsed.endTime!,
-      status: "requested",
-      source: "voice_retell",
-      serviceDescription: resolvedServiceDescription?.slice(0, 500) ?? null,
-      partySize: parsed.partySize,
-      bookingFlowQa: null,
-      rawMessage: rawMessage.slice(0, 4000),
-    },
   });
 
   if (args.callId) {
