@@ -415,7 +415,7 @@ export async function executeVoiceRetellBooking(args: {
   } else if (route) {
     replyMessage += " Someone from the team will confirm availability.";
   } else {
-    replyMessage += " Saved in the system; connect a calendar under Appointments to sync automatically.";
+    replyMessage += " Saved in the system. Your team can post it to a calendar from the Appointments dashboard.";
   }
 
   if (route) {
@@ -616,7 +616,7 @@ export async function executeVoiceRetellAvailabilityCheck(args: {
   if (!route) {
     return {
       available: true,
-      message: `I can't verify live calendar availability for ${slotLabel}, but we can still request that time and the team will confirm.`,
+      message: `${slotLabel} can be booked. No calendar is connected yet, but the booking will be saved and your team can sync it from the Appointments dashboard later.`,
     };
   }
 
