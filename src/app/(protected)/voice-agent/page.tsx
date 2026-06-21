@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { AppPageHero, AppPageHeroStat, AppPageHeroStatGrid, AppPageHeroStatPanel } from "@/components/app-page-hero";
 import { VoiceAgentPageAlerts } from "@/components/voice-agent-page-alerts";
 import { VoiceAgentTabs } from "@/components/voice-agent-tabs";
-import { userHasAdminRole } from "@/lib/allowed-menu-paths";
 import { prisma } from "@/lib/prisma";
 import { isRetellApiConfigured } from "@/lib/retell-api";
 import {
@@ -25,12 +24,7 @@ import {
   saveVoiceAgentPhoneSettings,
 } from "./actions";
 
-export default async function VoiceAgentPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string }>;
-}) {
-  const params = await searchParams;
+export default async function VoiceAgentPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get("ai_session")?.value;
   if (!token) redirect("/login");
@@ -39,9 +33,7 @@ export default async function VoiceAgentPage({
     where: { token, expiresAt: { gt: new Date() } },
     select: {
       user: {
-        select: {
-          userRoles: { select: { role: { select: { name: true } } } },
-        },
+        select: { id: true },
       },
       activeOrganization: {
         select: {
@@ -70,21 +62,13 @@ export default async function VoiceAgentPage({
   if (!session) redirect("/login");
   if (!session.activeOrganization) redirect("/appointments/organization");
 
-  const isAdmin = userHasAdminRole(session.user.userRoles.map((ur) => ur.role));
-  if (isAdmin && params.tab === "agent") {
-    redirect("/voice-agent?tab=phone");
-  }
-  if (!isAdmin && params.tab === "phone") {
-    redirect("/voice-agent");
-  }
-
   const org = session.activeOrganization;
   const retellApiConfigured = isRetellApiConfigured();
   const retellVoices = retellApiConfigured ? await fetchRetellVoiceCatalog() : [];
   const localSettings = resolveVoiceAgentSettings(org.voiceAgentSettings, retellVoices);
   const voiceOptions = buildRetellVoiceSelectOptions(retellVoices, localSettings.retell.voiceId);
 
-  let retellConfig = localSettings.retell;
+  const retellConfig = localSettings.retell;
   let retellRemoteStatus: string | null = null;
 
   if (retellApiConfigured && localSettings.retell.retellAgentId.trim()) {
@@ -99,7 +83,7 @@ export default async function VoiceAgentPage({
   }
 
   let phoneConfig = localSettings.phone;
-  if (isAdmin && retellApiConfigured && phoneConfig.twilioPhoneNumber.trim()) {
+  if (retellApiConfigured && phoneConfig.twilioPhoneNumber.trim()) {
     phoneConfig = await resolveVoiceAgentPhoneFromRetell(phoneConfig);
   }
 
@@ -122,11 +106,7 @@ export default async function VoiceAgentPage({
             <span className="vr-brand-gradient-text">Retell AI phone agent</span>
           </>
         }
-        description={
-          isAdmin
-            ? "Link and manage the support phone number for your organization's Retell voice agent."
-            : "Create a per-organization Retell voice agent here, or link an existing one. Saves push voice, prompts, and knowledge to Retell."
-        }
+        description="Configure your Retell voice agent, support phone number, prompts, knowledge, and phone booking."
       >
         <AppPageHeroStatPanel>
           <AppPageHeroStatGrid columns="2">
@@ -134,24 +114,18 @@ export default async function VoiceAgentPage({
               label="Retell"
               value={retellApiConfigured ? "Connected" : "No API key"}
             />
-            {isAdmin ? (
-              <AppPageHeroStat
-                label="Support line"
-                value={phoneConfig.twilioPhoneNumber.trim() || "Not set"}
-              />
-            ) : null}
+            <AppPageHeroStat
+              label="Support line"
+              value={phoneConfig.twilioPhoneNumber.trim() || "Not set"}
+            />
           </AppPageHeroStatGrid>
         </AppPageHeroStatPanel>
       </AppPageHero>
 
       <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text-muted)]">
         <span className="font-semibold text-[var(--color-text)]">{org.name}</span>
-        {isAdmin ? (
-          <>
-            {" · "}
-            {formatVoiceAgentCallSummary(phoneConfig)}
-          </>
-        ) : null}
+        {" · "}
+        {formatVoiceAgentCallSummary(phoneConfig)}
         {" · "}
         Knowledge: {kbStatus === "approved" ? "approved" : kbStatus}
         {retellRemoteStatus ? (
@@ -173,8 +147,8 @@ export default async function VoiceAgentPage({
       <VoiceAgentTabs
         organizationId={org.id}
         organizationName={org.name}
-        canManageAgent={!isAdmin}
-        canManagePhone={isAdmin}
+        canManageAgent
+        canManagePhone
         retellApiConfigured={retellApiConfigured}
         voiceOptions={voiceOptions}
         voiceCatalog={retellVoices}

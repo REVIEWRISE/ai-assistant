@@ -4,6 +4,8 @@ import Link from "next/link";
 import { type ReactNode, useMemo, useState, useTransition } from "react";
 import type { VoiceAgentAiResult } from "@/lib/voice-agent-ai";
 import { CustomSelect } from "@/components/custom-select";
+import { VoiceAgentPhoneGateOverlay } from "@/components/voice-agent-phone-gate-overlay";
+import { VoiceAgentPhoneSummary } from "@/components/voice-agent-phone-summary";
 import { Panel } from "@/components/ui";
 import { toast } from "@/lib/toast";
 import { buildRetellGeneralPromptWithKnowledge } from "@/lib/retell-voice-prompt";
@@ -18,6 +20,7 @@ import {
   type RetellVoiceListItem,
   type RetellVoiceSelectOption,
   type VoiceAgentKnowledgeConfig,
+  type VoiceAgentPhoneConfig,
 } from "@/lib/retell-voice-agent";
 
 type KnowledgeSnapshot = {
@@ -211,6 +214,9 @@ export function VoiceAgentRetellSettings({
   voiceCatalog,
   initialConfig,
   initialKnowledgeConfig,
+  phoneConfig,
+  canManagePhone = false,
+  onGoToPhoneTab,
   knowledge,
   onSave,
   onPullFromRetell,
@@ -224,6 +230,9 @@ export function VoiceAgentRetellSettings({
   voiceCatalog: RetellVoiceListItem[];
   initialConfig: RetellVoiceAgentConfig;
   initialKnowledgeConfig: VoiceAgentKnowledgeConfig;
+  phoneConfig: VoiceAgentPhoneConfig;
+  canManagePhone?: boolean;
+  onGoToPhoneTab: () => void;
   knowledge: KnowledgeSnapshot;
   onSave: (formData: FormData) => void | Promise<void>;
   onPullFromRetell: (formData: FormData) => void | Promise<void>;
@@ -240,6 +249,8 @@ export function VoiceAgentRetellSettings({
   const [isGeneratingOpening, startGenerateOpening] = useTransition();
   const [isGeneratingPrompt, startGeneratePrompt] = useTransition();
   const hasAgent = Boolean(config.retellAgentId.trim());
+  const phoneConfigured = Boolean(phoneConfig.twilioPhoneNumber.trim());
+  const agentConfigLocked = !phoneConfigured;
 
   function buildGenerateFormData(): FormData {
     const fd = new FormData();
@@ -322,6 +333,8 @@ export function VoiceAgentRetellSettings({
         </form>
       ) : null}
 
+      <div className={`relative min-h-[28rem] ${agentConfigLocked ? "overflow-hidden rounded-2xl" : ""}`}>
+        <div className={agentConfigLocked ? "pointer-events-none select-none" : undefined}>
       <div className="mb-5 flex flex-wrap gap-2">
         <span
           className={`rounded-full px-3 py-1 text-xs font-semibold ${
@@ -416,6 +429,12 @@ export function VoiceAgentRetellSettings({
               Finish setup below, then save to create one in Retell.
             </div>
           ) : null}
+
+          <VoiceAgentPhoneSummary
+            phoneConfig={phoneConfig}
+            retellAgentId={config.retellAgentId}
+            canManagePhone={canManagePhone}
+          />
 
           <ToggleRow
             title="Enable phone support agent"
@@ -807,6 +826,10 @@ export function VoiceAgentRetellSettings({
           </div>
         </div>
       </form>
+        </div>
+
+        {agentConfigLocked ? <VoiceAgentPhoneGateOverlay onConfigurePhone={onGoToPhoneTab} /> : null}
+      </div>
     </Panel>
   );
 }

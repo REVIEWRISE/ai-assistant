@@ -26,7 +26,6 @@ import {
   resolveRetellVoiceAgentConfig,
   resolveVoiceAgentKnowledgeConfig,
 } from "@/lib/retell-voice-agent";
-import { appendVoiceRetellBookingPrompt } from "@/lib/voice-retell-booking-prompt";
 import { verifyRetellWebhookSignature } from "@/lib/retell-webhook-verify";
 
 export { appendVoiceRetellBookingPrompt, VOICE_RETELL_BOOKING_PROMPT_MARKER } from "@/lib/voice-retell-booking-prompt";
