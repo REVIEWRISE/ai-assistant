@@ -6,7 +6,6 @@ import {
 import { loadOrgBookingContext } from "@/lib/booking-org-gate";
 import {
   buildRetellGeneralPromptWithKnowledge,
-  RETELL_KNOWLEDGE_PROMPT_MARKER,
   splitRetellGeneralPrompt,
 } from "@/lib/retell-voice-prompt";
 import {

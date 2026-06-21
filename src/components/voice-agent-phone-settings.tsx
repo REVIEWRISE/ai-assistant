@@ -1,24 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import { VoiceAgentPhoneSummary } from "@/components/voice-agent-phone-summary";
 import { Panel } from "@/components/ui";
 import {
   defaultVoiceAgentPhoneConfig,
-  formatVoiceAgentCallSummary,
   type VoiceAgentPhoneConfig,
 } from "@/lib/retell-voice-agent";
 
 export function VoiceAgentPhoneSettings({
   organizationId,
   initialConfig,
+  retellAgentId = "",
   onSave,
 }: {
   organizationId: string;
   initialConfig: VoiceAgentPhoneConfig;
+  retellAgentId?: string;
   onSave: (formData: FormData) => void | Promise<void>;
 }) {
   const [config, setConfig] = useState<VoiceAgentPhoneConfig>(initialConfig);
-  const callSummary = formatVoiceAgentCallSummary(config);
 
   return (
     <Panel
@@ -28,16 +29,11 @@ export function VoiceAgentPhoneSettings({
       <form action={onSave} className="space-y-4">
         <input type="hidden" name="organization_id" value={organizationId} />
 
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-            How customers call
-          </p>
-          <p className="mt-2 text-sm font-medium text-[var(--color-text)]">{callSummary}</p>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            E.164 format. The number must already exist in Retell Phone Numbers. Saving links it to your
-            organization&apos;s agent when one is created.
-          </p>
-        </div>
+        <VoiceAgentPhoneSummary
+          phoneConfig={config}
+          retellAgentId={retellAgentId}
+          canManagePhone
+        />
 
         <label className="block space-y-1.5">
           <span className="text-xs font-semibold text-[var(--color-text)]">Support phone number</span>

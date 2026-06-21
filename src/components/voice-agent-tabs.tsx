@@ -33,7 +33,12 @@ function parseTabKey(raw: string | null): TabKey | null {
   return null;
 }
 
-function resolveDefaultTab(canManageAgent: boolean, canManagePhone: boolean): TabKey {
+function resolveDefaultTab(
+  canManageAgent: boolean,
+  canManagePhone: boolean,
+  hasPhoneNumber: boolean,
+): TabKey {
+  if (!hasPhoneNumber && canManagePhone) return "phone";
   if (canManagePhone && !canManageAgent) return "phone";
   return "agent";
 }
@@ -80,7 +85,8 @@ export function VoiceAgentTabs({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const defaultTab = resolveDefaultTab(canManageAgent, canManagePhone);
+  const hasPhoneNumber = Boolean(phoneConfig.twilioPhoneNumber.trim());
+  const defaultTab = resolveDefaultTab(canManageAgent, canManagePhone, hasPhoneNumber);
   const tabs = allTabs.filter((tab) => tabAllowed(tab.key, canManageAgent, canManagePhone));
   const requestedTab = parseTabKey(searchParams.get("tab"));
   const activeTab =
@@ -88,23 +94,23 @@ export function VoiceAgentTabs({
       ? requestedTab
       : defaultTab;
 
-  useEffect(() => {
-    if (!requestedTab || tabAllowed(requestedTab, canManageAgent, canManagePhone)) return;
-
-    const params = new URLSearchParams(searchParams.toString());
-    if (defaultTab === "agent") params.delete("tab");
-    else params.set("tab", defaultTab);
-    const query = params.toString();
-    router.replace(query ? `/voice-agent?${query}` : "/voice-agent", { scroll: false });
-  }, [canManageAgent, canManagePhone, defaultTab, requestedTab, router, searchParams]);
-
   function selectTab(tab: TabKey) {
     const params = new URLSearchParams(searchParams.toString());
-    if (tab === "agent") params.delete("tab");
-    else params.set("tab", tab);
-    const query = params.toString();
-    router.replace(query ? `/voice-agent?${query}` : "/voice-agent", { scroll: false });
+    params.set("tab", tab);
+    router.replace(`/voice-agent?${params.toString()}`, { scroll: false });
   }
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === null) return;
+
+    const parsed = parseTabKey(tabParam);
+    if (parsed && tabAllowed(parsed, canManageAgent, canManagePhone)) return;
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", defaultTab);
+    router.replace(`/voice-agent?${params.toString()}`, { scroll: false });
+  }, [canManageAgent, canManagePhone, defaultTab, router, searchParams]);
 
   return (
     <section className="space-y-4">
@@ -124,6 +130,9 @@ export function VoiceAgentTabs({
                 }`}
               >
                 {tab.label}
+                {tab.key === "agent" && !hasPhoneNumber ? (
+                  <span className="ml-1.5 text-[11px] font-medium opacity-80">· phone first</span>
+                ) : null}
               </button>
             );
           })}
@@ -139,6 +148,9 @@ export function VoiceAgentTabs({
           voiceCatalog={voiceCatalog}
           initialConfig={retellConfig}
           initialKnowledgeConfig={knowledgeConfig}
+          phoneConfig={phoneConfig}
+          canManagePhone={canManagePhone}
+          onGoToPhoneTab={() => selectTab("phone")}
           knowledge={knowledge}
           onSave={onSaveRetell}
           onPullFromRetell={onPullFromRetell}
@@ -151,6 +163,7 @@ export function VoiceAgentTabs({
         <VoiceAgentPhoneSettings
           organizationId={organizationId}
           initialConfig={phoneConfig}
+          retellAgentId={retellConfig.retellAgentId}
           onSave={onSavePhone}
         />
       ) : null}

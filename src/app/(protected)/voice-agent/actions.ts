@@ -3,7 +3,6 @@
 import type { Prisma } from "@prisma/client";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { userHasAdminRole } from "@/lib/allowed-menu-paths";
 import { prisma } from "@/lib/prisma";
 import { isRetellApiConfigured } from "@/lib/retell-api";
 import {
@@ -37,11 +36,6 @@ async function requireVoiceAgentOrgSession(organizationId: string) {
     select: {
       userId: true,
       activeOrganizationId: true,
-      user: {
-        select: {
-          userRoles: { select: { role: { select: { name: true } } } },
-        },
-      },
     },
   });
   if (!session) redirect("/login");
@@ -57,24 +51,6 @@ async function requireVoiceAgentOrgSession(organizationId: string) {
     redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
   }
 
-  return session;
-}
-
-async function requireVoiceAgentAdminSession(organizationId: string) {
-  const session = await requireVoiceAgentOrgSession(organizationId);
-  const roles = session.user.userRoles.map((ur) => ur.role);
-  if (!userHasAdminRole(roles)) {
-    redirect(`${VOICE_AGENT_ROUTE}?error=admin_required`);
-  }
-  return session;
-}
-
-async function requireVoiceAgentMemberSession(organizationId: string) {
-  const session = await requireVoiceAgentOrgSession(organizationId);
-  const roles = session.user.userRoles.map((ur) => ur.role);
-  if (userHasAdminRole(roles)) {
-    redirect(`${VOICE_AGENT_ROUTE}?error=agent_settings_restricted`);
-  }
   return session;
 }
 
@@ -111,9 +87,12 @@ export async function saveRetellVoiceAgentSettings(formData: FormData) {
   const organizationId = String(formData.get("organization_id") || "").trim();
   if (!organizationId) redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
 
-  await requireVoiceAgentMemberSession(organizationId);
+  await requireVoiceAgentOrgSession(organizationId);
 
   const { settings: stored, voices } = await loadVoiceAgentSettings(organizationId);
+  if (!stored.phone.twilioPhoneNumber.trim()) {
+    redirect(`${VOICE_AGENT_ROUTE}?tab=phone&error=phone_required_for_agent`);
+  }
   const phone = stored.phone;
   const knowledgeConfig = parseVoiceAgentKnowledgeForm(formEntries(formData));
   let retellConfig = parseRetellVoiceAgentForm(formEntries(formData), voices);
@@ -180,7 +159,7 @@ export async function saveVoiceAgentPhoneSettings(formData: FormData) {
   const organizationId = String(formData.get("organization_id") || "").trim();
   if (!organizationId) redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
 
-  await requireVoiceAgentAdminSession(organizationId);
+  await requireVoiceAgentOrgSession(organizationId);
 
   const phoneConfig = parseVoiceAgentPhoneForm(formEntries(formData));
   const { settings: stored } = await loadVoiceAgentSettings(organizationId);
@@ -207,10 +186,10 @@ export async function saveVoiceAgentPhoneSettings(formData: FormData) {
       phoneNumber: phoneConfig.twilioPhoneNumber,
     });
     if (!link.ok) redirectRetellSyncFailure("phone", link.error);
-    redirect(`${VOICE_AGENT_ROUTE}?tab=phone&success=phone_saved_synced`);
+    redirect(`${VOICE_AGENT_ROUTE}?success=phone_saved_synced`);
   }
 
-  redirect(`${VOICE_AGENT_ROUTE}?tab=phone&success=phone_saved`);
+  redirect(`${VOICE_AGENT_ROUTE}?success=phone_saved`);
 }
 
 export async function pullRetellVoiceAgentSettings(formData: FormData) {
@@ -218,7 +197,7 @@ export async function pullRetellVoiceAgentSettings(formData: FormData) {
   const agentId = String(formData.get("retell_agent_id") || "").trim();
   if (!organizationId) redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
 
-  await requireVoiceAgentMemberSession(organizationId);
+  await requireVoiceAgentOrgSession(organizationId);
 
   const { settings: stored } = await loadVoiceAgentSettings(organizationId);
   const local = stored.retell;
@@ -254,7 +233,7 @@ export async function generateVoiceAgentOpeningMessageAction(
   const organizationId = String(formData.get("organization_id") || "").trim();
   if (!organizationId) return { ok: false, error: "failed" };
 
-  await requireVoiceAgentMemberSession(organizationId);
+  await requireVoiceAgentOrgSession(organizationId);
 
   const org = await prisma.organization.findFirst({
     where: { id: organizationId },
@@ -274,7 +253,7 @@ export async function generateVoiceAgentSystemPromptAction(
   const organizationId = String(formData.get("organization_id") || "").trim();
   if (!organizationId) return { ok: false, error: "failed" };
 
-  await requireVoiceAgentMemberSession(organizationId);
+  await requireVoiceAgentOrgSession(organizationId);
 
   const org = await prisma.organization.findFirst({
     where: { id: organizationId },
