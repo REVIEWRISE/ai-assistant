@@ -240,8 +240,17 @@ export async function fetchRetellPhoneNumber(
     return { ok: false, error: result.error };
   }
 
-  const fromRetell = readString(result.data.phone_number) || normalized;
+  const fromRetell = readRetellPhoneNumberField(result.data, normalized);
   return { ok: true, phoneNumber: fromRetell };
+}
+
+function readRetellPhoneNumberField(data: Record<string, unknown>, fallback: string): string {
+  for (const key of ["phone_number", "phoneNumber", "number", "nickname"] as const) {
+    const value = data[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return fallback;
 }
 
 export async function linkVoiceAgentPhoneInRetell(args: {
@@ -479,5 +488,6 @@ export async function resolveVoiceAgentPhoneFromRetell(
 
   const result = await fetchRetellPhoneNumber(number);
   if (!result.ok) return local;
-  return { twilioPhoneNumber: result.phoneNumber };
+  const resolved = result.phoneNumber.trim();
+  return { twilioPhoneNumber: resolved || number };
 }
