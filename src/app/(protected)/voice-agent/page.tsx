@@ -24,6 +24,8 @@ import {
   saveVoiceAgentPhoneSettings,
 } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function VoiceAgentPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get("ai_session")?.value;

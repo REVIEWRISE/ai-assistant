@@ -248,12 +248,23 @@ export function resolveRetellVoiceAgentConfig(
   };
 }
 
+function readPhoneNumberField(v: unknown): string {
+  if (typeof v === "string") return v.trim();
+  if (typeof v === "number" && Number.isFinite(v)) return String(v);
+  return "";
+}
+
 export function resolveVoiceAgentPhoneConfig(raw: unknown): VoiceAgentPhoneConfig {
   const defaults = defaultVoiceAgentPhoneConfig();
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return defaults;
   const rec = raw as Record<string, unknown>;
+  const number =
+    readPhoneNumberField(rec.twilioPhoneNumber) ||
+    readPhoneNumberField(rec.twilio_phone_number) ||
+    readPhoneNumberField(rec.phoneNumber) ||
+    readPhoneNumberField(rec.phone_number);
   return {
-    twilioPhoneNumber: readString(rec.twilioPhoneNumber).slice(0, 32),
+    twilioPhoneNumber: number.slice(0, 32),
   };
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { VoiceAgentPhoneSummary } from "@/components/voice-agent-phone-summary";
 import { Panel } from "@/components/ui";
 import {
@@ -20,6 +20,10 @@ export function VoiceAgentPhoneSettings({
   onSave: (formData: FormData) => void | Promise<void>;
 }) {
   const [config, setConfig] = useState<VoiceAgentPhoneConfig>(initialConfig);
+
+  useEffect(() => {
+    setConfig(initialConfig);
+  }, [initialConfig]);
 
   return (
     <Panel

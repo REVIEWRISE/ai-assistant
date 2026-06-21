@@ -1,6 +1,7 @@
 "use server";
 
 import type { Prisma } from "@prisma/client";
+import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -124,6 +125,7 @@ export async function saveRetellVoiceAgentSettings(formData: FormData) {
       },
     });
 
+    revalidatePath(VOICE_AGENT_ROUTE);
     redirect(`${VOICE_AGENT_ROUTE}?success=retell_created`);
   }
 
@@ -149,9 +151,11 @@ export async function saveRetellVoiceAgentSettings(formData: FormData) {
       phone,
     });
     if (!sync.ok) redirectRetellSyncFailure("agent", sync.error);
+    revalidatePath(VOICE_AGENT_ROUTE);
     redirect(`${VOICE_AGENT_ROUTE}?success=retell_saved_synced`);
   }
 
+  revalidatePath(VOICE_AGENT_ROUTE);
   redirect(`${VOICE_AGENT_ROUTE}?success=retell_saved`);
 }
 
@@ -186,10 +190,12 @@ export async function saveVoiceAgentPhoneSettings(formData: FormData) {
       phoneNumber: phoneConfig.twilioPhoneNumber,
     });
     if (!link.ok) redirectRetellSyncFailure("phone", link.error);
-    redirect(`${VOICE_AGENT_ROUTE}?success=phone_saved_synced`);
+    revalidatePath(VOICE_AGENT_ROUTE);
+    redirect(`${VOICE_AGENT_ROUTE}?tab=phone&success=phone_saved_synced`);
   }
 
-  redirect(`${VOICE_AGENT_ROUTE}?success=phone_saved`);
+  revalidatePath(VOICE_AGENT_ROUTE);
+  redirect(`${VOICE_AGENT_ROUTE}?tab=phone&success=phone_saved`);
 }
 
 export async function pullRetellVoiceAgentSettings(formData: FormData) {
