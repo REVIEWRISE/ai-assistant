@@ -11,6 +11,7 @@ import {
 } from "@/lib/retell-voice-prompt";
 import {
   createRetellAgent,
+  createRetellAgentVersion,
   createRetellLlm,
   extractRetellLlmId,
   getRetellAgent,
@@ -18,7 +19,10 @@ import {
   getRetellPhoneNumber,
   isRetellApiConfigured,
   listRetellVoices,
+  publishRetellAgentVersion,
   readRetellAgentId,
+  readRetellAgentIsPublished,
+  readRetellAgentVersion,
   readRetellLlmId,
   updateRetellAgent,
   updateRetellLlm,
@@ -68,6 +72,70 @@ function parseRetellLanguage(v: unknown): RetellLanguage {
   }
   if (raw.startsWith("en")) return "en-US";
   return "en-US";
+}
+
+function buildRetellLlmSyncBody(args: {
+  generalPrompt: string;
+  openingMessage: string;
+  generalTools?: Array<Record<string, unknown>>;
+}): Record<string, unknown> {
+  return {
+    model: RETELL_DEFAULT_LLM_MODEL,
+    general_prompt: args.generalPrompt,
+    begin_message: args.openingMessage.trim(),
+    start_speaker: "agent",
+    general_tools: args.generalTools ?? [],
+  };
+}
+
+async function ensureRetellAgentDraft(agentId: string): Promise<RetellSyncResult> {
+  const id = agentId.trim();
+  if (!id) return { ok: false, error: "Retell agent ID is required." };
+
+  let agentResult = await getRetellAgent(id, "latest");
+  if (!agentResult.ok) {
+    agentResult = await getRetellAgent(id);
+  }
+  if (!agentResult.ok) {
+    return { ok: false, error: agentResult.error };
+  }
+
+  if (!readRetellAgentIsPublished(agentResult.data)) {
+    return { ok: true };
+  }
+
+  const version = readRetellAgentVersion(agentResult.data);
+  if (version == null) {
+    return { ok: false, error: "Could not read Retell agent version to create a draft." };
+  }
+
+  const draft = await createRetellAgentVersion(id, { base_version: version });
+  if (!draft.ok) {
+    return { ok: false, error: draft.error };
+  }
+
+  return { ok: true };
+}
+
+async function publishRetellAgentDraft(agentId: string): Promise<RetellSyncResult> {
+  const id = agentId.trim();
+  if (!id) return { ok: false, error: "Retell agent ID is required to publish." };
+
+  let agentResult = await getRetellAgent(id, "latest");
+  if (!agentResult.ok) {
+    agentResult = await getRetellAgent(id);
+  }
+  if (!agentResult.ok) {
+    return { ok: false, error: agentResult.error };
+  }
+
+  const version = readRetellAgentVersion(agentResult.data) ?? 0;
+  const publish = await publishRetellAgentVersion(id, version);
+  if (!publish.ok) {
+    return { ok: false, error: publish.error };
+  }
+
+  return { ok: true };
 }
 
 function mapVoiceIdFromRetell(
@@ -194,7 +262,7 @@ export async function linkVoiceAgentPhoneInRetell(args: {
   if (!verify.ok) return verify;
 
   const update = await updateRetellPhoneNumber(phoneNumber, {
-    inbound_agents: [{ agent_id: agentId, weight: 1 }],
+    inbound_agents: [{ agent_id: agentId, agent_version: "latest", weight: 1 }],
   });
   if (!update.ok) {
     return { ok: false, error: update.error };
@@ -225,14 +293,13 @@ export async function createVoiceAgentInRetell(args: {
   });
   if (!promptResult.ok) return promptResult;
 
-  const llmCreate = await createRetellLlm({
-    model: RETELL_DEFAULT_LLM_MODEL,
-    general_prompt: promptResult.generalPrompt,
-    begin_message: args.retell.openingMessage,
-    ...(promptResult.generalTools?.length
-      ? { general_tools: promptResult.generalTools }
-      : {}),
-  });
+  const llmCreate = await createRetellLlm(
+    buildRetellLlmSyncBody({
+      generalPrompt: promptResult.generalPrompt!,
+      openingMessage: args.retell.openingMessage,
+      generalTools: promptResult.generalTools,
+    }),
+  );
   if (!llmCreate.ok) {
     return { ok: false, error: llmCreate.error };
   }
@@ -264,6 +331,9 @@ export async function createVoiceAgentInRetell(args: {
     const link = await linkVoiceAgentPhoneInRetell({ agentId, phoneNumber });
     if (!link.ok) return link;
   }
+
+  const publish = await publishRetellAgentDraft(agentId);
+  if (!publish.ok) return publish;
 
   return { ok: true, agentId };
 }
@@ -329,6 +399,9 @@ export async function syncVoiceAgentToRetell(args: {
     return { ok: false, error: "Select a Retell voice before syncing." };
   }
 
+  const draftReady = await ensureRetellAgentDraft(agentId);
+  if (!draftReady.ok) return draftReady;
+
   const agentUpdate = await updateRetellAgent(agentId, {
     agent_name: args.retell.agentName,
     voice_id: voiceId,
@@ -372,14 +445,20 @@ async function syncRetellLlmPrompt(
   });
   if (!promptResult.ok) return promptResult;
 
-  const llmUpdate = await updateRetellLlm(llmId, {
-    general_prompt: promptResult.generalPrompt,
-    begin_message: args.retell.openingMessage,
-    general_tools: promptResult.generalTools ?? [],
-  });
+  const llmUpdate = await updateRetellLlm(
+    llmId,
+    buildRetellLlmSyncBody({
+      generalPrompt: promptResult.generalPrompt!,
+      openingMessage: args.retell.openingMessage,
+      generalTools: promptResult.generalTools,
+    }),
+  );
   if (!llmUpdate.ok) {
     return { ok: false, error: llmUpdate.error };
   }
+
+  const publish = await publishRetellAgentDraft(args.retell.retellAgentId.trim());
+  if (!publish.ok) return publish;
 
   const phoneNumber = args.phone?.twilioPhoneNumber.trim();
   if (phoneNumber) {

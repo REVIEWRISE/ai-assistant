@@ -90,8 +90,7 @@ export default async function VoiceAgentPage({
   if (retellApiConfigured && localSettings.retell.retellAgentId.trim()) {
     const imported = await fetchRetellVoiceAgentConfig(localSettings.retell);
     if (imported.ok) {
-      retellConfig = imported.config;
-      retellRemoteStatus = "Loaded from Retell";
+      retellRemoteStatus = "Live in Retell — save & sync after editing opening message or prompts";
     } else {
       retellRemoteStatus = imported.error;
     }

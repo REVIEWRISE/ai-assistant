@@ -22,6 +22,7 @@ import {
   type BookedSourceFilter,
 } from "@/lib/appointment-source";
 import type { BookingFlowQaItem } from "@/lib/booking-flow-qa";
+import { BookedCalendarSyncForm } from "@/components/booked-calendar-sync-form";
 import { BookedCrmSyncForm } from "@/components/booked-crm-sync-form";
 import { CalendarServiceManager } from "@/components/calendar-service-manager";
 import { Panel } from "@/components/ui";
@@ -560,11 +561,15 @@ function CalendarPeriodModeSwitch({
 function BookedAppointmentsPanel({
   upcoming,
   recentPast,
+  calendarRouteOptions,
+  retryCalendarSync,
   crmWebhookConfigured,
   retryCrmSync,
 }: {
   upcoming: BookedAppointmentRow[];
   recentPast: BookedAppointmentRow[];
+  calendarRouteOptions: CalendarRouteOption[];
+  retryCalendarSync: (formData: FormData) => void | Promise<void>;
   crmWebhookConfigured: boolean;
   retryCrmSync: (formData: FormData) => void | Promise<void>;
 }) {
@@ -1208,6 +1213,21 @@ function BookedAppointmentsPanel({
                         </dl>
                       </div>
                     ) : null}
+                    <div className="mt-3 border-t border-[var(--color-border-muted)] pt-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                        Calendar sync
+                      </p>
+                      <BookedCalendarSyncForm
+                        appointmentId={row.id}
+                        routes={calendarRouteOptions}
+                        providerSyncStatus={row.providerSyncStatus}
+                        externalCalendarEventId={row.externalCalendarEventId}
+                        providerSyncError={row.providerSyncError}
+                        routedProviderId={row.routedProviderId}
+                        routedConnectionUserId={row.routedConnectionUserId}
+                        action={retryCalendarSync}
+                      />
+                    </div>
                     {crmWebhookConfigured && bookingSourceSupportsCrmSync(row.source) ? (
                       <div className="mt-3 border-t border-[var(--color-border-muted)] pt-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
@@ -1274,14 +1294,12 @@ export function AppointmentsTabs({
   bookedAppointments,
   calendarProviders,
   providerLoad,
-  calendarRouteOptions: _calendarRouteOptions,
-  retryCalendarSync: _retryCalendarSync,
+  calendarRouteOptions,
+  retryCalendarSync,
   retryCrmSync,
   crmWebhookConfigured,
   appointmentAnalytics,
 }: AppointmentsTabsProps) {
-  void _calendarRouteOptions;
-  void _retryCalendarSync;
   const [activeTab, setActiveTab] = useState<TabKey>("integrations");
 
   const trendHasActivity = useMemo(
@@ -1317,6 +1335,8 @@ export function AppointmentsTabs({
         <BookedAppointmentsPanel
           upcoming={bookedAppointments.upcoming}
           recentPast={bookedAppointments.recentPast}
+          calendarRouteOptions={calendarRouteOptions}
+          retryCalendarSync={retryCalendarSync}
           crmWebhookConfigured={crmWebhookConfigured}
           retryCrmSync={retryCrmSync}
         />

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   executeVoiceRetellAvailabilityCheck,
+  extractRetellToolArgs,
   parseVoiceRetellAvailabilityArgs,
   resolveRetellPhoneBookingContext,
 } from "@/lib/voice-retell-booking";
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
   }
 
   const context = await resolveRetellPhoneBookingContext(
+    rawBody,
     body,
     request.headers.get("x-retell-signature"),
   );
@@ -22,10 +24,14 @@ export async function POST(request: Request) {
     return NextResponse.json(context.body, { status: context.status });
   }
 
-  const args = parseVoiceRetellAvailabilityArgs(body.args);
+  const args = parseVoiceRetellAvailabilityArgs(extractRetellToolArgs(body));
   if (!args) {
     return NextResponse.json(
-      { result: "Provide a valid start_time_iso to check availability." },
+      {
+        success: false,
+        available: false,
+        result: "Provide a valid start_time_iso to check availability.",
+      },
       { status: 200 },
     );
   }
@@ -35,5 +41,9 @@ export async function POST(request: Request) {
     availabilityArgs: args,
   });
 
-  return NextResponse.json({ result: result.message, available: result.available });
+  return NextResponse.json({
+    success: true,
+    result: result.message,
+    available: result.available,
+  });
 }

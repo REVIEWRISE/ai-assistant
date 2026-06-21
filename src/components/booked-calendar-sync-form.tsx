@@ -63,7 +63,8 @@ export function BookedCalendarSyncForm({
   if (routes.length === 0) {
     return (
       <p className="mt-2 text-xs text-amber-900">
-        Connect a calendar under the <span className="font-semibold">Integrations</span> tab to post this booking.
+        This booking is saved. Connect a calendar under the <span className="font-semibold">Integrations</span> tab,
+        then return here to post it.
       </p>
     );
   }

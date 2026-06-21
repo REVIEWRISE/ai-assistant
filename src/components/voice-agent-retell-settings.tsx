@@ -568,7 +568,7 @@ export function VoiceAgentRetellSettings({
               placeholder="Hi, thanks for calling. How can I help you today?"
             />
             <span className="text-xs text-[var(--color-text-muted)]">
-              Spoken when the call connects. Generate uses your organization knowledge base.
+              Spoken when the call connects. After editing, click Save so changes sync and publish to Retell for live calls.
             </span>
           </label>
 
