@@ -34,6 +34,11 @@ import {
   parseVoiceRetellBookingFlowAnswers,
   type VoiceRetellBookingFlowAnswer,
 } from "@/lib/voice-retell-booking-flow";
+import {
+  buildVoiceBookingDatePromptLines,
+  referenceNowInTimeZone,
+  resolveVoiceBookingStartTimeIso,
+} from "@/lib/voice-retell-datetime";
 import type { BookingFlowQaItem } from "@/lib/booking-flow-qa";
 import type { OrgCalendarRoute } from "@/lib/booking-org-gate";
 
@@ -158,17 +163,26 @@ export async function findVoiceAgentOrgByRetellAgentId(retellAgentId: string) {
 }
 
 export async function buildVoiceRetellBookingPromptSection(organizationId: string): Promise<string> {
-  const chatbotSettings = await prisma.organizationChatbotSettings.findUnique({
-    where: { organizationId },
-    select: { bookingFlow: true, services: true },
-  });
+  const [chatbotSettings, org] = await Promise.all([
+    prisma.organizationChatbotSettings.findUnique({
+      where: { organizationId },
+      select: { bookingFlow: true, services: true },
+    }),
+    prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { timezone: true },
+    }),
+  ]);
   const flow = resolveBookingFlowConfig(chatbotSettings?.bookingFlow);
+  const timeZone = org?.timezone?.trim() || "UTC";
+  const reference = referenceNowInTimeZone(timeZone);
   const services = Array.isArray(chatbotSettings?.services)
     ? chatbotSettings.services.map((s) => String(s).trim()).filter(Boolean)
     : [];
 
   const lines = [
     "You can book appointments for callers on this phone line.",
+    ...buildVoiceBookingDatePromptLines(reference, timeZone),
     "Before booking, call check_availability with the requested start time to verify the slot.",
     "If the slot is available, collect remaining details, confirm aloud, then call book_appointment.",
     `Default appointment length: ${flow.slotDurationMinutes} minutes.`,
@@ -216,7 +230,8 @@ export async function buildRetellBookingTools() {
         properties: {
           start_time_iso: {
             type: "string",
-            description: "Requested start time in ISO 8601 format.",
+            description:
+              "Appointment start in ISO 8601. Use the reference year from the prompt — e.g. tomorrow or Jan 22 maps to the current or next calendar year, never a past year.",
           },
           service_description: {
             type: "string",
@@ -260,7 +275,8 @@ export async function buildRetellBookingTools() {
           },
           start_time_iso: {
             type: "string",
-            description: "Requested start time in ISO 8601 format (e.g. 2026-05-30T19:00:00.000Z).",
+            description:
+              "Appointment start in ISO 8601. Use the reference year from the prompt — e.g. tomorrow or Jan 22 maps to the current or next calendar year, never a past year.",
           },
           booking_flow_answers: {
             type: "array",
@@ -386,6 +402,18 @@ function dispatchVoiceRetellBookingSideEffects(args: {
   })();
 }
 
+async function loadVoiceBookingReference(organizationId: string): Promise<{
+  reference: Date;
+  timeZone: string;
+}> {
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { timezone: true },
+  });
+  const timeZone = org?.timezone?.trim() || "UTC";
+  return { reference: referenceNowInTimeZone(timeZone), timeZone };
+}
+
 export async function executeVoiceRetellBooking(args: {
   organizationId: string;
   organizationName: string;
@@ -397,7 +425,11 @@ export async function executeVoiceRetellBooking(args: {
     select: { bookingFlow: true, services: true, crmIntegration: true },
   });
   const flow = resolveBookingFlowConfig(chatbotSettings?.bookingFlow);
-  const enriched = enrichVoiceRetellBookingArgs(flow, args.bookingArgs);
+  const { reference } = await loadVoiceBookingReference(args.organizationId);
+  const enriched = enrichVoiceRetellBookingArgs(flow, args.bookingArgs, {
+    reference,
+    slotDurationMinutes: flow.slotDurationMinutes,
+  });
 
   if (enriched.missingRequired.length) {
     return {
@@ -655,7 +687,14 @@ export async function executeVoiceRetellAvailabilityCheck(args: {
     select: { bookingFlow: true },
   });
   const flow = resolveBookingFlowConfig(chatbotSettings?.bookingFlow);
-  const startTime = new Date(args.availabilityArgs.start_time_iso);
+  const { reference } = await loadVoiceBookingReference(args.organizationId);
+  const normalizedStart =
+    resolveVoiceBookingStartTimeIso({
+      raw: args.availabilityArgs.start_time_iso,
+      reference,
+      slotDurationMinutes: flow.slotDurationMinutes,
+    }) ?? args.availabilityArgs.start_time_iso;
+  const startTime = new Date(normalizedStart);
   const endTime = new Date(startTime.getTime() + flow.slotDurationMinutes * 60_000);
 
   if (Number.isNaN(startTime.getTime()) || startTime.getTime() <= Date.now() - 120_000) {

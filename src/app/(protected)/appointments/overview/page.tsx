@@ -11,6 +11,7 @@ import { parseBookingFlowQaPayload, type BookingFlowQaItem } from "@/lib/booking
 import { requireSession } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import { getAppointmentAnalytics } from "@/lib/appointment-analytics";
+import { calendarConnectionDisplay, refreshCalendarConnectionsForUser } from "@/lib/calendar-oauth-connection";
 import { listOrgCalendarRoutes } from "@/lib/booking-org-gate";
 import { redirect } from "next/navigation";
 import { crmIntegrationIsDispatchReady, resolveCrmIntegrationConfig } from "@/lib/crm-integration";
@@ -151,6 +152,8 @@ export default async function AppointmentsOverviewPage({
     );
   }
 
+  await refreshCalendarConnectionsForUser(session.userId);
+
   const providerRows = await prisma.provider.findMany({
     where: { type: "calendar", status: "enabled" },
     orderBy: { createdAt: "asc" },
@@ -244,29 +247,18 @@ export default async function AppointmentsOverviewPage({
 
   const calendarProviders: CalendarProviderItem[] = providerRows.map((provider: typeof providerRows[number]) => {
     const connection = provider.connections[0];
-    const tokenData = (connection?.tokenData ?? null) as { expires_at?: string | number } | null;
-    const expiresAtValue = tokenData?.expires_at;
-    const expiresAt =
-      typeof expiresAtValue === "string" || typeof expiresAtValue === "number"
-        ? new Date(expiresAtValue).getTime()
-        : null;
-    const isExpired = expiresAt ? nowMs > expiresAt : false;
-    const isConnected = Boolean(connection?.connected && !isExpired);
+    const display = calendarConnectionDisplay(Boolean(connection?.connected), connection?.tokenData, nowMs);
 
     return {
       id: provider.id,
       name: provider.name,
       type: "Calendar",
       logoUrl: provider.logoUrl,
-      status: isExpired ? "Expired" : isConnected ? "Connected" : "Not connected",
-      synced: isExpired ? "Token expired" : isConnected ? "API connected" : "0 synced",
+      status: display.status,
+      synced: display.synced,
       lastSync: "—",
       syncScope: provider.apiUrl ? "API configured" : "Connect provider API URL",
-      tone: isExpired
-        ? "vr-app-status-warning"
-        : isConnected
-          ? "vr-app-status-success"
-          : "vr-app-status-muted",
+      tone: display.tone,
       connectHref: `/appointments/providers/connect/${provider.id}`,
     };
   });
@@ -274,14 +266,8 @@ export default async function AppointmentsOverviewPage({
   const connectedProviders = calendarProviders.filter((provider) => provider.status === "Connected").length;
   const providerLoad = providerRows.map((provider: typeof providerRows[number]) => {
     const connection = provider.connections[0];
-    const tokenData = (connection?.tokenData ?? null) as { expires_at?: string | number } | null;
-    const expiresAtValue = tokenData?.expires_at;
-    const expiresAt =
-      typeof expiresAtValue === "string" || typeof expiresAtValue === "number"
-        ? new Date(expiresAtValue).getTime()
-        : null;
-    const isExpired = expiresAt ? nowMs > expiresAt : false;
-    const isConnected = Boolean(connection?.connected && !isExpired);
+    const display = calendarConnectionDisplay(Boolean(connection?.connected), connection?.tokenData, nowMs);
+    const isConnected = display.status === "Connected";
     return {
       provider: provider.name,
       requests: "0",
