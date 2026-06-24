@@ -1,4 +1,6 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { mergeOAuthTokenData } from "@/lib/calendar-oauth-connection";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -86,10 +88,22 @@ export async function GET(request: Request) {
     redirect("/appointments?error=token_exchange");
   }
 
-  const tokenData = await tokenResponse.json();
-  if (tokenData && typeof tokenData.expires_in === "number") {
-    tokenData.expires_at = Date.now() + tokenData.expires_in * 1000;
-  }
+  const incoming = (await tokenResponse.json()) as Record<string, unknown> & {
+    expires_in?: number;
+    refresh_token?: string;
+  };
+
+  const existing = await prisma.providerConnection.findUnique({
+    where: {
+      userId_providerId: {
+        userId: statePayload.userId,
+        providerId: provider.id,
+      },
+    },
+    select: { tokenData: true },
+  });
+
+  const tokenData = mergeOAuthTokenData(existing?.tokenData, incoming);
 
   await prisma.providerConnection.upsert({
     where: {
@@ -102,11 +116,11 @@ export async function GET(request: Request) {
       userId: statePayload.userId,
       providerId: provider.id,
       connected: true,
-      tokenData,
+      tokenData: tokenData as unknown as Prisma.InputJsonValue,
     },
     update: {
       connected: true,
-      tokenData,
+      tokenData: tokenData as unknown as Prisma.InputJsonValue,
       updatedAt: new Date(),
     },
   });

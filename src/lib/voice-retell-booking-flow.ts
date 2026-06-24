@@ -7,6 +7,7 @@ import {
   stepIdIndicatesPartySize,
   stepIdIndicatesService,
 } from "@/lib/parse-booking-utterance";
+import { resolveVoiceBookingStartTimeIso } from "@/lib/voice-retell-datetime";
 
 export type VoiceRetellBookingFlowAnswer = {
   step_id: string;
@@ -51,7 +52,7 @@ function describeVoiceBookingFlowStep(step: BookingFlowStep, index: number): str
   if (inputType === "options" && step.options.length) {
     line += `. Offer: ${step.options.map((o) => o.label).join(", ")}.`;
   } else if (inputType === "datetime") {
-    line += `. Collect date and time; use ISO 8601 in start_time_iso.`;
+    line += `. Accept natural answers like "tomorrow at 7pm" or "January 22 at noon"; convert using today's reference year before booking.`;
   } else if (inputType === "email") {
     line += `. Collect a valid email address.`;
   } else if (inputType === "text") {
@@ -107,6 +108,7 @@ export function parseFlexiblePartySize(value: unknown): number | null {
 export function enrichVoiceRetellBookingArgs(
   flow: BookingFlowConfig,
   args: VoiceRetellBookingInput,
+  options?: { reference?: Date; slotDurationMinutes?: number },
 ): {
   args: VoiceRetellBookingInput;
   bookingFlowQa: BookingFlowQaItem[];
@@ -122,6 +124,9 @@ export function enrichVoiceRetellBookingArgs(
   }
 
   const bookingFlowQa = buildBookingFlowQaFromAnswers(flow, answersRecord);
+
+  const reference = options?.reference ?? new Date();
+  const slotDurationMinutes = options?.slotDurationMinutes ?? flow.slotDurationMinutes;
 
   let customer_name = args.customer_name.trim();
   let customer_email = args.customer_email;
@@ -148,10 +153,24 @@ export function enrichVoiceRetellBookingArgs(
     if (stepIdIndicatesService(step.id) && !service_description) {
       service_description = text.slice(0, 500);
     }
-    if (step.inputType === "datetime" && !start_time_iso) {
-      const d = new Date(text);
-      if (!Number.isNaN(d.getTime())) start_time_iso = d.toISOString();
+    if (step.inputType === "datetime") {
+      const resolved =
+        resolveVoiceBookingStartTimeIso({
+          raw: text,
+          reference,
+          slotDurationMinutes,
+        }) ?? (start_time_iso ? resolveVoiceBookingStartTimeIso({ raw: start_time_iso, reference, slotDurationMinutes }) : null);
+      if (resolved) start_time_iso = resolved;
     }
+  }
+
+  if (start_time_iso) {
+    const normalized = resolveVoiceBookingStartTimeIso({
+      raw: start_time_iso,
+      reference,
+      slotDurationMinutes,
+    });
+    if (normalized) start_time_iso = normalized;
   }
 
   const enriched: VoiceRetellBookingInput = {

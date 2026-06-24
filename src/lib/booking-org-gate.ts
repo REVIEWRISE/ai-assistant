@@ -1,3 +1,4 @@
+import { calendarConnectionIsUsable, refreshOrgMemberCalendarConnections } from "@/lib/calendar-oauth-connection";
 import { KNOWLEDGE_BOOKING_CORPUS_RAW_MAX_CHARS } from "@/lib/knowledge-base-limits";
 import { truncateKnowledgeRawTextForPrompt } from "@/lib/knowledge-base-raw-truncate";
 import { prisma } from "@/lib/prisma";
@@ -149,14 +150,6 @@ export async function loadOrgBookingContext(organizationId: string): Promise<Org
   };
 }
 
-function connectionIsLive(tokenData: unknown, nowMs: number): boolean {
-  const td = tokenData as { expires_at?: string | number } | null | undefined;
-  const exp = td?.expires_at;
-  if (exp === undefined || exp === null) return true;
-  const t = new Date(exp).getTime();
-  return !Number.isNaN(t) && t > nowMs;
-}
-
 export type OrgCalendarRoute = {
   providerId: string;
   connectionUserId: string;
@@ -196,7 +189,7 @@ async function findPreferredOrgCalendarRoute(
     },
     include: { provider: { select: { id: true, name: true } } },
   });
-  if (!conn || !connectionIsLive(conn.tokenData, nowMs)) {
+  if (!conn || !calendarConnectionIsUsable(conn.tokenData, nowMs)) {
     return null;
   }
 
@@ -212,6 +205,7 @@ async function findPreferredOrgCalendarRoute(
  * Preferred connection (from last connect audit) is listed first when still valid.
  */
 export async function listOrgCalendarRoutes(organizationId: string): Promise<OrgCalendarRoute[]> {
+  await refreshOrgMemberCalendarConnections(organizationId);
   const nowMs = Date.now();
   const members = await prisma.organizationMember.findMany({
     where: { organizationId },
@@ -233,7 +227,7 @@ export async function listOrgCalendarRoutes(organizationId: string): Promise<Org
   const routes: OrgCalendarRoute[] = [];
   const seen = new Set<string>();
   for (const c of connections) {
-    if (!connectionIsLive(c.tokenData, nowMs)) continue;
+    if (!calendarConnectionIsUsable(c.tokenData, nowMs)) continue;
     const key = `${c.providerId}:${c.userId}`;
     if (seen.has(key)) continue;
     seen.add(key);
