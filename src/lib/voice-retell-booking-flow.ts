@@ -123,8 +123,6 @@ export function enrichVoiceRetellBookingArgs(
     answersRecord[stepId] = answer;
   }
 
-  const bookingFlowQa = buildBookingFlowQaFromAnswers(flow, answersRecord);
-
   const reference = options?.reference ?? new Date();
   const slotDurationMinutes = options?.slotDurationMinutes ?? flow.slotDurationMinutes;
 
@@ -134,6 +132,7 @@ export function enrichVoiceRetellBookingArgs(
   let service_description = args.service_description.trim();
   let start_time_iso = args.start_time_iso.trim();
 
+  // 1. Resolve flat parameter values using answersRecord if they were not explicitly passed
   for (const step of flow.steps) {
     const raw = answersRecord[step.id];
     if (raw === undefined) continue;
@@ -172,6 +171,26 @@ export function enrichVoiceRetellBookingArgs(
     });
     if (normalized) start_time_iso = normalized;
   }
+
+  // 2. Back-populate answersRecord from flat parameters for matching steps
+  for (const step of flow.steps) {
+    if (answersRecord[step.id] !== undefined && answersRecord[step.id] !== "") continue;
+
+    if (stepIdIndicatesCustomerName(step.id) && customer_name) {
+      answersRecord[step.id] = customer_name;
+    } else if (stepIdIndicatesCustomerEmail(step.id) && customer_email) {
+      answersRecord[step.id] = customer_email;
+    } else if (stepIdIndicatesPartySize(step.id) && party_size) {
+      answersRecord[step.id] = party_size;
+    } else if (stepIdIndicatesService(step.id) && service_description) {
+      answersRecord[step.id] = service_description;
+    } else if (step.inputType === "datetime" && start_time_iso) {
+      answersRecord[step.id] = start_time_iso;
+    }
+  }
+
+  // 3. Build the full bookingFlowQa using the complete answersRecord
+  const bookingFlowQa = buildBookingFlowQaFromAnswers(flow, answersRecord);
 
   const enriched: VoiceRetellBookingInput = {
     ...args,
