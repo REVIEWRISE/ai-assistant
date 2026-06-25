@@ -19,6 +19,9 @@ import { parseCrmIntegrationForm } from "@/lib/crm-integration";
 import { parseVoiceBookingForm, resolveAgentNameForProfile } from "@/lib/voice-booking";
 import { getOpenAiApiKey } from "@/lib/openai-chat-reply";
 import { truncateKnowledgeRawTextForPrompt } from "@/lib/knowledge-base-raw-truncate";
+import { isRetellApiConfigured } from "@/lib/retell-api";
+import { fetchRetellVoiceCatalog, syncVoiceAgentToRetell } from "@/lib/retell-voice-sync";
+import { resolveVoiceAgentSettings } from "@/lib/retell-voice-agent";
 
 const CHATBOT_ROUTE = "/appointments/chatbot";
 
@@ -149,6 +152,33 @@ export async function saveChatbotConfig(formData: FormData) {
       updatedAt: new Date(),
     },
   });
+
+  if (isRetellApiConfigured()) {
+    try {
+      const voiceRow = await prisma.organizationVoiceAgentSettings.findUnique({
+        where: { organizationId },
+        select: {
+          retellConfig: true,
+          phoneConfig: true,
+          knowledgeConfig: true,
+        },
+      });
+      if (voiceRow && voiceRow.retellConfig) {
+        const voices = await fetchRetellVoiceCatalog();
+        const settings = resolveVoiceAgentSettings(voiceRow, voices);
+        if (settings.retell.retellAgentId.trim()) {
+          await syncVoiceAgentToRetell({
+            organizationId,
+            retell: settings.retell,
+            knowledge: settings.knowledge,
+            phone: settings.phone,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[chatbot-save] Failed to auto-sync voice agent on chatbot config change:", err);
+    }
+  }
 
   redirect(`${CHATBOT_ROUTE}?success=saved`);
 }
