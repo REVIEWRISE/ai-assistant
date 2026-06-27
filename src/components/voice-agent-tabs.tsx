@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { VoiceAgentPhoneSettings } from "@/components/voice-agent-phone-settings";
 import { VoiceAgentRetellSettings } from "@/components/voice-agent-retell-settings";
-import { VoiceAgentAnalytics } from "@/components/voice-agent-analytics";
+import { VoiceAgentAnalytics, type CallItem } from "@/components/voice-agent-analytics";
 import type { VoiceAgentAiResult } from "@/lib/voice-agent-ai";
 import type {
   RetellVoiceAgentConfig,
@@ -82,7 +82,7 @@ export function VoiceAgentTabs({
   phoneConfig: VoiceAgentPhoneConfig;
   knowledgeConfig: VoiceAgentKnowledgeConfig;
   knowledge: KnowledgeSnapshot;
-  calls: any[];
+  calls: CallItem[];
   onSaveRetell: (formData: FormData) => void | Promise<void>;
   onSavePhone: (formData: FormData) => void | Promise<void>;
   onPullFromRetell: (formData: FormData) => void | Promise<void>;
@@ -155,7 +155,6 @@ export function VoiceAgentTabs({
           initialConfig={retellConfig}
           initialKnowledgeConfig={knowledgeConfig}
           phoneConfig={phoneConfig}
-          canManagePhone={canManagePhone}
           onGoToPhoneTab={() => selectTab("phone")}
           knowledge={knowledge}
           onSave={onSaveRetell}

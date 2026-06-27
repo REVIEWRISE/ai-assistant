@@ -4,7 +4,12 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Panel } from "@/components/ui";
 
-type CallItem = {
+type TranscriptTurn = {
+  role?: string;
+  content?: string;
+};
+
+export type CallItem = {
   id: string;
   callId: string;
   agentId: string;
@@ -17,7 +22,7 @@ type CallItem = {
   recordingUrl: string | null;
   summary: string | null;
   sentiment: string | null;
-  transcript: any; // JSON representation of turns
+  transcript: unknown; // JSON representation of turns
   createdAt: string;
 };
 
@@ -305,8 +310,8 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
                       Call Transcript
                     </p>
                     <div className="mt-2 space-y-3 overflow-y-auto max-h-[300px] p-2 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] divide-y divide-[var(--color-border-muted)]">
-                      {Array.isArray(selectedCall.transcript) && selectedCall.transcript.length > 0 ? (
-                        (selectedCall.transcript as any[]).map((turn: any, index: number) => {
+                       {Array.isArray(selectedCall.transcript) && selectedCall.transcript.length > 0 ? (
+                        (selectedCall.transcript as TranscriptTurn[]).map((turn, index) => {
                           const isAgent = turn.role === "agent";
                           return (
                             <div key={index} className={`py-2 flex flex-col ${isAgent ? "items-start" : "items-end"}`}>

@@ -5,11 +5,8 @@ import { type ReactNode, useMemo, useState, useTransition } from "react";
 import type { VoiceAgentAiResult } from "@/lib/voice-agent-ai";
 import { CustomSelect } from "@/components/custom-select";
 import { VoiceAgentPhoneGateOverlay } from "@/components/voice-agent-phone-gate-overlay";
-import { VoiceAgentPhoneSummary } from "@/components/voice-agent-phone-summary";
 import { Panel } from "@/components/ui";
 import { toast } from "@/lib/toast";
-import { buildRetellGeneralPromptWithKnowledge } from "@/lib/retell-voice-prompt";
-import { appendVoiceRetellBookingPrompt } from "@/lib/voice-retell-booking-prompt";
 import {
   RETELL_LANGUAGE_OPTIONS,
   RETELL_VOICE_CUSTOM_VALUE,
@@ -215,7 +212,6 @@ export function VoiceAgentRetellSettings({
   initialConfig,
   initialKnowledgeConfig,
   phoneConfig,
-  canManagePhone = false,
   onGoToPhoneTab,
   knowledge,
   onSave,
@@ -231,7 +227,6 @@ export function VoiceAgentRetellSettings({
   initialConfig: RetellVoiceAgentConfig;
   initialKnowledgeConfig: VoiceAgentKnowledgeConfig;
   phoneConfig: VoiceAgentPhoneConfig;
-  canManagePhone?: boolean;
   onGoToPhoneTab: () => void;
   knowledge: KnowledgeSnapshot;
   onSave: (formData: FormData) => void | Promise<void>;

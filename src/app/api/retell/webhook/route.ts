@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { getRetellApiKey } from "@/lib/retell-api";
 import { verifyRetellWebhookSignature } from "@/lib/retell-webhook-verify";
 import { findVoiceAgentOrgByRetellAgentId } from "@/lib/voice-retell-booking";
@@ -89,7 +90,7 @@ export async function POST(request: Request) {
   const sentiment = analysis && typeof analysis.user_sentiment === "string" ? analysis.user_sentiment : "neutral";
 
   // Parse transcript
-  const transcript = call.transcript_object || [];
+  const transcript = (call.transcript_object || []) as Prisma.InputJsonValue;
 
   // Upsert the call log
   await prisma.retellCall.upsert({
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
       recordingUrl: typeof call.recording_url === "string" ? call.recording_url : null,
       summary,
       sentiment,
-      transcript: transcript as any,
+      transcript,
     },
     update: {
       callStatus: typeof call.call_status === "string" ? call.call_status : "completed",
@@ -116,7 +117,7 @@ export async function POST(request: Request) {
       recordingUrl: typeof call.recording_url === "string" ? call.recording_url : null,
       summary,
       sentiment,
-      transcript: transcript as any,
+      transcript,
     },
   });
 
