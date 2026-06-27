@@ -7,20 +7,20 @@ import { toast } from "@/lib/toast";
 
 const messages: Record<string, { title: string; variant: "success" | "error" }> = {
   retell_saved: { title: "Agent settings saved locally.", variant: "success" },
-  retell_saved_synced: { title: "Agent settings saved and synced to Retell.", variant: "success" },
-  retell_created: { title: "Retell voice agent created for this organization.", variant: "success" },
-  retell_imported: { title: "Agent settings imported from Retell.", variant: "success" },
+  retell_saved_synced: { title: "Agent settings saved and synced.", variant: "success" },
+  retell_created: { title: "Voice agent created for this organization.", variant: "success" },
+  retell_imported: { title: "Agent settings imported.", variant: "success" },
   phone_saved: { title: "Phone settings saved.", variant: "success" },
-  phone_saved_synced: { title: "Phone settings saved and linked to your Retell agent.", variant: "success" },
+  phone_saved_synced: { title: "Phone settings saved and linked to your voice agent.", variant: "success" },
   knowledge_saved: { title: "Knowledge settings saved locally.", variant: "success" },
-  knowledge_saved_synced: { title: "Knowledge settings saved and synced to Retell.", variant: "success" },
-  knowledge_created: { title: "Retell voice agent created with your knowledge settings.", variant: "success" },
+  knowledge_saved_synced: { title: "Knowledge settings saved and synced.", variant: "success" },
+  knowledge_created: { title: "Voice agent created with your knowledge settings.", variant: "success" },
   organization_required: { title: "Select an organization to configure the voice agent.", variant: "error" },
   phone_required_for_agent: {
     title: "Add and save a support phone number before configuring the agent.",
     variant: "error",
   },
-  retell_sync_failed: { title: "Retell sync failed.", variant: "error" },
+  retell_sync_failed: { title: "Voice agent sync failed.", variant: "error" },
 };
 
 export function VoiceAgentPageAlerts() {

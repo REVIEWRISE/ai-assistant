@@ -176,7 +176,7 @@ export function normalizeRetellVoiceSelection(
 
 export function defaultRetellVoiceAgentConfig(voices: RetellVoiceListItem[] = []): RetellVoiceAgentConfig {
   return {
-    enabled: false,
+    enabled: true,
     agentName: "Support Agent",
     retellAgentId: "",
     voiceId: pickDefaultRetellVoiceId(voices),
@@ -236,7 +236,7 @@ export function resolveRetellVoiceAgentConfig(
   );
 
   return {
-    enabled: rec.enabled === undefined ? defaults.enabled : parseEnabledFlag(rec.enabled),
+    enabled: true,
     agentName: readString(rec.agentName).slice(0, 80) || defaults.agentName,
     retellAgentId: readString(rec.retellAgentId).slice(0, 120),
     ...voiceFields,
@@ -334,7 +334,7 @@ export function parseRetellVoiceAgentForm(
   const interruptionRaw = Number(raw.interruption_sensitivity);
 
   return {
-    enabled: parseEnabledFlag(raw.enabled),
+    enabled: true,
     agentName: readString(raw.agent_name).slice(0, 80) || defaults.agentName,
     retellAgentId: readString(raw.retell_agent_id).slice(0, 120),
     ...voiceFields,

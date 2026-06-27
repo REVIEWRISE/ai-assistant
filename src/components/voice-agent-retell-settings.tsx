@@ -5,11 +5,8 @@ import { type ReactNode, useMemo, useState, useTransition } from "react";
 import type { VoiceAgentAiResult } from "@/lib/voice-agent-ai";
 import { CustomSelect } from "@/components/custom-select";
 import { VoiceAgentPhoneGateOverlay } from "@/components/voice-agent-phone-gate-overlay";
-import { VoiceAgentPhoneSummary } from "@/components/voice-agent-phone-summary";
 import { Panel } from "@/components/ui";
 import { toast } from "@/lib/toast";
-import { buildRetellGeneralPromptWithKnowledge } from "@/lib/retell-voice-prompt";
-import { appendVoiceRetellBookingPrompt } from "@/lib/voice-retell-booking-prompt";
 import {
   RETELL_LANGUAGE_OPTIONS,
   RETELL_VOICE_CUSTOM_VALUE,
@@ -215,7 +212,6 @@ export function VoiceAgentRetellSettings({
   initialConfig,
   initialKnowledgeConfig,
   phoneConfig,
-  canManagePhone = false,
   onGoToPhoneTab,
   knowledge,
   onSave,
@@ -231,7 +227,6 @@ export function VoiceAgentRetellSettings({
   initialConfig: RetellVoiceAgentConfig;
   initialKnowledgeConfig: VoiceAgentKnowledgeConfig;
   phoneConfig: VoiceAgentPhoneConfig;
-  canManagePhone?: boolean;
   onGoToPhoneTab: () => void;
   knowledge: KnowledgeSnapshot;
   onSave: (formData: FormData) => void | Promise<void>;
@@ -243,8 +238,6 @@ export function VoiceAgentRetellSettings({
   const [knowledgeConfig, setKnowledgeConfig] = useState<VoiceAgentKnowledgeConfig>(initialKnowledgeConfig);
   const [linkExistingAgent, setLinkExistingAgent] = useState(Boolean(initialConfig.retellAgentId.trim()));
   const [activeSection, setActiveSection] = useState<SectionKey>("setup");
-  const [showKbPreview, setShowKbPreview] = useState(false);
-  const [showSyncedPreview, setShowSyncedPreview] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isGeneratingOpening, startGenerateOpening] = useTransition();
   const [isGeneratingPrompt, startGeneratePrompt] = useTransition();
@@ -297,24 +290,7 @@ export function VoiceAgentRetellSettings({
   );
   const selectedVoicePreviewUrl = selectedVoice?.previewAudioUrl ?? "";
 
-  const syncedPromptPreview = useMemo(() => {
-    let prompt = config.systemPrompt.trim();
-    if (knowledgeConfig.useOrganizationKnowledgeBase && knowledge.previewText.trim()) {
-      prompt = buildRetellGeneralPromptWithKnowledge(prompt, knowledge.previewText);
-    }
-    if (knowledgeConfig.enablePhoneBooking) {
-      prompt = appendVoiceRetellBookingPrompt(
-        prompt,
-        "Phone booking enabled — your chatbot booking flow questions are appended when you save.",
-      );
-    }
-    return prompt;
-  }, [
-    config.systemPrompt,
-    knowledge.previewText,
-    knowledgeConfig.enablePhoneBooking,
-    knowledgeConfig.useOrganizationKnowledgeBase,
-  ]);
+
 
   function jumpToSection(key: SectionKey) {
     setActiveSection(key);
@@ -324,7 +300,7 @@ export function VoiceAgentRetellSettings({
   return (
     <Panel
       title="Agent & voice"
-      subtitle="Configure your phone agent in clear steps. Changes sync to Retell when you save."
+      subtitle="Configure your phone agent in clear steps. Changes sync when you save."
     >
       {retellApiConfigured ? (
         <form id="pull-retell-voice-agent-form" action={onPullFromRetell} className="hidden">
@@ -350,14 +326,14 @@ export function VoiceAgentRetellSettings({
               : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
           }`}
         >
-          {hasAgent ? "Retell agent linked" : "No Retell agent yet"}
+          {hasAgent ? "Agent linked" : "No voice agent yet"}
         </span>
         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusTone(knowledge.status)}`}>
           KB: {statusLabel(knowledge.status)}
         </span>
         {!retellApiConfigured ? (
           <span className="rounded-full bg-[var(--color-surface)] px-3 py-1 text-xs font-semibold text-[var(--color-text-muted)]">
-            Retell API not configured
+            Voice service API not configured
           </span>
         ) : null}
       </div>
@@ -396,7 +372,7 @@ export function VoiceAgentRetellSettings({
 
       <form action={onSave} className="space-y-5">
         <input type="hidden" name="organization_id" value={organizationId} />
-        <input type="hidden" name="enabled" value={config.enabled ? "1" : "0"} />
+        <input type="hidden" name="enabled" value="1" />
         <input type="hidden" name="voice_id" value={config.voiceId} />
         <input type="hidden" name="language" value={config.language} />
         <input type="hidden" name="responsiveness" value={String(config.responsiveness)} />
@@ -421,28 +397,14 @@ export function VoiceAgentRetellSettings({
         <SectionCard
           sectionKey="setup"
           title="Setup"
-          description="Turn the agent on and connect it to Retell for this organization."
+          description="Link and configure the voice agent for this organization."
         >
           {retellApiConfigured && !hasAgent ? (
-            <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-sm text-[var(--color-text-muted)]">
+            <div className="rounded-xl border vr-app-alert vr-app-alert-warning border-0 p-4 text-sm text-inherit">
               No agent for <span className="font-semibold text-[var(--color-text)]">{organizationName}</span> yet.
-              Finish setup below, then save to create one in Retell.
+              Finish setup below, then save to create one.
             </div>
           ) : null}
-
-          <VoiceAgentPhoneSummary
-            phoneConfig={phoneConfig}
-            retellAgentId={config.retellAgentId}
-            canManagePhone={canManagePhone}
-          />
-
-          <ToggleRow
-            title="Enable phone support agent"
-            description="Inbound calls to your support number are handled by Retell."
-            checked={config.enabled}
-            onChange={() => setConfig((prev) => ({ ...prev, enabled: !prev.enabled }))}
-            ariaLabel={config.enabled ? "Disable phone support agent" : "Enable phone support agent"}
-          />
 
           <div className="grid gap-4 lg:grid-cols-2">
             <label className="block space-y-1.5">
@@ -458,7 +420,7 @@ export function VoiceAgentRetellSettings({
 
             {linkExistingAgent ? (
               <label className="block space-y-1.5">
-                <span className="text-xs font-semibold text-[var(--color-text)]">Retell agent ID</span>
+                <span className="text-xs font-semibold text-[var(--color-text)]">Agent ID</span>
                 <input
                   name="retell_agent_id"
                   value={config.retellAgentId}
@@ -469,7 +431,7 @@ export function VoiceAgentRetellSettings({
               </label>
             ) : hasAgent ? (
               <div className="block space-y-1.5">
-                <span className="text-xs font-semibold text-[var(--color-text)]">Retell agent ID</span>
+                <span className="text-xs font-semibold text-[var(--color-text)]">Agent ID</span>
                 <input
                   name="retell_agent_id"
                   value={config.retellAgentId}
@@ -484,7 +446,7 @@ export function VoiceAgentRetellSettings({
                   onClick={() => setLinkExistingAgent(true)}
                   className="w-full rounded-xl border border-[var(--color-border)] px-4 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-bg)]"
                 >
-                  Link existing Retell agent
+                  Link existing agent
                 </button>
               </div>
             )}
@@ -558,7 +520,7 @@ export function VoiceAgentRetellSettings({
               ) : (
                 <p className="mt-3 text-xs text-[var(--color-text-muted)]">
                   {config.voiceId === RETELL_VOICE_CUSTOM_VALUE
-                    ? "Enter a valid Retell voice ID."
+                    ? "Enter a valid voice ID."
                     : "Preview unavailable for this voice."}
                 </p>
               )}
@@ -695,38 +657,6 @@ export function VoiceAgentRetellSettings({
               .
             </p>
           ) : null}
-
-          {knowledgeConfig.useOrganizationKnowledgeBase && knowledge.previewText.trim() ? (
-            <CollapsibleBlock
-              title="Business knowledge preview"
-              summary={`${knowledge.previewLength.toLocaleString()} characters from your knowledge base`}
-              open={showKbPreview}
-              onToggle={() => setShowKbPreview((prev) => !prev)}
-            >
-              <textarea
-                readOnly
-                value={knowledge.previewText}
-                rows={6}
-                className="w-full resize-y rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-muted)]"
-              />
-            </CollapsibleBlock>
-          ) : null}
-
-          {retellApiConfigured ? (
-            <CollapsibleBlock
-              title="Synced prompt preview"
-              summary="What Retell receives when you save"
-              open={showSyncedPreview}
-              onToggle={() => setShowSyncedPreview((prev) => !prev)}
-            >
-              <textarea
-                readOnly
-                value={syncedPromptPreview}
-                rows={8}
-                className="w-full resize-y rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-muted)]"
-              />
-            </CollapsibleBlock>
-          ) : null}
         </SectionCard>
 
         <SectionCard sectionKey="advanced" title="Advanced" description="Fine-tune how the agent responds on calls.">
@@ -780,9 +710,9 @@ export function VoiceAgentRetellSettings({
             <p className="text-xs text-[var(--color-text-muted)]">
               {retellApiConfigured
                 ? hasAgent
-                  ? "Save pushes voice, conversation, and knowledge to Retell."
-                  : "Save creates your Retell agent with these settings."
-                : "Settings are saved locally until Retell is connected."}
+                  ? "Save pushes voice, conversation, and knowledge to the voice service."
+                  : "Save creates your voice agent with these settings."
+                : "Settings are saved locally until voice service is connected."}
             </p>
             <div className="flex flex-wrap justify-end gap-2">
               <button
@@ -807,7 +737,7 @@ export function VoiceAgentRetellSettings({
                   disabled={!config.retellAgentId.trim()}
                   className="rounded-xl border border-[var(--color-border)] px-4 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Import from Retell
+                  Import settings
                 </button>
               ) : null}
               <button

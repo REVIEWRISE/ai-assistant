@@ -23,22 +23,20 @@ export function VoiceAgentPhoneSummary({
         Support phone number
       </p>
       <p className="mt-2 text-sm font-medium text-[var(--color-text)]">{callSummary}</p>
-      {number ? (
-        <p className="mt-1 font-mono text-sm text-[var(--color-text)]">{number}</p>
-      ) : (
+      {!number ? (
         <p className="mt-1 text-xs text-amber-900">
           No number configured yet — inbound calls will not reach this agent until one is set.
         </p>
-      )}
+      ) : null}
       {agentId && number ? (
         <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-          Saving phone settings links this number to Retell agent{" "}
+          Saving phone settings links this number to voice agent{" "}
           <span className="font-mono text-[var(--color-text)]">{agentId}</span>.
         </p>
       ) : null}
       {canManagePhone ? (
         <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-          Edit the number below. It must already exist in your Retell Phone Numbers account (E.164 format).
+          Edit the number below. It must already exist in your voice phone numbers account (E.164 format).
         </p>
       ) : (
         <p className="mt-2 text-xs text-[var(--color-text-muted)]">
@@ -46,7 +44,7 @@ export function VoiceAgentPhoneSummary({
           <Link href="/voice-agent?tab=phone" className="font-semibold text-[var(--color-primary)] hover:underline">
             Phone &amp; Calling
           </Link>{" "}
-          tab. It must already exist in your Retell Phone Numbers account (E.164 format).
+          tab. It must already exist in your voice phone numbers account (E.164 format).
         </p>
       )}
     </div>
