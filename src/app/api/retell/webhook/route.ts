@@ -81,6 +81,9 @@ export async function POST(request: Request) {
     }
   }
 
+  // Convert cost from USD cents (Retell unit) to USD dollars
+  costVal = costVal / 100;
+
   // Parse analysis details
   const analysis = call.call_analysis && typeof call.call_analysis === "object" && !Array.isArray(call.call_analysis)
     ? (call.call_analysis as Record<string, unknown>)
