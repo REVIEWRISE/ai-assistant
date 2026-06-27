@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { VoiceAgentPhoneSettings } from "@/components/voice-agent-phone-settings";
 import { VoiceAgentRetellSettings } from "@/components/voice-agent-retell-settings";
+import { VoiceAgentAnalytics } from "@/components/voice-agent-analytics";
 import type { VoiceAgentAiResult } from "@/lib/voice-agent-ai";
 import type {
   RetellVoiceAgentConfig,
@@ -13,7 +14,7 @@ import type {
   VoiceAgentPhoneConfig,
 } from "@/lib/retell-voice-agent";
 
-type TabKey = "agent" | "phone";
+type TabKey = "agent" | "phone" | "analytics";
 
 type KnowledgeSnapshot = {
   status: string;
@@ -26,10 +27,12 @@ type KnowledgeSnapshot = {
 const allTabs: Array<{ key: TabKey; label: string }> = [
   { key: "agent", label: "Agent & Voice" },
   { key: "phone", label: "Phone & Calling" },
+  { key: "analytics", label: "Call Analytics" },
 ];
 
 function parseTabKey(raw: string | null): TabKey | null {
-  if (raw === "agent" || raw === "phone" || raw === "knowledge") return raw === "knowledge" ? "agent" : raw;
+  if (raw === "agent" || raw === "phone" || raw === "analytics") return raw;
+  if (raw === "knowledge") return "agent";
   return null;
 }
 
@@ -45,7 +48,8 @@ function resolveDefaultTab(
 
 function tabAllowed(tab: TabKey, canManageAgent: boolean, canManagePhone: boolean): boolean {
   if (tab === "agent") return canManageAgent;
-  return canManagePhone;
+  if (tab === "phone") return canManagePhone;
+  return true;
 }
 
 export function VoiceAgentTabs({
@@ -60,6 +64,7 @@ export function VoiceAgentTabs({
   phoneConfig,
   knowledgeConfig,
   knowledge,
+  calls,
   onSaveRetell,
   onSavePhone,
   onPullFromRetell,
@@ -77,6 +82,7 @@ export function VoiceAgentTabs({
   phoneConfig: VoiceAgentPhoneConfig;
   knowledgeConfig: VoiceAgentKnowledgeConfig;
   knowledge: KnowledgeSnapshot;
+  calls: any[];
   onSaveRetell: (formData: FormData) => void | Promise<void>;
   onSavePhone: (formData: FormData) => void | Promise<void>;
   onPullFromRetell: (formData: FormData) => void | Promise<void>;
@@ -166,6 +172,10 @@ export function VoiceAgentTabs({
           retellAgentId={retellConfig.retellAgentId}
           onSave={onSavePhone}
         />
+      ) : null}
+
+      {activeTab === "analytics" ? (
+        <VoiceAgentAnalytics calls={calls} />
       ) : null}
     </section>
   );

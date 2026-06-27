@@ -59,6 +59,7 @@ model Organization {
   chatbotSettings OrganizationChatbotSettings?
   reviewSettings OrganizationReviewSettings?
   voiceAgentSettings OrganizationVoiceAgentSettings?
+  retellCalls    RetellCall[]
 
   @@map("organizations")
 }
@@ -89,6 +90,29 @@ model OrganizationVoiceAgentSettings {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("organization_voice_agent_settings")
+}
+
+model RetellCall {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  callId          String   @unique @map("call_id")
+  organizationId  String   @map("organization_id") @db.Uuid
+  agentId         String   @map("agent_id")
+  callStatus      String   @map("call_status")
+  direction       String
+  fromNumber      String?  @map("from_number")
+  toNumber        String?  @map("to_number")
+  durationSeconds Int      @map("duration_seconds")
+  cost            Decimal  @db.Decimal(10, 4)
+  recordingUrl    String?  @map("recording_url")
+  summary         String?  @db.Text
+  sentiment       String?
+  transcript      Json     @default(dbgenerated("'[]'::jsonb")) @db.JsonB
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("retell_calls")
 }
 
 model OrganizationChatbotSettings {

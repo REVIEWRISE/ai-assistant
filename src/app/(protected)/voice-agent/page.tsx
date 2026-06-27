@@ -76,12 +76,12 @@ export default async function VoiceAgentPage() {
   if (retellApiConfigured && localSettings.retell.retellAgentId.trim()) {
     const imported = await fetchRetellVoiceAgentConfig(localSettings.retell);
     if (imported.ok) {
-      retellRemoteStatus = "Live in Retell — save & sync after editing opening message or prompts";
+      retellRemoteStatus = "Live — save & sync after editing opening message or prompts";
     } else {
       retellRemoteStatus = imported.error;
     }
   } else if (!retellApiConfigured) {
-    retellRemoteStatus = "Add RETELL_API_KEY to connect to Retell";
+    retellRemoteStatus = "Add API key to connect voice service";
   }
 
   let phoneConfig = localSettings.phone;
@@ -94,6 +94,28 @@ export default async function VoiceAgentPage() {
   const kbPreviewLength = kb?.rawText?.trim().length ?? 0;
   const kbPreviewText = kb?.rawText?.trim().slice(0, 4000) ?? "";
 
+  const dbCalls = await prisma.retellCall.findMany({
+    where: { organizationId: org.id },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const calls = dbCalls.map((call) => ({
+    id: call.id,
+    callId: call.callId,
+    agentId: call.agentId,
+    callStatus: call.callStatus,
+    direction: call.direction,
+    fromNumber: call.fromNumber,
+    toNumber: call.toNumber,
+    durationSeconds: call.durationSeconds,
+    cost: Number(call.cost),
+    recordingUrl: call.recordingUrl,
+    summary: call.summary,
+    sentiment: call.sentiment,
+    transcript: call.transcript,
+    createdAt: call.createdAt.toISOString(),
+  }));
+
   return (
     <div className="space-y-5">
       <Suspense fallback={null}>
@@ -105,15 +127,15 @@ export default async function VoiceAgentPage() {
         title={
           <>
             Configure your{" "}
-            <span className="vr-brand-gradient-text">Retell AI phone agent</span>
+            <span className="vr-brand-gradient-text">AI phone agent</span>
           </>
         }
-        description="Configure your Retell voice agent, support phone number, prompts, knowledge, and phone booking."
+        description="Configure your voice agent, support phone number, prompts, knowledge, and phone booking."
       >
         <AppPageHeroStatPanel>
           <AppPageHeroStatGrid columns="2">
             <AppPageHeroStat
-              label="Retell"
+              label="Connection"
               value={retellApiConfigured ? "Connected" : "No API key"}
             />
             <AppPageHeroStat
@@ -164,6 +186,7 @@ export default async function VoiceAgentPage() {
           previewText: kbPreviewText,
           lastImportedAt: kb?.lastImportedAt?.toISOString() ?? null,
         }}
+        calls={calls}
         onSaveRetell={saveRetellVoiceAgentSettings}
         onSavePhone={saveVoiceAgentPhoneSettings}
         onPullFromRetell={pullRetellVoiceAgentSettings}
