@@ -97,7 +97,7 @@ export function pickDefaultRetellVoiceId(voices: RetellVoiceListItem[]): string 
   const englishVoice = voices.find(
     (voice) =>
       /american|british|australian/i.test(voice.accent) &&
-      /^(retell|11labs|openai)-/i.test(voice.voiceId),
+      /^(retell|11labs|openai|cartesia)-/i.test(voice.voiceId),
   );
   return englishVoice?.voiceId || voices[0]?.voiceId || "openai-Nova";
 }
@@ -108,7 +108,7 @@ export function buildRetellVoiceSelectOptions(
 ): RetellVoiceSelectOption[] {
   if (!voices.length) return RETELL_FALLBACK_VOICE_OPTIONS;
 
-  const preferredProviders = ["retell", "11labs", "openai"];
+  const preferredProviders = ["retell", "11labs", "openai", "cartesia"];
   const englishAccent = /american|british|australian/i;
 
   const filtered = voices
