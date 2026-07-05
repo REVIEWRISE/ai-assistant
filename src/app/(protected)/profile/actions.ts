@@ -16,29 +16,6 @@ function resolveReturnTo(formData: FormData, fallback: string): string {
   return fallback;
 }
 
-async function requireUserId(): Promise<string> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-
-  if (!token) {
-    redirect("/login");
-  }
-
-  const session = await prisma.session.findFirst({
-    where: {
-      token,
-      expiresAt: { gt: new Date() },
-    },
-    select: { userId: true },
-  });
-
-  if (!session) {
-    redirect("/login");
-  }
-
-  return session.userId;
-}
-
 async function requireSession() {
   const cookieStore = await cookies();
   const token = cookieStore.get("ai_session")?.value;
@@ -52,7 +29,7 @@ async function requireSession() {
       token,
       expiresAt: { gt: new Date() },
     },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, activeOrganizationId: true },
   });
 
   if (!session) {
@@ -62,16 +39,16 @@ async function requireSession() {
   return session;
 }
 
-async function assertProfileMenuAccess(userId: string) {
-  const allowed = await getAllowedMenuPathsForUser(userId);
+async function assertProfileMenuAccess(userId: string, organizationId?: string | null) {
+  const allowed = await getAllowedMenuPathsForUser(userId, organizationId);
   if (!isHrefAllowedForNav("/profile", allowed)) {
     redirect(redirectPathWhenMenuForbidden(allowed));
   }
 }
 
 export async function updateProfile(formData: FormData) {
-  const userId = await requireUserId();
-  await assertProfileMenuAccess(userId);
+  const session = await requireSession();
+  await assertProfileMenuAccess(session.userId, session.activeOrganizationId);
   const fullName = String(formData.get("full_name") || "").trim();
   const email = String(formData.get("email") || "").trim().toLowerCase();
 
@@ -80,12 +57,12 @@ export async function updateProfile(formData: FormData) {
   }
 
   const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing && existing.id !== userId) {
+  if (existing && existing.id !== session.userId) {
     redirect("/profile?error=exists");
   }
 
   await prisma.user.update({
-    where: { id: userId },
+    where: { id: session.userId },
     data: { fullName, email, updatedAt: new Date() },
   });
 
@@ -93,8 +70,8 @@ export async function updateProfile(formData: FormData) {
 }
 
 export async function updatePassword(formData: FormData) {
-  const userId = await requireUserId();
-  await assertProfileMenuAccess(userId);
+  const session = await requireSession();
+  await assertProfileMenuAccess(session.userId, session.activeOrganizationId);
   const currentPassword = String(formData.get("current_password") || "");
   const newPassword = String(formData.get("new_password") || "");
   const confirmPassword = String(formData.get("confirm_password") || "");
@@ -108,7 +85,7 @@ export async function updatePassword(formData: FormData) {
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: userId },
+    where: { id: session.userId },
     select: { passwordHash: true },
   });
 
@@ -123,7 +100,7 @@ export async function updatePassword(formData: FormData) {
 
   const passwordHash = await bcrypt.hash(newPassword, 10);
   await prisma.user.update({
-    where: { id: userId },
+    where: { id: session.userId },
     data: { passwordHash, updatedAt: new Date() },
   });
 

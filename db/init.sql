@@ -129,6 +129,15 @@ CREATE TABLE IF NOT EXISTS menu_access (
   UNIQUE (menu_item_id, role_id)
 );
 
+CREATE TABLE IF NOT EXISTS organization_member_menu_access (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  menu_item_id UUID NOT NULL REFERENCES menu_items(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (organization_id, user_id, menu_item_id)
+);
+
 CREATE TABLE IF NOT EXISTS providers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT UNIQUE NOT NULL,
@@ -152,6 +161,7 @@ CREATE INDEX IF NOT EXISTS idx_leads_org_status ON leads (organization_id, statu
 CREATE INDEX IF NOT EXISTS idx_menu_items_sort ON menu_items (sort_order);
 CREATE INDEX IF NOT EXISTS idx_menu_items_parent ON menu_items (parent_id);
 CREATE INDEX IF NOT EXISTS idx_menu_access_role ON menu_access (role_id);
+CREATE INDEX IF NOT EXISTS idx_org_member_menu_access_org_user ON organization_member_menu_access (organization_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_providers_type ON providers (type);
 CREATE INDEX IF NOT EXISTS idx_providers_api_url ON providers (api_url);
 CREATE INDEX IF NOT EXISTS idx_providers_status ON providers (status);

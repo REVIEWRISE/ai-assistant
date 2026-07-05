@@ -92,7 +92,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
       where: { id: userId },
       include: { userRoles: { include: { role: true } } },
     }),
-    getAllowedMenuPathsForUser(userId),
+    getAllowedMenuPathsForUser(userId, activeOrganizationId),
     activeOrganizationId
       ? prisma.organization.findUnique({
           where: { id: activeOrganizationId },
