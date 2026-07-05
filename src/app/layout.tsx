@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { AppShell } from "@/components/app-shell";
+import { AppToaster } from "@/components/app-toaster";
 import { BRAND_LOGO_PATH, PRODUCT_NAME } from "@/lib/brand";
-import { Toaster } from "sonner";
 import "./globals.css";
 
 const poppins = localFont({
@@ -49,7 +49,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${poppins.variable} font-sans antialiased`}>
         <AppShell>{children}</AppShell>
-        <Toaster position="top-right" richColors closeButton />
+        <AppToaster />
       </body>
     </html>
   );

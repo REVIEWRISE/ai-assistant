@@ -1,10 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getAppointmentAnalytics } from "@/lib/appointment-analytics";
+import { getVoiceAnalytics } from "@/lib/voice-analytics";
 import { displayRoleFromUserRoles, getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
 import { isHrefAllowedForNav } from "@/lib/nav-access";
-import { resolveChatbotConfigData } from "@/lib/chatbot-config";
-import { voiceBookingIsReady } from "@/lib/voice-booking";
-import { organizationChatbotSettingsSelect } from "@/lib/chatbot-settings-select";
 import {
   formatReviewRoutingSummary,
   isAutoReadyPendingReview,
@@ -16,6 +14,41 @@ export type DashboardStat = {
   label: string;
   value: string | number;
   hint?: string;
+  accent?: string;
+};
+
+export type DashboardLineChart = {
+  kind: "line";
+  id: string;
+  title: string;
+  subtitle?: string;
+  data: Array<Record<string, string | number>>;
+  labelKey: string;
+  series: Array<{ key: string; name: string; color: string }>;
+  emptyMessage?: string;
+  featured?: boolean;
+};
+
+export type DashboardBarChart = {
+  kind: "bar";
+  id: string;
+  title: string;
+  subtitle?: string;
+  data: Array<{ label: string; value: number; color?: string }>;
+  color?: string;
+  emptyMessage?: string;
+  featured?: boolean;
+};
+
+export type DashboardChart = DashboardLineChart | DashboardBarChart;
+
+export type DashboardOverviewStat = {
+  id: "bookings" | "reviews" | "voice" | "users";
+  title: string;
+  value: string | number;
+  hint: string;
+  href: string;
+  accent: string;
 };
 
 export type DashboardSection = {
@@ -23,7 +56,9 @@ export type DashboardSection = {
   title: string;
   description: string;
   href: string;
+  accent: string;
   stats: DashboardStat[];
+  charts: DashboardChart[];
 };
 
 export type DashboardQuickLink = {
@@ -40,6 +75,7 @@ export type DashboardData = {
   heroTitleAccent?: string;
   heroDescription: string;
   headlineStats: DashboardStat[];
+  overviewStats: DashboardOverviewStat[];
   sections: DashboardSection[];
   quickLinks: DashboardQuickLink[];
   emptyMessage: string | null;
@@ -99,8 +135,6 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           select: {
             id: true,
             name: true,
-            knowledgeBase: { select: { status: true } },
-            chatbotSettings: { select: organizationChatbotSettingsSelect },
           },
         })
       : Promise.resolve(null),
@@ -114,12 +148,13 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
 
   const showAppointments = canAccess(allowed, "/appointments");
   const showReviews = canAccess(allowed, "/reviews");
+  const showVoice = canAccess(allowed, "/voice-agent");
   const showUsers = canAccess(allowed, "/users");
-  const showAccess = canAccess(allowed, "/settings/access");
   const showPlatform = canAccess(allowed, "/platform");
 
   const sections: DashboardSection[] = [];
   const headlineStats: DashboardStat[] = [];
+  const overviewStats: DashboardOverviewStat[] = [];
 
   const orgId = activeOrganization?.id ?? null;
   const orgName = activeOrganization?.name ?? null;
@@ -129,7 +164,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
   if (showAppointments && orgId) {
     fetches.push(
       (async () => {
-        const [upcoming24h, upcoming7d, analytics, chatbotConfig] = await Promise.all([
+        const [upcoming24h, upcoming7d, analytics] = await Promise.all([
           prisma.appointment.count({
             where: { organizationId: orgId, startTime: { gte: now, lte: in24h } },
           }),
@@ -137,20 +172,14 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
             where: { organizationId: orgId, startTime: { gte: now, lte: in7d } },
           }),
           getAppointmentAnalytics(orgId, now),
-          activeOrganization?.chatbotSettings
-            ? resolveChatbotConfigData(activeOrganization.chatbotSettings, null)
-            : null,
         ]);
-
-        const kbStatus = activeOrganization?.knowledgeBase?.status ?? "empty";
-        const voiceReady = chatbotConfig ? voiceBookingIsReady(chatbotConfig.voiceBooking) : false;
-        const flowSteps = chatbotConfig?.bookingFlow.steps.length ?? 0;
 
         sections.push({
           id: "appointments",
           title: "Appointment Agent",
           description: orgName ? `Bookings and chatbot for ${orgName}` : "Bookings and chatbot automation",
           href: "/appointments/overview",
+          accent: "#0284c7",
           stats: [
             { label: "Upcoming (24h)", value: upcoming24h },
             { label: "Upcoming (7d)", value: upcoming7d },
@@ -160,12 +189,41 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
               value: analytics.postedToCalendarLast30Days,
               hint: `${analytics.awaitingCalendarLast30Days} awaiting sync`,
             },
+          ],
+          charts: [
             {
-              label: "Knowledge base",
-              value: kbStatus === "approved" ? "Approved" : kbStatus === "draft" ? "Draft" : "Not set",
+              kind: "line",
+              id: "bookings-trend",
+              featured: true,
+              title: "Bookings trend",
+              subtitle: "Last 7 days: recorded vs posted to calendar",
+              labelKey: "dayLabel",
+              data: analytics.trend.map((point) => ({
+                dayLabel: point.dayLabel,
+                recorded: point.recorded,
+                synced: point.synced,
+              })),
+              series: [
+                { key: "recorded", name: "Recorded", color: "#0284c7" },
+                { key: "synced", name: "On calendar", color: "#059669" },
+              ],
+              emptyMessage:
+                "No bookings yet. Daily counts will appear here once guests start booking.",
             },
-            { label: "Booking flow steps", value: flowSteps },
-            { label: "Voice booking", value: voiceReady ? "On" : "Off" },
+            {
+              kind: "bar",
+              id: "scheduling-pipeline",
+              featured: true,
+              title: "Scheduling pipeline",
+              subtitle: "Upcoming load and 30-day booking volume",
+              data: [
+                { label: "24h", value: upcoming24h },
+                { label: "7d", value: upcoming7d },
+                { label: "30d bookings", value: analytics.totalLast30Days },
+                { label: "On calendar", value: analytics.postedToCalendarLast30Days },
+              ],
+              color: "#6366f1",
+            },
           ],
         });
 
@@ -173,6 +231,15 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           { label: "Upcoming bookings", value: upcoming7d },
           { label: "Bookings (30d)", value: analytics.totalLast30Days },
         );
+
+        overviewStats.push({
+          id: "bookings",
+          title: "Bookings",
+          value: analytics.totalLast30Days,
+          hint: `${upcoming7d} upcoming this week · ${analytics.postedToCalendarLast30Days} on calendar`,
+          href: "/appointments/overview",
+          accent: "#0284c7",
+        });
       })(),
     );
   } else if (showAppointments) {
@@ -181,7 +248,9 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
       title: "Appointment Agent",
       description: "Select a workspace organization to see booking stats.",
       href: "/appointments/organization",
+      accent: "#0284c7",
       stats: [{ label: "Active organization", value: "Not set" }],
+      charts: [],
     });
   }
 
@@ -222,6 +291,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           title: "Review Response",
           description: "Inbox and provider sync for your active organization",
           href: "/reviews",
+          accent: "#8b5cf6",
           stats: [
             { label: "Total reviews", value: reviews.length },
             { label: "Pending inbox", value: pending },
@@ -229,9 +299,45 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
             { label: "Needs human review", value: needsReview, hint: routingSummary },
             { label: "Connected providers", value: connectedReviewProviders },
           ],
+          charts: [
+            {
+              kind: "bar",
+              id: "review-inbox",
+              title: "Review inbox",
+              subtitle: routingSummary,
+              data: [
+                { label: "Total", value: reviews.length },
+                { label: "Pending", value: pending },
+                { label: "Auto-ready", value: autoReady },
+                { label: "Needs review", value: needsReview },
+              ],
+              color: "#8b5cf6",
+            },
+            {
+              kind: "bar",
+              id: "review-ratings",
+              title: "Reviews by rating",
+              subtitle: "Distribution across star ratings",
+              data: [5, 4, 3, 2, 1].map((rating) => ({
+                label: `${rating}★`,
+                value: reviews.filter((review) => review.rating === rating).length,
+              })),
+              color: "#f59e0b",
+              emptyMessage: "No reviews yet.",
+            },
+          ],
         });
 
         headlineStats.push({ label: "Pending reviews", value: pending });
+
+        overviewStats.push({
+          id: "reviews",
+          title: "Review Response",
+          value: pending,
+          hint: `${reviews.length} total · ${autoReady} auto-ready · ${needsReview} need review`,
+          href: "/reviews",
+          accent: "#8b5cf6",
+        });
       })(),
     );
   } else if (showReviews) {
@@ -240,7 +346,105 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
       title: "Review Response",
       description: "Select a workspace organization to see review stats.",
       href: "/appointments/organization",
+      accent: "#8b5cf6",
       stats: [{ label: "Active organization", value: "Not set" }],
+      charts: [],
+    });
+  }
+
+  if (showVoice && orgId) {
+    fetches.push(
+      (async () => {
+        const analytics = await getVoiceAnalytics(orgId, now);
+
+        sections.push({
+          id: "voice",
+          title: "Voice Support",
+          description: orgName
+            ? `Phone agent calls and voice bookings for ${orgName}`
+            : "Phone agent calls and voice bookings",
+          href: "/voice-agent",
+          accent: "#7c3aed",
+          stats: [
+            { label: "Calls (30d)", value: analytics.totalCallsLast30Days },
+            { label: "Phone bookings (30d)", value: analytics.voiceBookingsLast30Days },
+            {
+              label: "Avg call duration",
+              value:
+                analytics.avgDurationSeconds > 0
+                  ? `${Math.floor(analytics.avgDurationSeconds / 60)}:${String(
+                      analytics.avgDurationSeconds % 60,
+                    ).padStart(2, "0")}`
+                  : "0:00",
+            },
+            { label: "Inbound (30d)", value: analytics.inboundCallsLast30Days },
+          ],
+          charts: [
+            {
+              kind: "line",
+              id: "voice-activity-trend",
+              title: "Voice activity trend",
+              subtitle: "Last 7 days: support calls vs phone bookings created",
+              labelKey: "dayLabel",
+              data: analytics.trend.map((point) => ({
+                dayLabel: point.dayLabel,
+                calls: point.calls,
+                bookings: point.bookings,
+              })),
+              series: [
+                { key: "calls", name: "Calls", color: "#7c3aed" },
+                { key: "bookings", name: "Phone bookings", color: "#06b6d4" },
+              ],
+              emptyMessage: "No voice calls or phone bookings yet.",
+            },
+            {
+              kind: "bar",
+              id: "voice-pipeline",
+              title: "Voice pipeline (30d)",
+              subtitle: "Call volume and bookings captured by the phone agent",
+              data: [
+                { label: "Total calls", value: analytics.totalCallsLast30Days },
+                { label: "Inbound", value: analytics.inboundCallsLast30Days },
+                { label: "Bookings", value: analytics.voiceBookingsLast30Days },
+              ],
+              color: "#7c3aed",
+            },
+            {
+              kind: "bar",
+              id: "voice-sentiment",
+              featured: true,
+              title: "Call sentiment",
+              subtitle: "Distribution across completed calls in the last 30 days",
+              data: analytics.sentimentCounts,
+              color: "#f97316",
+              emptyMessage: "Sentiment data appears after calls are analyzed.",
+            },
+          ],
+        });
+
+        headlineStats.push({ label: "Voice calls (30d)", value: analytics.totalCallsLast30Days });
+
+        const avgMinutes = Math.floor(analytics.avgDurationSeconds / 60);
+        const avgSeconds = String(analytics.avgDurationSeconds % 60).padStart(2, "0");
+        overviewStats.push({
+          id: "voice",
+          title: "Voice Support",
+          value: analytics.totalCallsLast30Days,
+          hint: `${analytics.voiceBookingsLast30Days} phone bookings · ${avgMinutes}:${avgSeconds} avg call`,
+          href: "/voice-agent",
+          accent: "#7c3aed",
+        });
+      })(),
+    );
+  } else if (showVoice) {
+    sections.push({
+      id: "voice",
+      title: "Voice Support",
+      description: "Select a workspace organization to see voice agent stats.",
+      href: "/voice-agent",
+      accent: "#7c3aed",
+      stats: [{ label: "Active organization", value: "Not set" }],
+      charts: [],
     });
   }
 
@@ -252,45 +456,18 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           prisma.user.count({ where: { accountStatus: "active" } }),
         ]);
 
-        sections.push({
+        overviewStats.push({
           id: "users",
-          title: "User Management",
-          description: "Workspace accounts and role assignments",
+          title: "Users",
+          value: totalUsers,
+          hint: `${activeUsers} active · ${Math.max(0, totalUsers - activeUsers)} inactive`,
           href: "/users",
-          stats: [
-            { label: "Total users", value: totalUsers },
-            { label: "Active accounts", value: activeUsers },
-            { label: "Inactive", value: Math.max(0, totalUsers - activeUsers) },
-          ],
+          accent: "#0ea5e9",
         });
 
         if (roleName === "Admin") {
           headlineStats.push({ label: "Workspace users", value: totalUsers });
         }
-      })(),
-    );
-  }
-
-  if (showAccess) {
-    fetches.push(
-      (async () => {
-        const [roles, permissions, menus] = await Promise.all([
-          prisma.role.count(),
-          prisma.menuAccess.count(),
-          prisma.menuItem.count(),
-        ]);
-
-        sections.push({
-          id: "access",
-          title: "Access Control",
-          description: "Roles, menus, and permission mappings",
-          href: "/settings/access/permissions",
-          stats: [
-            { label: "Roles", value: roles },
-            { label: "Menu permissions", value: permissions },
-            { label: "Menu items", value: menus },
-          ],
-        });
       })(),
     );
   }
@@ -309,10 +486,25 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           title: "Platform Settings",
           description: "Enabled integrations and provider catalog",
           href: "/platform/providers",
+          accent: "#6366f1",
           stats: [
-            { label: "Enabled providers", value: enabledProviders },
-            { label: "Calendar providers", value: calendarProviders },
-            { label: "Review providers", value: reviewProviders },
+            { label: "Enabled providers", value: enabledProviders, accent: "#6366f1" },
+            { label: "Calendar providers", value: calendarProviders, accent: "#0284c7" },
+            { label: "Review providers", value: reviewProviders, accent: "#f59e0b" },
+          ],
+          charts: [
+            {
+              kind: "bar",
+              id: "providers",
+              featured: true,
+              title: "Provider catalog",
+              data: [
+                { label: "Enabled", value: enabledProviders, color: "#6366f1" },
+                { label: "Calendar", value: calendarProviders, color: "#0284c7" },
+                { label: "Review", value: reviewProviders, color: "#f59e0b" },
+              ],
+              color: "#6366f1",
+            },
           ],
         });
       })(),
@@ -321,7 +513,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
 
   await Promise.all(fetches);
 
-  const sectionOrder = ["appointments", "reviews", "users", "access", "platform"];
+  const sectionOrder = ["appointments", "reviews", "voice", "platform"];
   sections.sort((a, b) => sectionOrder.indexOf(a.id) - sectionOrder.indexOf(b.id));
 
   const hero = heroCopyForRole(roleName, sections.length);
@@ -384,6 +576,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
     organizationName: orgName,
     ...hero,
     headlineStats: uniqueHeadline,
+    overviewStats,
     sections,
     quickLinks: quickLinks.slice(0, 6),
     emptyMessage: sections.length === 0 ? "No modules are assigned to your role yet." : null,

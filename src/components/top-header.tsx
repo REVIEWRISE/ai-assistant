@@ -167,7 +167,7 @@ export function TopHeader({
   const copy = getHeaderCopy(pathname);
 
   return (
-    <header className="sticky top-0 z-10 rounded-t-3xl border-b border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg)_92%,transparent)] px-4 py-3 backdrop-blur lg:px-6">
+    <header className="sticky top-0 z-10 shrink-0 border-b border-[var(--color-border)] px-4 py-3 lg:px-6">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 shrink">
           <p className="truncate text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-h)]">
@@ -175,7 +175,7 @@ export function TopHeader({
           </p>
           <h2 className="truncate text-lg font-semibold text-[var(--color-text)]">{copy.title}</h2>
         </div>
-        <div className="flex min-w-0 shrink-0 items-center gap-2">
+        <div className="flex min-w-0 shrink-0 items-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-[var(--shadow-sm)]">
           {organizations.length > 0 ? (
             <CustomSelect
               value={activeOrganizationId ?? organizations[0]?.id ?? ""}
@@ -184,34 +184,22 @@ export function TopHeader({
               placeholder="Select organization"
               disabled={switchingOrganization}
               aria-label="Switch organization"
-              className="mt-0 w-[min(100%,220px)]"
-              triggerClassName="rounded-xl py-1.5 font-medium hover:bg-[var(--color-surface)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
+              className="mt-0 w-[min(100%,11rem)] sm:w-[12.5rem]"
+              triggerClassName="rounded-xl border-0 bg-transparent py-1.5 shadow-none hover:bg-[var(--color-raised)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
               menuClassName="min-w-[220px]"
             />
           ) : null}
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="relative rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface)]"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5" />
-              <path d="M9 17a3 3 0 0 0 6 0" />
-            </svg>
-            <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[var(--color-danger)]" />
-          </button>
+          {organizations.length > 0 ? (
+            <span className="mx-0.5 hidden h-6 w-px shrink-0 bg-[var(--color-border)] sm:block" aria-hidden />
+          ) : null}
           <div className="relative min-w-0">
             <button
               type="button"
               onClick={onToggleProfile}
               aria-label={`Profile menu for ${profileName}`}
-              className="flex max-w-[min(100vw-8rem,13rem)] items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 text-sm font-medium text-[var(--color-text)] transition hover:bg-[var(--color-surface)] sm:max-w-[14rem]"
+              className={`flex max-w-[min(100vw-8rem,13rem)] items-center gap-2 rounded-xl px-2 py-1.5 text-sm font-medium text-[var(--color-text)] transition hover:bg-[var(--color-raised)] sm:max-w-[14rem] ${
+                profileOpen ? "bg-[var(--color-raised)]" : ""
+              }`}
             >
               <span className="shrink-0">{profileAvatar}</span>
               <span className="hidden min-w-0 flex-1 overflow-hidden text-left sm:block">
@@ -242,7 +230,7 @@ export function TopHeader({
               </svg>
             </button>
             {profileOpen ? (
-              <div className="absolute right-0 mt-2 w-64 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]">
+              <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]">
                 <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
                   <p className="truncate text-sm font-semibold text-[var(--color-text)]" title={profileName}>
                     {profileName}
