@@ -18,7 +18,6 @@ export type CallItem = {
   fromNumber: string | null;
   toNumber: string | null;
   durationSeconds: number;
-  cost: number;
   recordingUrl: string | null;
   summary: string | null;
   sentiment: string | null;
@@ -27,16 +26,12 @@ export type CallItem = {
 };
 
 const tableGridClass =
-  "grid-cols-[140px_130px_90px_80px_100px_minmax(0,1fr)_90px]";
+  "grid-cols-[140px_130px_90px_100px_minmax(0,1fr)_90px]";
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-function formatCost(cost: number): string {
-  return `$${Number(cost).toFixed(3)}`;
 }
 
 function getSentimentTone(sentiment: string | null): string {
@@ -56,7 +51,6 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
 
   // Compute stats
   const totalCalls = calls.length;
-  const totalCost = calls.reduce((acc, curr) => acc + curr.cost, 0);
   const avgDuration =
     totalCalls > 0
       ? Math.round(calls.reduce((acc, curr) => acc + curr.durationSeconds, 0) / totalCalls)
@@ -65,21 +59,13 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
   return (
     <section className="space-y-4">
       {/* KPI Stats */}
-      <div className="grid gap-3 sm:grid-cols-3 text-sm">
+      <div className="grid gap-3 sm:grid-cols-2 text-sm">
         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:p-5">
           <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
             Total Calls
           </p>
           <p className="mt-1 text-2xl font-bold text-[var(--color-text)]">
             {totalCalls}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-            Total Cost
-          </p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-text)]">
-            {formatCost(totalCost)}
           </p>
         </div>
         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:p-5">
@@ -94,7 +80,7 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
 
       <Panel
         title="Call History"
-        subtitle="Live call metrics, transcripts, and cost breakdowns"
+        subtitle="Live call metrics and transcripts"
       >
         {calls.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-text-muted)]">
@@ -127,14 +113,10 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
                       {call.sentiment || "neutral"}
                     </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-xs text-[var(--color-text-muted)]">
+                  <div className="grid grid-cols-2 gap-2 text-xs text-[var(--color-text-muted)]">
                     <div>
                       <span className="font-medium text-[var(--color-text)]">Duration:</span>{" "}
                       {formatDuration(call.durationSeconds)}
-                    </div>
-                    <div>
-                      <span className="font-medium text-[var(--color-text)]">Cost:</span>{" "}
-                      {formatCost(call.cost)}
                     </div>
                     <div>
                       <span className="font-medium text-[var(--color-text)]">Dir:</span>{" "}
@@ -165,7 +147,6 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
                 <div>Date & Time</div>
                 <div>Number</div>
                 <div>Duration</div>
-                <div>Cost</div>
                 <div>Sentiment</div>
                 <div>Summary</div>
                 <div className="text-right">Action</div>
@@ -193,7 +174,6 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
                       </p>
                     </div>
                     <div>{formatDuration(call.durationSeconds)}</div>
-                    <div className="font-mono text-xs">{formatCost(call.cost)}</div>
                     <div>
                       <span
                         className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold leading-snug ${getSentimentTone(
@@ -250,11 +230,7 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
                 {/* Modal Content Scroll Area */}
                 <div className="p-5 overflow-y-auto space-y-4 text-sm text-[var(--color-text)] flex-1">
                   {/* Metadata and Stats */}
-                  <div className="grid gap-3 sm:grid-cols-4 text-xs rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-                    <div>
-                      <p className="font-semibold text-[var(--color-text-muted)]">Cost</p>
-                      <p className="mt-0.5 font-bold font-mono text-sm">{formatCost(selectedCall.cost)}</p>
-                    </div>
+                  <div className="grid gap-3 sm:grid-cols-3 text-xs rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
                     <div>
                       <p className="font-semibold text-[var(--color-text-muted)]">Duration</p>
                       <p className="mt-0.5 font-bold text-sm">{formatDuration(selectedCall.durationSeconds)}</p>

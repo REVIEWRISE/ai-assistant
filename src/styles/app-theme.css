@@ -156,3 +156,112 @@
   background: var(--color-danger-soft);
   color: color-mix(in srgb, var(--color-danger) 85%, var(--color-text));
 }
+
+/* Sonner toasts — aligned with vr-app-alert surfaces */
+[data-sonner-toaster] {
+  --width: min(22rem, calc(100vw - 2rem));
+  font-family: var(--font-poppins), sans-serif;
+  z-index: 9999;
+}
+
+.vr-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: var(--width);
+  padding: 0.875rem 2.5rem 0.875rem 1rem;
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg) 94%, transparent);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text);
+}
+
+.vr-toast-content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.vr-toast-icon {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.vr-toast-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-text);
+}
+
+.vr-toast-description {
+  margin-top: 0.2rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+
+.vr-toast-close {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  display: flex;
+  height: 1.75rem;
+  width: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.vr-toast-close:hover {
+  border-color: var(--color-border);
+  background: var(--color-raised);
+  color: var(--color-text);
+}
+
+.vr-toast-success {
+  border-color: color-mix(in srgb, var(--color-success) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--color-success-soft) 88%, var(--color-bg));
+}
+
+.vr-toast-success .vr-toast-title {
+  color: color-mix(in srgb, var(--color-success) 75%, var(--color-text));
+}
+
+.vr-toast-error {
+  border-color: color-mix(in srgb, var(--color-danger) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--color-danger-soft) 88%, var(--color-bg));
+}
+
+.vr-toast-error .vr-toast-title {
+  color: color-mix(in srgb, var(--color-danger) 75%, var(--color-text));
+}
+
+.vr-toast-warning {
+  border-color: color-mix(in srgb, var(--color-warning) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--color-warning-soft) 88%, var(--color-bg));
+}
+
+.vr-toast-warning .vr-toast-title {
+  color: color-mix(in srgb, var(--color-warning) 75%, var(--color-text));
+}
+
+.vr-toast-info {
+  border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary-soft) 88%, var(--color-bg));
+}
+
+.vr-toast-info .vr-toast-title {
+  color: color-mix(in srgb, var(--color-primary-h) 80%, var(--color-text));
+}

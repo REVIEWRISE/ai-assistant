@@ -34,7 +34,10 @@ export async function GET() {
   }
 
   const roles = session.user.userRoles.map((ur) => ur.role);
-  const allowedPaths = await getAllowedMenuPathsForUser(session.userId);
+  const allowedPaths = await getAllowedMenuPathsForUser(
+    session.userId,
+    session.activeOrganization?.id ?? null,
+  );
 
   return NextResponse.json({
     user: {

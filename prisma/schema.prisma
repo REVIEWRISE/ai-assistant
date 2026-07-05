@@ -19,6 +19,7 @@ model User {
 
   sessions            Session[]
   organizationMembers OrganizationMember[]
+  memberMenuAccesses  OrganizationMemberMenuAccess[]
   userRoles           UserRole[]
   auditEvents         AuditEvent[]
   providerConnections ProviderConnection[]
@@ -49,6 +50,7 @@ model Organization {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   members        OrganizationMember[]
+  memberMenuAccesses OrganizationMemberMenuAccess[]
   reviewServices ReviewService[]
   reviews        Review[]
   appointments   Appointment[]
@@ -292,8 +294,24 @@ model MenuItem {
   parent   MenuItem?  @relation("MenuItemHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
   children MenuItem[] @relation("MenuItemHierarchy")
   menuAccess  MenuAccess[]
+  memberMenuAccesses OrganizationMemberMenuAccess[]
 
   @@map("menu_items")
+}
+
+model OrganizationMemberMenuAccess {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  menuItemId     String   @map("menu_item_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  menuItem     MenuItem     @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId, menuItemId])
+  @@map("organization_member_menu_access")
 }
 
 model MenuAccess {

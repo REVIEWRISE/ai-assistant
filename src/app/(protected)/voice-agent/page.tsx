@@ -94,25 +94,10 @@ export default async function VoiceAgentPage() {
   const kbPreviewLength = kb?.rawText?.trim().length ?? 0;
   const kbPreviewText = kb?.rawText?.trim().slice(0, 4000) ?? "";
 
-  let dbCalls = await prisma.retellCall.findMany({
+  const dbCalls = await prisma.retellCall.findMany({
     where: { organizationId: org.id },
     orderBy: { createdAt: "desc" },
   });
-
-  // Self-heal: If any existing call cost is stored in USD cents (e.g. > 1.5), divide by 100
-  const callsToFix = dbCalls.filter((c) => Number(c.cost) > 1.5);
-  if (callsToFix.length > 0) {
-    for (const call of callsToFix) {
-      await prisma.retellCall.update({
-        where: { id: call.id },
-        data: { cost: Number(call.cost) / 100 },
-      });
-    }
-    dbCalls = await prisma.retellCall.findMany({
-      where: { organizationId: org.id },
-      orderBy: { createdAt: "desc" },
-    });
-  }
 
   const calls = dbCalls.map((call) => ({
     id: call.id,
@@ -123,7 +108,6 @@ export default async function VoiceAgentPage() {
     fromNumber: call.fromNumber,
     toNumber: call.toNumber,
     durationSeconds: call.durationSeconds,
-    cost: Number(call.cost),
     recordingUrl: call.recordingUrl,
     summary: call.summary,
     sentiment: call.sentiment,

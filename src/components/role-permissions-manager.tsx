@@ -6,17 +6,9 @@ import { Panel } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CustomSelect } from "@/components/custom-select";
 
-type OrganizationOption = {
+type RoleOption = {
   id: string;
   name: string;
-};
-
-type MembershipOption = {
-  organizationId: string;
-  organizationName: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
 };
 
 type MenuOption = {
@@ -25,18 +17,16 @@ type MenuOption = {
   path: string;
 };
 
-type PermissionRow = {
+type RolePermissionRow = {
   id: string;
-  organization: OrganizationOption;
-  user: { id: string; fullName: string; email: string };
+  role: RoleOption;
   menuItem: MenuOption;
   createdAt: string | Date;
 };
 
-type PermissionsManagerProps = {
-  permissions: PermissionRow[];
-  organizations: OrganizationOption[];
-  memberships: MembershipOption[];
+type RolePermissionsManagerProps = {
+  permissions: RolePermissionRow[];
+  roles: RoleOption[];
   menus: MenuOption[];
   onCreatePermission: (formData: FormData) => void | Promise<void>;
   onDeletePermission: (formData: FormData) => void | Promise<void>;
@@ -45,23 +35,21 @@ type PermissionsManagerProps = {
 
 type ModalState =
   | { type: "create" }
-  | { type: "delete"; permission: PermissionRow }
+  | { type: "delete"; permission: RolePermissionRow }
   | null;
 
-export function PermissionsManager({
+export function RolePermissionsManager({
   permissions,
-  organizations,
-  memberships,
+  roles,
   menus,
   onCreatePermission,
   onDeletePermission,
   embedded = false,
-}: PermissionsManagerProps) {
+}: RolePermissionsManagerProps) {
   const [modal, setModal] = useState<ModalState>(null);
-  const [selectedOrganizationId, setSelectedOrganizationId] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState("");
+  const [selectedRoleId, setSelectedRoleId] = useState("");
   const [selectedMenuItemId, setSelectedMenuItemId] = useState("");
-  const [filterOrganizationId, setFilterOrganizationId] = useState("");
+  const [filterRoleId, setFilterRoleId] = useState("");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(5);
 
@@ -70,21 +58,17 @@ export function PermissionsManager({
       permissions
         .slice()
         .sort((a, b) => {
-          const orgCompare = a.organization.name.localeCompare(b.organization.name);
-          if (orgCompare !== 0) return orgCompare;
-          const userCompare = a.user.fullName.localeCompare(b.user.fullName);
-          if (userCompare !== 0) return userCompare;
+          const roleCompare = a.role.name.localeCompare(b.role.name);
+          if (roleCompare !== 0) return roleCompare;
           return a.menuItem.label.localeCompare(b.menuItem.label);
         }),
     [permissions],
   );
 
   const filteredPermissions = useMemo(() => {
-    if (!filterOrganizationId) return sortedPermissions;
-    return sortedPermissions.filter(
-      (permission) => permission.organization.id === filterOrganizationId,
-    );
-  }, [sortedPermissions, filterOrganizationId]);
+    if (!filterRoleId) return sortedPermissions;
+    return sortedPermissions.filter((permission) => permission.role.id === filterRoleId);
+  }, [sortedPermissions, filterRoleId]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPermissions.length / perPage));
   const currentPage = Math.min(page, totalPages);
@@ -93,62 +77,33 @@ export function PermissionsManager({
     return filteredPermissions.slice(start, start + perPage);
   }, [filteredPermissions, currentPage, perPage]);
 
-  const menuAccessByMember = useMemo(() => {
+  const menuAccessByRole = useMemo(() => {
     const map = new Map<string, Set<string>>();
     permissions.forEach((permission) => {
-      const key = `${permission.organization.id}:${permission.user.id}`;
-      const current = map.get(key) ?? new Set<string>();
+      const current = map.get(permission.role.id) ?? new Set<string>();
       current.add(permission.menuItem.id);
-      map.set(key, current);
+      map.set(permission.role.id, current);
     });
     return map;
   }, [permissions]);
 
-  const membersForOrganization = useMemo(() => {
-    if (!selectedOrganizationId) return [];
-    return memberships.filter(
-      (membership) => membership.organizationId === selectedOrganizationId,
-    );
-  }, [memberships, selectedOrganizationId]);
-
   const availableMenus = useMemo(() => {
-    if (!selectedOrganizationId || !selectedUserId) return menus;
-    const key = `${selectedOrganizationId}:${selectedUserId}`;
-    const assigned = menuAccessByMember.get(key) ?? new Set<string>();
+    if (!selectedRoleId) return menus;
+    const assigned = menuAccessByRole.get(selectedRoleId) ?? new Set<string>();
     return menus.filter((menu) => !assigned.has(menu.id));
-  }, [menus, menuAccessByMember, selectedOrganizationId, selectedUserId]);
+  }, [menus, menuAccessByRole, selectedRoleId]);
 
-  const organizationFilterOptions = useMemo(
+  const roleFilterOptions = useMemo(
     () => [
-      { value: "", label: "All organizations" },
-      ...organizations.map((organization) => ({
-        value: organization.id,
-        label: organization.name,
-      })),
+      { value: "", label: "All roles" },
+      ...roles.map((role) => ({ value: role.id, label: role.name })),
     ],
-    [organizations],
+    [roles],
   );
 
-  const filteredOrganizationLabel =
-    organizations.find((organization) => organization.id === filterOrganizationId)?.name ??
-    "All organizations";
-
-  const organizationModalOptions = useMemo(
-    () =>
-      organizations.map((organization) => ({
-        value: organization.id,
-        label: organization.name,
-      })),
-    [organizations],
-  );
-
-  const userModalOptions = useMemo(
-    () =>
-      membersForOrganization.map((membership) => ({
-        value: membership.userId,
-        label: `${membership.userName} (${membership.userEmail})`,
-      })),
-    [membersForOrganization],
+  const roleModalOptions = useMemo(
+    () => roles.map((role) => ({ value: role.id, label: role.name })),
+    [roles],
   );
 
   const menuModalOptions = useMemo(
@@ -160,15 +115,16 @@ export function PermissionsManager({
     [availableMenus],
   );
 
+  const filteredRoleLabel =
+    roles.find((role) => role.id === filterRoleId)?.name ?? "All roles";
+
   const modalSelectTriggerClass =
     "rounded-xl border-[var(--color-border-hover)] bg-[var(--color-surface)] px-3 py-2.5 font-medium hover:bg-[var(--color-raised)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]";
 
-  const canSubmitPermission =
-    Boolean(selectedOrganizationId) && Boolean(selectedUserId) && Boolean(selectedMenuItemId);
+  const canSubmit = Boolean(selectedRoleId) && Boolean(selectedMenuItemId);
 
   function resetCreateForm() {
-    setSelectedOrganizationId("");
-    setSelectedUserId("");
+    setSelectedRoleId("");
     setSelectedMenuItemId("");
   }
 
@@ -177,8 +133,8 @@ export function PermissionsManager({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-[var(--color-text-muted)]">
           {embedded
-            ? "Target a specific member inside one organization. These rules override role defaults for that workspace."
-            : "Assign access per organization and user. These rules take priority over role defaults."}
+            ? "Menus granted to everyone with the selected role when no user override exists."
+            : "These defaults apply to every organization unless you assign that user custom permissions below."}
         </p>
         <button
           type="button"
@@ -187,64 +143,56 @@ export function PermissionsManager({
             setModal({ type: "create" });
           }}
           className="rounded-xl vr-btn-primary px-4 py-2 text-sm font-semibold"
-          disabled={organizations.length === 0 || memberships.length === 0}
+          disabled={roles.length === 0}
         >
-          Add Permission
+          Add Role Permission
         </button>
       </div>
 
-      {organizations.length === 0 ? (
-        <div className="mt-4 rounded-xl border border-dashed border-[var(--color-border)] p-6 text-sm text-[var(--color-text-muted)]">
-          No organizations found. Create an organization before assigning user permissions.
+      <div className="mt-4 flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
+        <div className="w-full min-w-[220px] sm:w-auto sm:min-w-[240px]">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+            Filter by role
+          </p>
+          <CustomSelect
+            value={filterRoleId}
+            onChange={(roleId) => {
+              setFilterRoleId(roleId);
+              setPage(1);
+            }}
+            options={roleFilterOptions}
+            placeholder="All roles"
+            aria-label="Filter by role"
+            className="mt-1.5"
+            triggerClassName="rounded-xl border-[var(--color-border-hover)] bg-[var(--color-bg)] px-3 py-2.5 font-medium hover:bg-[var(--color-raised)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
+          />
         </div>
-      ) : (
-        <div className="mt-4 flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
-          <div className="w-full min-w-[220px] sm:w-auto sm:min-w-[280px]">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-              Filter by organization
-            </p>
-            <CustomSelect
-              value={filterOrganizationId}
-              onChange={(organizationId) => {
-                setFilterOrganizationId(organizationId);
+        <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-muted)]">
+          {filterRoleId ? (
+            <button
+              type="button"
+              onClick={() => {
+                setFilterRoleId("");
                 setPage(1);
               }}
-              options={organizationFilterOptions}
-              placeholder="All organizations"
-              aria-label="Filter by organization"
-              className="mt-1.5"
-              triggerClassName="rounded-xl border-[var(--color-border-hover)] bg-[var(--color-bg)] px-3 py-2.5 font-medium hover:bg-[var(--color-raised)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
-              menuClassName="min-w-[280px]"
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-muted)]">
-            {filterOrganizationId ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setFilterOrganizationId("");
-                  setPage(1);
-                }}
-                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
-              >
-                Clear filter
-              </button>
-            ) : null}
-            <span className="rounded-lg bg-[var(--color-bg)] px-2.5 py-1.5 font-semibold text-[var(--color-text)]">
-              {filteredPermissions.length} permission{filteredPermissions.length === 1 ? "" : "s"}
-            </span>
-            {filterOrganizationId ? (
-              <span className="text-[var(--color-text-muted)]">in {filteredOrganizationLabel}</span>
-            ) : null}
-          </div>
+              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+            >
+              Clear filter
+            </button>
+          ) : null}
+          <span className="rounded-lg bg-[var(--color-bg)] px-2.5 py-1.5 font-semibold text-[var(--color-text)]">
+            {filteredPermissions.length} permission{filteredPermissions.length === 1 ? "" : "s"}
+          </span>
+          {filterRoleId ? (
+            <span className="text-[var(--color-text-muted)]">for {filteredRoleLabel}</span>
+          ) : null}
         </div>
-      )}
+      </div>
 
       <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-        <div className="vr-app-table-header hidden grid-cols-[56px_1.1fr_1.2fr_1.2fr_120px_80px] items-center gap-2 px-4 py-3 md:grid">
+        <div className="vr-app-table-header hidden grid-cols-[56px_1fr_1.4fr_120px_80px] items-center gap-2 px-4 py-3 md:grid">
           <div>#</div>
-          <div>Organization</div>
-          <div>User</div>
+          <div>Role</div>
           <div>Menu</div>
           <div>Created</div>
           <div className="text-right">Actions</div>
@@ -253,19 +201,14 @@ export function PermissionsManager({
           {pagedPermissions.map((permission, index) => (
             <div
               key={permission.id}
-              className="group grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] md:grid-cols-[56px_1.1fr_1.2fr_1.2fr_120px_80px]"
+              className="group grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] md:grid-cols-[56px_1fr_1.4fr_120px_80px]"
             >
               <div className="text-xs font-semibold text-[var(--color-text-muted)]">
                 {String((currentPage - 1) * perPage + index + 1).padStart(2, "0")}
               </div>
               <div>
-                <p className="font-semibold text-[var(--color-text)]">
-                  {permission.organization.name}
-                </p>
-              </div>
-              <div>
-                <p className="font-semibold text-[var(--color-text)]">{permission.user.fullName}</p>
-                <p className="text-xs text-[var(--color-text-muted)]">{permission.user.email}</p>
+                <p className="font-semibold text-[var(--color-text)]">{permission.role.name}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">Role default</p>
               </div>
               <div>
                 <p className="font-semibold text-[var(--color-text)]">{permission.menuItem.label}</p>
@@ -281,13 +224,7 @@ export function PermissionsManager({
                   className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)] text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))] transition hover:brightness-95"
                   aria-label="Delete permission"
                 >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M3 6h18" />
                     <path d="M8 6V4h8v2" />
                     <path d="M19 6l-1 14H6L5 6" />
@@ -298,7 +235,7 @@ export function PermissionsManager({
           ))}
           {filteredPermissions.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
-              No user permissions yet. Assign menu access for a specific organization member.
+              No role permissions yet. Add defaults so users inherit menus from their role.
             </div>
           ) : null}
         </div>
@@ -315,9 +252,7 @@ export function PermissionsManager({
             {Math.min(currentPage * perPage, filteredPermissions.length)}
           </span>{" "}
           of{" "}
-          <span className="font-semibold text-[var(--color-text)]">
-            {filteredPermissions.length}
-          </span>
+          <span className="font-semibold text-[var(--color-text)]">{filteredPermissions.length}</span>
         </div>
         <div className="flex items-center gap-2">
           <label className="flex items-center gap-2">
@@ -371,10 +306,10 @@ export function PermissionsManager({
                       Access Control
                     </p>
                     <h2 className="mt-2 text-lg font-semibold text-[var(--color-text)]">
-                      Add User Permission
+                      Add Role Permission
                     </h2>
                     <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                      Grant a menu to a user inside one organization.
+                      Grant a menu to all users with this role (when no org override exists).
                     </p>
                   </div>
                   <button
@@ -386,52 +321,27 @@ export function PermissionsManager({
                     className="rounded-lg p-1 text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)]"
                     aria-label="Close"
                   >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-5 w-5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M6 6l12 12M6 18L18 6" />
                     </svg>
                   </button>
                 </div>
 
                 <form action={onCreatePermission} className="mt-4 space-y-4">
-                  <input type="hidden" name="organization_id" value={selectedOrganizationId} />
-                  <input type="hidden" name="user_id" value={selectedUserId} />
+                  <input type="hidden" name="role_id" value={selectedRoleId} />
                   <input type="hidden" name="menu_item_id" value={selectedMenuItemId} />
 
                   <div>
-                    <p className="text-sm font-medium text-[var(--color-text)]">Organization</p>
+                    <p className="text-sm font-medium text-[var(--color-text)]">Role</p>
                     <CustomSelect
-                      value={selectedOrganizationId}
-                      onChange={(organizationId) => {
-                        setSelectedOrganizationId(organizationId);
-                        setSelectedUserId("");
+                      value={selectedRoleId}
+                      onChange={(roleId) => {
+                        setSelectedRoleId(roleId);
                         setSelectedMenuItemId("");
                       }}
-                      options={organizationModalOptions}
-                      placeholder="Select organization"
-                      aria-label="Organization"
-                      className="mt-1.5"
-                      triggerClassName={modalSelectTriggerClass}
-                    />
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-medium text-[var(--color-text)]">User</p>
-                    <CustomSelect
-                      value={selectedUserId}
-                      onChange={(userId) => {
-                        setSelectedUserId(userId);
-                        setSelectedMenuItemId("");
-                      }}
-                      options={userModalOptions}
-                      placeholder="Select user"
-                      disabled={!selectedOrganizationId}
-                      aria-label="User"
+                      options={roleModalOptions}
+                      placeholder="Select role"
+                      aria-label="Role"
                       className="mt-1.5"
                       triggerClassName={modalSelectTriggerClass}
                     />
@@ -444,7 +354,7 @@ export function PermissionsManager({
                       onChange={setSelectedMenuItemId}
                       options={menuModalOptions}
                       placeholder="Select menu"
-                      disabled={!selectedOrganizationId || !selectedUserId}
+                      disabled={!selectedRoleId}
                       aria-label="Menu"
                       className="mt-1.5"
                       triggerClassName={modalSelectTriggerClass}
@@ -464,7 +374,7 @@ export function PermissionsManager({
                     </button>
                     <button
                       type="submit"
-                      disabled={!canSubmitPermission}
+                      disabled={!canSubmit}
                       className="rounded-xl vr-btn-primary px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Create Permission
@@ -479,10 +389,10 @@ export function PermissionsManager({
 
       <ConfirmDialog
         open={modal?.type === "delete"}
-        title="Delete permission"
+        title="Delete role permission"
         description={
           modal?.type === "delete"
-            ? `Remove ${modal.permission.menuItem.label} for ${modal.permission.user.fullName} in ${modal.permission.organization.name}?`
+            ? `Remove ${modal.permission.menuItem.label} from role ${modal.permission.role.name}?`
             : ""
         }
         confirmLabel="Delete Permission"
@@ -499,8 +409,8 @@ export function PermissionsManager({
 
   return (
     <Panel
-      title="Organization User Permissions"
-      subtitle="Control which menus each user can access in a specific organization"
+      title="Role Default Permissions"
+      subtitle="Baseline menu access by role — used when a user has no organization-specific overrides"
     >
       {content}
     </Panel>

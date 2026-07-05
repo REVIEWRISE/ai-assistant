@@ -11,8 +11,9 @@ const successMessages: Record<string, string> = {
 };
 
 const errorMessages: Record<string, string> = {
-  missing: "Please select a role and menu.",
-  exists: "That role already has access to this menu.",
+  missing: "Please complete all required fields.",
+  exists: "That permission already exists.",
+  invalid_member: "The selected user is not a member of that organization.",
   delete_failed: "Unable to delete that permission.",
   unknown: "Something went wrong. Try again.",
 };

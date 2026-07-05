@@ -59,7 +59,10 @@ export default async function ProfileSettingsPage() {
     redirect("/login");
   }
 
-  const allowedPaths = await getAllowedMenuPathsForUser(session.userId);
+  const allowedPaths = await getAllowedMenuPathsForUser(
+    session.userId,
+    session.activeOrganizationId,
+  );
   if (!isHrefAllowedForNav("/profile", allowedPaths)) {
     redirect(redirectPathWhenMenuForbidden(allowedPaths));
   }
