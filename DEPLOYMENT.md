@@ -75,6 +75,14 @@ Upload a **company logo** per organization under **Appointments → Organization
 
 You can set `RETELL_API_KEY` as its own GitHub secret; deploy merges it into `.env.production` even when using `ENV_FILE_CONTENTS`.
 
+| Secret | Description |
+| :--- | :--- |
+| `RETELL_USE_CUSTOM_LLM` | Set to `true` to start the `retell-llm` WebSocket container on deploy |
+| `OPENAI_MODEL` | Optional. Model for live voice calls (default `gpt-4o-mini`) |
+| `RETELL_CUSTOM_LLM_WS_URL` | Optional. Override WebSocket URL; otherwise derived from `NEXT_PUBLIC_APP_URL` + nginx |
+
+These are merged into `.env.production` on every deploy, including when using `ENV_FILE_CONTENTS`.
+
 #### `ENV_FILE_CONTENTS` example
 
 ```env
@@ -85,6 +93,10 @@ NEXT_PUBLIC_APP_URL=https://your-domain.com
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
 RETELL_API_KEY=your_retell_api_key
+RETELL_USE_CUSTOM_LLM=true
+# Optional override; defaults to wss://your-domain.com/llm-websocket when nginx proxies /llm-websocket → :3016
+# RETELL_CUSTOM_LLM_WS_URL=wss://your-domain.com/llm-websocket
+RETELL_CUSTOM_LLM_PORT=3001
 DATABASE_URL=postgresql://ai_user:secure_password@postgres:5432/ai_assistant
 SEED_ADMIN_EMAIL=admin@example.com
 SEED_ADMIN_PASSWORD=secure_password
@@ -160,6 +172,42 @@ Expect:
 If `schemaInSync` is `false`, check `missingTables` in the response and run `docker compose -f docker-compose.prod.yml logs app` to confirm `prisma db push` succeeded on startup.
 
 If `smtpConfigured` is `false`, SMTP secrets are missing from `.env.production`.
+
+### Retell Custom LLM (your OpenAI key on live calls)
+
+When `RETELL_USE_CUSTOM_LLM=true`, deploy starts an extra `retell-llm` container (WebSocket on host port **3016**). Retell connects to `wss://your-domain.com/llm-websocket` — same host as the app if you use the nginx example.
+
+1. Add to `.env.production` (or `ENV_FILE_CONTENTS`):
+
+```env
+RETELL_USE_CUSTOM_LLM=true
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+NEXT_PUBLIC_APP_URL=https://your-domain.com
+```
+
+2. Install nginx using `deploy/nginx.site.example.conf` (replace `YOUR_DOMAIN`, enable SSL with certbot). The `/llm-websocket/` location must proxy to `127.0.0.1:3016`.
+
+3. Deploy as usual — `scripts/deploy.sh` detects custom LLM and starts the `retell-llm` service.
+
+4. **Migrate existing Retell agents** (one-time, on the server):
+
+```bash
+cd /var/www/ai-assistant
+docker compose -f docker-compose.prod.yml --profile retell-custom-llm \
+  run --rm retell-llm npx tsx scripts/migrate-retell-to-custom-llm.ts
+```
+
+Or re-save each voice agent in the admin UI (same sync effect).
+
+5. Verify:
+
+```bash
+curl -s http://localhost:3016/
+curl -s https://your-domain.com/api/health | jq
+```
+
+Local dev without nginx: run `npm run retell:llm`, expose with `ngrok http 3001`, set `RETELL_CUSTOM_LLM_WS_URL` to the ngrok `wss://…/llm-websocket` URL.
 
 ## CI/CD Pipeline
 

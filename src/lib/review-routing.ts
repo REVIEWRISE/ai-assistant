@@ -1,3 +1,5 @@
+import { repliedPlatformLabel } from "@/lib/review-provider-integration";
+
 export type ReviewRoutingBucket = "auto_publish" | "needs_review" | "manual_approval";
 
 export type ReviewStarRating = 1 | 2 | 3 | 4 | 5;
@@ -83,10 +85,11 @@ export function toInboxStatusFromRouting(
   dbStatus: string,
   rating: number,
   rules: ReviewRoutingRules,
+  provider = "Google",
 ): string {
   const normalized = dbStatus.trim().toLowerCase();
   if (normalized === "responded") {
-    return "Replied on Google";
+    return `Replied on ${repliedPlatformLabel(provider)}`;
   }
   if (normalized === "pending") {
     return REVIEW_ROUTING_BUCKET_LABELS[classifyPendingReviewRating(rating, rules)];
@@ -101,7 +104,7 @@ export function toInboxStatusFromRouting(
 }
 
 export function inboxToneForStatus(status: string): string {
-  if (status === REVIEW_ROUTING_BUCKET_LABELS.auto_publish || status === "Replied on Google") {
+  if (status === REVIEW_ROUTING_BUCKET_LABELS.auto_publish || status.startsWith("Replied on ")) {
     return "vr-app-status-success";
   }
   if (status === REVIEW_ROUTING_BUCKET_LABELS.needs_review) {

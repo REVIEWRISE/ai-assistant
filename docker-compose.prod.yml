@@ -32,6 +32,39 @@ services:
           cpus: '0.25'
           memory: 256M
 
+  retell-llm:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: ai_assistant_retell_llm
+    restart: unless-stopped
+    profiles:
+      - retell-custom-llm
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env.production
+    command: npx tsx scripts/retell-custom-llm-server.ts
+    ports:
+      - "3016:3001"
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
   postgres:
     image: postgres:16-alpine
     container_name: ai_assistant_postgres

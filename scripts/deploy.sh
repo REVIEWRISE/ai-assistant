@@ -21,9 +21,15 @@ echo $(date +%s) > .last_version
 
 # Build and restart containers
 echo "Building and starting containers..."
+COMPOSE_PROFILES=""
+if grep -qE '^RETELL_USE_CUSTOM_LLM=(true|1|on)' .env.production 2>/dev/null \
+  || grep -qE '^RETELL_CUSTOM_LLM_WS_URL=.+' .env.production 2>/dev/null; then
+  COMPOSE_PROFILES="--profile retell-custom-llm"
+  echo "Custom LLM enabled — starting retell-llm service."
+fi
 docker compose -f docker-compose.prod.yml pull || true
 docker compose -f docker-compose.prod.yml down --remove-orphans
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml $COMPOSE_PROFILES up -d --build
 
 # Give the app time to start and run db migrations before polling
 echo "Waiting 30s for app startup and DB migration..."
@@ -60,6 +66,25 @@ if [ $UNTIL_HEALTHY -eq 0 ]; then
     echo "Stopping containers for safety..."
     docker compose -f docker-compose.prod.yml down
     exit 1
+fi
+
+if [ -n "$COMPOSE_PROFILES" ]; then
+  echo "Checking retell-llm WebSocket server..."
+  RETELL_RETRIES=0
+  RETELL_HTTP="000"
+  until [ $RETELL_RETRIES -ge 10 ]; do
+    RETELL_HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3016/ || echo "000")
+    if [ "$RETELL_HTTP" = "200" ]; then
+      echo "retell-llm is healthy."
+      break
+    fi
+    sleep 5
+    RETELL_RETRIES=$((RETELL_RETRIES+1))
+  done
+  if [ "$RETELL_HTTP" != "200" ]; then
+    echo "WARNING: retell-llm did not respond on :3016. Check nginx and docker logs."
+    docker compose -f docker-compose.prod.yml logs --tail=50 retell-llm || true
+  fi
 fi
 
 echo "Deployment successful!"

@@ -9,8 +9,8 @@ export type ReviewStatusMessage = {
 
 export const reviewSuccessMessages: Record<string, ReviewStatusMessage> = {
   provider_connected: {
-    title: "Google Business Profile connected",
-    body: "Your account is linked. Use Sync now to pull in reviews.",
+    title: "Review provider connected",
+    body: "Your integration is linked. Use Sync now to pull in reviews.",
     variant: "success",
   },
   review_sync_done: {
@@ -20,7 +20,7 @@ export const reviewSuccessMessages: Record<string, ReviewStatusMessage> = {
   },
   review_sync_empty: {
     title: "No reviews returned",
-    body: "Google did not return any reviews for the linked location. Confirm the review is on that business profile, then try again.",
+    body: "The connected provider did not return any reviews. Confirm the business has public reviews, then try again.",
     variant: "warning",
   },
   review_sync_up_to_date: {
@@ -133,16 +133,22 @@ export const reviewErrorMessages: Record<string, ReviewStatusMessage> = {
   },
   review_sync_missing_location: {
     title: "Business location not linked",
-    body: "Reconnect Google and choose which location to sync reviews from.",
+    body: "Reconnect the provider and choose which business or location to sync reviews from.",
+    variant: "error",
+  },
+  yelp_connection_failed: {
+    title: "Yelp connection failed",
+    body: "We could not verify your Yelp API key and business ID.",
+    hints: [
+      "Create a Yelp Fusion API key at yelp.com/developers",
+      "Use the business alias from the Yelp URL (the part after /biz/)",
+      "Fusion Reviews requires Enhanced or Premium plan access on your Yelp app",
+    ],
     variant: "error",
   },
   review_sync_api_failed: {
     title: "Could not fetch reviews",
-    body: "Google or your reviews API rejected the request.",
-    hints: [
-      "Confirm Google My Business API is enabled in the same Google Cloud project as your OAuth client",
-      "Account Management and Business Information APIs are not enough — reviews require My Business API (mybusiness.googleapis.com)",
-    ],
+    body: "The review provider rejected the sync request.",
     variant: "error",
   },
   gbp_accounts_api_failed: {
@@ -157,6 +163,43 @@ export const reviewErrorMessages: Record<string, ReviewStatusMessage> = {
   },
 };
 
+function isYelpSyncDetail(detail: string): boolean {
+  return (
+    /yelp/i.test(detail) ||
+    /api\.yelp\.com/i.test(detail) ||
+    /Fusion API/i.test(detail) ||
+    /Bearer \[A-Za-z0-9\\\-\\\_\]\{128\}/.test(detail) ||
+    /does not match.*Bearer/i.test(detail) ||
+    /128 characters/i.test(detail)
+  );
+}
+
+function isGoogleSyncDetail(detail: string): boolean {
+  return (
+    /google/i.test(detail) ||
+    /mybusiness/i.test(detail) ||
+    /business profile/i.test(detail)
+  );
+}
+
+function yelpSyncFailureMessage(detail: string): ReviewStatusMessage {
+  const invalidKey =
+    /does not match|128/.test(detail) || /invalid.*api key/i.test(detail);
+
+  return {
+    title: "Yelp sync failed",
+    body: invalidKey
+      ? "Your Yelp API key format is invalid. Yelp Fusion keys are exactly 128 characters copied from your Yelp developer app."
+      : `Yelp rejected the sync request. ${detail}`,
+    hints: [
+      "Open yelp.com/developers → your app → copy the full API Key",
+      "Reconnect Yelp under Integrations with the correct key and business alias",
+      "Fusion Reviews requires Enhanced or Premium plan access on your Yelp developer app",
+    ],
+    variant: "error",
+  };
+}
+
 export function getReviewStatusMessage(args: {
   success?: string | null;
   error?: string | null;
@@ -169,23 +212,59 @@ export function getReviewStatusMessage(args: {
     const base = reviewErrorMessages[args.error];
     const detail = args.detail?.trim();
     if (!detail || args.error === "gbp_rate_limited") return base;
-    const myBusinessApiDisabled =
-      /mybusiness\.googleapis\.com/i.test(detail) ||
-      /google my business api has not been used/i.test(detail);
-    if (args.error === "review_sync_api_failed" && myBusinessApiDisabled) {
+
+    if (args.error === "yelp_connection_failed") {
+      const invalidKey = /128|does not match/i.test(detail);
       return {
         ...base,
-        body: "Google rejected the reviews request because Google My Business API is disabled for your OAuth project.",
-        hints: [
-          "Open Google Cloud Console → APIs & Services → Library → search “Google My Business API” → Enable",
-          "Use the same project as your OAuth client_id on the review provider",
-          "Wait a few minutes after enabling, then click Sync now again",
-        ],
+        body: invalidKey
+          ? "Your Yelp API key format is invalid. Yelp Fusion keys are exactly 128 characters."
+          : `${base.body} ${detail}`,
       };
     }
+
+    if (args.error === "review_sync_api_failed") {
+      if (isYelpSyncDetail(detail) && !isGoogleSyncDetail(detail)) {
+        return yelpSyncFailureMessage(detail);
+      }
+
+      const myBusinessApiDisabled =
+        /mybusiness\.googleapis\.com/i.test(detail) ||
+        /google my business api has not been used/i.test(detail);
+      if (myBusinessApiDisabled) {
+        return {
+          title: "Could not fetch reviews",
+          body: "Google rejected the reviews request because Google My Business API is disabled for your OAuth project.",
+          hints: [
+            "Open Google Cloud Console → APIs & Services → Library → search “Google My Business API” → Enable",
+            "Use the same project as your OAuth client_id on the review provider",
+            "Wait a few minutes after enabling, then click Sync now again",
+          ],
+          variant: "error",
+        };
+      }
+
+      if (isGoogleSyncDetail(detail)) {
+        return {
+          title: "Could not fetch reviews",
+          body: `Google rejected the sync request. ${detail}`,
+          hints: [
+            "Confirm Google My Business API is enabled in the same Google Cloud project as your OAuth client",
+            "Account Management and Business Information APIs are not enough — reviews require My Business API (mybusiness.googleapis.com)",
+          ],
+          variant: "error",
+        };
+      }
+
+      return {
+        ...base,
+        body: `${base.body} ${detail}`,
+      };
+    }
+
     return {
       ...base,
-      body: `${base.body} Google reported: ${detail}`,
+      body: `${base.body} ${detail}`,
     };
   }
   if (args.error?.startsWith("oauth_")) {

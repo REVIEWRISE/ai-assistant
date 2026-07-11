@@ -94,6 +94,54 @@ SEED_ADMIN_NAME=
 
 `RETELL_API_KEY` powers **Voice Support** with [Retell AI](https://www.retellai.com/): create a per-organization voice agent, sync prompts/knowledge on save, and link phone numbers. Find the key in the Retell dashboard under API keys.
 
+### Use your own OpenAI key for live voice calls (Custom LLM)
+
+By default, live phone inference runs on Retell's hosted models. To bill OpenAI directly with your `OPENAI_API_KEY` and `OPENAI_MODEL`, enable Retell's **Custom LLM WebSocket**:
+
+1. Add to `.env.local`:
+
+```env
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+RETELL_USE_CUSTOM_LLM=true
+RETELL_CUSTOM_LLM_PORT=3001
+```
+
+For **local dev**, Retell cannot reach `localhost` — use ngrok:
+
+```bash
+npm run retell:llm          # terminal 1
+ngrok http 3001             # terminal 2
+```
+
+Set `RETELL_CUSTOM_LLM_WS_URL=wss://YOUR-NGROK-HOST/llm-websocket` (from ngrok output).
+
+For **production** on one domain, nginx proxies `/llm-websocket` → port 3016; set only `RETELL_USE_CUSTOM_LLM=true` and `NEXT_PUBLIC_APP_URL=https://your-domain.com` (see `deploy/nginx.site.example.conf`).
+
+2. Start the WebSocket server (separate terminal, unless using Docker profile below):
+
+```bash
+npm run retell:llm
+```
+
+Docker dev with custom LLM:
+
+```bash
+docker compose --profile retell-custom-llm up --build
+```
+
+3. **Migrate existing agents** to custom LLM:
+
+```bash
+npm run retell:migrate
+```
+
+Or re-save the voice agent in the admin UI.
+
+4. Re-save your voice agent in the app if you changed prompts after migrating.
+
+If `RETELL_CUSTOM_LLM_WS_URL` is unset, the app keeps using Retell's managed `retell-llm` engine.
+
 3. Run schema sync + seed:
 
 ```bash
@@ -136,6 +184,8 @@ If `SMTP_USER` / `SMTP_PASSWORD` are unset, bookings still save; emails are skip
 - `npm run db:seed` - run seed script
 - `npm run db:setup` - migrate + seed
 - `npm run cron:review-sync` - run review sync cron script
+- `npm run retell:llm` - start Retell Custom LLM WebSocket server (uses `OPENAI_API_KEY`)
+- `npm run retell:migrate` - migrate existing Retell agents to custom LLM WebSocket
 
 ## Seed Data
 

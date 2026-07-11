@@ -21,6 +21,26 @@ services:
       - .:/app
       - /app/node_modules
 
+  retell-llm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai_assistant_retell_llm
+    restart: unless-stopped
+    profiles:
+      - retell-custom-llm
+    depends_on:
+      - postgres
+    env_file:
+      - .env.local
+    environment:
+      DATABASE_URL: postgresql://ai_user:ai_password@postgres:5432/ai_assistant
+      RETELL_CUSTOM_LLM_PORT: 3001
+      RETELL_CUSTOM_LLM_HOST: 0.0.0.0
+    command: npm run retell:llm
+    ports:
+      - "3001:3001"
+
   postgres:
     image: postgres:16
     container_name: ai_assistant_postgres

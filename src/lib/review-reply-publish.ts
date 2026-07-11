@@ -9,7 +9,8 @@ import {
   classifyPendingReviewRating,
   resolveReviewRoutingRules,
 } from "@/lib/review-routing";
-import { detectReviewIntegration } from "@/lib/review-provider-integration";
+import { detectReviewIntegration, repliedPlatformLabel } from "@/lib/review-provider-integration";
+import { publishYelpReviewReply, yelpPartnerRepliesEnabled } from "@/lib/yelp-fusion";
 
 function readString(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
@@ -69,13 +70,16 @@ export async function saveReviewResponseDraft(args: {
 
   const review = await prisma.review.findFirst({
     where: { id: args.reviewId, organizationId: args.organizationId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, provider: true },
   });
   if (!review) {
     return { ok: false, error: "Review not found." };
   }
   if (review.status.toLowerCase() === "responded") {
-    return { ok: false, error: "This review was already replied to on Google." };
+    return {
+      ok: false,
+      error: `This review was already replied to on ${repliedPlatformLabel(review.provider)}.`,
+    };
   }
 
   await prisma.review.update({
@@ -86,7 +90,7 @@ export async function saveReviewResponseDraft(args: {
   return { ok: true };
 }
 
-export async function publishReviewReplyToGoogle(args: {
+export async function publishReviewReply(args: {
   organizationId: string;
   reviewId: string;
   responseText: string;
@@ -110,12 +114,15 @@ export async function publishReviewReplyToGoogle(args: {
     return { ok: false, error: "Review not found." };
   }
   if (review.status.toLowerCase() === "responded") {
-    return { ok: false, error: "This review was already replied to on Google." };
+    return {
+      ok: false,
+      error: `This review was already replied to on ${repliedPlatformLabel(review.provider)}.`,
+    };
   }
   if (!review.externalReviewId) {
     return {
       ok: false,
-      error: "This review is missing a Google review id. Re-sync reviews from Integrations, then try again.",
+      error: `This review is missing an external review id. Re-sync reviews from Integrations, then try again.`,
     };
   }
 
@@ -132,61 +139,82 @@ export async function publishReviewReplyToGoogle(args: {
   }
 
   const integration = detectReviewIntegration(connectionInfo.provider);
-  if (integration !== "google_business_profile") {
+  if (integration === "google_business_profile") {
+    const config = asRecord(connectionInfo.provider.config);
+    if (!isOAuthProviderConfig(config)) {
+      return { ok: false, error: "Google OAuth is not configured for this provider." };
+    }
+
+    let tokenData = { ...connectionInfo.tokenData };
+    const tokenResult = await getValidOAuthAccessToken({
+      config: asOAuthProviderConfig(config),
+      tokenData,
+      persist: async (next) => {
+        tokenData = next;
+        await prisma.providerConnection.update({
+          where: {
+            userId_providerId: {
+              userId: connectionInfo.userId,
+              providerId: connectionInfo.provider.id,
+            },
+          },
+          data: { tokenData: next as object, updatedAt: new Date() },
+        });
+      },
+    });
+    if ("error" in tokenResult) {
+      return { ok: false, error: `Google token refresh failed: ${tokenResult.error}` };
+    }
+
+    const accountId =
+      readString(tokenData.account_id) || readString(asRecord(config).account_id);
+    const locationId =
+      readString(tokenData.location_id) || readString(asRecord(config).location_id);
+    if (!accountId || !locationId) {
+      return {
+        ok: false,
+        error: "Google Business Profile location is not set. Reconnect the provider and select a location.",
+      };
+    }
+
+    const publishResult = await publishGbpReviewReply(
+      tokenResult.accessToken,
+      accountId,
+      locationId,
+      review.externalReviewId,
+      responseText,
+    );
+    if (!publishResult.ok) {
+      return {
+        ok: false,
+        error: `Google rejected the reply (${publishResult.status}): ${publishResult.error}`,
+      };
+    }
+  } else if (integration === "yelp_fusion") {
+    if (!yelpPartnerRepliesEnabled(connectionInfo.provider.config)) {
+      return {
+        ok: false,
+        error:
+          "Yelp reply publishing requires partner access. Enable partner_replies_enabled on the Yelp provider and add a partner_access_token when connecting.",
+      };
+    }
+
+    const partnerAccessToken = readString(connectionInfo.tokenData.partner_access_token);
+    const publishResult = await publishYelpReviewReply({
+      partnerAccessToken,
+      reviewId: review.externalReviewId,
+      responseText,
+    });
+    if (!publishResult.ok) {
+      return {
+        ok: false,
+        error: `Yelp rejected the reply (${publishResult.status}): ${publishResult.error}`,
+      };
+    }
+  } else {
     return {
       ok: false,
       error: `Publishing replies is not supported for ${review.provider} yet.`,
-    };
-  }
-
-  const config = asRecord(connectionInfo.provider.config);
-  if (!isOAuthProviderConfig(config)) {
-    return { ok: false, error: "Google OAuth is not configured for this provider." };
-  }
-
-  let tokenData = { ...connectionInfo.tokenData };
-  const tokenResult = await getValidOAuthAccessToken({
-    config: asOAuthProviderConfig(config),
-    tokenData,
-    persist: async (next) => {
-      tokenData = next;
-      await prisma.providerConnection.update({
-        where: {
-          userId_providerId: {
-            userId: connectionInfo.userId,
-            providerId: connectionInfo.provider.id,
-          },
-        },
-        data: { tokenData: next as object, updatedAt: new Date() },
-      });
-    },
-  });
-  if ("error" in tokenResult) {
-    return { ok: false, error: `Google token refresh failed: ${tokenResult.error}` };
-  }
-
-  const accountId =
-    readString(tokenData.account_id) || readString(asRecord(config).account_id);
-  const locationId =
-    readString(tokenData.location_id) || readString(asRecord(config).location_id);
-  if (!accountId || !locationId) {
-    return {
-      ok: false,
-      error: "Google Business Profile location is not set. Reconnect the provider and select a location.",
-    };
-  }
-
-  const publishResult = await publishGbpReviewReply(
-    tokenResult.accessToken,
-    accountId,
-    locationId,
-    review.externalReviewId,
-    responseText,
-  );
-  if (!publishResult.ok) {
-    return {
-      ok: false,
-      error: `Google rejected the reply (${publishResult.status}): ${publishResult.error}`,
     };
   }
 
@@ -199,6 +227,16 @@ export async function publishReviewReplyToGoogle(args: {
   });
 
   return { ok: true };
+}
+
+/** @deprecated Use publishReviewReply */
+export async function publishReviewReplyToGoogle(args: {
+  organizationId: string;
+  reviewId: string;
+  responseText: string;
+  userId: string;
+}): Promise<ReviewReplyActionResult> {
+  return publishReviewReply(args);
 }
 
 export async function autoPublishSyncedReviews(args: {
@@ -243,7 +281,7 @@ export async function autoPublishSyncedReviews(args: {
       continue;
     }
 
-    const result = await publishReviewReplyToGoogle({
+    const result = await publishReviewReply({
       organizationId: args.organizationId,
       reviewId: row.id,
       responseText,

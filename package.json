@@ -13,7 +13,9 @@
     "db:sync": "sh scripts/db-sync.sh",
     "db:seed": "prisma db seed",
     "db:setup": "npm run db:migrate && npm run db:seed",
-    "cron:review-sync": "tsx scripts/review-sync-cron.ts"
+    "cron:review-sync": "tsx scripts/review-sync-cron.ts",
+    "retell:llm": "tsx scripts/retell-custom-llm-server.ts",
+    "retell:migrate": "tsx scripts/migrate-retell-to-custom-llm.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -28,7 +30,8 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.8.0",
-    "sonner": "^2.0.7"
+    "sonner": "^2.0.7",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -37,6 +40,7 @@
     "@types/pg": "^8.18.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",

@@ -44,7 +44,7 @@ jobs:
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
         port: ${{ secrets.SERVER_PORT }}
-        source: "scripts/*,docker-compose.prod.yml,Dockerfile.prod,next.config.ts,package*.json,prisma/*,src/*,public/*,tsconfig.json,postcss.config.mjs,eslint.config.mjs"
+        source: "scripts/*,deploy/*,docker-compose.prod.yml,Dockerfile.prod,next.config.ts,package*.json,prisma/*,src/*,public/*,tsconfig.json,postcss.config.mjs,eslint.config.mjs"
         target: ${{ secrets.APP_DIR }}
 
     - name: Deploy to VPS
@@ -67,12 +67,15 @@ jobs:
         BOOKING_EMAIL_FROM: ${{ secrets.BOOKING_EMAIL_FROM }}
         BOOKING_NOTIFY_EMAIL: ${{ secrets.BOOKING_NOTIFY_EMAIL }}
         RETELL_API_KEY: ${{ secrets.RETELL_API_KEY }}
+        RETELL_USE_CUSTOM_LLM: ${{ secrets.RETELL_USE_CUSTOM_LLM }}
+        OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+        RETELL_CUSTOM_LLM_WS_URL: ${{ secrets.RETELL_CUSTOM_LLM_WS_URL }}
       with:
         host: ${{ secrets.SERVER_HOST }}
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
         port: ${{ secrets.SERVER_PORT }}
-        envs: ENV_FILE_CONTENTS,DATABASE_URL,OPENAI_API_KEY,SEED_ADMIN_EMAIL,SEED_ADMIN_NAME,SEED_ADMIN_PASSWORD,POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,NEXT_PUBLIC_APP_URL,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASSWORD,BOOKING_EMAIL_FROM,BOOKING_NOTIFY_EMAIL,RETELL_API_KEY
+        envs: ENV_FILE_CONTENTS,DATABASE_URL,OPENAI_API_KEY,SEED_ADMIN_EMAIL,SEED_ADMIN_NAME,SEED_ADMIN_PASSWORD,POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,NEXT_PUBLIC_APP_URL,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASSWORD,BOOKING_EMAIL_FROM,BOOKING_NOTIFY_EMAIL,RETELL_API_KEY,RETELL_USE_CUSTOM_LLM,OPENAI_MODEL,RETELL_CUSTOM_LLM_WS_URL
         script: |
           cd ${{ secrets.APP_DIR }}
           chmod +x scripts/*.sh
@@ -96,13 +99,22 @@ jobs:
               "BOOKING_EMAIL_FROM=${BOOKING_EMAIL_FROM}" \
               "BOOKING_NOTIFY_EMAIL=${BOOKING_NOTIFY_EMAIL}" \
               "RETELL_API_KEY=${RETELL_API_KEY}" \
+              "RETELL_USE_CUSTOM_LLM=${RETELL_USE_CUSTOM_LLM}" \
+              "OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}" \
               > .env.production
           fi
-          if [ -n "$RETELL_API_KEY" ]; then
-            if grep -q '^RETELL_API_KEY=' .env.production 2>/dev/null; then
-              sed -i "s|^RETELL_API_KEY=.*|RETELL_API_KEY=${RETELL_API_KEY}|" .env.production
+          merge_env_var() {
+            local key="$1"
+            local val="$2"
+            if [ -z "$val" ]; then return 0; fi
+            if grep -q "^${key}=" .env.production 2>/dev/null; then
+              sed -i "s|^${key}=.*|${key}=${val}|" .env.production
             else
-              printf '%s\n' "RETELL_API_KEY=${RETELL_API_KEY}" >> .env.production
+              printf '%s\n' "${key}=${val}" >> .env.production
             fi
-          fi
+          }
+          merge_env_var RETELL_API_KEY "$RETELL_API_KEY"
+          merge_env_var RETELL_USE_CUSTOM_LLM "$RETELL_USE_CUSTOM_LLM"
+          merge_env_var OPENAI_MODEL "$OPENAI_MODEL"
+          merge_env_var RETELL_CUSTOM_LLM_WS_URL "$RETELL_CUSTOM_LLM_WS_URL"
           ./scripts/deploy.sh "${{ secrets.APP_DIR }}"

@@ -10,7 +10,6 @@ import {
   createVoiceAgentInRetell,
   fetchRetellVoiceAgentConfig,
   fetchRetellVoiceCatalog,
-  linkVoiceAgentPhoneInRetell,
   syncVoiceAgentToRetell,
 } from "@/lib/retell-voice-sync";
 import {
@@ -18,6 +17,14 @@ import {
   generateVoiceAgentSystemPrompt,
   type VoiceAgentAiResult,
 } from "@/lib/voice-agent-ai";
+import {
+  buyOrgRetellPhoneNumber,
+  ensureLegacyPrimaryPhoneImported,
+  linkOrgRetellPhoneNumber,
+  assignOrgRetellPhoneAgent,
+  refreshOrgRetellPhoneNumbersFromRetell,
+  setOrgPrimaryRetellPhoneNumber,
+} from "@/lib/retell-phone-numbers";
 import {
   parseRetellVoiceAgentForm,
   parseVoiceAgentKnowledgeForm,
@@ -91,7 +98,10 @@ export async function saveRetellVoiceAgentSettings(formData: FormData) {
   await requireVoiceAgentOrgSession(organizationId);
 
   const { settings: stored, voices } = await loadVoiceAgentSettings(organizationId);
-  if (!stored.phone.twilioPhoneNumber.trim()) {
+  const hasPhone =
+    (await prisma.retellPhoneNumber.count({ where: { organizationId } })) > 0 ||
+    Boolean(stored.phone.twilioPhoneNumber.trim());
+  if (!hasPhone) {
     redirect(`${VOICE_AGENT_ROUTE}?tab=phone&error=phone_required_for_agent`);
   }
   const phone = stored.phone;
@@ -151,6 +161,16 @@ export async function saveRetellVoiceAgentSettings(formData: FormData) {
       phone,
     });
     if (!sync.ok) redirectRetellSyncFailure("agent", sync.error);
+    if (sync.ok && sync.agentId && sync.agentId !== retellConfig.retellAgentId) {
+      retellConfig = { ...retellConfig, retellAgentId: sync.agentId };
+      await prisma.organizationVoiceAgentSettings.update({
+        where: { organizationId },
+        data: {
+          retellConfig: retellConfig as unknown as Prisma.InputJsonValue,
+          updatedAt: new Date(),
+        },
+      });
+    }
     revalidatePath(VOICE_AGENT_ROUTE);
     redirect(`${VOICE_AGENT_ROUTE}?success=retell_saved_synced`);
   }
@@ -185,9 +205,11 @@ export async function saveVoiceAgentPhoneSettings(formData: FormData) {
     stored.retell.retellAgentId.trim() &&
     phoneConfig.twilioPhoneNumber.trim()
   ) {
-    const link = await linkVoiceAgentPhoneInRetell({
-      agentId: stored.retell.retellAgentId,
+    const link = await linkOrgRetellPhoneNumber({
+      organizationId,
       phoneNumber: phoneConfig.twilioPhoneNumber,
+      retellAgentId: stored.retell.retellAgentId,
+      makePrimary: true,
     });
     if (!link.ok) redirectRetellSyncFailure("phone", link.error);
     revalidatePath(VOICE_AGENT_ROUTE);
@@ -196,6 +218,97 @@ export async function saveVoiceAgentPhoneSettings(formData: FormData) {
 
   revalidatePath(VOICE_AGENT_ROUTE);
   redirect(`${VOICE_AGENT_ROUTE}?tab=phone&success=phone_saved`);
+}
+
+export async function buyRetellPhoneNumberAction(formData: FormData) {
+  const organizationId = String(formData.get("organization_id") || "").trim();
+  if (!organizationId) redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
+  await requireVoiceAgentOrgSession(organizationId);
+  if (!isRetellApiConfigured()) redirectRetellSyncFailure("phone", "RETELL_API_KEY is not set.");
+
+  const retellAgentId = String(formData.get("retell_agent_id") || "").trim();
+  const areaCodeRaw = String(formData.get("area_code") || "").trim();
+  const areaCode = areaCodeRaw ? Number(areaCodeRaw) : undefined;
+  const nickname = String(formData.get("nickname") || "").trim();
+
+  const result = await buyOrgRetellPhoneNumber({
+    organizationId,
+    retellAgentId,
+    areaCode: Number.isFinite(areaCode) ? areaCode : undefined,
+    nickname: nickname || undefined,
+    makePrimary: true,
+  });
+  if (!result.ok) redirectRetellSyncFailure("phone", result.error);
+
+  revalidatePath(VOICE_AGENT_ROUTE);
+  redirect(`${VOICE_AGENT_ROUTE}?tab=phone&success=phone_bought`);
+}
+
+export async function linkRetellPhoneNumberAction(formData: FormData) {
+  const organizationId = String(formData.get("organization_id") || "").trim();
+  if (!organizationId) redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
+  await requireVoiceAgentOrgSession(organizationId);
+  if (!isRetellApiConfigured()) redirectRetellSyncFailure("phone", "RETELL_API_KEY is not set.");
+
+  const result = await linkOrgRetellPhoneNumber({
+    organizationId,
+    phoneNumber: String(formData.get("phone_number") || "").trim(),
+    retellAgentId: String(formData.get("retell_agent_id") || "").trim(),
+    nickname: String(formData.get("nickname") || "").trim() || undefined,
+    makePrimary: true,
+  });
+  if (!result.ok) redirectRetellSyncFailure("phone", result.error);
+
+  revalidatePath(VOICE_AGENT_ROUTE);
+  redirect(`${VOICE_AGENT_ROUTE}?tab=phone&success=phone_linked`);
+}
+
+export async function assignRetellPhoneNumberAction(formData: FormData) {
+  const organizationId = String(formData.get("organization_id") || "").trim();
+  if (!organizationId) redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
+  await requireVoiceAgentOrgSession(organizationId);
+
+  const result = await assignOrgRetellPhoneAgent({
+    organizationId,
+    phoneNumber: String(formData.get("phone_number") || "").trim(),
+    retellAgentId: String(formData.get("retell_agent_id") || "").trim(),
+  });
+  if (!result.ok) redirectRetellSyncFailure("phone", result.error);
+
+  revalidatePath(VOICE_AGENT_ROUTE);
+  redirect(`${VOICE_AGENT_ROUTE}?tab=phone&success=phone_assigned`);
+}
+
+export async function setPrimaryRetellPhoneNumberAction(formData: FormData) {
+  const organizationId = String(formData.get("organization_id") || "").trim();
+  if (!organizationId) redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
+  await requireVoiceAgentOrgSession(organizationId);
+
+  const result = await setOrgPrimaryRetellPhoneNumber({
+    organizationId,
+    phoneNumber: String(formData.get("phone_number") || "").trim(),
+    retellAgentId: String(formData.get("retell_agent_id") || "").trim(),
+  });
+  if (!result.ok) redirectRetellSyncFailure("phone", result.error);
+
+  revalidatePath(VOICE_AGENT_ROUTE);
+  redirect(`${VOICE_AGENT_ROUTE}?tab=phone&success=phone_primary_set`);
+}
+
+export async function refreshRetellPhoneNumbersAction(formData: FormData) {
+  const organizationId = String(formData.get("organization_id") || "").trim();
+  if (!organizationId) redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
+  await requireVoiceAgentOrgSession(organizationId);
+  if (!isRetellApiConfigured()) redirectRetellSyncFailure("phone", "RETELL_API_KEY is not set.");
+
+  const result = await refreshOrgRetellPhoneNumbersFromRetell(
+    organizationId,
+    String(formData.get("retell_agent_id") || "").trim(),
+  );
+  if (!result.ok) redirectRetellSyncFailure("phone", result.error);
+
+  revalidatePath(VOICE_AGENT_ROUTE);
+  redirect(`${VOICE_AGENT_ROUTE}?tab=phone&success=phone_refreshed`);
 }
 
 export async function pullRetellVoiceAgentSettings(formData: FormData) {

@@ -9,6 +9,13 @@ import {
 } from "@/components/app-page-hero";
 import { prisma } from "@/lib/prisma";
 import { isOAuthProviderConfig } from "@/lib/google-oauth";
+import {
+  detectReviewIntegration,
+  reviewConnectLabel,
+  reviewReconnectLabel,
+  type ReviewIntegrationKind,
+} from "@/lib/review-provider-integration";
+import { yelpPartnerRepliesEnabled } from "@/lib/yelp-fusion";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { connectReviewProvider, publishReviewReply, saveReviewDraft, saveReviewRoutingRules, saveReviewSyncCron, syncReviewProvider } from "./actions";
@@ -57,41 +64,97 @@ type ProviderRequiredField = {
   secret: boolean;
 };
 
-function normalizeRequiredFields(raw: unknown): ProviderRequiredField[] {
+function normalizeRequiredFields(
+  raw: unknown,
+  provider: { name: string; apiUrl: string | null; config: unknown },
+): ProviderRequiredField[] {
   const fieldsRaw =
     raw && typeof raw === "object" && !Array.isArray(raw)
       ? (raw as Record<string, unknown>).connection_required_fields
       : null;
-  if (!Array.isArray(fieldsRaw)) return [];
-  return fieldsRaw
-    .map((entry): ProviderRequiredField | null => {
-      if (typeof entry === "string") {
-        const key = entry.trim();
+  if (Array.isArray(fieldsRaw)) {
+    const parsed = fieldsRaw
+      .map((entry): ProviderRequiredField | null => {
+        if (typeof entry === "string") {
+          const key = entry.trim();
+          if (!key) return null;
+          return {
+            key,
+            label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+            placeholder: `Enter ${key.replace(/_/g, " ")}`,
+            required: true,
+            secret: false,
+          };
+        }
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+        const rec = entry as Record<string, unknown>;
+        const key = String(rec.key ?? "").trim();
         if (!key) return null;
         return {
           key,
-          label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-          placeholder: `Enter ${key.replace(/_/g, " ")}`,
-          required: true,
-          secret: false,
+          label:
+            String(rec.label ?? "").trim() ||
+            key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+          placeholder: String(rec.placeholder ?? "").trim() || `Enter ${key.replace(/_/g, " ")}`,
+          required: rec.required !== false,
+          secret: rec.secret === true,
         };
-      }
-      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
-      const rec = entry as Record<string, unknown>;
-      const key = String(rec.key ?? "").trim();
-      if (!key) return null;
-      return {
-        key,
-        label:
-          String(rec.label ?? "").trim() ||
-          key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-        placeholder: String(rec.placeholder ?? "").trim() || `Enter ${key.replace(/_/g, " ")}`,
-        required: rec.required !== false,
-        secret: rec.secret === true,
-      };
-    })
-    .filter((x): x is ProviderRequiredField => x != null)
-    .slice(0, 12);
+      })
+      .filter((x): x is ProviderRequiredField => x != null)
+      .slice(0, 12);
+    if (parsed.length > 0) return parsed;
+  }
+
+  if (detectReviewIntegration(provider) === "yelp_fusion") {
+    const fields: ProviderRequiredField[] = [
+      {
+        key: "api_key",
+        label: "Yelp Fusion API Key",
+        placeholder: "128-character key from yelp.com/developers",
+        required: true,
+        secret: true,
+      },
+      {
+        key: "business_id",
+        label: "Yelp Business ID or alias",
+        placeholder: "e.g. north-india-restaurant-san-francisco",
+        required: true,
+        secret: false,
+      },
+    ];
+    if (yelpPartnerRepliesEnabled(provider.config)) {
+      fields.push({
+        key: "partner_access_token",
+        label: "Yelp Partner access token",
+        placeholder: "Required to publish replies via Yelp Partner API",
+        required: false,
+        secret: true,
+      });
+    }
+    return fields;
+  }
+
+  return [];
+}
+
+function resolveConnectionSummary(
+  integration: ReviewIntegrationKind | null,
+  tokenData: Record<string, unknown> | null,
+): string {
+  if (!tokenData) return "0 synced";
+  const locationTitle = readString(tokenData.location_title);
+  const businessName = readString(tokenData.business_name);
+  if (integration === "yelp_fusion") {
+    const businessId = readString(tokenData.business_id);
+    if (businessName) return `Business: ${businessName}`;
+    if (businessId) return `Business ID: ${businessId}`;
+  }
+  if (locationTitle) return `Location: ${locationTitle}`;
+  return "Ready to sync";
+}
+
+function readString(v: unknown): string {
+  return typeof v === "string" ? v.trim() : "";
 }
 
 export default async function ReviewsPage() {
@@ -139,29 +202,34 @@ export default async function ReviewsPage() {
 
   const reviewServices = providerRows.map((provider) => {
     const connected = Boolean(provider.connections[0]?.connected);
-    const oauthConnectHref = isOAuthProviderConfig(provider.config)
-      ? `/reviews/providers/connect/${provider.id}`
-      : undefined;
+    const integration = detectReviewIntegration(provider);
+    const oauthConnectHref =
+      integration === "google_business_profile" && isOAuthProviderConfig(provider.config)
+        ? `/reviews/providers/connect/${provider.id}`
+        : undefined;
     const tokenData =
       provider.connections[0]?.tokenData &&
       typeof provider.connections[0].tokenData === "object" &&
       !Array.isArray(provider.connections[0].tokenData)
         ? (provider.connections[0].tokenData as Record<string, unknown>)
         : null;
-    const locationTitle =
-      tokenData && typeof tokenData.location_title === "string" ? tokenData.location_title.trim() : "";
+    const connectionSummary = resolveConnectionSummary(integration, tokenData);
     return {
       id: provider.id,
       name: provider.name,
       logoUrl: provider.logoUrl?.trim() || "",
       type: classifyProviderType(provider.name),
       status: connected ? "Connected" : "Not connected",
-      left: connected ? (locationTitle ? `Location: ${locationTitle}` : "Ready to sync") : "0 synced",
+      left: connected ? connectionSummary : "0 synced",
       lastSync: connected ? "Connected" : "No sync yet",
       autoReply: connected ? "Auto-send can be configured" : "Disabled until connected",
       syncable: connected,
       oauthConnectHref,
-      requiredFields: normalizeRequiredFields(provider.config),
+      integration,
+      connectLabel: connected
+        ? reviewReconnectLabel(integration)
+        : reviewConnectLabel(integration),
+      requiredFields: normalizeRequiredFields(provider.config, provider),
       existingConnectionDetails:
         provider.connections[0]?.tokenData &&
         typeof provider.connections[0].tokenData === "object" &&
@@ -218,7 +286,7 @@ export default async function ReviewsPage() {
     },
   });
   const inbox = inboxRows.map((row) => {
-    const displayStatus = toInboxStatusFromRouting(row.status, row.rating, routingRules);
+    const displayStatus = toInboxStatusFromRouting(row.status, row.rating, routingRules, row.provider);
     return {
       id: row.id,
       rating: toStars(row.rating),

@@ -38,7 +38,7 @@ const inboxTableGridClass =
 type ReviewActionKind = "replied" | "auto_ready" | "needs_review" | "manual_approval";
 
 function getReviewActionKind(status: string): ReviewActionKind {
-  if (status === "Replied on Google") return "replied";
+  if (status.startsWith("Replied on ")) return "replied";
   if (status === "Safe to auto-publish") return "auto_ready";
   if (status === "Needs human review") return "needs_review";
   return "manual_approval";
@@ -49,7 +49,9 @@ function reviewHasDraftResponse(response: string): boolean {
 }
 
 function responsePanelTitle(status: string): string {
-  if (status === "Replied on Google") return "Reply on Google";
+  if (status.startsWith("Replied on ")) {
+    return status.replace("Replied on ", "Reply on ");
+  }
   return "Suggested Response";
 }
 
@@ -296,7 +298,7 @@ export function ReviewsTabs({
   }
 
   const getStatusTone = (status: string): string => {
-    if (status === "Safe to auto-publish" || status === "Replied on Google") {
+    if (status === "Safe to auto-publish" || status.startsWith("Replied on ")) {
       return "vr-app-status-success";
     }
     if (status === "Needs human review") {
@@ -381,7 +383,8 @@ export function ReviewsTabs({
               <div className="rounded-xl border vr-app-alert vr-app-alert-warning border-0 p-3 text-sm text-inherit">
                 <p className="font-semibold">No review sources found.</p>
                 <p className="mt-1 text-xs text-inherit opacity-90">
-                  Add and enable review providers, then sync reviews to see pending counts here.
+                  In Platform → Providers, enable a provider with type Review. It will appear here even before
+                  you connect it.
                 </p>
               </div>
             ) : (
@@ -646,7 +649,7 @@ export function ReviewsTabs({
                   if (actionKind === "replied") {
                     return (
                       <p className="text-xs font-medium text-[var(--color-text-muted)]">
-                        Already replied on Google — no further action needed.
+                        Already replied on {selectedReview.source} — no further action needed.
                       </p>
                     );
                   }
