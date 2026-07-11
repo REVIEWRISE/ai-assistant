@@ -151,6 +151,16 @@ export async function saveRetellVoiceAgentSettings(formData: FormData) {
       phone,
     });
     if (!sync.ok) redirectRetellSyncFailure("agent", sync.error);
+    if (sync.ok && sync.agentId && sync.agentId !== retellConfig.retellAgentId) {
+      retellConfig = { ...retellConfig, retellAgentId: sync.agentId };
+      await prisma.organizationVoiceAgentSettings.update({
+        where: { organizationId },
+        data: {
+          retellConfig: retellConfig as unknown as Prisma.InputJsonValue,
+          updatedAt: new Date(),
+        },
+      });
+    }
     revalidatePath(VOICE_AGENT_ROUTE);
     redirect(`${VOICE_AGENT_ROUTE}?success=retell_saved_synced`);
   }

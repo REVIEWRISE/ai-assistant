@@ -71,6 +71,18 @@ export function extractRetellLlmId(agent: RetellAgentRecord): string | null {
   return llmId || null;
 }
 
+export function isRetellCustomLlmAgent(agent: RetellAgentRecord): boolean {
+  const engine = asRecord(agent.response_engine);
+  return readString(engine.type) === "custom-llm";
+}
+
+export function extractRetellCustomLlmWebSocketUrl(agent: RetellAgentRecord): string | null {
+  const engine = asRecord(agent.response_engine);
+  if (readString(engine.type) !== "custom-llm") return null;
+  const url = readString(engine.llm_websocket_url);
+  return url || null;
+}
+
 function readString(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }

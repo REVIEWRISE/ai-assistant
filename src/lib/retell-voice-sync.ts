@@ -1,13 +1,9 @@
 import {
-  appendVoiceRetellBookingPrompt,
-  buildRetellBookingTools,
-  buildVoiceRetellBookingPromptSection,
-} from "@/lib/voice-retell-booking";
-import { loadOrgBookingContext } from "@/lib/booking-org-gate";
-import {
   buildRetellGeneralPromptWithKnowledge,
   splitRetellGeneralPrompt,
 } from "@/lib/retell-voice-prompt";
+import { isRetellCustomLlmEnabled, getRetellCustomLlmWebSocketUrl } from "@/lib/retell-custom-llm-config";
+import { buildVoiceAgentPromptPayload } from "@/lib/retell-voice-llm-prompt";
 import {
   createRetellAgent,
   createRetellAgentVersion,
@@ -17,6 +13,7 @@ import {
   getRetellLlm,
   getRetellPhoneNumber,
   isRetellApiConfigured,
+  isRetellCustomLlmAgent,
   listRetellVoices,
   publishRetellAgentVersion,
   readRetellAgentId,
@@ -48,7 +45,7 @@ export {
   splitRetellGeneralPrompt,
 } from "@/lib/retell-voice-prompt";
 
-export type RetellSyncResult = { ok: true } | { ok: false; error: string };
+export type RetellSyncResult = { ok: true; agentId?: string } | { ok: false; error: string };
 
 export type RetellCreateResult =
   | { ok: true; agentId: string }
@@ -71,6 +68,16 @@ function parseRetellLanguage(v: unknown): RetellLanguage {
   }
   if (raw.startsWith("en")) return "en-US";
   return "en-US";
+}
+
+function buildCustomLlmResponseEngine(): Record<string, unknown> | null {
+  const wsUrl = getRetellCustomLlmWebSocketUrl();
+  if (!wsUrl) return null;
+  return { type: "custom-llm", llm_websocket_url: wsUrl };
+}
+
+function customLlmConfigError(): string {
+  return "Enable custom LLM: set RETELL_USE_CUSTOM_LLM=true, configure RETELL_CUSTOM_LLM_WS_URL (or nginx + NEXT_PUBLIC_APP_URL), and run the retell-llm server.";
 }
 
 function buildRetellLlmSyncBody(args: {
@@ -294,31 +301,43 @@ export async function createVoiceAgentInRetell(args: {
     return { ok: false, error: "Select a Retell voice before creating the agent." };
   }
 
-  const promptResult = await buildLlmPayload({
+  const useCustomLlm = isRetellCustomLlmEnabled();
+  const promptResult = await buildVoiceAgentPromptPayload({
     basePrompt: args.retell.systemPrompt,
     knowledge: args.knowledge,
     organizationId: args.organizationId,
+    includeRetellHttpTools: !useCustomLlm,
   });
   if (!promptResult.ok) return promptResult;
 
-  const llmCreate = await createRetellLlm(
-    buildRetellLlmSyncBody({
-      generalPrompt: promptResult.generalPrompt!,
-      openingMessage: args.retell.openingMessage,
-      generalTools: promptResult.generalTools,
-    }),
-  );
-  if (!llmCreate.ok) {
-    return { ok: false, error: llmCreate.error };
-  }
+  let responseEngine: Record<string, unknown>;
+  if (useCustomLlm) {
+    const customEngine = buildCustomLlmResponseEngine();
+    if (!customEngine) {
+      return { ok: false, error: customLlmConfigError() };
+    }
+    responseEngine = customEngine;
+  } else {
+    const llmCreate = await createRetellLlm(
+      buildRetellLlmSyncBody({
+        generalPrompt: promptResult.generalPrompt,
+        openingMessage: args.retell.openingMessage,
+        generalTools: promptResult.generalTools,
+      }),
+    );
+    if (!llmCreate.ok) {
+      return { ok: false, error: llmCreate.error };
+    }
 
-  const llmId = readRetellLlmId(llmCreate.data);
-  if (!llmId) {
-    return { ok: false, error: "Retell did not return an LLM ID after creation." };
+    const llmId = readRetellLlmId(llmCreate.data);
+    if (!llmId) {
+      return { ok: false, error: "Retell did not return an LLM ID after creation." };
+    }
+    responseEngine = { type: "retell-llm", llm_id: llmId };
   }
 
   const agentCreate = await createRetellAgent({
-    response_engine: { type: "retell-llm", llm_id: llmId },
+    response_engine: responseEngine,
     agent_name: args.retell.agentName || "Support Agent",
     voice_id: voiceId,
     language: args.retell.language,
@@ -346,45 +365,35 @@ export async function createVoiceAgentInRetell(args: {
   return { ok: true, agentId };
 }
 
-function buildLlmPayload(args: {
-  basePrompt: string;
-  knowledge: VoiceAgentKnowledgeConfig;
+/** Recreates a Retell agent when switching from retell-llm to custom-llm (Retell forbids in-place engine changes). */
+export async function migrateVoiceAgentToCustomLlm(args: {
   organizationId: string;
-}): Promise<
-  RetellSyncResult & { generalPrompt?: string; generalTools?: Array<Record<string, unknown>> }
-> {
-  return (async () => {
-    let generalPrompt = args.basePrompt.trim();
+  retell: RetellVoiceAgentConfig;
+  knowledge: VoiceAgentKnowledgeConfig;
+  phone?: VoiceAgentPhoneConfig;
+}): Promise<RetellCreateResult> {
+  if (!isRetellCustomLlmEnabled()) {
+    return { ok: false, error: customLlmConfigError() };
+  }
 
-    if (args.knowledge.useOrganizationKnowledgeBase || args.knowledge.enablePhoneBooking) {
-      const kb = await loadOrgBookingContext(args.organizationId);
-      if (args.knowledge.requireApprovedKnowledgeBase && kb.knowledgeStatus !== "approved") {
-        return {
-          ok: false as const,
-          error: "Approve your organization knowledge base before syncing to Retell.",
-        };
-      }
-
-      if (args.knowledge.useOrganizationKnowledgeBase) {
-        generalPrompt = buildRetellGeneralPromptWithKnowledge(generalPrompt, kb.knowledgeCorpus);
-      }
+  const agentId = args.retell.retellAgentId.trim();
+  if (agentId) {
+    const existing = await getRetellAgent(agentId);
+    if (existing.ok && isRetellCustomLlmAgent(existing.data)) {
+      const sync = await syncVoiceAgentToRetell(args);
+      return sync.ok ? { ok: true, agentId: sync.agentId ?? agentId } : sync;
     }
+  }
 
-    let generalTools: Array<Record<string, unknown>> = [];
-    if (args.knowledge.enablePhoneBooking) {
-      const bookingSection = await buildVoiceRetellBookingPromptSection(args.organizationId);
-      generalPrompt = appendVoiceRetellBookingPrompt(generalPrompt, bookingSection);
-      generalTools = await buildRetellBookingTools();
-      if (!generalTools.length) {
-        return {
-          ok: false as const,
-          error: "Set NEXT_PUBLIC_APP_URL to your public app URL before enabling phone booking.",
-        };
-      }
-    }
+  const recreated = await createVoiceAgentInRetell({
+    organizationId: args.organizationId,
+    retell: { ...args.retell, retellAgentId: "" },
+    knowledge: args.knowledge,
+    phone: args.phone,
+  });
+  if (!recreated.ok) return recreated;
 
-    return { ok: true as const, generalPrompt, generalTools };
-  })();
+  return { ok: true, agentId: recreated.agentId };
 }
 
 export async function syncVoiceAgentToRetell(args: {
@@ -407,18 +416,60 @@ export async function syncVoiceAgentToRetell(args: {
     return { ok: false, error: "Select a Retell voice before syncing." };
   }
 
+  const useCustomLlm = isRetellCustomLlmEnabled();
+  if (useCustomLlm) {
+    const existing = await getRetellAgent(agentId);
+    if (existing.ok && !isRetellCustomLlmAgent(existing.data)) {
+      const migrated = await migrateVoiceAgentToCustomLlm(args);
+      return migrated.ok
+        ? { ok: true, agentId: migrated.agentId }
+        : { ok: false, error: migrated.error };
+    }
+  }
+
   const draftReady = await ensureRetellAgentDraft(agentId);
   if (!draftReady.ok) return draftReady;
 
-  const agentUpdate = await updateRetellAgent(agentId, {
+  const agentPatch: Record<string, unknown> = {
     agent_name: args.retell.agentName,
     voice_id: voiceId,
     language: args.retell.language,
     responsiveness: args.retell.responsiveness,
     interruption_sensitivity: args.retell.interruptionSensitivity,
-  });
+  };
+
+  if (useCustomLlm) {
+    const customEngine = buildCustomLlmResponseEngine();
+    if (!customEngine) {
+      return { ok: false, error: customLlmConfigError() };
+    }
+    agentPatch.response_engine = customEngine;
+  }
+
+  const agentUpdate = await updateRetellAgent(agentId, agentPatch);
   if (!agentUpdate.ok) {
     return { ok: false, error: agentUpdate.error };
+  }
+
+  if (useCustomLlm) {
+    const promptResult = await buildVoiceAgentPromptPayload({
+      basePrompt: args.retell.systemPrompt,
+      knowledge: args.knowledge,
+      organizationId: args.organizationId,
+      includeRetellHttpTools: false,
+    });
+    if (!promptResult.ok) return promptResult;
+
+    const publish = await publishRetellAgentDraft(agentId);
+    if (!publish.ok) return publish;
+
+    const phoneNumber = args.phone?.twilioPhoneNumber.trim();
+    if (phoneNumber) {
+      const link = await linkVoiceAgentPhoneInRetell({ agentId, phoneNumber });
+      if (!link.ok) return link;
+    }
+
+    return { ok: true };
   }
 
   let llmId = extractRetellLlmId(agentUpdate.data);
@@ -446,7 +497,7 @@ async function syncRetellLlmPrompt(
     phone?: VoiceAgentPhoneConfig;
   },
 ): Promise<RetellSyncResult> {
-  const promptResult = await buildLlmPayload({
+  const promptResult = await buildVoiceAgentPromptPayload({
     basePrompt: args.retell.systemPrompt,
     knowledge: args.knowledge,
     organizationId: args.organizationId,

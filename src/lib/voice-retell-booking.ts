@@ -155,6 +155,7 @@ export async function findVoiceAgentOrgByRetellAgentId(retellAgentId: string) {
         organizationId: row.organizationId,
         organizationName: row.organization.name,
         knowledge: resolveVoiceAgentKnowledgeConfig(row.knowledgeConfig),
+        retell: resolveRetellVoiceAgentConfig(row.retellConfig),
       };
     }
   }
@@ -209,6 +210,77 @@ export async function buildVoiceRetellBookingPromptSection(organizationId: strin
   return lines.join("\n");
 }
 
+export const VOICE_RETELL_CHECK_AVAILABILITY_PARAMETERS = {
+  type: "object",
+  required: ["start_time_iso"],
+  properties: {
+    start_time_iso: {
+      type: "string",
+      description:
+        "Appointment start in ISO 8601. Use the reference year from the prompt — e.g. tomorrow or Jan 22 maps to the current or next calendar year, never a past year.",
+    },
+    service_description: {
+      type: "string",
+      description: "Optional service or visit type being requested.",
+    },
+    party_size: {
+      type: "number",
+      description: "Optional number of guests.",
+    },
+  },
+} as const;
+
+export const VOICE_RETELL_BOOK_APPOINTMENT_PARAMETERS = {
+  type: "object",
+  required: ["customer_name", "start_time_iso", "booking_flow_answers"],
+  properties: {
+    customer_name: {
+      type: "string",
+      description: "Caller's full name for the reservation.",
+    },
+    customer_email: {
+      type: "string",
+      description: "Email address for booking confirmation.",
+    },
+    service_description: {
+      type: "string",
+      description: "Service, meal, or visit type (e.g. dinner, lunch, consultation).",
+    },
+    party_size: {
+      type: "number",
+      description: "Number of guests.",
+    },
+    start_time_iso: {
+      type: "string",
+      description:
+        "Appointment start in ISO 8601. Use the reference year from the prompt — e.g. tomorrow or Jan 22 maps to the current or next calendar year, never a past year.",
+    },
+    booking_flow_answers: {
+      type: "array",
+      description:
+        "Every answer collected from the organization's booking flow steps ({ step_id, answer }).",
+      items: {
+        type: "object",
+        required: ["step_id", "answer"],
+        properties: {
+          step_id: {
+            type: "string",
+            description: "Booking flow step id (e.g. service, when, party_size, contact_email).",
+          },
+          answer: {
+            type: "string",
+            description: "Caller's answer for that step.",
+          },
+        },
+      },
+    },
+    notes: {
+      type: "string",
+      description: "Optional special requests or notes from the caller.",
+    },
+  },
+} as const;
+
 export async function buildRetellBookingTools() {
   const origin = (await getAppOrigin()).replace(/\/$/, "");
   if (!origin) return [];
@@ -224,25 +296,7 @@ export async function buildRetellBookingTools() {
         "Check whether a requested appointment start time is available before confirming the booking with the caller.",
       url: availabilityUrl,
       method: "POST",
-      parameters: {
-        type: "object",
-        required: ["start_time_iso"],
-        properties: {
-          start_time_iso: {
-            type: "string",
-            description:
-              "Appointment start in ISO 8601. Use the reference year from the prompt — e.g. tomorrow or Jan 22 maps to the current or next calendar year, never a past year.",
-          },
-          service_description: {
-            type: "string",
-            description: "Optional service or visit type being requested.",
-          },
-          party_size: {
-            type: "number",
-            description: "Optional number of guests.",
-          },
-        },
-      },
+      parameters: VOICE_RETELL_CHECK_AVAILABILITY_PARAMETERS,
       speak_during_execution: true,
       speak_after_execution: true,
     },
@@ -253,56 +307,7 @@ export async function buildRetellBookingTools() {
         "Create a confirmed appointment after check_availability passes, all organization booking-flow questions are answered, and the caller confirms.",
       url: bookUrl,
       method: "POST",
-      parameters: {
-        type: "object",
-        required: ["customer_name", "start_time_iso", "booking_flow_answers"],
-        properties: {
-          customer_name: {
-            type: "string",
-            description: "Caller's full name for the reservation.",
-          },
-          customer_email: {
-            type: "string",
-            description: "Email address for booking confirmation.",
-          },
-          service_description: {
-            type: "string",
-            description: "Service, meal, or visit type (e.g. dinner, lunch, consultation).",
-          },
-          party_size: {
-            type: "number",
-            description: "Number of guests.",
-          },
-          start_time_iso: {
-            type: "string",
-            description:
-              "Appointment start in ISO 8601. Use the reference year from the prompt — e.g. tomorrow or Jan 22 maps to the current or next calendar year, never a past year.",
-          },
-          booking_flow_answers: {
-            type: "array",
-            description:
-              "Every answer collected from the organization's booking flow steps ({ step_id, answer }).",
-            items: {
-              type: "object",
-              required: ["step_id", "answer"],
-              properties: {
-                step_id: {
-                  type: "string",
-                  description: "Booking flow step id (e.g. service, when, party_size, contact_email).",
-                },
-                answer: {
-                  type: "string",
-                  description: "Caller's answer for that step.",
-                },
-              },
-            },
-          },
-          notes: {
-            type: "string",
-            description: "Optional special requests or notes from the caller.",
-          },
-        },
-      },
+      parameters: VOICE_RETELL_BOOK_APPOINTMENT_PARAMETERS,
       speak_during_execution: true,
       speak_after_execution: true,
     },
