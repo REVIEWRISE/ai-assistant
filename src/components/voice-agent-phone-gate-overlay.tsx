@@ -23,7 +23,7 @@ export function VoiceAgentPhoneGateOverlay({ onConfigurePhone }: VoiceAgentPhone
           Add a support phone number first
         </h3>
         <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]">
-          You can preview the agent settings below. To edit them, save a Retell phone number on the Phone
+          You can preview the agent settings below. To edit them, add a support phone number on the Phone
           &amp; Calling tab first.
         </p>
         <button

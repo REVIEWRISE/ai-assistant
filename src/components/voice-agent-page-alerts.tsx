@@ -16,7 +16,7 @@ const messages: Record<string, { title: string; variant: "success" | "error" }> 
   phone_linked: { title: "Phone number linked to your voice agent.", variant: "success" },
   phone_assigned: { title: "Phone number assigned to your voice agent.", variant: "success" },
   phone_primary_set: { title: "Primary support line updated.", variant: "success" },
-  phone_refreshed: { title: "Phone numbers refreshed from Retell.", variant: "success" },
+  phone_refreshed: { title: "Phone numbers refreshed.", variant: "success" },
   knowledge_saved: { title: "Knowledge settings saved locally.", variant: "success" },
   knowledge_saved_synced: { title: "Knowledge settings saved and synced.", variant: "success" },
   knowledge_created: { title: "Voice agent created with your knowledge settings.", variant: "success" },

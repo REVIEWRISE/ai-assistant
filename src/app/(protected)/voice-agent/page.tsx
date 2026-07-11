@@ -181,7 +181,7 @@ export default async function VoiceAgentPage() {
             {" · "}
             <span
               className={
-                retellRemoteStatus === "Loaded from Retell"
+                retellRemoteStatus.startsWith("Live")
                   ? "text-[var(--color-success)]"
                   : ""
               }

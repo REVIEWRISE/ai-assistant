@@ -462,7 +462,7 @@ export function VoiceAgentRetellSettings({
                   value={config.voiceId}
                   onChange={(value) => setConfig((prev) => ({ ...prev, voiceId: value }))}
                   options={voiceOptions}
-                  aria-label="Retell voice"
+                  aria-label="Agent voice"
                 />
               </div>
               <div>
@@ -549,7 +549,7 @@ export function VoiceAgentRetellSettings({
               placeholder="Hi, thanks for calling. How can I help you today?"
             />
             <span className="text-xs text-[var(--color-text-muted)]">
-              Spoken when the call connects. After editing, click Save so changes sync and publish to Retell for live calls.
+              Spoken when the call connects. After editing, click Save so changes go live on your next call.
             </span>
           </label>
 

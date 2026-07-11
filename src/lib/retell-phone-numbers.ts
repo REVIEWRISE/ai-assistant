@@ -232,7 +232,7 @@ export async function linkOrgRetellPhoneNumber(args: {
   if (!verify.ok) {
     return {
       ok: false,
-      error: verify.error || "Phone number not found in Retell. Buy one here or import it in Retell first.",
+      error: verify.error || "Phone number not found. Buy a new number here or link one already on your account.",
     };
   }
 
