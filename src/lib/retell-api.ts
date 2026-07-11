@@ -35,28 +35,41 @@ async function retellRequest<T>(
     return { ok: false, status: 0, error: "RETELL_API_KEY is not set on the server." };
   }
 
-  const res = await fetch(`${RETELL_API_BASE}${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  const text = await res.text().catch(() => "");
-  if (!res.ok) {
-    return { ok: false, status: res.status, error: readApiError(text, res.status) };
-  }
-
-  if (!text.trim()) {
-    return { ok: true, data: {} as T };
-  }
-
   try {
-    return { ok: true, data: JSON.parse(text) as T };
-  } catch {
-    return { ok: false, status: res.status, error: "Retell API returned invalid JSON." };
+    const res = await fetch(`${RETELL_API_BASE}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    const text = await res.text().catch(() => "");
+    if (!res.ok) {
+      return { ok: false, status: res.status, error: readApiError(text, res.status) };
+    }
+
+    if (!text.trim()) {
+      return { ok: true, data: {} as T };
+    }
+
+    try {
+      return { ok: true, data: JSON.parse(text) as T };
+    } catch {
+      return { ok: false, status: res.status, error: "Retell API returned invalid JSON." };
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[retell-api] ${method} ${path} failed:`, message);
+    return {
+      ok: false,
+      status: 0,
+      error: message.includes("timeout") || message.includes("Timeout")
+        ? "Could not reach Retell API (network timeout). Check your connection and try again."
+        : `Retell API request failed: ${message}`.slice(0, 300),
+    };
   }
 }
 
@@ -242,4 +255,70 @@ export async function getRetellPhoneNumber(
     "GET",
     `/get-phone-number/${encodeURIComponent(normalized)}`,
   );
+}
+
+export type RetellPhoneListItem = {
+  phoneNumber: string;
+  phoneNumberPretty: string;
+  nickname: string;
+  phoneNumberType: string;
+  inboundAgentIds: string[];
+};
+
+export function readRetellPhoneNumberField(record: RetellPhoneNumberRecord): string {
+  for (const key of ["phone_number", "phoneNumber", "number"] as const) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+export function readRetellInboundAgentIds(record: RetellPhoneNumberRecord): string[] {
+  const agents = record.inbound_agents;
+  if (!Array.isArray(agents)) return [];
+
+  const ids: string[] = [];
+  for (const item of agents) {
+    const rec = asRecord(item);
+    const agentId = readString(rec.agent_id ?? rec.agentId);
+    if (agentId) ids.push(agentId);
+  }
+  return ids;
+}
+
+export function mapRetellPhoneListItem(record: RetellPhoneNumberRecord): RetellPhoneListItem | null {
+  const phoneNumber = readRetellPhoneNumberField(record);
+  if (!phoneNumber) return null;
+
+  return {
+    phoneNumber,
+    phoneNumberPretty:
+      readString(record.phone_number_pretty) || readString(record.phoneNumberPretty) || phoneNumber,
+    nickname: readString(record.nickname),
+    phoneNumberType: readString(record.phone_number_type) || readString(record.phoneNumberType),
+    inboundAgentIds: readRetellInboundAgentIds(record),
+  };
+}
+
+export async function listRetellPhoneNumbers(): Promise<RetellApiResult<RetellPhoneListItem[]>> {
+  const result = await retellRequest<unknown>("GET", "/list-phone-numbers");
+  if (!result.ok) return result;
+
+  if (!Array.isArray(result.data)) {
+    return { ok: false, status: 500, error: "Retell phone list was not an array." };
+  }
+
+  const phones: RetellPhoneListItem[] = [];
+  for (const item of result.data) {
+    const mapped = mapRetellPhoneListItem(asRecord(item));
+    if (mapped) phones.push(mapped);
+  }
+
+  return { ok: true, data: phones };
+}
+
+export async function createRetellPhoneNumber(
+  body: Record<string, unknown>,
+): Promise<RetellApiResult<RetellPhoneNumberRecord>> {
+  return retellRequest<RetellPhoneNumberRecord>("POST", "/create-phone-number", body);
 }

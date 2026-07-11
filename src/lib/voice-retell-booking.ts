@@ -556,6 +556,7 @@ export async function executeVoiceRetellBooking(args: {
       partySize: parsed.partySize,
       bookingFlowQa: bookingFlowQa.length ? (bookingFlowQa as unknown as Prisma.InputJsonValue) : undefined,
       rawMessage: rawMessage.slice(0, 4000),
+      retellCallId: args.callId?.trim() || null,
       routedProviderId: route?.providerId ?? null,
       routedConnectionUserId: route?.connectionUserId ?? null,
       providerSyncStatus: route ? "routed" : "skipped_no_connection",

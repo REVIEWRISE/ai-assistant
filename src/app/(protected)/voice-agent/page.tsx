@@ -22,7 +22,17 @@ import {
   pullRetellVoiceAgentSettings,
   saveRetellVoiceAgentSettings,
   saveVoiceAgentPhoneSettings,
+  buyRetellPhoneNumberAction,
+  linkRetellPhoneNumberAction,
+  assignRetellPhoneNumberAction,
+  setPrimaryRetellPhoneNumberAction,
+  refreshRetellPhoneNumbersAction,
 } from "./actions";
+import { getOrgRetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
+import {
+  ensureLegacyPrimaryPhoneImported,
+  listOrgRetellPhoneNumbers,
+} from "@/lib/retell-phone-numbers";
 
 export const dynamic = "force-dynamic";
 
@@ -87,6 +97,21 @@ export default async function VoiceAgentPage() {
   let phoneConfig = localSettings.phone;
   if (retellApiConfigured && phoneConfig.twilioPhoneNumber.trim()) {
     phoneConfig = await resolveVoiceAgentPhoneFromRetell(phoneConfig);
+  }
+
+  if (retellApiConfigured && localSettings.retell.retellAgentId.trim()) {
+    await ensureLegacyPrimaryPhoneImported({
+      organizationId: org.id,
+      legacyPhoneNumber: phoneConfig.twilioPhoneNumber,
+      retellAgentId: localSettings.retell.retellAgentId,
+    });
+  }
+
+  const phones = await listOrgRetellPhoneNumbers(org.id);
+  const phoneStats = await getOrgRetellPhoneNumberStats(org.id);
+  const primaryPhone = phones.find((phone) => phone.isPrimary);
+  if (primaryPhone) {
+    phoneConfig = { twilioPhoneNumber: primaryPhone.phoneNumber };
   }
 
   const kb = org.knowledgeBase;
@@ -177,6 +202,8 @@ export default async function VoiceAgentPage() {
         voiceCatalog={retellVoices}
         retellConfig={retellConfig}
         phoneConfig={phoneConfig}
+        phones={phones}
+        phoneStats={phoneStats}
         knowledgeConfig={localSettings.knowledge}
         knowledge={{
           status: kbStatus,
@@ -188,6 +215,11 @@ export default async function VoiceAgentPage() {
         calls={calls}
         onSaveRetell={saveRetellVoiceAgentSettings}
         onSavePhone={saveVoiceAgentPhoneSettings}
+        onBuyPhone={buyRetellPhoneNumberAction}
+        onLinkPhone={linkRetellPhoneNumberAction}
+        onAssignPhone={assignRetellPhoneNumberAction}
+        onSetPrimaryPhone={setPrimaryRetellPhoneNumberAction}
+        onRefreshPhones={refreshRetellPhoneNumbersAction}
         onPullFromRetell={pullRetellVoiceAgentSettings}
         onGenerateOpeningMessage={generateVoiceAgentOpeningMessageAction}
         onGenerateSystemPrompt={generateVoiceAgentSystemPromptAction}

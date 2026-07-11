@@ -36,7 +36,7 @@ export function VoiceAgentPhoneSummary({
       ) : null}
       {canManagePhone ? (
         <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-          Edit the number below. It must already exist in your voice phone numbers account (E.164 format).
+          Buy or link numbers on this tab. Each line can route to a voice agent and is tracked in the table below.
         </p>
       ) : (
         <p className="mt-2 text-xs text-[var(--color-text-muted)]">

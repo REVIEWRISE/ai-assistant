@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { VoiceAgentPhoneSettings } from "@/components/voice-agent-phone-settings";
 import { VoiceAgentRetellSettings } from "@/components/voice-agent-retell-settings";
 import { VoiceAgentAnalytics, type CallItem } from "@/components/voice-agent-analytics";
+import type { RetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
+import type { OrgRetellPhoneNumber } from "@/lib/retell-phone-numbers";
 import type { VoiceAgentAiResult } from "@/lib/voice-agent-ai";
 import type {
   RetellVoiceAgentConfig,
@@ -62,11 +64,18 @@ export function VoiceAgentTabs({
   voiceCatalog,
   retellConfig,
   phoneConfig,
+  phones,
+  phoneStats,
   knowledgeConfig,
   knowledge,
   calls,
   onSaveRetell,
   onSavePhone,
+  onBuyPhone,
+  onLinkPhone,
+  onAssignPhone,
+  onSetPrimaryPhone,
+  onRefreshPhones,
   onPullFromRetell,
   onGenerateOpeningMessage,
   onGenerateSystemPrompt,
@@ -80,18 +89,26 @@ export function VoiceAgentTabs({
   voiceCatalog: RetellVoiceListItem[];
   retellConfig: RetellVoiceAgentConfig;
   phoneConfig: VoiceAgentPhoneConfig;
+  phones: OrgRetellPhoneNumber[];
+  phoneStats: RetellPhoneNumberStats[];
   knowledgeConfig: VoiceAgentKnowledgeConfig;
   knowledge: KnowledgeSnapshot;
   calls: CallItem[];
   onSaveRetell: (formData: FormData) => void | Promise<void>;
   onSavePhone: (formData: FormData) => void | Promise<void>;
+  onBuyPhone: (formData: FormData) => void | Promise<void>;
+  onLinkPhone: (formData: FormData) => void | Promise<void>;
+  onAssignPhone: (formData: FormData) => void | Promise<void>;
+  onSetPrimaryPhone: (formData: FormData) => void | Promise<void>;
+  onRefreshPhones: (formData: FormData) => void | Promise<void>;
   onPullFromRetell: (formData: FormData) => void | Promise<void>;
   onGenerateOpeningMessage: (formData: FormData) => Promise<VoiceAgentAiResult>;
   onGenerateSystemPrompt: (formData: FormData) => Promise<VoiceAgentAiResult>;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const hasPhoneNumber = Boolean(phoneConfig.twilioPhoneNumber.trim());
+  const hasPhoneNumber =
+    phones.length > 0 || Boolean(phoneConfig.twilioPhoneNumber.trim());
   const defaultTab = resolveDefaultTab(canManageAgent, canManagePhone, hasPhoneNumber);
   const tabs = allTabs.filter((tab) => tabAllowed(tab.key, canManageAgent, canManagePhone));
   const requestedTab = parseTabKey(searchParams.get("tab"));
@@ -169,7 +186,14 @@ export function VoiceAgentTabs({
           organizationId={organizationId}
           initialConfig={phoneConfig}
           retellAgentId={retellConfig.retellAgentId}
-          onSave={onSavePhone}
+          retellApiConfigured={retellApiConfigured}
+          phones={phones}
+          phoneStats={phoneStats}
+          onBuy={onBuyPhone}
+          onLink={onLinkPhone}
+          onAssign={onAssignPhone}
+          onSetPrimary={onSetPrimaryPhone}
+          onRefresh={onRefreshPhones}
         />
       ) : null}
 
