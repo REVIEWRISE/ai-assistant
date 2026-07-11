@@ -9,10 +9,12 @@ import { parseReviewRoutingForm } from "@/lib/review-routing";
 import { parseReviewSyncCronForm } from "@/lib/review-sync-cron";
 import { parseReviewReplyAutomationForm } from "@/lib/review-reply-automation";
 import {
-  publishReviewReplyToGoogle,
+  publishReviewReply as publishReviewReplyCore,
   saveReviewResponseDraft,
   type ReviewReplyActionResult,
 } from "@/lib/review-reply-publish";
+import { detectReviewIntegration } from "@/lib/review-provider-integration";
+import { verifyYelpConnection } from "@/lib/yelp-fusion";
 
 const REVIEWS_ROUTE = "/reviews";
 
@@ -134,7 +136,7 @@ export async function connectReviewProvider(formData: FormData) {
 
   const provider = await prisma.provider.findFirst({
     where: { id: providerId, type: "review", status: "enabled" },
-    select: { id: true, config: true },
+    select: { id: true, name: true, apiUrl: true, config: true },
   });
   if (!provider) {
     redirect(`${REVIEWS_ROUTE}?error=provider_not_found`);
@@ -156,7 +158,18 @@ export async function connectReviewProvider(formData: FormData) {
     }
   }
 
-  const fieldRules = parseRequiredFieldRules(provider.config);
+  const fieldRules = (() => {
+    const rules = parseRequiredFieldRules(provider.config);
+    const integration = detectReviewIntegration(provider);
+    if (rules.length > 0) return rules;
+    if (integration === "yelp_fusion") {
+      return [
+        { key: "api_key", required: true },
+        { key: "business_id", required: true },
+      ];
+    }
+    return rules;
+  })();
   if (fieldRules.length > 0) {
     const allowed = new Set(fieldRules.map((f) => f.key));
     details = Object.fromEntries(Object.entries(details).filter(([k]) => allowed.has(k)));
@@ -166,6 +179,24 @@ export async function connectReviewProvider(formData: FormData) {
     if (missingRequired) {
       redirect(`${REVIEWS_ROUTE}?error=missing_required_connection_fields`);
     }
+  }
+
+  const integration = detectReviewIntegration(provider);
+  if (integration === "yelp_fusion") {
+    const verify = await verifyYelpConnection(
+      String(details.api_key ?? ""),
+      String(details.business_id ?? ""),
+    );
+    if (!verify.ok) {
+      const q = encodeURIComponent(verify.error.slice(0, 240));
+      redirect(`${REVIEWS_ROUTE}?error=yelp_connection_failed&detail=${q}`);
+    }
+    details = {
+      ...details,
+      business_name: verify.business.name,
+      location_title: verify.business.name,
+      location_id: verify.business.id,
+    };
   }
 
   await prisma.providerConnection.upsert({
@@ -371,7 +402,7 @@ export async function publishReviewReply(
     return { ok: false, error: "You do not have access to this organization." };
   }
 
-  return publishReviewReplyToGoogle({
+  return publishReviewReplyCore({
     organizationId,
     reviewId,
     responseText,

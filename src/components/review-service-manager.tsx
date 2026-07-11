@@ -17,6 +17,8 @@ type ReviewService = {
   autoReply: string;
   syncable: boolean;
   oauthConnectHref?: string;
+  integration?: "google_business_profile" | "yelp_fusion" | "generic_http_reviews" | null;
+  connectLabel?: string;
   requiredFields: Array<{
     key: string;
     label: string;
@@ -59,7 +61,7 @@ export function ReviewServiceManager({
   onSyncProvider: (formData: FormData) => void | Promise<void>;
 }) {
   const [activeFilter, setActiveFilter] = useState<ServiceFilter>("all");
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   const [activeConnectionService, setActiveConnectionService] = useState<ReviewService | null>(null);
   const [connectionDraft, setConnectionDraft] = useState<Record<string, string>>({});
 
@@ -120,6 +122,22 @@ export function ReviewServiceManager({
         </div>
       </div>
 
+      {collapsed && services.length > 0 ? (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {services.map((service) => (
+            <span
+              key={service.id}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                service.status === "Connected" ? "vr-app-status-success" : "vr-app-status-muted"
+              }`}
+            >
+              {service.name}
+              <span className="opacity-80">{service.status}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
+
       {!collapsed ? (
         <>
           <div className="mb-4 flex flex-wrap gap-2">
@@ -147,14 +165,15 @@ export function ReviewServiceManager({
               <div className="vr-app-alert vr-app-alert-warning sm:col-span-2 xl:col-span-3">
                 <p className="font-semibold">No review providers found.</p>
                 <p className="mt-1 text-xs opacity-90">
-                  Add at least one enabled provider in the providers database (type: review) to show it here.
+                  In Platform → Providers, add a provider with type <strong>Review</strong> and status{" "}
+                  <strong>Enabled</strong>. Only those appear here.
                 </p>
               </div>
             ) : (
               filteredServices.map((service) => {
                 const connected = service.status === "Connected";
                 return (
-                  <div key={service.name} className={`rounded-2xl border p-4 shadow-sm ${service.tone}`}>
+                  <div key={service.id} className={`rounded-2xl border p-4 shadow-sm ${service.tone}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-start gap-2.5">
                         {service.logoUrl ? (
@@ -200,7 +219,7 @@ export function ReviewServiceManager({
                             : "vr-btn-primary"
                         }`}
                       >
-                        {connected ? "Reconnect with Google" : "Connect with Google"}
+                        {service.connectLabel ?? (connected ? "Reconnect with Google" : "Connect with Google")}
                       </Link>
                     ) : (
                       <button
@@ -212,7 +231,7 @@ export function ReviewServiceManager({
                             : "vr-btn-primary"
                         }`}
                       >
-                        {connected ? "Manage Connection" : "Connect Service"}
+                        {service.connectLabel ?? (connected ? "Manage Connection" : "Connect Service")}
                       </button>
                     )}
                     {service.syncable ? (
@@ -264,7 +283,9 @@ export function ReviewServiceManager({
                   {activeConnectionService.requiredFields.length > 0 ? (
                     <div className="space-y-3">
                       <p className="text-xs text-[var(--color-text-muted)]">
-                        Provide the required information to complete this connection.
+                        {activeConnectionService.integration === "yelp_fusion"
+                          ? "Use your Yelp Fusion API key and the business alias from the Yelp listing URL. Fusion returns up to 3 review excerpts unless Private Reviews partner access is enabled on the provider."
+                          : "Provide the required information to complete this connection."}
                       </p>
                       {activeConnectionService.requiredFields.map((field) => (
                         <label key={field.key} className="block text-xs font-semibold text-[var(--color-text)]">

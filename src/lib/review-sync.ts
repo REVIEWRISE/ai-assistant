@@ -10,6 +10,10 @@ import { resolveReviewReplyAutomationConfig } from "@/lib/review-reply-automatio
 import { detectReviewIntegration } from "@/lib/review-provider-integration";
 import { fetchAllGbpReviewsForToken } from "@/lib/google-business-profile";
 import {
+  fetchYelpReviewsForConnection,
+  yelpUsePrivateReviewsApi,
+} from "@/lib/yelp-fusion";
+import {
   asOAuthProviderConfig,
   getValidOAuthAccessToken,
   isOAuthProviderConfig,
@@ -229,6 +233,59 @@ async function fetchGenericHttpReviews(
   return { reviews };
 }
 
+async function fetchYelpFusionProviderReviews(
+  provider: { config: unknown },
+  tokenData: ConnectionTokenData,
+): Promise<FetchReviewsResult> {
+  const apiKey = readString(tokenData.api_key);
+  const businessId =
+    readString(tokenData.business_id) || readString(asRecord(provider.config).business_id);
+  if (!businessId) {
+    return { reviews: [], error: "missing_location" };
+  }
+  if (!apiKey) {
+    return { reviews: [], error: "Yelp API key is missing. Reconnect Yelp under Integrations." };
+  }
+
+  const yelpResult = await fetchYelpReviewsForConnection({
+    apiKey,
+    businessId,
+    usePrivateApi: yelpUsePrivateReviewsApi(provider.config),
+  });
+  if (!yelpResult.ok) {
+    if (yelpResult.error === "missing_business") {
+      return { reviews: [], error: "missing_location" };
+    }
+    console.error("[review-sync] Yelp reviews fetch failed", yelpResult.error);
+    return { reviews: [], error: yelpResult.error };
+  }
+
+  const reviews: NormalizedIncomingReview[] = yelpResult.reviews.map((row) => ({
+    googleReviewId: row.externalReviewId,
+    rating: row.rating,
+    reviewText: row.reviewText,
+    responseText: row.responseText,
+    status: row.status,
+  }));
+
+  if (reviews.length === 0 && yelpResult.total > 0) {
+    return {
+      reviews: [],
+      error: `Yelp reports ${yelpResult.total} review(s) but we could not import them. Try reconnecting the business.`,
+    };
+  }
+
+  if (reviews.length === 0 && yelpResult.source === "fusion") {
+    return {
+      reviews: [],
+      error:
+        "Yelp Fusion returned no review excerpts. Confirm your API plan includes Reviews access and that the business has public reviews.",
+    };
+  }
+
+  return { reviews };
+}
+
 async function fetchReviewsByIntegration(args: {
   provider: { name: string; apiUrl: string | null; config: unknown };
   tokenData: ConnectionTokenData;
@@ -237,6 +294,9 @@ async function fetchReviewsByIntegration(args: {
   const integration = detectReviewIntegration(args.provider);
   if (integration === "google_business_profile") {
     return fetchGoogleBusinessProfileReviews(args.provider, args.tokenData, args.persistTokenData);
+  }
+  if (integration === "yelp_fusion") {
+    return fetchYelpFusionProviderReviews(args.provider, args.tokenData);
   }
   if (integration === "generic_http_reviews") {
     return fetchGenericHttpReviews(args.provider, args.tokenData);
