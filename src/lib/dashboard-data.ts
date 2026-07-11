@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getAppointmentAnalytics } from "@/lib/appointment-analytics";
 import { getVoiceAnalytics } from "@/lib/voice-analytics";
+import { getOrgRetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import { displayRoleFromUserRoles, getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
 import { isHrefAllowedForNav } from "@/lib/nav-access";
 import {
@@ -120,6 +121,16 @@ function heroCopyForRole(
     heroTitleAccent: "at a glance",
     heroDescription: "Live stats from the areas you can access — open any card to dive deeper.",
   };
+}
+
+function formatPhoneLineLabel(line: {
+  nickname: string | null;
+  phoneNumberPretty: string | null;
+  phoneNumber: string;
+  isPrimary: boolean;
+}): string {
+  const base = line.nickname?.trim() || line.phoneNumberPretty?.trim() || line.phoneNumber;
+  return line.isPrimary ? `${base} (primary)` : base;
 }
 
 export async function getDashboardData(userId: string, activeOrganizationId: string | null): Promise<DashboardData> {
@@ -355,7 +366,48 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
   if (showVoice && orgId) {
     fetches.push(
       (async () => {
-        const analytics = await getVoiceAnalytics(orgId, now);
+        const [analytics, phoneStats] = await Promise.all([
+          getVoiceAnalytics(orgId, now),
+          getOrgRetellPhoneNumberStats(orgId).catch(() => []),
+        ]);
+
+        const phoneLineCount = phoneStats.length;
+        const callsProcessedOnLines = phoneStats.reduce((sum, line) => sum + line.callsProcessed, 0);
+        const bookingsOnLines = phoneStats.reduce((sum, line) => sum + line.bookingsCount, 0);
+        const phoneLineColors = ["#7c3aed", "#06b6d4", "#f97316", "#059669", "#ec4899"];
+
+        const phoneLineCharts: DashboardChart[] =
+          phoneLineCount > 0
+            ? [
+                {
+                  kind: "bar",
+                  id: "phone-lines-calls",
+                  featured: true,
+                  title: "Calls by phone line",
+                  subtitle: "Inbound calls received per support number (last 30 days)",
+                  data: phoneStats.map((line, index) => ({
+                    label: formatPhoneLineLabel(line),
+                    value: line.callsReceived,
+                    color: phoneLineColors[index % phoneLineColors.length],
+                  })),
+                  color: "#7c3aed",
+                  emptyMessage: "No calls on your phone lines yet.",
+                },
+                {
+                  kind: "bar",
+                  id: "phone-lines-bookings",
+                  title: "Bookings by phone line",
+                  subtitle: "Appointments booked during live calls on each line",
+                  data: phoneStats.map((line, index) => ({
+                    label: formatPhoneLineLabel(line),
+                    value: line.bookingsCount,
+                    color: phoneLineColors[(index + 1) % phoneLineColors.length],
+                  })),
+                  color: "#06b6d4",
+                  emptyMessage: "Bookings linked to calls will appear here.",
+                },
+              ]
+            : [];
 
         sections.push({
           id: "voice",
@@ -366,7 +418,10 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           href: "/voice-agent",
           accent: "#7c3aed",
           stats: [
+            { label: "Phone lines", value: phoneLineCount },
             { label: "Calls (30d)", value: analytics.totalCallsLast30Days },
+            { label: "Processed (30d)", value: callsProcessedOnLines },
+            { label: "Booked on calls (30d)", value: bookingsOnLines },
             { label: "Phone bookings (30d)", value: analytics.voiceBookingsLast30Days },
             {
               label: "Avg call duration",
@@ -380,6 +435,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
             { label: "Inbound (30d)", value: analytics.inboundCallsLast30Days },
           ],
           charts: [
+            ...phoneLineCharts,
             {
               kind: "line",
               id: "voice-activity-trend",
@@ -401,11 +457,13 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
               kind: "bar",
               id: "voice-pipeline",
               title: "Voice pipeline (30d)",
-              subtitle: "Call volume and bookings captured by the phone agent",
+              subtitle: "Call volume, processing, and bookings captured by the phone agent",
               data: [
                 { label: "Total calls", value: analytics.totalCallsLast30Days },
                 { label: "Inbound", value: analytics.inboundCallsLast30Days },
-                { label: "Bookings", value: analytics.voiceBookingsLast30Days },
+                { label: "Processed", value: callsProcessedOnLines },
+                { label: "Booked on calls", value: bookingsOnLines },
+                { label: "Phone bookings", value: analytics.voiceBookingsLast30Days },
               ],
               color: "#7c3aed",
             },
@@ -426,11 +484,15 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
 
         const avgMinutes = Math.floor(analytics.avgDurationSeconds / 60);
         const avgSeconds = String(analytics.avgDurationSeconds % 60).padStart(2, "0");
+        const phoneHint =
+          phoneLineCount > 0
+            ? `${phoneLineCount} phone line${phoneLineCount === 1 ? "" : "s"} · ${bookingsOnLines} booked on calls`
+            : `${analytics.voiceBookingsLast30Days} phone bookings`;
         overviewStats.push({
           id: "voice",
           title: "Voice Support",
           value: analytics.totalCallsLast30Days,
-          hint: `${analytics.voiceBookingsLast30Days} phone bookings · ${avgMinutes}:${avgSeconds} avg call`,
+          hint: `${phoneHint} · ${avgMinutes}:${avgSeconds} avg call`,
           href: "/voice-agent",
           accent: "#7c3aed",
         });
@@ -545,6 +607,13 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
       href: "/reviews",
       label: "Review inbox",
       description: "Pending reviews and auto-reply queue",
+    });
+  }
+  if (canAccess(allowed, "/voice-agent")) {
+    quickLinks.push({
+      href: "/voice-agent?tab=phone",
+      label: "Phone lines",
+      description: "Buy numbers, assign agents, and view per-line stats",
     });
   }
   if (canAccess(allowed, "/users")) {
