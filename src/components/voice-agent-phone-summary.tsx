@@ -44,7 +44,7 @@ export function VoiceAgentPhoneSummary({
           <Link href="/voice-agent?tab=phone" className="font-semibold text-[var(--color-primary)] hover:underline">
             Phone &amp; Calling
           </Link>{" "}
-          tab. It must already exist in your voice phone numbers account (E.164 format).
+          tab. Use the full number with country code (e.g. +15551234567).
         </p>
       )}
     </div>

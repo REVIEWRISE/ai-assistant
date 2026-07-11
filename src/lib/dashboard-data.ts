@@ -456,6 +456,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
             {
               kind: "bar",
               id: "voice-pipeline",
+              featured: true,
               title: "Voice pipeline (30d)",
               subtitle: "Call volume, processing, and bookings captured by the phone agent",
               data: [

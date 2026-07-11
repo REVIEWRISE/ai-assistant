@@ -22,7 +22,7 @@ function readApiError(body: string, status: number): string {
   } catch {
     // ignore
   }
-  return body.trim() || `Retell API HTTP ${status}`;
+  return body.trim() || `Voice service HTTP ${status}`;
 }
 
 async function retellRequest<T>(
@@ -32,7 +32,7 @@ async function retellRequest<T>(
 ): Promise<RetellApiResult<T>> {
   const apiKey = getRetellApiKey();
   if (!apiKey) {
-    return { ok: false, status: 0, error: "RETELL_API_KEY is not set on the server." };
+    return { ok: false, status: 0, error: "Voice service is not configured on the server." };
   }
 
   try {
@@ -58,7 +58,7 @@ async function retellRequest<T>(
     try {
       return { ok: true, data: JSON.parse(text) as T };
     } catch {
-      return { ok: false, status: res.status, error: "Retell API returned invalid JSON." };
+      return { ok: false, status: res.status, error: "Voice service returned an invalid response." };
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -67,8 +67,8 @@ async function retellRequest<T>(
       ok: false,
       status: 0,
       error: message.includes("timeout") || message.includes("Timeout")
-        ? "Could not reach Retell API (network timeout). Check your connection and try again."
-        : `Retell API request failed: ${message}`.slice(0, 300),
+        ? "Could not reach the voice service (network timeout). Check your connection and try again."
+        : `Voice service request failed: ${message}`.slice(0, 300),
     };
   }
 }
@@ -105,7 +105,7 @@ export async function getRetellAgent(
   version?: string | number,
 ): Promise<RetellApiResult<RetellAgentRecord>> {
   const id = agentId.trim();
-  if (!id) return { ok: false, status: 400, error: "Retell agent ID is required." };
+  if (!id) return { ok: false, status: 400, error: "Voice agent ID is required." };
   const query =
     version != null && String(version).trim()
       ? `?version=${encodeURIComponent(String(version))}`
@@ -118,7 +118,7 @@ export async function updateRetellAgent(
   body: Record<string, unknown>,
 ): Promise<RetellApiResult<RetellAgentRecord>> {
   const id = agentId.trim();
-  if (!id) return { ok: false, status: 400, error: "Retell agent ID is required." };
+  if (!id) return { ok: false, status: 400, error: "Voice agent ID is required." };
   return retellRequest<RetellAgentRecord>("PATCH", `/update-agent/${encodeURIComponent(id)}`, body);
 }
 
@@ -154,7 +154,7 @@ export async function createRetellAgentVersion(
   body: { base_version: number },
 ): Promise<RetellApiResult<RetellAgentRecord>> {
   const id = agentId.trim();
-  if (!id) return { ok: false, status: 400, error: "Retell agent ID is required." };
+  if (!id) return { ok: false, status: 400, error: "Voice agent ID is required." };
   return retellRequest<RetellAgentRecord>(
     "POST",
     `/create-agent-version/${encodeURIComponent(id)}`,
@@ -167,7 +167,7 @@ export async function publishRetellAgentVersion(
   version: number,
 ): Promise<RetellApiResult<RetellAgentRecord>> {
   const id = agentId.trim();
-  if (!id) return { ok: false, status: 400, error: "Retell agent ID is required." };
+  if (!id) return { ok: false, status: 400, error: "Voice agent ID is required." };
   return retellRequest<RetellAgentRecord>(
     "POST",
     `/publish-agent-version/${encodeURIComponent(id)}`,
@@ -223,7 +223,7 @@ export async function listRetellVoices(): Promise<RetellApiResult<RetellVoiceLis
   if (!result.ok) return result;
 
   if (!Array.isArray(result.data)) {
-    return { ok: false, status: result.ok ? 500 : 0, error: "Retell voice list was not an array." };
+    return { ok: false, status: result.ok ? 500 : 0, error: "Voice list could not be loaded." };
   }
 
   const voices: RetellVoiceListItem[] = [];
@@ -305,7 +305,7 @@ export async function listRetellPhoneNumbers(): Promise<RetellApiResult<RetellPh
   if (!result.ok) return result;
 
   if (!Array.isArray(result.data)) {
-    return { ok: false, status: 500, error: "Retell phone list was not an array." };
+    return { ok: false, status: 500, error: "Phone list could not be loaded." };
   }
 
   const phones: RetellPhoneListItem[] = [];

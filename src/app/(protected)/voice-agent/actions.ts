@@ -224,7 +224,7 @@ export async function buyRetellPhoneNumberAction(formData: FormData) {
   const organizationId = String(formData.get("organization_id") || "").trim();
   if (!organizationId) redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
   await requireVoiceAgentOrgSession(organizationId);
-  if (!isRetellApiConfigured()) redirectRetellSyncFailure("phone", "RETELL_API_KEY is not set.");
+  if (!isRetellApiConfigured()) redirectRetellSyncFailure("phone", "Voice service is not configured.");
 
   const retellAgentId = String(formData.get("retell_agent_id") || "").trim();
   const areaCodeRaw = String(formData.get("area_code") || "").trim();
@@ -248,7 +248,7 @@ export async function linkRetellPhoneNumberAction(formData: FormData) {
   const organizationId = String(formData.get("organization_id") || "").trim();
   if (!organizationId) redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
   await requireVoiceAgentOrgSession(organizationId);
-  if (!isRetellApiConfigured()) redirectRetellSyncFailure("phone", "RETELL_API_KEY is not set.");
+  if (!isRetellApiConfigured()) redirectRetellSyncFailure("phone", "Voice service is not configured.");
 
   const result = await linkOrgRetellPhoneNumber({
     organizationId,
@@ -299,7 +299,7 @@ export async function refreshRetellPhoneNumbersAction(formData: FormData) {
   const organizationId = String(formData.get("organization_id") || "").trim();
   if (!organizationId) redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
   await requireVoiceAgentOrgSession(organizationId);
-  if (!isRetellApiConfigured()) redirectRetellSyncFailure("phone", "RETELL_API_KEY is not set.");
+  if (!isRetellApiConfigured()) redirectRetellSyncFailure("phone", "Voice service is not configured.");
 
   const result = await refreshOrgRetellPhoneNumbersFromRetell(
     organizationId,
