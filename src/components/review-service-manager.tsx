@@ -101,13 +101,13 @@ export function ReviewServiceManager({
     setYelpSearchResults([]);
     try {
       const result = await searchYelpBusinessesAction(yelpSearchTerm, yelpSearchLoc);
-      if (result.ok && result.businesses) {
+      if (result.ok) {
         setYelpSearchResults(result.businesses);
         if (result.businesses.length === 0) {
           setYelpSearchError("No businesses found matching your query.");
         }
       } else {
-        setYelpSearchError(result.error || "Failed to search Yelp businesses.");
+        setYelpSearchError(result.error);
       }
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e));
