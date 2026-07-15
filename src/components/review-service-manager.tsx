@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
+import { searchYelpBusinessesAction } from "@/app/(protected)/reviews/actions";
 
 type ReviewService = {
   id: string;
@@ -82,9 +83,48 @@ export function ReviewServiceManager({
     return services;
   }, [activeFilter, services]);
 
+  // Yelp business search states
+  const [yelpSearchTerm, setYelpSearchTerm] = useState("");
+  const [yelpSearchLoc, setYelpSearchLoc] = useState("");
+  const [yelpSearchResults, setYelpSearchResults] = useState<any[]>([]);
+  const [yelpSearching, setYelpSearching] = useState(false);
+  const [yelpSearchError, setYelpSearchError] = useState("");
+  const [selectedYelpBusiness, setSelectedYelpBusiness] = useState<any | null>(null);
+
+  async function handleYelpSearch() {
+    if (!yelpSearchTerm.trim() || !yelpSearchLoc.trim()) {
+      setYelpSearchError("Please enter both a business name and location.");
+      return;
+    }
+    setYelpSearching(true);
+    setYelpSearchError("");
+    setYelpSearchResults([]);
+    try {
+      const result = await searchYelpBusinessesAction(yelpSearchTerm, yelpSearchLoc);
+      if (result.ok && result.businesses) {
+        setYelpSearchResults(result.businesses);
+        if (result.businesses.length === 0) {
+          setYelpSearchError("No businesses found matching your query.");
+        }
+      } else {
+        setYelpSearchError(result.error || "Failed to search Yelp businesses.");
+      }
+    } catch (e: any) {
+      setYelpSearchError(e.message || "An unexpected error occurred.");
+    } finally {
+      setYelpSearching(false);
+    }
+  }
+
   function openConnectionModal(service: ReviewService) {
     setConnectionDraft(service.existingConnectionDetails ?? {});
     setActiveConnectionService(service);
+    setYelpSearchTerm("");
+    setYelpSearchLoc("");
+    setYelpSearchResults([]);
+    setYelpSearching(false);
+    setYelpSearchError("");
+    setSelectedYelpBusiness(null);
   }
 
   return (
@@ -287,6 +327,63 @@ export function ReviewServiceManager({
                           ? "Use your Yelp Fusion API key and the business alias from the Yelp listing URL. Fusion returns up to 3 review excerpts unless Private Reviews partner access is enabled on the provider."
                           : "Provide the required information to complete this connection."}
                       </p>
+                      {activeConnectionService.integration === "yelp_fusion" && (
+                        <div className="mb-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+                          <h5 className="text-xs font-bold text-[var(--color-text)] mb-2">Search Yelp to Find Your Business</h5>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="Business Name (e.g. Sisterita)"
+                              value={yelpSearchTerm}
+                              onChange={(e) => setYelpSearchTerm(e.target.value)}
+                              className="w-1/2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-2 text-xs text-[var(--color-text)]"
+                            />
+                            <input
+                              type="text"
+                              placeholder="City, State or Zip"
+                              value={yelpSearchLoc}
+                              onChange={(e) => setYelpSearchLoc(e.target.value)}
+                              className="w-1/2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-2 text-xs text-[var(--color-text)]"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleYelpSearch}
+                            disabled={yelpSearching}
+                            className="mt-2 w-full rounded-lg bg-[var(--color-primary)] text-white py-1.5 text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+                          >
+                            {yelpSearching ? "Searching Yelp..." : "Search Yelp"}
+                          </button>
+                          {yelpSearchError && (
+                            <p className="mt-2 text-xs text-red-500 font-medium">{yelpSearchError}</p>
+                          )}
+                          {yelpSearchResults.length > 0 && (
+                            <div className="mt-2 max-h-36 overflow-y-auto border-t border-[var(--color-border)] pt-2 space-y-1">
+                              {yelpSearchResults.map((b) => (
+                                <button
+                                  key={b.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedYelpBusiness(b);
+                                    setConnectionDraft((prev) => ({ ...prev, business_id: b.alias }));
+                                  }}
+                                  className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-xs transition hover:bg-[var(--color-border-muted)] ${
+                                    selectedYelpBusiness?.id === b.id ? "bg-[var(--color-border-muted)] font-semibold" : ""
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="text-[var(--color-text)]">{b.name}</div>
+                                    <div className="text-[10px] text-[var(--color-text-muted)]">{b.location}</div>
+                                  </div>
+                                  <span className="text-[10px] bg-[var(--color-bg)] px-1.5 py-0.5 rounded text-[var(--color-text-muted)]">
+                                    Select
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                       {activeConnectionService.requiredFields.map((field) => (
                         <label key={field.key} className="block text-xs font-semibold text-[var(--color-text)]">
                           {field.label}

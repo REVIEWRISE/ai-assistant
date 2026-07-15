@@ -47,7 +47,7 @@ services:
       - .env.production
     command: npx tsx scripts/retell-custom-llm-server.ts
     ports:
-      - "3016:3001"
+      - "3017:3001"
     networks:
       - default
     healthcheck:

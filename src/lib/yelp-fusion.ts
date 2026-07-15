@@ -1,6 +1,20 @@
 const YELP_FUSION_BASE = "https://api.yelp.com/v3";
 const YELP_PARTNER_BASE = "https://partner-api.yelp.com";
 
+export function cleanYelpBaseUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  const cleaned = url.trim();
+  const index = cleaned.indexOf("/businesses/");
+  if (index !== -1) {
+    return cleaned.slice(0, index);
+  }
+  const indexPrivate = cleaned.indexOf("/private/");
+  if (indexPrivate !== -1) {
+    return cleaned.slice(0, indexPrivate);
+  }
+  return cleaned;
+}
+
 export type YelpBusinessDetails = {
   id: string;
   name: string;
@@ -174,14 +188,16 @@ export function normalizeYelpPrivateReview(rec: Record<string, unknown>): YelpNo
 export async function fetchYelpBusinessDetails(
   apiKey: string,
   businessId: string,
+  apiUrl?: string | null,
 ): Promise<{ ok: true; business: YelpBusinessDetails } | { ok: false; error: string }> {
   const id = readString(businessId);
   if (!id) return { ok: false, error: "Yelp business ID is required." };
   const keyCheck = assertYelpApiKey(apiKey);
   if (!keyCheck.ok) return keyCheck;
 
+  const base = cleanYelpBaseUrl(apiUrl) || YELP_FUSION_BASE;
   const result = await fetchYelpJson(
-    `${YELP_FUSION_BASE}/businesses/${encodeURIComponent(id)}`,
+    `${base}/businesses/${encodeURIComponent(id)}`,
     apiKey,
   );
   if (!result.ok) {
@@ -221,16 +237,18 @@ export async function fetchYelpBusinessDetails(
 export async function verifyYelpConnection(
   apiKey: string,
   businessId: string,
+  apiUrl?: string | null,
 ): Promise<
   | { ok: true; business: YelpBusinessDetails }
   | { ok: false; error: string }
 > {
-  return fetchYelpBusinessDetails(apiKey, businessId);
+  return fetchYelpBusinessDetails(apiKey, businessId, apiUrl);
 }
 
 export async function fetchYelpFusionReviews(
   apiKey: string,
   businessId: string,
+  apiUrl?: string | null,
 ): Promise<
   | { ok: true; reviews: Record<string, unknown>[]; total: number }
   | { ok: false; error: string }
@@ -240,8 +258,9 @@ export async function fetchYelpFusionReviews(
   const keyCheck = assertYelpApiKey(apiKey);
   if (!keyCheck.ok) return { ok: false, error: keyCheck.error };
 
+  const base = cleanYelpBaseUrl(apiUrl) || YELP_FUSION_BASE;
   const result = await fetchYelpJson(
-    `${YELP_FUSION_BASE}/businesses/${encodeURIComponent(id)}/reviews`,
+    `${base}/businesses/${encodeURIComponent(id)}/reviews`,
     apiKey,
   );
   if (!result.ok) {
@@ -269,6 +288,7 @@ export async function fetchYelpPrivateReviews(
   apiKey: string,
   businessId: string,
   locale = "en_US",
+  apiUrl?: string | null,
 ): Promise<
   | { ok: true; reviews: Record<string, unknown>[]; total: number }
   | { ok: false; error: string; partnerRequired?: boolean }
@@ -279,8 +299,9 @@ export async function fetchYelpPrivateReviews(
   if (!keyCheck.ok) return { ok: false, error: keyCheck.error };
 
   const params = new URLSearchParams({ locale });
+  const base = cleanYelpBaseUrl(apiUrl) || YELP_FUSION_BASE;
   const result = await fetchYelpJson(
-    `${YELP_FUSION_BASE}/private/businesses/${encodeURIComponent(id)}/reviews?${params}`,
+    `${base}/private/businesses/${encodeURIComponent(id)}/reviews?${params}`,
     apiKey,
   );
   if (!result.ok) {
@@ -307,17 +328,18 @@ export async function fetchYelpReviewsForConnection(args: {
   apiKey: string;
   businessId: string;
   usePrivateApi?: boolean;
+  apiUrl?: string | null;
 }): Promise<
   | { ok: true; reviews: YelpNormalizedReview[]; total: number; source: "fusion" | "private" }
   | { ok: false; error: string }
 > {
   if (args.usePrivateApi) {
-    const privateResult = await fetchYelpPrivateReviews(args.apiKey, args.businessId);
+    const privateResult = await fetchYelpPrivateReviews(args.apiKey, args.businessId, "en_US", args.apiUrl);
     if (!privateResult.ok) {
       if (privateResult.partnerRequired) {
-        const fusionFallback = await fetchYelpFusionReviews(args.apiKey, args.businessId);
+        const fusionFallback = await fetchYelpFusionReviews(args.apiKey, args.businessId, args.apiUrl);
         if (!fusionFallback.ok) {
-          return { ok: false, error: privateResult.error };
+          return { ok: false, error: fusionFallback.error };
         }
         const reviews = fusionFallback.reviews
           .map(normalizeYelpFusionReview)
@@ -338,7 +360,7 @@ export async function fetchYelpReviewsForConnection(args: {
     return { ok: true, reviews, total: privateResult.total, source: "private" };
   }
 
-  const fusionResult = await fetchYelpFusionReviews(args.apiKey, args.businessId);
+  const fusionResult = await fetchYelpFusionReviews(args.apiKey, args.businessId, args.apiUrl);
   if (!fusionResult.ok) {
     return { ok: false, error: fusionResult.error };
   }
@@ -361,6 +383,7 @@ export async function publishYelpReviewReply(args: {
   partnerAccessToken: string;
   reviewId: string;
   responseText: string;
+  partnerApiUrl?: string | null;
 }): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
   const reviewId = readString(args.reviewId);
   const responseText = args.responseText.trim();
@@ -381,7 +404,7 @@ export async function publishYelpReviewReply(args: {
     };
   }
 
-  const res = await fetch(`${YELP_PARTNER_BASE}/reviews/v1/${encodeURIComponent(reviewId)}`, {
+  const res = await fetch(`${args.partnerApiUrl || YELP_PARTNER_BASE}/reviews/v1/${encodeURIComponent(reviewId)}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,

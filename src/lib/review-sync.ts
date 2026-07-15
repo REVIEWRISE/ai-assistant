@@ -234,12 +234,11 @@ async function fetchGenericHttpReviews(
 }
 
 async function fetchYelpFusionProviderReviews(
-  provider: { config: unknown },
+  provider: { config: unknown; apiUrl: string | null },
   tokenData: ConnectionTokenData,
 ): Promise<FetchReviewsResult> {
-  const apiKey = readString(tokenData.api_key);
-  const businessId =
-    readString(tokenData.business_id) || readString(asRecord(provider.config).business_id);
+  const apiKey = readString(tokenData.api_key) || readString(asRecord(provider.config).api_key);
+  const businessId = readString(tokenData.business_id);
   if (!businessId) {
     return { reviews: [], error: "missing_location" };
   }
@@ -251,6 +250,7 @@ async function fetchYelpFusionProviderReviews(
     apiKey,
     businessId,
     usePrivateApi: yelpUsePrivateReviewsApi(provider.config),
+    apiUrl: provider.apiUrl,
   });
   if (!yelpResult.ok) {
     if (yelpResult.error === "missing_business") {

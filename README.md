@@ -116,7 +116,7 @@ ngrok http 3001             # terminal 2
 
 Set `RETELL_CUSTOM_LLM_WS_URL=wss://YOUR-NGROK-HOST/llm-websocket` (from ngrok output).
 
-For **production** on one domain, nginx proxies `/llm-websocket` → port 3016; set only `RETELL_USE_CUSTOM_LLM=true` and `NEXT_PUBLIC_APP_URL=https://your-domain.com` (see `deploy/nginx.site.example.conf`).
+For **production** on one domain, nginx proxies `/llm-websocket` → port 3017; set only `RETELL_USE_CUSTOM_LLM=true` and `NEXT_PUBLIC_APP_URL=https://your-domain.com` (see `deploy/nginx.site.example.conf`).
 
 2. Start the WebSocket server (separate terminal, unless using Docker profile below):
 

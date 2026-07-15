@@ -94,7 +94,7 @@ OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
 RETELL_API_KEY=your_retell_api_key
 RETELL_USE_CUSTOM_LLM=true
-# Optional override; defaults to wss://your-domain.com/llm-websocket when nginx proxies /llm-websocket → :3016
+# Optional override; defaults to wss://your-domain.com/llm-websocket when nginx proxies /llm-websocket → :3017
 # RETELL_CUSTOM_LLM_WS_URL=wss://your-domain.com/llm-websocket
 RETELL_CUSTOM_LLM_PORT=3001
 DATABASE_URL=postgresql://ai_user:secure_password@postgres:5432/ai_assistant
@@ -175,7 +175,7 @@ If `smtpConfigured` is `false`, SMTP secrets are missing from `.env.production`.
 
 ### Retell Custom LLM (your OpenAI key on live calls)
 
-When `RETELL_USE_CUSTOM_LLM=true`, deploy starts an extra `retell-llm` container (WebSocket on host port **3016**). Retell connects to `wss://your-domain.com/llm-websocket` — same host as the app if you use the nginx example.
+When `RETELL_USE_CUSTOM_LLM=true`, deploy starts an extra `retell-llm` container (WebSocket on host port **3017**). Retell connects to `wss://your-domain.com/llm-websocket` — same host as the app if you use the nginx example.
 
 1. Add to `.env.production` (or `ENV_FILE_CONTENTS`):
 
@@ -186,7 +186,7 @@ OPENAI_MODEL=gpt-4o-mini
 NEXT_PUBLIC_APP_URL=https://your-domain.com
 ```
 
-2. Install nginx using `deploy/nginx.site.example.conf` (replace `YOUR_DOMAIN`, enable SSL with certbot). The `/llm-websocket/` location must proxy to `127.0.0.1:3016`.
+2. Install nginx using `deploy/nginx.site.example.conf` (replace `YOUR_DOMAIN`, enable SSL with certbot). The `/llm-websocket/` location must proxy to `127.0.0.1:3017`.
 
 3. Deploy as usual — `scripts/deploy.sh` detects custom LLM and starts the `retell-llm` service.
 
@@ -203,7 +203,7 @@ Or re-save each voice agent in the admin UI (same sync effect).
 5. Verify:
 
 ```bash
-curl -s http://localhost:3016/
+curl -s http://localhost:3017/
 curl -s https://your-domain.com/api/health | jq
 ```
 

@@ -14,7 +14,7 @@ import {
   type ReviewReplyActionResult,
 } from "@/lib/review-reply-publish";
 import { detectReviewIntegration } from "@/lib/review-provider-integration";
-import { verifyYelpConnection } from "@/lib/yelp-fusion";
+import { verifyYelpConnection, cleanYelpBaseUrl } from "@/lib/yelp-fusion";
 
 const REVIEWS_ROUTE = "/reviews";
 
@@ -184,8 +184,9 @@ export async function connectReviewProvider(formData: FormData) {
   const integration = detectReviewIntegration(provider);
   if (integration === "yelp_fusion") {
     const verify = await verifyYelpConnection(
-      String(details.api_key ?? ""),
+      String(details.api_key ?? "") || String(readTokenRecord(provider.config).api_key ?? ""),
       String(details.business_id ?? ""),
+      provider.apiUrl,
     );
     if (!verify.ok) {
       const q = encodeURIComponent(verify.error.slice(0, 240));
@@ -408,4 +409,68 @@ export async function publishReviewReply(
     responseText,
     userId: session.userId,
   });
+}
+
+export async function searchYelpBusinessesAction(
+  term: string,
+  location: string,
+): Promise<{ ok: true; businesses: any[] } | { ok: false; error: string }> {
+  try {
+    const provider = await prisma.provider.findFirst({
+      where: { name: "Yelp", type: "review", status: "enabled" },
+    });
+    if (!provider) {
+      return { ok: false, error: "Yelp provider is not configured." };
+    }
+    const config = readTokenRecord(provider.config);
+    const apiKey = String(config.api_key ?? "");
+    if (!apiKey) {
+      return { ok: false, error: "Global Yelp API key is missing. Please add it to the Yelp Provider Settings." };
+    }
+
+    const base = cleanYelpBaseUrl(provider.apiUrl) || "https://api.yelp.com/v3";
+    const params = new URLSearchParams({
+      term: term.trim(),
+      location: location.trim(),
+      limit: "5",
+    });
+    const res = await fetch(`${base}/businesses/search?${params}`, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json",
+      },
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      let message = text.slice(0, 200);
+      try {
+        const json = JSON.parse(text);
+        if (json.error?.description) {
+          message = json.error.description;
+        } else if (json.error?.code) {
+          message = json.error.code;
+        }
+      } catch {
+        // ignore parse error
+      }
+      return { ok: false, error: `Yelp Search API error: ${message}` };
+    }
+
+    const data = await res.json();
+    const businesses = Array.isArray(data.businesses)
+      ? data.businesses.map((b: any) => ({
+          id: b.id,
+          name: b.name,
+          alias: b.alias,
+          location: b.location?.display_address?.join(", ") || "",
+          rating: b.rating,
+          image_url: b.image_url,
+        }))
+      : [];
+
+    return { ok: true, businesses };
+  } catch (e: any) {
+    return { ok: false, error: e.message || "An unexpected error occurred during Yelp search." };
+  }
 }
