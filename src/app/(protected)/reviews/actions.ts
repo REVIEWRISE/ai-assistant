@@ -411,10 +411,30 @@ export async function publishReviewReply(
   });
 }
 
+export type YelpBusinessSearchResult = {
+  id: string;
+  name: string;
+  alias: string;
+  location: string;
+  rating?: number;
+  image_url?: string;
+};
+
+interface YelpRawBusiness {
+  id: string;
+  name: string;
+  alias: string;
+  location?: {
+    display_address?: string[];
+  };
+  rating?: number;
+  image_url?: string;
+}
+
 export async function searchYelpBusinessesAction(
   term: string,
   location: string,
-): Promise<{ ok: true; businesses: any[] } | { ok: false; error: string }> {
+): Promise<{ ok: true; businesses: YelpBusinessSearchResult[] } | { ok: false; error: string }> {
   try {
     const provider = await prisma.provider.findFirst({
       where: { name: "Yelp", type: "review", status: "enabled" },
@@ -458,19 +478,19 @@ export async function searchYelpBusinessesAction(
     }
 
     const data = await res.json();
-    const businesses = Array.isArray(data.businesses)
-      ? data.businesses.map((b: any) => ({
-          id: b.id,
-          name: b.name,
-          alias: b.alias,
-          location: b.location?.display_address?.join(", ") || "",
-          rating: b.rating,
-          image_url: b.image_url,
-        }))
-      : [];
+    const rawBusinesses = (data.businesses || []) as YelpRawBusiness[];
+    const businesses = rawBusinesses.map((b) => ({
+      id: b.id,
+      name: b.name,
+      alias: b.alias,
+      location: b.location?.display_address?.join(", ") || "",
+      rating: b.rating,
+      image_url: b.image_url,
+    }));
 
     return { ok: true, businesses };
-  } catch (e: any) {
-    return { ok: false, error: e.message || "An unexpected error occurred during Yelp search." };
+  } catch (e) {
+    const error = e instanceof Error ? e.message : "An unexpected error occurred during Yelp search.";
+    return { ok: false, error };
   }
 }

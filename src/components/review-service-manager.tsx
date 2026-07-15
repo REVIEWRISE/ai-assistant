@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
-import { searchYelpBusinessesAction } from "@/app/(protected)/reviews/actions";
+import { searchYelpBusinessesAction, type YelpBusinessSearchResult } from "@/app/(protected)/reviews/actions";
 
 type ReviewService = {
   id: string;
@@ -86,10 +86,10 @@ export function ReviewServiceManager({
   // Yelp business search states
   const [yelpSearchTerm, setYelpSearchTerm] = useState("");
   const [yelpSearchLoc, setYelpSearchLoc] = useState("");
-  const [yelpSearchResults, setYelpSearchResults] = useState<any[]>([]);
+  const [yelpSearchResults, setYelpSearchResults] = useState<YelpBusinessSearchResult[]>([]);
   const [yelpSearching, setYelpSearching] = useState(false);
   const [yelpSearchError, setYelpSearchError] = useState("");
-  const [selectedYelpBusiness, setSelectedYelpBusiness] = useState<any | null>(null);
+  const [selectedYelpBusiness, setSelectedYelpBusiness] = useState<YelpBusinessSearchResult | null>(null);
 
   async function handleYelpSearch() {
     if (!yelpSearchTerm.trim() || !yelpSearchLoc.trim()) {
@@ -109,8 +109,9 @@ export function ReviewServiceManager({
       } else {
         setYelpSearchError(result.error || "Failed to search Yelp businesses.");
       }
-    } catch (e: any) {
-      setYelpSearchError(e.message || "An unexpected error occurred.");
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      setYelpSearchError(err.message || "An unexpected error occurred.");
     } finally {
       setYelpSearching(false);
     }
