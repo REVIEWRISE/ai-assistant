@@ -80,6 +80,12 @@ function customLlmConfigError(): string {
   return "Enable custom LLM: set RETELL_USE_CUSTOM_LLM=true, configure RETELL_CUSTOM_LLM_WS_URL (or nginx + NEXT_PUBLIC_APP_URL), and run the retell-llm server.";
 }
 
+function isMissingRetellAgent(result: { status: number; error: string }): boolean {
+  if (result.status === 404) return true;
+
+  return /^item\s+agent_[^\s]+\s+not found from agent$/i.test(result.error.trim());
+}
+
 function buildRetellLlmSyncBody(args: {
   generalPrompt: string;
   openingMessage: string;
@@ -416,15 +422,27 @@ export async function syncVoiceAgentToRetell(args: {
     return { ok: false, error: "Select a Retell voice before syncing." };
   }
 
-  const useCustomLlm = isRetellCustomLlmEnabled();
-  if (useCustomLlm) {
-    const existing = await getRetellAgent(agentId);
-    if (existing.ok && !isRetellCustomLlmAgent(existing.data)) {
-      const migrated = await migrateVoiceAgentToCustomLlm(args);
-      return migrated.ok
-        ? { ok: true, agentId: migrated.agentId }
-        : { ok: false, error: migrated.error };
+  const existing = await getRetellAgent(agentId);
+  if (!existing.ok) {
+    if (!isMissingRetellAgent(existing)) {
+      return { ok: false, error: existing.error };
     }
+
+    const recreated = await createVoiceAgentInRetell({
+      ...args,
+      retell: { ...args.retell, retellAgentId: "" },
+    });
+    return recreated.ok
+      ? { ok: true, agentId: recreated.agentId }
+      : { ok: false, error: recreated.error };
+  }
+
+  const useCustomLlm = isRetellCustomLlmEnabled();
+  if (useCustomLlm && !isRetellCustomLlmAgent(existing.data)) {
+    const migrated = await migrateVoiceAgentToCustomLlm(args);
+    return migrated.ok
+      ? { ok: true, agentId: migrated.agentId }
+      : { ok: false, error: migrated.error };
   }
 
   const draftReady = await ensureRetellAgentDraft(agentId);
