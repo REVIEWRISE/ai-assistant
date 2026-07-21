@@ -199,11 +199,14 @@ export async function publishReviewReply(args: {
       };
     }
 
-    const partnerAccessToken = readString(connectionInfo.tokenData.partner_access_token);
+    const partnerAccessToken =
+      readString(connectionInfo.tokenData.partner_access_token) ||
+      readString(asRecord(connectionInfo.provider.config).partner_access_token);
     const publishResult = await publishYelpReviewReply({
       partnerAccessToken,
       reviewId: review.externalReviewId,
       responseText,
+      partnerApiUrl: readString(asRecord(connectionInfo.provider.config).partner_api_url),
     });
     if (!publishResult.ok) {
       return {

@@ -73,7 +73,7 @@ if [ -n "$COMPOSE_PROFILES" ]; then
   RETELL_RETRIES=0
   RETELL_HTTP="000"
   until [ $RETELL_RETRIES -ge 10 ]; do
-    RETELL_HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3016/ || echo "000")
+    RETELL_HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3017/ || echo "000")
     if [ "$RETELL_HTTP" = "200" ]; then
       echo "retell-llm is healthy."
       break
@@ -82,7 +82,7 @@ if [ -n "$COMPOSE_PROFILES" ]; then
     RETELL_RETRIES=$((RETELL_RETRIES+1))
   done
   if [ "$RETELL_HTTP" != "200" ]; then
-    echo "WARNING: retell-llm did not respond on :3016. Check nginx and docker logs."
+    echo "WARNING: retell-llm did not respond on :3017. Check nginx and docker logs."
     docker compose -f docker-compose.prod.yml logs --tail=50 retell-llm || true
   fi
 fi
