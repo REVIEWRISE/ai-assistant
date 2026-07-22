@@ -98,10 +98,10 @@ function parseTabKey(raw: string | null): TabKey | null {
 }
 
 const tabs: Array<{ key: TabKey; label: string }> = [
+  { key: "workflow", label: "Inbox" },
   { key: "integrations", label: "Integrations" },
-  { key: "workflow", label: "Inbox & Responses" },
-  { key: "analytics", label: "Analytics" },
-  { key: "configuration", label: "Configuration" },
+  { key: "analytics", label: "Performance" },
+  { key: "configuration", label: "Automation" },
 ];
 
 function ChartTooltip({
@@ -219,6 +219,7 @@ function ServiceBarChart({
 }
 
 type ReviewsTabsProps = {
+  defaultTab?: TabKey;
   organizationId: string;
   routingRules: ReviewRoutingRules;
   syncCronConfig: ReviewSyncCronConfig;
@@ -246,6 +247,7 @@ type ReviewsTabsProps = {
 };
 
 export function ReviewsTabs({
+  defaultTab = "integrations",
   organizationId,
   routingRules,
   syncCronConfig,
@@ -265,12 +267,13 @@ export function ReviewsTabs({
 }: ReviewsTabsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const activeTab = parseTabKey(searchParams.get("tab")) ?? "integrations";
+  const activeTab = parseTabKey(searchParams.get("tab")) ?? defaultTab;
   const [selectedReview, setSelectedReview] = useState<InboxItem | null>(null);
   const [draftText, setDraftText] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const hasReviewActivity = performance.some((metric) => Number(metric.value) > 0);
 
   function openReview(review: InboxItem) {
     setSelectedReview(review);
@@ -288,7 +291,7 @@ export function ReviewsTabs({
 
   function selectTab(tab: TabKey) {
     const params = new URLSearchParams(searchParams.toString());
-    if (tab === "integrations") {
+    if (tab === defaultTab) {
       params.delete("tab");
     } else {
       params.set("tab", tab);
@@ -348,18 +351,20 @@ export function ReviewsTabs({
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1" role="tablist" aria-label="Review operations">
         {tabs.map((tab) => {
           const active = activeTab === tab.key;
           return (
             <button
               key={tab.key}
               type="button"
+              role="tab"
+              aria-selected={active}
               onClick={() => selectTab(tab.key)}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+              className={`whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
                 active
-                  ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
-                  : "bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)] border border-[var(--color-border)]"
+                  ? "bg-[var(--color-bg)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border)]"
+                  : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-text)]"
               }`}
             >
               {tab.label}
@@ -386,6 +391,11 @@ export function ReviewsTabs({
                   In Platform → Providers, enable a provider with type Review. It will appear here even before
                   you connect it.
                 </p>
+              </div>
+            ) : pendingBySource.every((item) => Number(item.pending) === 0) ? (
+              <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+                <p className="text-sm font-semibold text-[var(--color-text)]">All connected inboxes are clear</p>
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">Run a sync from a connected source to check for new reviews.</p>
               </div>
             ) : (
               <div className="space-y-3 text-sm text-[var(--color-text)]">
@@ -417,11 +427,16 @@ export function ReviewsTabs({
               subtitle="Prioritized by source, sentiment, rating, and risk"
             >
               {inbox.length === 0 ? (
-                <div className="rounded-xl border vr-app-alert vr-app-alert-warning border-0 p-3 text-sm text-inherit">
-                  <p className="font-semibold">No reviews in inbox yet.</p>
-                  <p className="mt-1 text-xs text-inherit opacity-90">
+                <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-sm">
+                  <div>
+                    <p className="font-semibold text-[var(--color-text)]">Your review inbox is clear</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                     Connect a review provider and run sync to populate pending reviews.
-                  </p>
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => selectTab("integrations")} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]">
+                    Manage sources
+                  </button>
                 </div>
               ) : null}
               {inbox.length > 0 ? (
@@ -541,14 +556,28 @@ export function ReviewsTabs({
               title="Auto-Published Reviews Trend"
               subtitle="Last 7 days of automatically published responses"
             >
-              <TrendLineChart points={autoPublishedTrend} />
+              {hasReviewActivity ? (
+                <TrendLineChart points={autoPublishedTrend} />
+              ) : (
+                <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-center">
+                  <p className="text-sm font-semibold text-[var(--color-text)]">No publishing activity yet</p>
+                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">Trend data appears after reviews are synced and responses are sent.</p>
+                </div>
+              )}
             </Panel>
 
             <Panel
               title="Reviews by Service"
               subtitle="Focus where review volume is highest"
             >
-              <ServiceBarChart items={serviceReviewVolume} />
+              {serviceReviewVolume.length > 0 ? (
+                <ServiceBarChart items={serviceReviewVolume} />
+              ) : (
+                <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-center">
+                  <p className="text-sm font-semibold text-[var(--color-text)]">No source volume yet</p>
+                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">Connect and sync a review source to compare volume.</p>
+                </div>
+              )}
             </Panel>
           </div>
         </div>

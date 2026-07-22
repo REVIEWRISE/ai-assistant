@@ -27,9 +27,9 @@ type KnowledgeSnapshot = {
 };
 
 const allTabs: Array<{ key: TabKey; label: string }> = [
-  { key: "agent", label: "Agent & Voice" },
-  { key: "phone", label: "Phone & Calling" },
-  { key: "analytics", label: "Call Analytics" },
+  { key: "agent", label: "Agent setup" },
+  { key: "phone", label: "Phone lines" },
+  { key: "analytics", label: "Call history" },
 ];
 
 function parseTabKey(raw: string | null): TabKey | null {
@@ -138,18 +138,20 @@ export function VoiceAgentTabs({
   return (
     <section className="space-y-4">
       {tabs.length > 1 ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1" role="tablist" aria-label="Voice operations">
           {tabs.map((tab) => {
             const active = activeTab === tab.key;
             return (
               <button
                 key={tab.key}
                 type="button"
+                role="tab"
+                aria-selected={active}
                 onClick={() => selectTab(tab.key)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                className={`whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
                   active
-                    ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
-                    : "bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)] border border-[var(--color-border)]"
+                    ? "bg-[var(--color-bg)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border)]"
+                    : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-text)]"
                 }`}
               >
                 {tab.label}
@@ -184,7 +186,6 @@ export function VoiceAgentTabs({
       {activeTab === "phone" && canManagePhone ? (
         <VoiceAgentPhoneSettings
           organizationId={organizationId}
-          initialConfig={phoneConfig}
           retellAgentId={retellConfig.retellAgentId}
           retellApiConfigured={retellApiConfigured}
           phones={phones}

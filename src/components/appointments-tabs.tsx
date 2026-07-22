@@ -79,8 +79,8 @@ type TabKey = "integrations" | "booked" | "analytics";
 
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "integrations", label: "Integrations" },
-  { key: "booked", label: "Booked" },
-  { key: "analytics", label: "Analytics" },
+  { key: "booked", label: "Bookings" },
+  { key: "analytics", label: "Performance" },
 ];
 
 type AppointmentsTabsProps = {
@@ -95,6 +95,7 @@ type AppointmentsTabsProps = {
   retryCrmSync: (formData: FormData) => void | Promise<void>;
   crmWebhookConfigured: boolean;
   appointmentAnalytics: AppointmentAnalytics;
+  testBookingHref: string;
 };
 
 function dateKeyLocal(iso: string): string {
@@ -1299,6 +1300,7 @@ export function AppointmentsTabs({
   retryCrmSync,
   crmWebhookConfigured,
   appointmentAnalytics,
+  testBookingHref,
 }: AppointmentsTabsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("integrations");
 
@@ -1311,18 +1313,20 @@ export function AppointmentsTabs({
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1" role="tablist" aria-label="Appointment operations">
         {tabs.map((tab) => {
           const active = activeTab === tab.key;
           return (
             <button
               key={tab.key}
               type="button"
+              role="tab"
+              aria-selected={active}
               onClick={() => setActiveTab(tab.key)}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+              className={`whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
                 active
-                  ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
-                  : "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)]"
+                  ? "bg-[var(--color-bg)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border)]"
+                  : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-text)]"
               }`}
             >
               {tab.label}
@@ -1349,9 +1353,22 @@ export function AppointmentsTabs({
             title="Requests by Provider"
             subtitle="Incoming scheduling load by connected provider"
           >
-            {providerLoad.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
-                No provider load data yet.
+            {providerLoad.length === 0 || providerLoad.every((item) => Number(item.requests) === 0) ? (
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-4">
+                <div>
+                  <p className="text-sm font-semibold text-[var(--color-text)]">No booking requests yet</p>
+                  <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+                    Run a test through your booking assistant to confirm availability and calendar delivery.
+                  </p>
+                </div>
+                <a
+                  href={testBookingHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="shrink-0 rounded-xl bg-[var(--color-primary)] px-3.5 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+                >
+                  Test booking flow ↗
+                </a>
               </div>
             ) : (
               <div className="space-y-3 text-sm text-[var(--color-text)]">

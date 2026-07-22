@@ -55,17 +55,17 @@ export function OrganizationsManager({
   }, [sortedOrganizations, currentPage, perPage]);
 
   return (
-    <Panel title="Organization Inventory" subtitle="Create, switch, and remove organizations">
+    <Panel title="Organizations" subtitle="Choose the active workspace used by booking operations">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-[var(--color-text-muted)]">
-          Set the active organization used by Appointment Agent operations.
+          The active workspace controls dashboard data and signed-in booking tools.
         </p>
         <button
           type="button"
           onClick={() => setModal({ type: "create" })}
           className="rounded-xl vr-btn-primary px-4 py-2 text-sm font-semibold"
         >
-          Add Organization
+          Add organization
         </button>
       </div>
 
@@ -232,7 +232,6 @@ export function OrganizationsManager({
 
                 <form
                   action={modal.type === "create" ? onCreateOrganization : onUpdateOrganization}
-                  encType="multipart/form-data"
                   className="mt-4 space-y-4"
                 >
                   {modal.type === "edit" ? (

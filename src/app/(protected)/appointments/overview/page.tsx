@@ -1,12 +1,5 @@
 import { AppointmentsTabs } from "@/components/appointments-tabs";
-import {
-  AppPageHero,
-  AppPageHeroBadge,
-  AppPageHeroLink,
-  AppPageHeroStat,
-  AppPageHeroStatGrid,
-  AppPageHeroStatPanel,
-} from "@/components/app-page-hero";
+import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { parseBookingFlowQaPayload, type BookingFlowQaItem } from "@/lib/booking-flow-qa";
 import { requireSession } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
@@ -16,6 +9,7 @@ import { listOrgCalendarRoutes } from "@/lib/booking-org-gate";
 import { redirect } from "next/navigation";
 import { crmIntegrationIsDispatchReady, resolveCrmIntegrationConfig } from "@/lib/crm-integration";
 import { retryAppointmentCalendarSync, retryAppointmentCrmSync } from "./actions";
+import Link from "next/link";
 
 type CalendarProviderItem = {
   id: string;
@@ -140,14 +134,25 @@ export default async function AppointmentsOverviewPage({
   const knowledgeBaseStatus = activeOrganization.knowledgeBase?.status ?? "empty";
   if (knowledgeBaseStatus !== "approved") {
     return (
-      <div className="space-y-5">
-        <AppPageHero
-          eyebrow="Knowledge Base Required"
-          title="Approve your knowledge base to unlock Appointment Overview"
-          description="Appointment insights rely on approved business context. Import your website, files, or business notes and approve the draft first."
-        >
-          <AppPageHeroLink href="/appointments/knowledge-base">Go to Knowledge Base</AppPageHeroLink>
-        </AppPageHero>
+      <div className="mx-auto max-w-[92rem] space-y-4">
+        <AppointmentPageHeader
+          title="Appointment operations"
+          description="Approve your business knowledge before the agent can answer service questions and create reliable bookings."
+          status="Knowledge setup required"
+          statusTone="warning"
+          actions={[{ href: "/appointments/knowledge-base", label: "Complete knowledge setup", primary: true }]}
+          metrics={[
+            { label: "Organization", value: activeOrganization.name },
+            { label: "Knowledge status", value: knowledgeBaseStatus },
+            { label: "Operations", value: "Locked", hint: "until approval" },
+          ]}
+        />
+        <section className="rounded-[1.35rem] border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-center shadow-[var(--shadow-sm)]">
+          <p className="text-sm font-semibold text-[var(--color-text)]">One setup step is blocking bookings</p>
+          <p className="mx-auto mt-1 max-w-xl text-xs leading-relaxed text-[var(--color-text-muted)]">
+            Import your website, review the generated business context, and approve it for the agent. You will return here automatically once it is ready.
+          </p>
+        </section>
       </div>
     );
   }
@@ -237,7 +242,7 @@ export default async function AppointmentsOverviewPage({
     getAppointmentAnalytics(activeOrganization.id, now),
     prisma.organizationChatbotSettings.findUnique({
       where: { organizationId: activeOrganization.id },
-      select: { crmIntegration: true },
+      select: { id: true, crmIntegration: true },
     }),
   ]);
 
@@ -275,8 +280,34 @@ export default async function AppointmentsOverviewPage({
     };
   });
 
+  const hasBookings = upcomingAppointments.length > 0 || recentPastAppointments.length > 0;
+  const setupSteps = [
+    {
+      label: "Business knowledge approved",
+      complete: true,
+      href: "/appointments/knowledge-base",
+    },
+    {
+      label: "Calendar connected",
+      complete: connectedProviders > 0,
+      href: "/appointments/overview",
+    },
+    {
+      label: "Booking assistant configured",
+      complete: Boolean(chatbotSettings),
+      href: "/appointments/chatbot",
+    },
+    {
+      label: "Test booking completed",
+      complete: hasBookings,
+      href: `/embed/chatbot?org=${activeOrganization.id}`,
+      external: true,
+    },
+  ];
+  const completedSetupSteps = setupSteps.filter((step) => step.complete).length;
+
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-[92rem] space-y-4">
       {successFlag === "calendar_synced" ? (
         <div className="vr-app-alert vr-app-alert-success">
           Booking posted to the selected calendar successfully.
@@ -296,26 +327,52 @@ export default async function AppointmentsOverviewPage({
         </div>
       ) : null}
 
-      <AppPageHero
-        eyebrow="Appointment Agent"
-        title={
-          <>
-            Schedule optimization and{" "}
-            <span className="vr-brand-gradient-text">real-time booking</span> automation
-          </>
-        }
-        description="AI handles inbound booking requests, proposes time slots, and sends reminders automatically."
-      >
-        <AppPageHeroBadge>Active organization: {activeOrganization.name}</AppPageHeroBadge>
-        <AppPageHeroStatPanel>
-          <AppPageHeroStatGrid columns="4">
-            <AppPageHeroStat label="Connected Providers" value={connectedProviders} />
-            <AppPageHeroStat label="Upcoming (24h)" value={upcomingNext24h} />
-            <AppPageHeroStat label="Upcoming (7d)" value={upcomingNext7d} />
-            <AppPageHeroStat label="Phone (Voice AI)" value={phoneBookingsTotal} />
-          </AppPageHeroStatGrid>
-        </AppPageHeroStatPanel>
-      </AppPageHero>
+      <AppointmentPageHeader
+        title="Appointment operations"
+        description={<>Monitor availability, bookings, and delivery health for {activeOrganization.name}.</>}
+        status={connectedProviders > 0 ? "Calendar connected" : "Calendar setup needed"}
+        statusTone={connectedProviders > 0 ? "success" : "warning"}
+        actions={[
+          { href: "/appointments/chatbot", label: "Configure assistant" },
+          { href: `/embed/chatbot?org=${activeOrganization.id}`, label: "Test booking flow", primary: true, external: true },
+        ]}
+        metrics={[
+          { label: "Calendar providers", value: connectedProviders, hint: connectedProviders > 0 ? "Ready for availability checks" : "Connect a calendar" },
+          { label: "Upcoming · 24h", value: upcomingNext24h, hint: upcomingNext24h > 0 ? "Needs attention today" : "No bookings today" },
+          { label: "Upcoming · 7d", value: upcomingNext7d, hint: upcomingNext7d > 0 ? "Scheduled this week" : "Week is currently open" },
+          { label: "Voice bookings", value: phoneBookingsTotal, hint: phoneBookingsTotal > 0 ? "Captured by Voice AI" : "No voice bookings yet" },
+        ]}
+      />
+
+      {completedSetupSteps < setupSteps.length ? (
+        <section className="rounded-[1.35rem] border border-[color-mix(in_srgb,var(--color-primary)_18%,var(--color-border))] bg-[linear-gradient(135deg,var(--color-primary-soft),var(--color-surface)_60%)] p-4 shadow-[var(--shadow-sm)]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-h)]">Setup progress</p>
+              <h2 className="mt-1 text-sm font-semibold text-[var(--color-text)]">{completedSetupSteps} of {setupSteps.length} essentials complete</h2>
+            </div>
+            <div className="h-1.5 w-36 overflow-hidden rounded-full bg-[var(--color-bg)]" aria-label={`${completedSetupSteps} of ${setupSteps.length} setup steps complete`}>
+              <div className="h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${(completedSetupSteps / setupSteps.length) * 100}%` }} />
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {setupSteps.map((step) => (
+              <Link
+                key={step.label}
+                href={step.href}
+                target={step.external ? "_blank" : undefined}
+                rel={step.external ? "noreferrer" : undefined}
+                className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg)_78%,transparent)] px-3 py-2 text-[11px] font-medium text-[var(--color-text)] transition hover:bg-[var(--color-bg)]"
+              >
+                <span className={`flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold ${step.complete ? "bg-emerald-500 text-white" : "border border-[var(--color-border-hover)] text-[var(--color-text-subtle)]"}`} aria-hidden>
+                  {step.complete ? "✓" : ""}
+                </span>
+                <span className="truncate">{step.label}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <AppointmentsTabs
         bookedAppointments={bookedAppointments}
@@ -326,6 +383,7 @@ export default async function AppointmentsOverviewPage({
         retryCrmSync={retryAppointmentCrmSync}
         crmWebhookConfigured={crmWebhookConfigured}
         appointmentAnalytics={appointmentAnalytics}
+        testBookingHref={`/embed/chatbot?org=${activeOrganization.id}`}
       />
     </div>
   );

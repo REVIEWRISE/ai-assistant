@@ -64,18 +64,13 @@ export function KnowledgeImportSources({
   onImportFromWebsite,
 }: KnowledgeImportSourcesProps) {
   return (
-    <div className="mt-4 space-y-4">
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
-        <p className="text-sm font-semibold text-[var(--color-text)]">Website URL</p>
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Target organization:{" "}
-          <span className="font-semibold text-[var(--color-text)]">{organizationName}</span>
-        </p>
-
-        <form action={onImportFromWebsite} className="mt-3">
+    <div className="mt-3 rounded-xl bg-[var(--color-raised)] p-3.5">
+        <form action={onImportFromWebsite}>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+            Website URL · {organizationName}
+          </p>
           <WebsiteImportFields organizationId={organizationId} />
         </form>
-      </div>
     </div>
   );
 }

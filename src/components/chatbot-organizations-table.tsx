@@ -379,8 +379,8 @@ export function ChatbotOrganizationsTable({
 
   return (
     <Panel
-      title="All your organizations"
-      subtitle="Every workspace you created or were added to appears here. Open Configure for any row—settings are saved per organization."
+      title="Assistant configurations"
+      subtitle="Settings are saved independently for each organization. Use the actions menu to edit an experience."
     >
       <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
         <div className="vr-app-table-header hidden grid-cols-[72px_1fr_140px_56px] items-center gap-2 px-4 py-3 lg:grid">

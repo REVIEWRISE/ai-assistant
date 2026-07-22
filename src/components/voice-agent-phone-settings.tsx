@@ -1,14 +1,11 @@
 "use client";
 
 import { VoiceAgentPhoneManager } from "@/components/voice-agent-phone-manager";
-import { VoiceAgentPhoneSummary } from "@/components/voice-agent-phone-summary";
 import type { RetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import type { OrgRetellPhoneNumber } from "@/lib/retell-phone-numbers";
-import type { VoiceAgentPhoneConfig } from "@/lib/retell-voice-agent";
 
 export function VoiceAgentPhoneSettings({
   organizationId,
-  initialConfig,
   retellAgentId = "",
   retellApiConfigured,
   phones,
@@ -20,7 +17,6 @@ export function VoiceAgentPhoneSettings({
   onRefresh,
 }: {
   organizationId: string;
-  initialConfig: VoiceAgentPhoneConfig;
   retellAgentId?: string;
   retellApiConfigured: boolean;
   phones: OrgRetellPhoneNumber[];
@@ -31,17 +27,8 @@ export function VoiceAgentPhoneSettings({
   onSetPrimary: (formData: FormData) => void | Promise<void>;
   onRefresh: (formData: FormData) => void | Promise<void>;
 }) {
-  const primaryPhone =
-    phones.find((phone) => phone.isPrimary)?.phoneNumber || initialConfig.twilioPhoneNumber;
-
   return (
     <section className="space-y-4">
-      <VoiceAgentPhoneSummary
-        phoneConfig={{ twilioPhoneNumber: primaryPhone }}
-        retellAgentId={retellAgentId}
-        canManagePhone
-      />
-
       <VoiceAgentPhoneManager
         organizationId={organizationId}
         retellAgentId={retellAgentId}

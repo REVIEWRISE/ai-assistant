@@ -55,38 +55,42 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
     totalCalls > 0
       ? Math.round(calls.reduce((acc, curr) => acc + curr.durationSeconds, 0) / totalCalls)
       : 0;
+  const inboundCalls = calls.filter((call) => call.direction.toLowerCase() === "inbound").length;
+  const completedCalls = calls.filter((call) => {
+    const status = call.callStatus.toLowerCase();
+    return status === "completed" || status === "ended" || status === "done";
+  }).length;
+  const positiveCalls = calls.filter((call) => {
+    const sentiment = call.sentiment?.toLowerCase().trim();
+    return sentiment === "positive" || sentiment === "friendly";
+  }).length;
 
   return (
     <section className="space-y-4">
-      {/* KPI Stats */}
-      <div className="grid gap-3 sm:grid-cols-2 text-sm">
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-            Total Calls
-          </p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-text)]">
-            {totalCalls}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-            Avg Duration
-          </p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-text)]">
-            {formatDuration(avgDuration)}
-          </p>
-        </div>
+      <div className="grid overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: "Total calls", value: totalCalls, hint: "all recorded calls" },
+          { label: "Inbound", value: inboundCalls, hint: totalCalls > 0 ? `${Math.round((inboundCalls / totalCalls) * 100)}% of volume` : "no call volume" },
+          { label: "Completed", value: completedCalls, hint: "finished conversations" },
+          { label: "Avg duration", value: formatDuration(avgDuration), hint: positiveCalls > 0 ? `${positiveCalls} positive` : "no sentiment yet" },
+        ].map((metric, index) => (
+          <div key={metric.label} className={`min-w-0 px-4 py-3 ${index < 3 ? "border-b border-[var(--color-border)] sm:border-r lg:border-b-0" : ""}`}>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{metric.label}</p>
+            <p className="mt-1 text-xl font-semibold text-[var(--color-text)] tabular-nums">{metric.value}</p>
+            <p className="mt-0.5 truncate text-[10px] text-[var(--color-text-muted)]">{metric.hint}</p>
+          </div>
+        ))}
       </div>
 
       <Panel
-        title="Call History"
-        subtitle="Live call metrics and transcripts"
+        title="Call history"
+        subtitle="Completed conversations, recordings, sentiment, and transcripts"
       >
         {calls.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-text-muted)]">
-            <p className="font-semibold text-[var(--color-text)]">No calls recorded yet.</p>
-            <p className="mt-1">
-              Calls made to your support phone number will automatically sync here once completed.
+          <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-center text-sm text-[var(--color-text-muted)]">
+            <p className="font-semibold text-[var(--color-text)]">No call history yet</p>
+            <p className="mx-auto mt-1 max-w-lg text-xs leading-relaxed">
+              Completed calls to your support line will appear here with recordings, summaries, sentiment, and transcripts.
             </p>
           </div>
         ) : null}
@@ -211,17 +215,17 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] p-4">
               <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)] flex flex-col max-h-[85vh]">
                 {/* Modal Header */}
-                <div className="vr-app-table-header flex items-start justify-between gap-3 px-5 py-4 shrink-0">
+                <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.1em] opacity-90">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary-h)]">
                       Call Details • {selectedCall.direction} ({new Date(selectedCall.createdAt).toLocaleDateString()})
                     </p>
-                    <h3 className="mt-1 text-xl font-semibold text-white">Call Analytics View</h3>
+                    <h3 className="mt-1 text-lg font-semibold text-[var(--color-text)]">Call details</h3>
                   </div>
                   <button
                     type="button"
                     onClick={() => setSelectedCall(null)}
-                    className="rounded-lg border border-white/30 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
+                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
                   >
                     Close
                   </button>

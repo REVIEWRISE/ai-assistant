@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { KnowledgeBaseToasts } from "@/components/knowledge-base-toasts";
-import { AppPageHero } from "@/components/app-page-hero";
+import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { KnowledgeImportSources } from "@/components/knowledge-import-sources";
 import { KnowledgePreview } from "@/components/knowledge-preview";
 import { KnowledgeBaseAppendNotes } from "@/components/knowledge-base-append-notes";
@@ -54,31 +54,38 @@ export default async function AppointmentKnowledgeBasePage() {
     typeof parsedData.formattedPreview === "string"
       ? parsedData.formattedPreview
       : "";
+  const knowledgeBase = session.activeOrganization.knowledgeBase;
+  const knowledgeStatus = knowledgeBase?.status ?? "empty";
+  const lastImported = knowledgeBase?.lastImportedAt
+    ? new Date(knowledgeBase.lastImportedAt).toLocaleDateString()
+    : "Never";
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-[92rem] space-y-4">
       <KnowledgeBaseToasts />
-      <AppPageHero
-        eyebrow="Knowledge Base"
-        title={
-          <>
-            Build booking intelligence from your{" "}
-            <span className="vr-brand-gradient-text">business content</span>
-          </>
-        }
-        description="Import your public website so AI understands your services and booking context."
+      <AppointmentPageHeader
+        title="Booking knowledge"
+        description={<>Import and approve the business information the agent uses for services, policies, and booking answers.</>}
+        status={knowledgeStatus === "approved" ? "Approved for agent" : knowledgeStatus === "draft" ? "Draft needs approval" : "Knowledge required"}
+        statusTone={knowledgeStatus === "approved" ? "success" : "warning"}
+        actions={knowledgeStatus === "approved" ? [{ href: "/appointments/chatbot", label: "Configure assistant", primary: true }] : []}
+        metrics={[
+          { label: "Organization", value: session.activeOrganization.name },
+          { label: "Status", value: knowledgeStatus },
+          { label: "Last imported", value: lastImported },
+        ]}
       />
 
-      <section className="vr-app-panel p-5 lg:p-6">
+      <section className="vr-app-panel p-4 lg:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-[var(--color-text)]">Import from website</h2>
-            <p className="text-sm text-[var(--color-text-muted)]">
-              Add business context by importing your website URL.
+            <h2 className="text-base font-semibold text-[var(--color-text)]">Import business website</h2>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              Re-importing refreshes the current draft for {session.activeOrganization.name}.
             </p>
           </div>
-          <div className="inline-flex rounded-full border border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--color-primary-h)]">
-            Auto-saved as Draft
+          <div className="inline-flex rounded-full border border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-primary-soft)] px-3 py-1 text-[10px] font-semibold text-[var(--color-primary-h)]">
+            Imports save as draft
           </div>
         </div>
         <KnowledgeImportSources
@@ -88,12 +95,12 @@ export default async function AppointmentKnowledgeBasePage() {
         />
       </section>
 
-      <section className="vr-app-panel p-5 lg:p-6">
+      <section className="vr-app-panel p-4 lg:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-[var(--color-text)]">Current Knowledge Draft</h2>
-            <p className="text-sm text-[var(--color-text-muted)]">
-              Active organization: <span className="font-semibold text-[var(--color-text)]">{session.activeOrganization.name}</span>
+            <h2 className="text-base font-semibold text-[var(--color-text)]">Current knowledge</h2>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              Review the imported content before allowing the booking agent to use it.
             </p>
           </div>
           {session.activeOrganization.knowledgeBase ? (

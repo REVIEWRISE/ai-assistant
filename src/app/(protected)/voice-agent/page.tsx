@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { AppPageHero, AppPageHeroStat, AppPageHeroStatGrid, AppPageHeroStatPanel } from "@/components/app-page-hero";
+import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { VoiceAgentPageAlerts } from "@/components/voice-agent-page-alerts";
 import { VoiceAgentTabs } from "@/components/voice-agent-tabs";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +13,6 @@ import {
 } from "@/lib/retell-voice-sync";
 import {
   buildRetellVoiceSelectOptions,
-  formatVoiceAgentCallSummary,
   resolveVoiceAgentSettings,
 } from "@/lib/retell-voice-agent";
 import {
@@ -139,58 +138,46 @@ export default async function VoiceAgentPage() {
     transcript: call.transcript,
     createdAt: call.createdAt.toISOString(),
   }));
+  const callsReceived = phoneStats.reduce((sum, phone) => sum + phone.callsReceived, 0);
+  const phoneBookings = phoneStats.reduce((sum, phone) => sum + phone.bookingsCount, 0);
+  const agentReady = Boolean(localSettings.retell.retellAgentId.trim());
+  const voiceStatus = !retellApiConfigured
+    ? "Voice service setup required"
+    : phones.length === 0
+      ? "Phone line required"
+      : agentReady
+        ? "Voice agent operational"
+        : "Agent setup required";
+  const voiceStatusTone: "success" | "warning" =
+    retellApiConfigured && phones.length > 0 && agentReady ? "success" : "warning";
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-[92rem] space-y-4">
       <Suspense fallback={null}>
         <VoiceAgentPageAlerts />
       </Suspense>
 
-      <AppPageHero
-        eyebrow="Voice Support Agent"
-        title={
-          <>
-            Configure your{" "}
-            <span className="vr-brand-gradient-text">AI phone agent</span>
-          </>
-        }
-        description="Configure your voice agent, support phone number, prompts, knowledge, and phone booking."
-      >
-        <AppPageHeroStatPanel>
-          <AppPageHeroStatGrid columns="2">
-            <AppPageHeroStat
-              label="Connection"
-              value={retellApiConfigured ? "Connected" : "No API key"}
-            />
-            <AppPageHeroStat
-              label="Support line"
-              value={phoneConfig.twilioPhoneNumber.trim() || "Not set"}
-            />
-          </AppPageHeroStatGrid>
-        </AppPageHeroStatPanel>
-      </AppPageHero>
+      <AppointmentPageHeader
+        eyebrow="Voice Support"
+        title="Voice operations"
+        description={<>Configure and monitor the AI phone agent serving {org.name}.</>}
+        status={voiceStatus}
+        statusTone={voiceStatusTone}
+        actions={[
+          { href: "/voice-agent?tab=agent", label: "Configure agent" },
+          { href: "/voice-agent?tab=phone", label: phones.length > 0 ? "Manage phone lines" : "Set up phone line", primary: true },
+        ]}
+        metrics={[
+          { label: "Phone lines", value: phones.length, hint: primaryPhone ? "primary line active" : "no primary line" },
+          { label: "Calls received", value: callsReceived, hint: "last 30 days" },
+          { label: "Bookings by phone", value: phoneBookings, hint: "last 30 days" },
+          { label: "Knowledge", value: kbStatus === "approved" ? "Approved" : kbStatus, hint: kbStatus === "approved" ? "ready for calls" : "needs attention" },
+        ]}
+      />
 
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text-muted)]">
-        <span className="font-semibold text-[var(--color-text)]">{org.name}</span>
-        {" · "}
-        {formatVoiceAgentCallSummary(phoneConfig)}
-        {" · "}
-        Knowledge: {kbStatus === "approved" ? "approved" : kbStatus}
-        {retellRemoteStatus ? (
-          <>
-            {" · "}
-            <span
-              className={
-                retellRemoteStatus.startsWith("Live")
-                  ? "text-[var(--color-success)]"
-                  : ""
-              }
-            >
-              {retellRemoteStatus}
-            </span>
-          </>
-        ) : null}
-      </div>
+      {retellRemoteStatus && !retellRemoteStatus.startsWith("Live") ? (
+        <div className="vr-app-alert vr-app-alert-warning">{retellRemoteStatus}</div>
+      ) : null}
 
       <VoiceAgentTabs
         organizationId={org.id}

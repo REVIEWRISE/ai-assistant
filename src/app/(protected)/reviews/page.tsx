@@ -1,12 +1,7 @@
 import { Suspense } from "react";
 import { ReviewsTabs } from "@/components/reviews-tabs";
 import { ReviewsPageAlerts } from "@/components/reviews-page-alerts";
-import {
-  AppPageHero,
-  AppPageHeroStat,
-  AppPageHeroStatGrid,
-  AppPageHeroStatPanel,
-} from "@/components/app-page-hero";
+import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { prisma } from "@/lib/prisma";
 import { isOAuthProviderConfig } from "@/lib/google-oauth";
 import {
@@ -186,10 +181,13 @@ export default async function ReviewsPage() {
     session.activeOrganizationId ?? session.user.organizationMembers[0]?.organizationId ?? null;
   if (!organizationId) redirect("/appointments/organization");
 
-  const reviewSettingsRow = await prisma.organizationReviewSettings.findUnique({
-    where: { organizationId },
-    select: { routingRules: true, syncCron: true, replyAutomation: true },
-  });
+  const [reviewSettingsRow, organization] = await Promise.all([
+    prisma.organizationReviewSettings.findUnique({
+      where: { organizationId },
+      select: { routingRules: true, syncCron: true, replyAutomation: true },
+    }),
+    prisma.organization.findUnique({ where: { id: organizationId }, select: { name: true } }),
+  ]);
   const routingRules = resolveReviewRoutingRules(reviewSettingsRow?.routingRules);
   const syncCronConfig = resolveReviewSyncCronConfig(reviewSettingsRow?.syncCron);
   const replyAutomation = resolveReviewReplyAutomationConfig(reviewSettingsRow?.replyAutomation);
@@ -388,31 +386,32 @@ export default async function ReviewsPage() {
     .map(([service, values]) => ({ service, ...values }))
     .sort((a, b) => b.total - a.total)
     .slice(0, 8);
+  const connectedSources = reviewServices.filter((service) => service.status === "Connected").length;
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-[92rem] space-y-4">
       <Suspense fallback={null}>
         <ReviewsPageAlerts />
       </Suspense>
-      <AppPageHero
-        eyebrow="Review Response System"
-        title={
-          <>
-            Protect brand trust with fast and{" "}
-            <span className="vr-brand-gradient-text">consistent review handling</span>
-          </>
-        }
-        description="AI drafts contextual replies, escalates risky sentiment, and applies approval rules so your team can respond quickly without sacrificing quality."
-      >
-        <AppPageHeroStatPanel>
-          <AppPageHeroStatGrid columns="2">
-            <AppPageHeroStat label="Awaiting" value={totals.pending} />
-            <AppPageHeroStat label="Auto-ready" value={totals.autoReady} />
-          </AppPageHeroStatGrid>
-        </AppPageHeroStatPanel>
-      </AppPageHero>
+      <AppointmentPageHeader
+        eyebrow="Review Response"
+        title="Reputation operations"
+        description={<>Review, approve, and publish consistent responses for {organization?.name ?? "your active organization"}.</>}
+        status={connectedSources > 0 ? `${connectedSources} source${connectedSources === 1 ? "" : "s"} connected` : "Review source required"}
+        statusTone={connectedSources > 0 ? "success" : "warning"}
+        actions={[
+          ...(connectedSources > 0 ? [{ href: "/reviews?tab=workflow", label: totals.pending > 0 ? `Open inbox · ${totals.pending}` : "Open inbox", primary: true }] : []),
+        ]}
+        metrics={[
+          { label: "Total reviews", value: totals.total, hint: "all connected sources" },
+          { label: "Awaiting", value: totals.pending, hint: totals.pending > 0 ? "responses need attention" : "inbox is clear" },
+          { label: "Auto-ready", value: totals.autoReady, hint: "safe to publish" },
+          { label: "Connected sources", value: connectedSources, hint: `${Math.max(0, reviewServices.length - connectedSources)} need setup` },
+        ]}
+      />
 
       <ReviewsTabs
+        defaultTab={connectedSources > 0 ? "workflow" : "integrations"}
         organizationId={organizationId}
         routingRules={routingRules}
         syncCronConfig={syncCronConfig}
