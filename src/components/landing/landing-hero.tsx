@@ -23,7 +23,7 @@ const WORK_ITEMS = [
 
 export function LandingHero({ isLoggedIn }: { isLoggedIn: boolean }) {
   return (
-    <section className="relative px-4 pb-14 pt-4 sm:px-6 sm:pb-18 lg:pb-22">
+    <section className="relative mt-2 px-4 pb-14 pt-2 sm:mt-3 sm:px-6 sm:pb-18 sm:pt-3 lg:pb-22">
       <div className="landing-dark relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,#080d18_0%,#10172a_48%,#1b2450_100%)] shadow-[0_30px_90px_-42px_rgba(15,23,42,0.8)]">
         <div className="landing-grid pointer-events-none absolute inset-0 opacity-[0.12]" aria-hidden />
         <div className="pointer-events-none absolute -left-36 -top-40 h-96 w-96 rounded-full bg-primary/25 blur-3xl" aria-hidden />

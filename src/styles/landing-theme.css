@@ -3,7 +3,6 @@
 .landing {
   background-color: var(--color-bg);
   color: var(--color-text);
-  overflow-x: clip;
 }
 
 .landing-mesh {

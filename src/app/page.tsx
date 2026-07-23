@@ -23,38 +23,37 @@ export default async function Home() {
   const registerHref = isLoggedIn ? "/dashboard" : "/register";
 
   return (
-    <div className="landing min-h-screen antialiased">
-      <div className="relative overflow-x-clip">
-        <div className="landing-mesh pointer-events-none absolute inset-0" aria-hidden />
-        <div className="landing-grid pointer-events-none absolute inset-0 opacity-40" aria-hidden />
+    <div className="landing relative min-h-screen antialiased">
+      <div className="landing-mesh pointer-events-none absolute inset-0" aria-hidden />
+      <div className="landing-grid pointer-events-none absolute inset-0 opacity-40" aria-hidden />
 
+      <div className="relative">
         <LandingHeader isLoggedIn={isLoggedIn} />
 
         <LandingHero isLoggedIn={isLoggedIn} />
 
         <LandingTrustedSection names={LANDING_TRUSTED_BY} />
+
+        <LandingFeaturesSection />
+
+        <LandingPlaybookSection registerHref={registerHref} isLoggedIn={isLoggedIn} />
+
+        <LandingPricingSection plans={plans} registerHref={registerHref} isLoggedIn={isLoggedIn} />
+
+        <LandingIntegrationsSection
+          integrations={LANDING_INTEGRATIONS}
+          registerHref={registerHref}
+          isLoggedIn={isLoggedIn}
+        />
+
+        <LandingTestimonialsSection />
+
+        <LandingFaqSection faq={LANDING_FAQ} />
+
+        <LandingContactSection />
+
+        <LandingFooter isLoggedIn={isLoggedIn} />
       </div>
-
-      <LandingFeaturesSection />
-
-      <LandingPlaybookSection registerHref={registerHref} isLoggedIn={isLoggedIn} />
-
-      <LandingPricingSection plans={plans} registerHref={registerHref} isLoggedIn={isLoggedIn} />
-
-      <LandingIntegrationsSection
-        integrations={LANDING_INTEGRATIONS}
-        registerHref={registerHref}
-        isLoggedIn={isLoggedIn}
-      />
-
-      <LandingTestimonialsSection />
-
-      <LandingFaqSection faq={LANDING_FAQ} />
-
-      <LandingContactSection />
-
-      <LandingFooter isLoggedIn={isLoggedIn} />
-
     </div>
   );
 }
