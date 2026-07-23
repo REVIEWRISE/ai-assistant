@@ -7,6 +7,7 @@ import {
 } from "@/lib/google-oauth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { userHasAdminRole } from "@/lib/admin-view-only";
 
 const REVIEWS_ROUTE = "/reviews";
 
@@ -40,6 +41,9 @@ export async function GET(request: Request) {
 
   if (!statePayload?.providerId || !statePayload.userId || !statePayload.organizationId) {
     redirect(`${REVIEWS_ROUTE}?error=oauth_state`);
+  }
+  if (await userHasAdminRole(statePayload.userId)) {
+    redirect(`${REVIEWS_ROUTE}?error=review_read_only`);
   }
 
   const membership = await prisma.organizationMember.findFirst({

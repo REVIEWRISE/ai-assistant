@@ -79,11 +79,27 @@ async function requireSessionForChatbot() {
 
   const session = await prisma.session.findFirst({
     where: { token, expiresAt: { gt: new Date() } },
-    select: { id: true, userId: true },
+    select: {
+      id: true,
+      userId: true,
+      user: {
+        select: {
+          userRoles: {
+            select: {
+              role: { select: { name: true } },
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!session) redirect("/login");
   return session;
+}
+
+function sessionHasAdminRole(session: Awaited<ReturnType<typeof requireSessionForChatbot>>) {
+  return session.user.userRoles.some((userRole) => userRole.role.name === "Admin");
 }
 
 export async function saveChatbotConfig(formData: FormData) {
@@ -103,6 +119,9 @@ export async function saveChatbotConfig(formData: FormData) {
 
   if (!membership) {
     redirect(`${CHATBOT_ROUTE}?error=chatbot_org_denied`);
+  }
+  if (sessionHasAdminRole(session)) {
+    redirect(`${CHATBOT_ROUTE}?error=chatbot_read_only`);
   }
 
   const welcomeMessage = String(formData.get("welcome_message") || "").trim();
@@ -201,6 +220,9 @@ export async function saveCrmIntegration(formData: FormData) {
   if (!membership) {
     redirect(`${CHATBOT_ROUTE}?error=chatbot_org_denied`);
   }
+  if (sessionHasAdminRole(session)) {
+    redirect(`${CHATBOT_ROUTE}?error=chatbot_read_only`);
+  }
 
   const crm = parseCrmIntegrationForm({
     webhookUrl: formData.get("crm_webhook_url"),
@@ -273,6 +295,9 @@ export async function generateVoiceBookingGreeting(
   });
 
   if (!membership) {
+    return { ok: false, error: "denied" };
+  }
+  if (sessionHasAdminRole(session)) {
     return { ok: false, error: "denied" };
   }
 
@@ -415,6 +440,9 @@ export async function saveVoiceBooking(formData: FormData) {
   if (!membership) {
     redirect(`${CHATBOT_ROUTE}?error=chatbot_org_denied`);
   }
+  if (sessionHasAdminRole(session)) {
+    redirect(`${CHATBOT_ROUTE}?error=chatbot_read_only`);
+  }
 
   const voice = parseVoiceBookingForm({
     enabled: formData.get("voice_enabled"),
@@ -500,6 +528,9 @@ export async function generateChatbotFromKnowledge(
   });
 
   if (!membership) {
+    return { ok: false, error: "denied" };
+  }
+  if (sessionHasAdminRole(session)) {
     return { ok: false, error: "denied" };
   }
 

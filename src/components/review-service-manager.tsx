@@ -54,10 +54,12 @@ function SaveConnectionButton({ connected }: { connected: boolean }) {
 
 export function ReviewServiceManager({
   services,
+  readOnly = false,
   onConnectProvider,
   onSyncProvider,
 }: {
   services: ReviewService[];
+  readOnly?: boolean;
   onConnectProvider: (formData: FormData) => void | Promise<void>;
   onSyncProvider: (formData: FormData) => void | Promise<void>;
 }) {
@@ -129,21 +131,31 @@ export function ReviewServiceManager({
   }
 
   return (
-    <section className="vr-app-panel p-4 lg:p-5">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+    <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-5 lg:px-6">
         <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
+            Provider network
+          </p>
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-semibold text-[var(--color-text)]">Review sources</h3>
+            <h3 className="mt-1.5 text-lg font-semibold tracking-[-0.015em] text-[var(--color-text)]">Review sources</h3>
             <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-semibold ${connectedCount > 0 ? "vr-app-status-success" : "vr-app-status-warning"}`}>
               <span className={`size-1.5 rounded-full ${connectedCount > 0 ? "bg-[var(--color-success)]" : "bg-[var(--color-warning)]"}`} aria-hidden />
               {connectedCount > 0 ? `${connectedCount} connected` : "Connection needed"}
             </span>
           </div>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            Connect platforms to sync reviews and publish responses.
+            {readOnly
+              ? "Review provider connection and synchronization status."
+              : "Connect platforms to sync reviews and publish responses."}
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs">
+          {readOnly ? (
+            <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-[10px] font-semibold text-[var(--color-text-muted)]">
+              View only
+            </span>
+          ) : null}
           <span className="hidden text-[11px] text-[var(--color-text-muted)] sm:inline">{services.length - connectedCount} need attention</span>
           <button
             type="button"
@@ -164,8 +176,9 @@ export function ReviewServiceManager({
         </div>
       </div>
 
+      <div className="p-4 lg:p-5">
       {collapsed && services.length > 0 ? (
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           {services.map((service) => (
             <span
               key={service.id}
@@ -247,7 +260,7 @@ export function ReviewServiceManager({
                         <span className={`size-1.5 rounded-full ${connected ? "bg-[var(--color-success)]" : "bg-[var(--color-text-subtle)]"}`} aria-hidden />
                         {service.status}
                       </span>
-                      {service.syncable ? (
+                      {!readOnly && service.syncable ? (
                         <form action={onSyncProvider}>
                           <input type="hidden" name="provider_id" value={service.id} />
                           <button
@@ -258,7 +271,11 @@ export function ReviewServiceManager({
                           </button>
                         </form>
                       ) : null}
-                    {service.oauthConnectHref ? (
+                    {readOnly ? (
+                      <span className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text-muted)]">
+                        View only
+                      </span>
+                    ) : service.oauthConnectHref ? (
                       <Link
                         href={service.oauthConnectHref}
                         className={`inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold transition ${
@@ -290,6 +307,7 @@ export function ReviewServiceManager({
           </div>
         </>
       ) : null}
+      </div>
 
       {typeof document !== "undefined" && activeConnectionService
         ? createPortal(

@@ -57,9 +57,11 @@ function tabAllowed(tab: TabKey, canManageAgent: boolean, canManagePhone: boolea
 export function VoiceAgentTabs({
   organizationId,
   organizationName,
+  readOnly = false,
   canManageAgent,
   canManagePhone,
   retellApiConfigured,
+  remoteAgentMissing,
   voiceOptions,
   voiceCatalog,
   retellConfig,
@@ -70,7 +72,6 @@ export function VoiceAgentTabs({
   knowledge,
   calls,
   onSaveRetell,
-  onSavePhone,
   onBuyPhone,
   onLinkPhone,
   onAssignPhone,
@@ -82,9 +83,11 @@ export function VoiceAgentTabs({
 }: {
   organizationId: string;
   organizationName: string;
+  readOnly?: boolean;
   canManageAgent: boolean;
   canManagePhone: boolean;
   retellApiConfigured: boolean;
+  remoteAgentMissing: boolean;
   voiceOptions: RetellVoiceSelectOption[];
   voiceCatalog: RetellVoiceListItem[];
   retellConfig: RetellVoiceAgentConfig;
@@ -95,7 +98,6 @@ export function VoiceAgentTabs({
   knowledge: KnowledgeSnapshot;
   calls: CallItem[];
   onSaveRetell: (formData: FormData) => void | Promise<void>;
-  onSavePhone: (formData: FormData) => void | Promise<void>;
   onBuyPhone: (formData: FormData) => void | Promise<void>;
   onLinkPhone: (formData: FormData) => void | Promise<void>;
   onAssignPhone: (formData: FormData) => void | Promise<void>;
@@ -137,6 +139,7 @@ export function VoiceAgentTabs({
 
   return (
     <section className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
       {tabs.length > 1 ? (
         <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1" role="tablist" aria-label="Voice operations">
           {tabs.map((tab) => {
@@ -163,12 +166,27 @@ export function VoiceAgentTabs({
           })}
         </div>
       ) : null}
+        {readOnly ? (
+          <span className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
+            View-only access
+          </span>
+        ) : null}
+      </div>
 
       {activeTab === "agent" && canManageAgent ? (
+        <fieldset
+          disabled={readOnly}
+          className={`min-w-0 border-0 p-0 ${
+            readOnly
+              ? "[&_a]:pointer-events-none [&_a]:opacity-50 [&_button]:disabled:cursor-not-allowed [&_button]:disabled:opacity-50 [&_input]:disabled:cursor-not-allowed [&_input]:disabled:bg-[var(--color-raised)] [&_textarea]:disabled:cursor-not-allowed [&_textarea]:disabled:bg-[var(--color-raised)]"
+              : ""
+          }`}
+        >
         <VoiceAgentRetellSettings
           organizationId={organizationId}
           organizationName={organizationName}
           retellApiConfigured={retellApiConfigured}
+          remoteAgentMissing={remoteAgentMissing}
           voiceOptions={voiceOptions}
           voiceCatalog={voiceCatalog}
           initialConfig={retellConfig}
@@ -181,9 +199,18 @@ export function VoiceAgentTabs({
           onGenerateOpeningMessage={onGenerateOpeningMessage}
           onGenerateSystemPrompt={onGenerateSystemPrompt}
         />
+        </fieldset>
       ) : null}
 
       {activeTab === "phone" && canManagePhone ? (
+        <fieldset
+          disabled={readOnly}
+          className={`min-w-0 border-0 p-0 ${
+            readOnly
+              ? "[&_a]:pointer-events-none [&_a]:opacity-50 [&_button]:disabled:cursor-not-allowed [&_button]:disabled:opacity-50 [&_input]:disabled:cursor-not-allowed [&_input]:disabled:bg-[var(--color-raised)]"
+              : ""
+          }`}
+        >
         <VoiceAgentPhoneSettings
           organizationId={organizationId}
           retellAgentId={retellConfig.retellAgentId}
@@ -196,6 +223,7 @@ export function VoiceAgentTabs({
           onSetPrimary={onSetPrimaryPhone}
           onRefresh={onRefreshPhones}
         />
+        </fieldset>
       ) : null}
 
       {activeTab === "analytics" ? (

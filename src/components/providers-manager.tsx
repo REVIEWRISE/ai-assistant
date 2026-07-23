@@ -3,8 +3,18 @@
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Panel } from "@/components/ui";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { CustomSelect } from "@/components/custom-select";
 import { SearchableSelect } from "@/components/searchable-select";
+import { TableRowActionsMenu } from "@/components/table-row-actions-menu";
+import {
+  DataTable,
+  DataTableBody,
+  DataTableEmptyState,
+  DataTableHeader,
+  DataTablePagination,
+  DataTableRow,
+} from "@/components/data-table";
 
 type ProviderRow = {
   id: string;
@@ -66,8 +76,12 @@ export function ProvidersManager({
   onDeleteProvider,
 }: ProvidersManagerProps) {
   const [modal, setModal] = useState<ModalState>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(5);
+  const [perPage, setPerPage] = useState(10);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [configEntries, setConfigEntries] = useState<ConfigEntry[]>([]);
   const [connectionRequiredFields, setConnectionRequiredFields] = useState<
     ConnectionRequiredFieldDraft[]
@@ -78,17 +92,58 @@ export function ProvidersManager({
   const configId = useRef(0);
   const configInputRef = useRef<HTMLInputElement | null>(null);
 
-  const sortedProviders = useMemo(
-    () => providers.slice().sort((a, b) => a.name.localeCompare(b.name)),
-    [providers],
-  );
+  const statusCounts = useMemo(() => {
+    return {
+      all: providers.length,
+      enabled: providers.filter((provider) => provider.status === "enabled").length,
+      disabled: providers.filter((provider) => provider.status === "disabled").length,
+    };
+  }, [providers]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedProviders.length / perPage));
+  const typeNames = useMemo(() => {
+    return Array.from(new Set(providers.map((provider) => provider.type))).sort((a, b) =>
+      a.localeCompare(b),
+    );
+  }, [providers]);
+
+  const filteredProviders = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return providers
+      .filter((provider) => {
+        const matchesQuery =
+          !normalizedQuery ||
+          provider.name.toLowerCase().includes(normalizedQuery) ||
+          provider.type.toLowerCase().includes(normalizedQuery) ||
+          (provider.description ?? "").toLowerCase().includes(normalizedQuery) ||
+          (provider.apiUrl ?? "").toLowerCase().includes(normalizedQuery);
+        const matchesStatus =
+          statusFilter === "all" || provider.status.toLowerCase() === statusFilter;
+        const matchesType = typeFilter === "all" || provider.type === typeFilter;
+        return matchesQuery && matchesStatus && matchesType;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [providers, query, statusFilter, typeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProviders.length / perPage));
   const currentPage = Math.min(page, totalPages);
   const pagedProviders = useMemo(() => {
     const start = (currentPage - 1) * perPage;
-    return sortedProviders.slice(start, start + perPage);
-  }, [sortedProviders, currentPage, perPage]);
+    return filteredProviders.slice(start, start + perPage);
+  }, [filteredProviders, currentPage, perPage]);
+
+  const statusFilterOptions = [
+    { value: "all", label: `All · ${statusCounts.all}` },
+    { value: "enabled", label: `Enabled · ${statusCounts.enabled}` },
+    { value: "disabled", label: `Disabled · ${statusCounts.disabled}` },
+  ];
+
+  const typeFilterOptions = [
+    { value: "all", label: "All types" },
+    ...typeNames.map((type) => ({
+      value: type,
+      label: type.charAt(0).toUpperCase() + type.slice(1).replace("_", " "),
+    })),
+  ];
 
   const createConfigEntry = (entry?: Partial<ConfigEntry>): ConfigEntry => ({
     id: String(configId.current++),
@@ -228,46 +283,89 @@ export function ProvidersManager({
   );
 
   return (
-    <Panel title="Providers" subtitle="Create, edit, and remove system providers">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-[var(--color-text-muted)]">
-          Configure external systems used across the platform.
-        </p>
+    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+      <div className="flex flex-col gap-4 border-b border-[var(--color-border)] px-4 py-4 sm:flex-row sm:items-start sm:justify-between lg:px-5">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+            Directory
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold text-[var(--color-text)]">Provider catalog</h2>
+            <span className="rounded-full bg-[var(--color-primary-soft)] px-2.5 py-1 text-[10px] font-semibold text-[var(--color-primary-h)]">
+              {filteredProviders.length}
+              {filteredProviders.length !== providers.length ? ` of ${providers.length}` : ""} shown
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+            Configure external systems used across the platform.
+          </p>
+        </div>
         <button
           type="button"
           onClick={openCreateModal}
-          className="rounded-xl vr-btn-primary px-4 py-2 text-sm font-semibold"
+          className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
         >
-          Add Provider
+          Add provider
         </button>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-        <div className="vr-app-table-header hidden grid-cols-[72px_64px_1.1fr_0.9fr_1.1fr_1.1fr_120px_120px_140px] items-center gap-2 px-4 py-3 md:grid">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]" />
-            Index
-          </div>
+      <div className="border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 lg:px-5">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_12rem]">
+          <label className="block">
+            <span className="sr-only">Search providers</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search by name, type, description, or API URL…"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_18%,transparent)]"
+            />
+          </label>
+          <CustomSelect
+            value={statusFilter}
+            onChange={(value) => {
+              setStatusFilter(value);
+              setPage(1);
+            }}
+            options={statusFilterOptions}
+            aria-label="Filter by status"
+            className="mt-0"
+            triggerClassName="rounded-xl border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm font-semibold"
+          />
+          <CustomSelect
+            value={typeFilter}
+            onChange={(value) => {
+              setTypeFilter(value);
+              setPage(1);
+            }}
+            options={typeFilterOptions}
+            aria-label="Filter by type"
+            className="mt-0"
+            triggerClassName="rounded-xl border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm font-semibold"
+          />
+        </div>
+      </div>
+
+      <div className="p-4 lg:p-5">
+      <DataTable>
+        <DataTableHeader className="hidden grid-cols-[64px_minmax(180px,1.2fr)_110px_minmax(140px,1fr)_100px_100px_100px] gap-2 lg:grid lg:px-5">
           <div>Logo</div>
           <div>Provider</div>
           <div>Type</div>
-          <div>Description</div>
           <div>API URL</div>
           <div>Status</div>
           <div>Config</div>
           <div className="text-right">Actions</div>
-        </div>
-        <div className="divide-y divide-[var(--color-border-muted)]">
-          {pagedProviders.map((provider, index) => (
-            <div
+        </DataTableHeader>
+        <DataTableBody>
+          {pagedProviders.map((provider) => (
+            <DataTableRow
               key={provider.id}
-              className="group grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] md:grid-cols-[72px_64px_1.1fr_0.9fr_1.1fr_1.1fr_120px_120px_140px]"
+              className="group gap-4 py-4 hover:bg-[var(--color-bg)] lg:grid-cols-[64px_minmax(180px,1.2fr)_110px_minmax(140px,1fr)_100px_100px_100px] lg:items-center lg:px-5 lg:py-3.5"
             >
-              <div className="text-xs font-semibold text-[var(--color-text-muted)] md:text-sm">
-                <span className="inline-flex min-w-[44px] items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
-                  {String((currentPage - 1) * perPage + index + 1).padStart(2, "0")}
-                </span>
-              </div>
               <div className="flex items-center">
                 {provider.logoUrl ? (
                   <Image
@@ -284,149 +382,124 @@ export function ProvidersManager({
                   </div>
                 )}
               </div>
-              <div>
-                <p className="font-semibold text-[var(--color-text)]">{provider.name}</p>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  Created {new Date(provider.createdAt).toLocaleDateString()}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[var(--color-text)]">{provider.name}</p>
+                <p className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]">
+                  {provider.description ?? `Added ${new Date(provider.createdAt).toLocaleDateString()}`}
                 </p>
               </div>
-              <div className="text-xs font-semibold text-[var(--color-text-muted)] md:text-sm">
-                {provider.type.charAt(0).toUpperCase() + provider.type.slice(1).replace("_", " ")}
+              <div>
+                <span className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text)]">
+                  {provider.type.charAt(0).toUpperCase() + provider.type.slice(1).replace("_", " ")}
+                </span>
               </div>
-              <div className="truncate text-xs font-semibold text-[var(--color-text-muted)] md:text-sm" title={provider.description ?? ""}>
-                {provider.description ?? "—"}
+              <div className="min-w-0">
+                <p className="truncate font-mono text-xs text-[var(--color-text-muted)]" title={provider.apiUrl ?? ""}>
+                  {provider.apiUrl ?? "—"}
+                </p>
               </div>
-              <div className="truncate text-xs font-semibold text-[var(--color-text-muted)] md:text-sm" title={provider.apiUrl ?? ""}>
-                {provider.apiUrl ?? "—"}
-              </div>
-              <div className="text-xs font-semibold text-[var(--color-text-muted)] md:text-sm">
-                {provider.status.charAt(0).toUpperCase() + provider.status.slice(1)}
-              </div>
-              <div
-                className="truncate text-xs font-semibold text-[var(--color-text-muted)] md:text-sm"
-                title={
-                  provider.config ? JSON.stringify(provider.config, null, 2) : ""
-                }
-              >
-                {provider.config ? "Configured" : "—"}
-              </div>
-              <div className="flex items-center justify-start gap-2 md:justify-end">
-                <button
-                  type="button"
-                  onClick={() => openEditModal(provider)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] transition hover:bg-[var(--color-bg)] group-hover:border-[var(--color-border-hover)]"
-                  aria-label={`Edit ${provider.name}`}
+              <div>
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                    provider.status === "enabled"
+                      ? "vr-app-status-success"
+                      : "vr-app-status-warning"
+                  }`}
                 >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModal({ type: "delete", provider })}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)] text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))] transition hover:brightness-95"
-                  aria-label={`Delete ${provider.name}`}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M3 6h18" />
-                    <path d="M8 6V4h8v2" />
-                    <path d="M19 6l-1 14H6L5 6" />
-                  </svg>
-                </button>
+                  {provider.status.charAt(0).toUpperCase() + provider.status.slice(1)}
+                </span>
               </div>
-            </div>
+              <div>
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                    provider.config
+                      ? "vr-app-status-success"
+                      : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
+                  }`}
+                >
+                  {provider.config ? "Configured" : "Empty"}
+                </span>
+              </div>
+              <div className="flex items-center lg:justify-end">
+                <TableRowActionsMenu
+                  label={provider.name}
+                  isOpen={openMenuId === provider.id}
+                  onToggle={() =>
+                    setOpenMenuId((current) =>
+                      current === provider.id ? null : provider.id,
+                    )
+                  }
+                  onClose={() => setOpenMenuId(null)}
+                  actions={[
+                    {
+                      id: "edit",
+                      label: "Edit provider",
+                      description: "Update connection settings",
+                      onClick: () => openEditModal(provider),
+                    },
+                    {
+                      id: "delete",
+                      label: "Delete provider",
+                      description: "Permanently remove this integration",
+                      danger: true,
+                      onClick: () => setModal({ type: "delete", provider }),
+                    },
+                  ]}
+                />
+              </div>
+            </DataTableRow>
           ))}
-          {sortedProviders.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
-              No providers yet. Create your first provider.
-            </div>
+          {filteredProviders.length === 0 ? (
+            <DataTableEmptyState
+              title={providers.length === 0 ? "No providers yet" : "No matching providers"}
+              description={
+                providers.length === 0
+                  ? "Create the first provider to configure an external service."
+                  : "Try a different search, status, or type filter."
+              }
+              action={
+                providers.length === 0 ? (
+                  <button
+                    type="button"
+                    onClick={openCreateModal}
+                    className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)]"
+                  >
+                    Add provider
+                  </button>
+                ) : null
+              }
+            />
           ) : null}
-        </div>
+        </DataTableBody>
+        <DataTablePagination
+          totalItems={filteredProviders.length}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          perPage={perPage}
+          onPageChange={setPage}
+          onPerPageChange={(size) => {
+            setPerPage(size);
+            setPage(1);
+          }}
+          itemLabel="providers"
+        />
+      </DataTable>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--color-text-muted)]">
-        <div>
-          Showing{" "}
-          <span className="font-semibold text-[var(--color-text)]">
-            {sortedProviders.length === 0 ? 0 : (currentPage - 1) * perPage + 1}
-          </span>{" "}
-          to{" "}
-          <span className="font-semibold text-[var(--color-text)]">
-            {Math.min(currentPage * perPage, sortedProviders.length)}
-          </span>{" "}
-          of{" "}
-          <span className="font-semibold text-[var(--color-text)]">{sortedProviders.length}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2">
-            Items per page
-            <select
-              value={perPage}
-              onChange={(event) => {
-                const next = Number(event.target.value);
-                setPerPage(next);
-                setPage(1);
-              }}
-              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]"
-            >
-              {[5, 10, 20, 50].map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] transition disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Prev
-            </button>
-            <span className="rounded-lg bg-[var(--color-raised)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] transition disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {modal
+      {modal && modal.type !== "delete"
         ? createPortal(
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] px-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] px-4 backdrop-blur-sm">
               <div className="max-h-[calc(100vh-3rem)] w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-2xl">
-                <div className="flex items-start justify-between gap-3 px-6 pt-6">
+                <div className="flex items-start justify-between gap-3 border-b border-[var(--color-border)] px-6 py-5">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
-                      Platform Settings
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-h)]">
+                      Platform settings
                     </p>
-                    <h2 className="mt-2 text-lg font-semibold text-[var(--color-text)]">
-                      {modal.type === "create" ? "Add Provider" : "Edit Provider"}
+                    <h2 className="mt-1 text-lg font-semibold text-[var(--color-text)]">
+                      {modal.type === "create" ? "Add a provider" : "Edit provider"}
                     </h2>
-                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                      Manage system provider configuration.
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                      Manage system provider configuration and connection fields.
                     </p>
                   </div>
                   <button
@@ -448,33 +521,6 @@ export function ProvidersManager({
                 </div>
 
                 <div className="max-h-[calc(100vh-8rem)] overflow-y-auto px-6 pb-6">
-                  {modal.type === "delete" ? (
-                    <form action={onDeleteProvider} className="mt-4 space-y-4">
-                      <input type="hidden" name="id" value={modal.provider.id} />
-                      <p className="text-sm text-[var(--color-text-muted)]">
-                        This will permanently remove{" "}
-                        <span className="font-semibold text-[var(--color-text)]">
-                          {modal.provider.name}
-                        </span>{" "}
-                        from the platform providers list.
-                      </p>
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setModal(null)}
-                          className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="rounded-xl bg-[var(--color-danger)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-95"
-                        >
-                          Delete Provider
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
                     <form
                       action={modal.type === "create" ? onCreateProvider : onUpdateProvider}
                       className="mt-4 space-y-4"
@@ -965,13 +1011,28 @@ export function ProvidersManager({
                       </button>
                     </div>
                     </form>
-                  )}
                 </div>
               </div>
             </div>,
             document.body,
           )
         : null}
-    </Panel>
+
+      <ConfirmDialog
+        open={modal?.type === "delete"}
+        title="Delete provider"
+        description={
+          modal?.type === "delete"
+            ? `This will permanently remove “${modal.provider.name}”.`
+            : ""
+        }
+        confirmLabel="Delete provider"
+        onCancel={() => setModal(null)}
+        action={onDeleteProvider}
+        hiddenFields={
+          modal?.type === "delete" ? [{ name: "id", value: modal.provider.id }] : []
+        }
+      />
+    </section>
   );
 }

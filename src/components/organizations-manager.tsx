@@ -3,8 +3,15 @@
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Panel } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import {
+  DataTable,
+  DataTableBody,
+  DataTableEmptyState,
+  DataTableHeader,
+  DataTablePagination,
+  DataTableRow,
+} from "@/components/data-table";
 
 type OrganizationRow = {
   id: string;
@@ -16,6 +23,7 @@ type OrganizationRow = {
 type OrganizationsManagerProps = {
   organizations: OrganizationRow[];
   activeOrganizationId: string;
+  readOnly?: boolean;
   returnTo: string;
   onCreateOrganization: (formData: FormData) => void | Promise<void>;
   onUpdateOrganization: (formData: FormData) => void | Promise<void>;
@@ -32,6 +40,7 @@ type ModalState =
 export function OrganizationsManager({
   organizations,
   activeOrganizationId,
+  readOnly = false,
   returnTo,
   onCreateOrganization,
   onUpdateOrganization,
@@ -55,51 +64,85 @@ export function OrganizationsManager({
   }, [sortedOrganizations, currentPage, perPage]);
 
   return (
-    <Panel title="Organizations" subtitle="Choose the active workspace used by booking operations">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-[var(--color-text-muted)]">
-          The active workspace controls dashboard data and signed-in booking tools.
-        </p>
-        <button
-          type="button"
-          onClick={() => setModal({ type: "create" })}
-          className="rounded-xl vr-btn-primary px-4 py-2 text-sm font-semibold"
-        >
-          Add organization
-        </button>
+    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-md)]">
+      <div className="flex flex-wrap items-end justify-between gap-4 px-5 py-5 lg:px-6">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Workspace directory</p>
+          <h2 className="mt-1 text-lg font-semibold tracking-tight text-[var(--color-text)]">Organizations</h2>
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-[var(--color-text-muted)]">
+            Select the workspace used by dashboard data, booking tools, and automated customer operations.
+          </p>
+        </div>
+        {readOnly ? (
+          <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-[10px] font-semibold text-[var(--color-text-muted)]">
+            View-only access
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setModal({ type: "create" })}
+            className="rounded-xl vr-btn-primary px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_-14px_color-mix(in_srgb,var(--color-primary)_85%,transparent)]"
+          >
+            Add organization
+          </button>
+        )}
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-        <div className="vr-app-table-header hidden grid-cols-[80px_1fr_160px_190px] items-center gap-2 px-4 py-3 md:grid">
+      <DataTable className="rounded-none border-x-0 border-b-0">
+        <DataTableHeader className="hidden grid-cols-[64px_minmax(0,1fr)_140px_220px] md:grid">
           <div>Index</div>
-          <div>Organization Name</div>
+          <div>Organization</div>
           <div>Created</div>
-          <div className="text-right">Actions</div>
-        </div>
-        <div className="divide-y divide-[var(--color-border-muted)]">
+          <div className="text-right">{readOnly ? "Access" : "Actions"}</div>
+        </DataTableHeader>
+        <DataTableBody>
+          {pagedOrganizations.length === 0 ? (
+            <DataTableEmptyState
+              title="No organizations yet"
+              description="Create an organization to start configuring booking operations."
+              action={!readOnly ? (
+                <button type="button" onClick={() => setModal({ type: "create" })} className="rounded-xl vr-btn-primary px-4 py-2 text-xs font-semibold">
+                  Add organization
+                </button>
+              ) : undefined}
+            />
+          ) : null}
           {pagedOrganizations.map((organization, index) => {
             const isActive = organization.id === activeOrganizationId;
             return (
-              <div
+              <DataTableRow
                 key={organization.id}
-                className="group grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] md:grid-cols-[80px_1fr_160px_190px]"
+                className="group items-center md:grid-cols-[64px_minmax(0,1fr)_140px_220px]"
               >
                 <div className="text-xs font-semibold text-[var(--color-text-muted)] md:text-sm">
-                  <span className="inline-flex min-w-[44px] items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
+                  <span className="inline-flex min-w-[40px] items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--color-text-muted)]">
                     {String((currentPage - 1) * perPage + index + 1).padStart(2, "0")}
                   </span>
                 </div>
-                <div>
-                  <p className="font-semibold text-[var(--color-text)]">{organization.name}</p>
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    {isActive ? "Active organization" : "Available organization"}
-                  </p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-semibold text-[var(--color-primary-h)] shadow-[var(--shadow-sm)]">
+                    {organization.logoUrl ? (
+                      <Image src={organization.logoUrl} alt="" width={40} height={40} unoptimized className="size-full object-contain p-1.5" />
+                    ) : (
+                      organization.name.slice(0, 2).toUpperCase()
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-[var(--color-text)]">{organization.name}</p>
+                    <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
+                      {isActive ? "Currently powering booking operations" : "Available workspace"}
+                    </p>
+                  </div>
                 </div>
                 <div className="text-xs font-semibold text-[var(--color-text-muted)]">
                   {new Date(organization.createdAt).toLocaleDateString()}
                 </div>
                 <div className="flex items-center justify-start gap-2 md:justify-end">
-                  {isActive ? (
+                  {readOnly ? (
+                    <span className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text-muted)]">
+                      View only
+                    </span>
+                  ) : isActive ? (
                     <span className="inline-flex rounded-lg vr-app-status-success px-2.5 py-1 text-xs font-semibold">
                       Active
                     </span>
@@ -109,27 +152,27 @@ export function OrganizationsManager({
                       <input type="hidden" name="return_to" value={returnTo} />
                       <button
                         type="submit"
-                        className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--color-border)] px-2.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
+                        className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs font-semibold text-[var(--color-text)] transition hover:border-[var(--color-border-hover)] hover:bg-[var(--color-raised)]"
                       >
                         Set Active
                       </button>
                     </form>
                   )}
-                  <button
+                  {!readOnly ? <button
                     type="button"
                     onClick={() => setModal({ type: "edit", organization })}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface)]"
+                    className="inline-flex size-9 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] transition hover:border-[var(--color-border-hover)] hover:bg-[var(--color-raised)]"
                     aria-label={`Edit ${organization.name}`}
                   >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M12 20h9" />
                       <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
                     </svg>
-                  </button>
-                  <button
+                  </button> : null}
+                  {!readOnly ? <button
                     type="button"
                     onClick={() => setModal({ type: "delete", organization })}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)] text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex size-9 items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)] text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
                     aria-label={`Delete ${organization.name}`}
                     disabled={organizations.length <= 1}
                   >
@@ -138,67 +181,25 @@ export function OrganizationsManager({
                       <path d="M8 6V4h8v2" />
                       <path d="M19 6l-1 14H6L5 6" />
                     </svg>
-                  </button>
+                  </button> : null}
                 </div>
-              </div>
+              </DataTableRow>
             );
           })}
-        </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--color-text-muted)]">
-        <div>
-          Showing{" "}
-          <span className="font-semibold text-[var(--color-text)]">
-            {sortedOrganizations.length === 0 ? 0 : (currentPage - 1) * perPage + 1}
-          </span>{" "}
-          to{" "}
-          <span className="font-semibold text-[var(--color-text)]">
-            {Math.min(currentPage * perPage, sortedOrganizations.length)}
-          </span>{" "}
-          of <span className="font-semibold text-[var(--color-text)]">{sortedOrganizations.length}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2">
-            Items per page
-            <select
-              value={perPage}
-              onChange={(event) => {
-                setPerPage(Number(event.target.value));
-                setPage(1);
-              }}
-              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]"
-            >
-              {[5, 10, 20, 50].map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] transition disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Prev
-            </button>
-            <span className="rounded-lg bg-[var(--color-raised)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] transition disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
+        </DataTableBody>
+        <DataTablePagination
+          totalItems={sortedOrganizations.length}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          perPage={perPage}
+          onPageChange={setPage}
+          onPerPageChange={(size) => {
+            setPerPage(size);
+            setPage(1);
+          }}
+          itemLabel="organizations"
+        />
+      </DataTable>
 
       {modal && modal.type !== "delete"
         ? createPortal(
@@ -311,6 +312,6 @@ export function OrganizationsManager({
             : []
         }
       />
-    </Panel>
+    </section>
   );
 }

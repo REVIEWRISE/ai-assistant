@@ -31,6 +31,9 @@ export default async function AppointmentOrganizationPage() {
       activeOrganizationId: true,
       user: {
         select: {
+          userRoles: {
+            select: { role: { select: { name: true } } },
+          },
           organizationMembers: {
             select: {
               organization: { select: { id: true, name: true, logoUrl: true, createdAt: true } },
@@ -47,6 +50,7 @@ export default async function AppointmentOrganizationPage() {
   }
 
   const organizations = session.user.organizationMembers.map((member) => member.organization);
+  const isAdmin = session.user.userRoles.some((userRole) => userRole.role.name === "Admin");
   const totalOrganizations = organizations.length;
   const newestOrganization = organizations[organizations.length - 1];
   const newestLabel = newestOrganization
@@ -54,22 +58,29 @@ export default async function AppointmentOrganizationPage() {
     : "—";
 
   return (
-    <div className="mx-auto max-w-[92rem] space-y-4">
+    <div className="mx-auto max-w-[92rem] space-y-5">
       <ProfileToasts />
       <AppointmentPageHeader
+        variant="command"
         title="Organization workspace"
-        description="Choose which business the Appointment Agent should operate, or create another workspace."
+        description={
+          isAdmin
+            ? "Review the organizations available to the Appointment Agent. Organization management is reserved for users."
+            : "Choose which business the Appointment Agent should operate, or create another workspace."
+        }
         status={session.activeOrganization?.name ?? "No active organization"}
         statusTone={session.activeOrganization ? "success" : "warning"}
         metrics={[
           { label: "Organizations", value: totalOrganizations, hint: totalOrganizations === 1 ? "workspace" : "workspaces" },
           { label: "Active workspace", value: session.activeOrganization?.name ?? "Not selected" },
           { label: "Newest", value: newestOrganization?.name ?? "—", hint: newestLabel },
+          { label: "Access", value: isAdmin ? "View only" : "Full access", hint: isAdmin ? "admin role" : "user role" },
         ]}
       />
       <OrganizationsManager
         organizations={organizations}
         activeOrganizationId={session.activeOrganizationId ?? ""}
+        readOnly={isAdmin}
         returnTo="/appointments/organization"
         onCreateOrganization={createOrganization}
         onUpdateOrganization={updateOrganizationName}

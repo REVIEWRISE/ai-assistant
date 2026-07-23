@@ -115,16 +115,16 @@ export function CalendarServiceManager({
               No providers match this filter.
             </div>
           ) : (
-            <div className="divide-y divide-[var(--color-border)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {filteredProviders.map((provider: CalendarProvider) => {
                 const connected = provider.status === "Connected";
                 return (
                   <div
                     key={provider.name}
-                    className="flex flex-wrap items-center gap-3 px-3.5 py-3"
+                    className="flex min-w-0 flex-col justify-between gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 shadow-[var(--shadow-sm)] transition hover:-translate-y-0.5 hover:border-[var(--color-border-hover)] hover:shadow-[var(--shadow-md)]"
                   >
-                    <div className="flex min-w-0 flex-1 items-center gap-3">
-                        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+                    <div className="flex min-w-0 items-start gap-3">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
                           {provider.logoUrl ? (
                             <Image
                               src={provider.logoUrl}
@@ -149,7 +149,7 @@ export function CalendarServiceManager({
                           </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between gap-2 border-t border-[var(--color-border-muted)] pt-3">
                       <span
                         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                           connected ? "vr-app-status-success" : "vr-app-status-muted"

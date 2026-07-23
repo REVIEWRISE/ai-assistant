@@ -15,6 +15,7 @@ import {
 } from "@/lib/review-reply-publish";
 import { detectReviewIntegration } from "@/lib/review-provider-integration";
 import { verifyYelpConnection, cleanYelpBaseUrl } from "@/lib/yelp-fusion";
+import { userHasAdminRole } from "@/lib/admin-view-only";
 
 const REVIEWS_ROUTE = "/reviews";
 
@@ -41,6 +42,7 @@ async function requireReviewOrgSession(organizationId: string) {
     select: { id: true },
   });
   if (!membership) return null;
+  if (await userHasAdminRole(session.userId)) return null;
 
   return session;
 }
@@ -68,6 +70,9 @@ export async function completeReviewProviderLocation(formData: FormData) {
   });
   if (!session) redirect("/login");
   if (!session.activeOrganizationId) redirect(`${REVIEWS_ROUTE}?error=organization_required`);
+  if (await userHasAdminRole(session.userId)) {
+    redirect(`${REVIEWS_ROUTE}?error=review_read_only`);
+  }
 
   const provider = await prisma.provider.findFirst({
     where: { id: providerId, type: "review", status: "enabled" },
@@ -133,6 +138,9 @@ export async function connectReviewProvider(formData: FormData) {
     select: { userId: true },
   });
   if (!session) redirect("/login");
+  if (await userHasAdminRole(session.userId)) {
+    redirect(`${REVIEWS_ROUTE}?error=review_read_only`);
+  }
 
   const provider = await prisma.provider.findFirst({
     where: { id: providerId, type: "review", status: "enabled" },
@@ -247,6 +255,9 @@ export async function syncReviewProvider(formData: FormData) {
     },
   });
   if (!session) redirect("/login");
+  if (await userHasAdminRole(session.userId)) {
+    redirect(`${REVIEWS_ROUTE}?error=review_read_only`);
+  }
   const organizationId =
     session.activeOrganizationId ?? session.user.organizationMembers[0]?.organizationId ?? null;
   if (!organizationId) {
@@ -297,6 +308,9 @@ export async function saveReviewRoutingRules(formData: FormData) {
     select: { userId: true, activeOrganizationId: true },
   });
   if (!session) redirect("/login");
+  if (await userHasAdminRole(session.userId)) {
+    redirect(`${REVIEWS_ROUTE}?error=review_read_only`);
+  }
   if (!session.activeOrganizationId || session.activeOrganizationId !== organizationId) {
     redirect(`${REVIEWS_ROUTE}?error=organization_required`);
   }
@@ -345,6 +359,9 @@ export async function saveReviewSyncCron(formData: FormData) {
     select: { userId: true, activeOrganizationId: true },
   });
   if (!session) redirect("/login");
+  if (await userHasAdminRole(session.userId)) {
+    redirect(`${REVIEWS_ROUTE}?error=review_read_only`);
+  }
   if (!session.activeOrganizationId || session.activeOrganizationId !== organizationId) {
     redirect(`${REVIEWS_ROUTE}?error=organization_required`);
   }

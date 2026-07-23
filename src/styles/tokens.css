@@ -4,6 +4,7 @@
 
 :root,
 [data-theme="light"] {
+  color-scheme: light;
   --color-bg:              #ffffff;
   --color-surface:         #f8fafc;
   --color-raised:          #f1f5f9;
@@ -48,6 +49,7 @@
 
 .dark,
 [data-theme="dark"] {
+  color-scheme: dark;
   --color-bg:              #0b101a;
   --color-surface:         #151b2b;
   --color-raised:          #1e2538;
@@ -64,6 +66,13 @@
   --color-primary-h:       #818cf8;
   --color-primary-fg:      #ffffff;
   --color-primary-soft:    #1e1b4b;
+
+  --color-success:         #34d399;
+  --color-success-soft:    #062c23;
+  --color-danger:          #f87171;
+  --color-danger-soft:     #321519;
+  --color-warning:         #fbbf24;
+  --color-warning-soft:    #33240b;
 
   --shadow-sm:             0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow-md:             0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);

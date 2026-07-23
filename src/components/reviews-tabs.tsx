@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -17,7 +17,6 @@ import {
 import { ReviewServiceManager } from "@/components/review-service-manager";
 import { ReviewRoutingSettings } from "@/components/review-routing-settings";
 import { ReviewSyncCronSettings } from "@/components/review-sync-cron-settings";
-import { Panel } from "@/components/ui";
 import type { ReviewRoutingRules } from "@/lib/review-routing";
 import type { ReviewSyncCronConfig } from "@/lib/review-sync-cron";
 import type { ReviewReplyAutomationConfig } from "@/lib/review-reply-automation";
@@ -104,6 +103,35 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "configuration", label: "Automation" },
 ];
 
+function TabSectionHeader({
+  eyebrow,
+  title,
+  description,
+  aside,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  aside?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-3 border-b border-[var(--color-border)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between lg:px-6">
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
+          {eyebrow}
+        </p>
+        <h2 className="mt-1.5 text-lg font-semibold tracking-[-0.015em] text-[var(--color-text)]">
+          {title}
+        </h2>
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--color-text-muted)]">
+          {description}
+        </p>
+      </div>
+      {aside ? <div className="shrink-0">{aside}</div> : null}
+    </div>
+  );
+}
+
 function ChartTooltip({
   active,
   label,
@@ -144,7 +172,7 @@ function TrendLineChart({
   points: Array<{ day: string; count: number }>;
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
@@ -180,7 +208,7 @@ function ServiceBarChart({
   items: Array<{ service: string; total: number; autoPublished: number }>;
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
       <div className="h-72 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -219,6 +247,7 @@ function ServiceBarChart({
 }
 
 type ReviewsTabsProps = {
+  readOnly?: boolean;
   defaultTab?: TabKey;
   organizationId: string;
   routingRules: ReviewRoutingRules;
@@ -247,6 +276,7 @@ type ReviewsTabsProps = {
 };
 
 export function ReviewsTabs({
+  readOnly = false,
   defaultTab = "integrations",
   organizationId,
   routingRules,
@@ -274,6 +304,10 @@ export function ReviewsTabs({
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const hasReviewActivity = performance.some((metric) => Number(metric.value) > 0);
+  const connectedSourceCount = reviewServices.filter((service) => service.status === "Connected").length;
+  const pendingReviewCount = inbox.length;
+  const humanReviewCount = inbox.filter((review) => review.status === "Needs human review").length;
+  const autoReadyCount = inbox.filter((review) => review.status === "Safe to auto-publish").length;
 
   function openReview(review: InboxItem) {
     setSelectedReview(review);
@@ -351,41 +385,57 @@ export function ReviewsTabs({
 
   return (
     <section className="space-y-4">
-      <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1" role="tablist" aria-label="Review operations">
-        {tabs.map((tab) => {
-          const active = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => selectTab(tab.key)}
-              className={`whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
-                active
-                  ? "bg-[var(--color-bg)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border)]"
-                  : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-text)]"
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1" role="tablist" aria-label="Review operations">
+          {tabs.map((tab) => {
+            const active = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => selectTab(tab.key)}
+                className={`whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
+                  active
+                    ? "bg-[var(--color-bg)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border)]"
+                    : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-text)]"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+        {readOnly ? (
+          <span className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
+            View-only access
+          </span>
+        ) : null}
       </div>
 
       {activeTab === "integrations" ? (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <ReviewServiceManager
             services={reviewServices}
+            readOnly={readOnly}
             onConnectProvider={onConnectProvider}
             onSyncProvider={onSyncProvider}
           />
-          <Panel
-            title="Pending by Review Source"
-            subtitle="Remaining reviews by connected service"
-          >
+          <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+            <TabSectionHeader
+              eyebrow="Source workload"
+              title="Pending by review source"
+              description="See where response work is accumulating across connected reputation channels."
+              aside={
+                <span className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
+                  {connectedSourceCount}/{reviewServices.length} connected
+                </span>
+              }
+            />
+            <div className="p-4 lg:p-5">
             {pendingBySource.length === 0 ? (
-              <div className="rounded-xl border vr-app-alert vr-app-alert-warning border-0 p-3 text-sm text-inherit">
+              <div className="rounded-2xl vr-app-alert vr-app-alert-warning p-4 text-sm text-inherit">
                 <p className="font-semibold">No review sources found.</p>
                 <p className="mt-1 text-xs text-inherit opacity-90">
                   In Platform → Providers, enable a provider with type Review. It will appear here even before
@@ -393,41 +443,59 @@ export function ReviewsTabs({
                 </p>
               </div>
             ) : pendingBySource.every((item) => Number(item.pending) === 0) ? (
-              <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <p className="text-sm font-semibold text-[var(--color-text)]">All connected inboxes are clear</p>
-                <p className="mt-1 text-xs text-[var(--color-text-muted)]">Run a sync from a connected source to check for new reviews.</p>
+              <div className="flex min-h-32 items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] p-5 text-center">
+                <div>
+                  <span className="mx-auto flex size-10 items-center justify-center rounded-xl bg-[var(--color-success-soft)] text-sm font-bold text-[var(--color-success)]">✓</span>
+                  <p className="mt-3 text-sm font-semibold text-[var(--color-text)]">All connected inboxes are clear</p>
+                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">Run a sync from a connected source to check for new reviews.</p>
+                </div>
               </div>
             ) : (
-              <div className="space-y-3 text-sm text-[var(--color-text)]">
+              <div className="grid gap-3 text-sm text-[var(--color-text)] sm:grid-cols-2 xl:grid-cols-3">
                 {pendingBySource.map((item) => (
                   <div
                     key={item.source}
-                    className="flex items-center justify-between rounded-xl border border-[var(--color-border)] p-3"
+                    className="flex min-h-24 items-center justify-between gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4"
                   >
                     <div>
                       <p className="font-semibold text-[var(--color-text)]">{item.source}</p>
-                      <p className="text-xs text-[var(--color-text-muted)]">{item.autoReady}</p>
+                      <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">{item.autoReady}</p>
                     </div>
-                    <span className="rounded-full bg-[var(--color-raised)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text)]">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-raised)] text-sm font-semibold tabular-nums text-[var(--color-text)]">
                       {item.pending}
                     </span>
                   </div>
                 ))}
               </div>
             )}
-          </Panel>
+            </div>
+          </section>
         </div>
       ) : null}
 
       {activeTab === "workflow" ? (
-        <div className="space-y-4">
-          <div>
-            <Panel
-              title="Review Inbox"
-              subtitle="Prioritized by source, sentiment, rating, and risk"
-            >
+        <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+          <TabSectionHeader
+            eyebrow="Response queue"
+            title="Review inbox"
+            description="Review suggested responses in priority order, with source, rating, and risk visible at a glance."
+            aside={
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
+                  {pendingReviewCount} in inbox
+                </span>
+                <span className="rounded-full vr-app-status-danger px-3 py-1.5 text-xs font-semibold">
+                  {humanReviewCount} need review
+                </span>
+                <span className="rounded-full vr-app-status-success px-3 py-1.5 text-xs font-semibold">
+                  {autoReadyCount} auto-ready
+                </span>
+              </div>
+            }
+          />
+          <div className="p-4 lg:p-5">
               {inbox.length === 0 ? (
-                <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-sm">
+                <div className="flex min-h-36 flex-wrap items-center justify-between gap-4 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] p-5 text-sm">
                   <div>
                     <p className="font-semibold text-[var(--color-text)]">Your review inbox is clear</p>
                     <p className="mt-1 text-xs text-[var(--color-text-muted)]">
@@ -463,9 +531,9 @@ export function ReviewsTabs({
                       <button
                         type="button"
                         onClick={() => openReview(review)}
-                        className="mt-3 rounded-lg border border-[var(--color-border-hover)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+                        className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
                       >
-                        Open
+                        {readOnly ? "View" : "Review"}
                       </button>
                     </div>
                   ))}
@@ -515,7 +583,7 @@ export function ReviewsTabs({
                             onClick={() => openReview(review)}
                             className="rounded-lg border border-[var(--color-border-hover)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] group-hover:border-[var(--color-border)]"
                           >
-                            Open
+                            {readOnly ? "View" : "Review"}
                           </button>
                         </div>
                       </div>
@@ -523,79 +591,141 @@ export function ReviewsTabs({
                   </div>
                 </div>
               ) : null}
-            </Panel>
           </div>
-
-        </div>
+        </section>
       ) : null}
 
       {activeTab === "analytics" ? (
-        <div className="space-y-4">
-          <Panel title="Performance Snapshot" subtitle="This week compared to last week">
-            <div className="grid gap-3 sm:grid-cols-3 text-sm">
+        <div className="space-y-5">
+          <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+            <TabSectionHeader
+              eyebrow="Weekly pulse"
+              title="Performance snapshot"
+              description="Compare this week’s review volume and response workload with the previous week."
+              aside={
+                <span className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
+                  Updated from synced reviews
+                </span>
+              }
+            />
+            <div className="grid sm:grid-cols-3">
               {performance.map((metric) => (
-                <div key={metric.label} className="rounded-xl border border-[var(--color-border)] p-3">
-                  <p className="text-xs uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+                <div key={metric.label} className="border-b border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-5 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
                     {metric.label}
                   </p>
-                  <p className="mt-1 text-lg font-semibold text-[var(--color-text)]">{metric.value}</p>
+                  <div className="mt-2 flex items-end justify-between gap-3">
+                    <p className="text-3xl font-semibold tracking-[-0.03em] text-[var(--color-text)]">{metric.value}</p>
                   <p
-                    className={
-                      metric.delta.startsWith("+") ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"
-                    }
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      metric.delta.startsWith("-")
+                        ? "vr-app-status-success"
+                        : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
+                    }`}
                   >
-                    {metric.delta}
+                    {metric.delta} vs last week
                   </p>
+                  </div>
                 </div>
               ))}
             </div>
-          </Panel>
+          </section>
 
-          <div className="space-y-4">
-            <Panel
-              title="Auto-Published Reviews Trend"
-              subtitle="Last 7 days of automatically published responses"
-            >
+          <div className="grid gap-5 xl:grid-cols-2">
+            <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+              <TabSectionHeader
+                eyebrow="Publishing velocity"
+                title="Auto-published trend"
+                description="Automatically published responses over the last seven days."
+              />
+              <div className="p-4 lg:p-5">
               {hasReviewActivity ? (
                 <TrendLineChart points={autoPublishedTrend} />
               ) : (
-                <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-center">
+                <div className="flex min-h-72 items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] p-5 text-center">
+                  <div>
                   <p className="text-sm font-semibold text-[var(--color-text)]">No publishing activity yet</p>
                   <p className="mt-1 text-xs text-[var(--color-text-muted)]">Trend data appears after reviews are synced and responses are sent.</p>
+                  </div>
                 </div>
               )}
-            </Panel>
+              </div>
+            </section>
 
-            <Panel
-              title="Reviews by Service"
-              subtitle="Focus where review volume is highest"
-            >
+            <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+              <TabSectionHeader
+                eyebrow="Channel mix"
+                title="Reviews by service"
+                description="Compare total volume and auto-published responses by source."
+              />
+              <div className="p-4 lg:p-5">
               {serviceReviewVolume.length > 0 ? (
                 <ServiceBarChart items={serviceReviewVolume} />
               ) : (
-                <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-center">
+                <div className="flex min-h-72 items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] p-5 text-center">
+                  <div>
                   <p className="text-sm font-semibold text-[var(--color-text)]">No source volume yet</p>
                   <p className="mt-1 text-xs text-[var(--color-text-muted)]">Connect and sync a review source to compare volume.</p>
+                  </div>
                 </div>
               )}
-            </Panel>
+              </div>
+            </section>
           </div>
         </div>
       ) : null}
 
       {activeTab === "configuration" ? (
-        <div className="space-y-4">
+        <div className="space-y-5">
+          <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+            <TabSectionHeader
+              eyebrow="Automation control"
+              title="Review response policy"
+              description="Control when reviews are collected, when AI drafts a response, and which ratings require human approval."
+              aside={
+                <div className="flex flex-wrap gap-2">
+                  <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${syncCronConfig.enabled ? "vr-app-status-success" : "vr-app-status-muted"}`}>
+                    Sync {syncCronConfig.enabled ? "enabled" : "off"}
+                  </span>
+                  <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${replyAutomation.draftOnSync ? "vr-app-status-success" : "vr-app-status-muted"}`}>
+                    AI drafts {replyAutomation.draftOnSync ? "enabled" : "off"}
+                  </span>
+                </div>
+              }
+            />
+            <div className="grid gap-3 p-4 text-sm sm:grid-cols-3 lg:p-5">
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">1 · Collect</p>
+                <p className="mt-2 font-semibold text-[var(--color-text)]">Sync new reviews</p>
+                <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">Pull reputation activity on a controlled schedule.</p>
+              </div>
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">2 · Prepare</p>
+                <p className="mt-2 font-semibold text-[var(--color-text)]">Generate response drafts</p>
+                <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">Create consistent replies as reviews enter the inbox.</p>
+              </div>
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">3 · Route</p>
+                <p className="mt-2 font-semibold text-[var(--color-text)]">Apply approval rules</p>
+                <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">Send each rating to the right publishing workflow.</p>
+              </div>
+            </div>
+          </section>
+          <div className="grid items-start gap-5 xl:grid-cols-2">
           <ReviewSyncCronSettings
+            readOnly={readOnly}
             organizationId={organizationId}
             initialConfig={syncCronConfig}
             initialReplyAutomation={replyAutomation}
             onSave={onSaveSyncCron}
           />
           <ReviewRoutingSettings
+            readOnly={readOnly}
             organizationId={organizationId}
             initialRules={routingRules}
             onSave={onSaveRoutingRules}
           />
+          </div>
         </div>
       ) : null}
 
@@ -642,7 +772,7 @@ export function ReviewsTabs({
                   <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
                     {responsePanelTitle(selectedReview.status)}
                   </p>
-                  {isEditing ? (
+                  {isEditing && !readOnly ? (
                     <textarea
                       value={draftText}
                       onChange={(event) => setDraftText(event.target.value)}
@@ -680,6 +810,14 @@ export function ReviewsTabs({
                       <p className="text-xs font-medium text-[var(--color-text-muted)]">
                         Already replied on {selectedReview.source} — no further action needed.
                       </p>
+                    );
+                  }
+
+                  if (readOnly) {
+                    return (
+                      <span className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text-muted)]">
+                        View only
+                      </span>
                     );
                   }
 

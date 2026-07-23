@@ -5,6 +5,15 @@ import { createPortal } from "react-dom";
 import { Panel } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CustomSelect } from "@/components/custom-select";
+import {
+  DataTable,
+  DataTableBody,
+  DataTableEmptyState,
+  DataTableHeader,
+  DataTablePagination,
+  DataTableRow,
+} from "@/components/data-table";
+import { TableRowActionsMenu } from "@/components/table-row-actions-menu";
 
 type OrganizationOption = {
   id: string;
@@ -58,6 +67,7 @@ export function PermissionsManager({
   embedded = false,
 }: PermissionsManagerProps) {
   const [modal, setModal] = useState<ModalState>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
   const [selectedMenuItemId, setSelectedMenuItemId] = useState("");
@@ -240,20 +250,20 @@ export function PermissionsManager({
         </div>
       )}
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-        <div className="vr-app-table-header hidden grid-cols-[56px_1.1fr_1.2fr_1.2fr_120px_80px] items-center gap-2 px-4 py-3 md:grid">
+      <DataTable className="mt-4">
+        <DataTableHeader className="hidden grid-cols-[56px_1.1fr_1.2fr_1.2fr_120px_80px] md:grid">
           <div>#</div>
           <div>Organization</div>
           <div>User</div>
           <div>Menu</div>
           <div>Created</div>
           <div className="text-right">Actions</div>
-        </div>
-        <div className="divide-y divide-[var(--color-border-muted)]">
+        </DataTableHeader>
+        <DataTableBody>
           {pagedPermissions.map((permission, index) => (
-            <div
+            <DataTableRow
               key={permission.id}
-              className="group grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] md:grid-cols-[56px_1.1fr_1.2fr_1.2fr_120px_80px]"
+              className="group items-center gap-2 md:grid-cols-[56px_1.1fr_1.2fr_1.2fr_120px_80px]"
             >
               <div className="text-xs font-semibold text-[var(--color-text-muted)]">
                 {String((currentPage - 1) * perPage + index + 1).padStart(2, "0")}
@@ -274,92 +284,49 @@ export function PermissionsManager({
               <div className="text-xs font-semibold text-[var(--color-text-muted)]">
                 {new Date(permission.createdAt).toLocaleDateString()}
               </div>
-              <div className="flex items-center justify-start gap-2 md:justify-end">
-                <button
-                  type="button"
-                  onClick={() => setModal({ type: "delete", permission })}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)] text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))] transition hover:brightness-95"
-                  aria-label="Delete permission"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M3 6h18" />
-                    <path d="M8 6V4h8v2" />
-                    <path d="M19 6l-1 14H6L5 6" />
-                  </svg>
-                </button>
+              <div className="flex items-center justify-start md:justify-end">
+                <TableRowActionsMenu
+                  label={`${permission.user.fullName} · ${permission.menuItem.label}`}
+                  isOpen={openMenuId === permission.id}
+                  onToggle={() =>
+                    setOpenMenuId((current) =>
+                      current === permission.id ? null : permission.id,
+                    )
+                  }
+                  onClose={() => setOpenMenuId(null)}
+                  actions={[
+                    {
+                      id: "delete",
+                      label: "Delete permission",
+                      description: "Remove this user override",
+                      danger: true,
+                      onClick: () => setModal({ type: "delete", permission }),
+                    },
+                  ]}
+                />
               </div>
-            </div>
+            </DataTableRow>
           ))}
           {filteredPermissions.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
-              No user permissions yet. Assign menu access for a specific organization member.
-            </div>
+            <DataTableEmptyState
+              title="No user overrides yet"
+              description="Assign menu access for a specific organization member."
+            />
           ) : null}
-        </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--color-text-muted)]">
-        <div>
-          Showing{" "}
-          <span className="font-semibold text-[var(--color-text)]">
-            {filteredPermissions.length === 0 ? 0 : (currentPage - 1) * perPage + 1}
-          </span>{" "}
-          to{" "}
-          <span className="font-semibold text-[var(--color-text)]">
-            {Math.min(currentPage * perPage, filteredPermissions.length)}
-          </span>{" "}
-          of{" "}
-          <span className="font-semibold text-[var(--color-text)]">
-            {filteredPermissions.length}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2">
-            Items per page
-            <select
-              value={perPage}
-              onChange={(event) => {
-                setPerPage(Number(event.target.value));
-                setPage(1);
-              }}
-              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]"
-            >
-              {[5, 10, 20, 50].map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] transition disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Prev
-            </button>
-            <span className="rounded-lg bg-[var(--color-raised)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] transition disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
+        </DataTableBody>
+        <DataTablePagination
+          totalItems={filteredPermissions.length}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          perPage={perPage}
+          onPageChange={setPage}
+          onPerPageChange={(size) => {
+            setPerPage(size);
+            setPage(1);
+          }}
+          itemLabel="permissions"
+        />
+      </DataTable>
 
       {modal?.type === "create"
         ? createPortal(

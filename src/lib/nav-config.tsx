@@ -5,7 +5,8 @@ export type NavItem = {
   label: string;
   shortLabel: string;
   icon: ReactNode;
-  children?: Array<{ href: string; label: string }>;
+  requiresAdmin?: boolean;
+  children?: Array<{ href: string; label: string; requiresAdmin?: boolean }>;
 };
 
 export const APP_NAV_ITEMS: NavItem[] = [
@@ -98,7 +99,10 @@ export const APP_NAV_ITEMS: NavItem[] = [
         <path d="M7 7h.01M7 17h.01" />
       </svg>
     ),
-    children: [{ href: "/platform/providers", label: "Providers" }],
+    children: [
+      { href: "/platform/providers", label: "Providers" },
+      { href: "/platform/billing-plans", label: "Billing Plans", requiresAdmin: true },
+    ],
   },
   {
     href: "/profile",

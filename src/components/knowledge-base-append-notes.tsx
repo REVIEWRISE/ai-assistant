@@ -22,8 +22,9 @@ function AppendSubmitButton() {
 
 export function KnowledgeBaseAppendNotes({ organizationId, onAppendNotes }: KnowledgeBaseAppendNotesProps) {
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
-      <p className="text-sm font-semibold text-[var(--color-text)]">Add on top of imported content</p>
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 shadow-[var(--shadow-sm)]">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-h)]">Manual context</p>
+      <p className="mt-1 text-sm font-semibold text-[var(--color-text)]">Add on top of imported content</p>
       <p className="mt-1 text-xs text-[var(--color-text-muted)]">
         Notes are appended after your existing scrape or file. The combined text is capped at 20,000 characters. After
         adding material, the draft returns to pending approval if it was previously approved.

@@ -59,54 +59,17 @@ export const LANDING_TESTIMONIALS = [
 ] as const;
 
 export type LandingPlan = {
+  slug: string;
   title: string;
+  description: string;
   price: string;
   period: string;
+  yearlyPrice: string;
+  yearlyMonthlyPrice: string;
+  trialDays: number;
+  includedLocations: number;
+  teamMemberLimit: number;
+  includedVoiceMinutes: number;
   items: string[];
   featured?: boolean;
 };
-
-export const LANDING_PLANS: LandingPlan[] = [
-  {
-    title: "Starter",
-    price: "$49",
-    period: "/mo",
-    items: [
-      "Review reply + appointment workflows",
-      "1 location",
-      "Google Calendar & Outlook sync",
-      "Brand tone + basic playbooks",
-      "Dashboard: response time & bookings",
-      "Email support",
-    ],
-  },
-  {
-    title: "Growth",
-    price: "$99",
-    period: "/mo",
-    items: [
-      "Everything in Starter",
-      "Lead capture agent + qualification",
-      "Team roles & location permissions",
-      "Approval queues for sensitive replies",
-      "Escalation rules & coverage alerts",
-      "Shared inbox across channels",
-      "Chat + email support",
-    ],
-    featured: true,
-  },
-  {
-    title: "Multi-location",
-    price: "$199",
-    period: "/mo",
-    items: [
-      "Unlimited locations",
-      "Roll-up & per-location analytics",
-      "Cross-location policies & templates",
-      "Priority support & faster onboarding",
-      "Bulk updates across locations",
-      "Export-ready reporting",
-      "Optional API & webhooks",
-    ],
-  },
-];

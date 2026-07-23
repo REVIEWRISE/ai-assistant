@@ -23,6 +23,11 @@ export default async function AppointmentChatbotPage({
       activeOrganizationId: true,
       user: {
         select: {
+          userRoles: {
+            select: {
+              role: { select: { name: true } },
+            },
+          },
           organizationMembers: {
             orderBy: { createdAt: "asc" },
             select: {
@@ -56,6 +61,7 @@ export default async function AppointmentChatbotPage({
   }
 
   const activeId = session.activeOrganizationId;
+  const isAdmin = session.user.userRoles.some((userRole) => userRole.role.name === "Admin");
   const organizations = memberships.map((m) => m.organization);
   const totalOrganizations = organizations.length;
   const activeOrganization = activeId
@@ -70,6 +76,7 @@ export default async function AppointmentChatbotPage({
       name: org.name,
       createdAt: org.createdAt.toISOString(),
       isActive: activeId === org.id,
+      configured: Boolean(org.chatbotSettings),
       config,
     };
   });
@@ -86,14 +93,20 @@ export default async function AppointmentChatbotPage({
     chatbot_generate_no_api_key: "Add OPENAI_API_KEY to generate the assistant from your knowledge base.",
     chatbot_generate_no_kb: "Import a knowledge base first (substantial text). Then try generating again.",
     chatbot_generate_failed: "Could not generate chatbot settings. Try again or edit manually.",
+    chatbot_read_only: "Admins have view-only access to booking assistant settings.",
   };
 
   return (
-    <div className="mx-auto max-w-[92rem] space-y-4">
+    <div className="mx-auto max-w-[92rem] space-y-5">
       <AppointmentPageHeader
+        variant="command"
         title="Booking assistants"
-        description="Configure the website assistant, booking questions, voice experience, and CRM delivery for each organization."
-        status={activeOrganization ? `Active: ${activeOrganization.name}` : "No active organization"}
+        description={
+          isAdmin
+            ? "Review website assistant, booking flow, voice, and CRM status for each organization. Configuration is reserved for users."
+            : "Configure the website assistant, booking questions, voice experience, and CRM delivery for each organization."
+        }
+        status={isAdmin ? "Admin · View only" : activeOrganization ? `Active: ${activeOrganization.name}` : "No active organization"}
         statusTone={activeOrganization ? "success" : "warning"}
         actions={[
           { href: "/appointments/organization", label: "Manage organizations" },
@@ -128,6 +141,7 @@ export default async function AppointmentChatbotPage({
       <ChatbotOrganizationsTable
         embedBaseUrl={embedBaseUrl}
         rows={rows}
+        readOnly={isAdmin}
         onSaveChatbot={saveChatbotConfig}
         onSaveCrmIntegration={saveCrmIntegration}
         onSaveVoiceBooking={saveVoiceBooking}

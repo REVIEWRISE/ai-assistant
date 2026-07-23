@@ -307,7 +307,7 @@ export default async function AppointmentsOverviewPage({
   const completedSetupSteps = setupSteps.filter((step) => step.complete).length;
 
   return (
-    <div className="mx-auto max-w-[92rem] space-y-4">
+    <div className="mx-auto max-w-[92rem] space-y-5">
       {successFlag === "calendar_synced" ? (
         <div className="vr-app-alert vr-app-alert-success">
           Booking posted to the selected calendar successfully.
@@ -328,6 +328,7 @@ export default async function AppointmentsOverviewPage({
       ) : null}
 
       <AppointmentPageHeader
+        variant="command"
         title="Appointment operations"
         description={<>Monitor availability, bookings, and delivery health for {activeOrganization.name}.</>}
         status={connectedProviders > 0 ? "Calendar connected" : "Calendar setup needed"}
@@ -345,26 +346,27 @@ export default async function AppointmentsOverviewPage({
       />
 
       {completedSetupSteps < setupSteps.length ? (
-        <section className="rounded-[1.35rem] border border-[color-mix(in_srgb,var(--color-primary)_18%,var(--color-border))] bg-[linear-gradient(135deg,var(--color-primary-soft),var(--color-surface)_60%)] p-4 shadow-[var(--shadow-sm)]">
+        <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-md)]">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-h)]">Setup progress</p>
-              <h2 className="mt-1 text-sm font-semibold text-[var(--color-text)]">{completedSetupSteps} of {setupSteps.length} essentials complete</h2>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Setup progress</p>
+              <h2 className="mt-1 text-base font-semibold text-[var(--color-text)]">{completedSetupSteps} of {setupSteps.length} essentials complete</h2>
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">Finish the remaining steps to make the booking workflow fully operational.</p>
             </div>
-            <div className="h-1.5 w-36 overflow-hidden rounded-full bg-[var(--color-bg)]" aria-label={`${completedSetupSteps} of ${setupSteps.length} setup steps complete`}>
+            <div className="h-2 w-40 overflow-hidden rounded-full bg-[var(--color-raised)]" aria-label={`${completedSetupSteps} of ${setupSteps.length} setup steps complete`}>
               <div className="h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${(completedSetupSteps / setupSteps.length) * 100}%` }} />
             </div>
           </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
             {setupSteps.map((step) => (
               <Link
                 key={step.label}
                 href={step.href}
                 target={step.external ? "_blank" : undefined}
                 rel={step.external ? "noreferrer" : undefined}
-                className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg)_78%,transparent)] px-3 py-2 text-[11px] font-medium text-[var(--color-text)] transition hover:bg-[var(--color-bg)]"
+                className="flex items-center gap-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-3 text-[11px] font-medium text-[var(--color-text)] transition hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--color-primary)_25%,var(--color-border))] hover:shadow-[var(--shadow-sm)]"
               >
-                <span className={`flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold ${step.complete ? "bg-emerald-500 text-white" : "border border-[var(--color-border-hover)] text-[var(--color-text-subtle)]"}`} aria-hidden>
+                <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-bold ${step.complete ? "bg-emerald-500 text-white" : "border border-[var(--color-border-hover)] bg-[var(--color-surface)] text-[var(--color-text-subtle)]"}`} aria-hidden>
                   {step.complete ? "✓" : ""}
                 </span>
                 <span className="truncate">{step.label}</span>

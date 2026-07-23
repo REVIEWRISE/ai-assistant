@@ -41,6 +41,11 @@ export const reviewSuccessMessages: Record<string, ReviewStatusMessage> = {
 };
 
 export const reviewErrorMessages: Record<string, ReviewStatusMessage> = {
+  review_read_only: {
+    title: "View-only access",
+    body: "Admins can review reputation activity, but only users can change integrations, automation, drafts, or published replies.",
+    variant: "warning",
+  },
   provider_missing: {
     title: "Provider not selected",
     body: "Choose a review provider before continuing.",

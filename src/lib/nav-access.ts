@@ -52,10 +52,17 @@ export function redirectPathWhenMenuForbidden(allowed: Set<string>): string {
   return "/logout";
 }
 
-export function filterNavItemsByPermissions(items: NavItem[], allowed: Set<string>): NavItem[] {
+export function filterNavItemsByPermissions(
+  items: NavItem[],
+  allowed: Set<string>,
+  isAdmin = false,
+): NavItem[] {
   return items
     .map((item) => {
-      const children = item.children?.filter((c) => isHrefAllowedForNav(c.href, allowed));
+      if (item.requiresAdmin && !isAdmin) return null;
+      const children = item.children?.filter(
+        (c) => (!c.requiresAdmin || isAdmin) && isHrefAllowedForNav(c.href, allowed),
+      );
       const selfOk = isHrefAllowedForNav(item.href, allowed);
       const hasVisibleChildren = Boolean(children?.length);
       if (!selfOk && !hasVisibleChildren) return null;

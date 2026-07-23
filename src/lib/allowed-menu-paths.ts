@@ -3,10 +3,9 @@ import { getAllStaticNavHrefs } from "@/lib/nav-config";
 import { normalizeNavPath } from "@/lib/nav-access";
 
 function pathsFromMenus(items: { path: string }[]): Set<string> {
-  if (items.length === 0) {
-    return new Set(getAllStaticNavHrefs().map(normalizeNavPath));
-  }
-  return new Set(items.map((m) => normalizeNavPath(m.path)));
+  return new Set(
+    [...getAllStaticNavHrefs(), ...items.map((item) => item.path)].map(normalizeNavPath),
+  );
 }
 
 export async function getAllowedMenuPathsForUser(

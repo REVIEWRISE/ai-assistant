@@ -35,3 +35,17 @@ export async function requireSession(): Promise<AppSession> {
   if (!session) redirect("/login");
   return session;
 }
+
+export async function requireAdminSession(): Promise<AppSession> {
+  const session = await requireSession();
+  const adminRole = await prisma.userRole.findFirst({
+    where: {
+      userId: session.userId,
+      role: { name: "Admin" },
+    },
+    select: { id: true },
+  });
+
+  if (!adminRole) redirect("/dashboard");
+  return session;
+}

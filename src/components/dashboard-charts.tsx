@@ -79,12 +79,12 @@ function ChartShell({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] ${
+      className={`overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] ${
         featured ? "lg:col-span-2" : ""
       }`}
     >
-      <div className="p-4">
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+      <div className="border-b border-[var(--color-border-muted)] bg-[var(--color-bg)] px-4 py-3.5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
               <span
@@ -101,8 +101,8 @@ function ChartShell({
             ) : null}
           </div>
         </div>
-        {children}
       </div>
+      <div className="p-4">{children}</div>
     </div>
   );
 }
@@ -122,9 +122,9 @@ function ChartEmptyState({
 }) {
   return (
     <ChartShell title={title} subtitle={subtitle} accent={accent} featured={featured}>
-      <div className="flex min-h-[160px] flex-col items-center justify-center rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-7 text-center">
+      <div className="flex min-h-[125px] flex-col items-center justify-center rounded-xl border border-dashed border-[var(--color-border-hover)] bg-[linear-gradient(145deg,var(--color-bg),var(--color-surface))] px-5 py-6 text-center">
         <div
-          className="mb-2.5 flex size-9 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-base font-semibold text-[var(--color-text-muted)]"
+          className="mb-2.5 flex size-9 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-base font-semibold text-[var(--color-text-muted)] shadow-[var(--shadow-sm)]"
           aria-hidden
         >
           —
@@ -264,33 +264,45 @@ export function DashboardOverviewGrid({
   if (!stats.length) return null;
 
   return (
-    <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] px-4 py-3.5 lg:px-5">
+    <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-md)] lg:p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 px-1">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-h)]">Workspace pulse</p>
-          <h2 className="mt-0.5 text-sm font-semibold text-[var(--color-text)]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Workspace pulse</p>
+          <h2 className="mt-1 text-base font-semibold text-[var(--color-text)]">
             {organizationName ?? "Collective performance"}
           </h2>
         </div>
-        <p className="text-[11px] text-[var(--color-text-muted)]">Live operational totals</p>
+        <p className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-[10px] font-medium text-[var(--color-text-muted)]">Live operational totals</p>
       </div>
-      <div className="grid divide-y divide-[var(--color-border)] sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Link
             key={stat.id}
             href={stat.href}
-            className="group relative min-w-0 p-4 transition hover:bg-[var(--color-bg)] lg:p-5"
+            className="group relative min-w-0 overflow-hidden rounded-2xl border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]"
+            style={{
+              borderColor: `color-mix(in srgb, ${stat.accent} 18%, var(--color-border))`,
+              background: `linear-gradient(145deg, color-mix(in srgb, ${stat.accent} 8%, var(--color-surface)), var(--color-surface) 62%)`,
+            }}
           >
-            <span className="absolute inset-x-4 top-0 h-0.5 origin-left scale-x-0 rounded-full transition-transform group-hover:scale-x-100" style={{ backgroundColor: stat.accent }} aria-hidden />
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">{stat.title}</p>
-                <p className="mt-1.5 text-2xl font-semibold tracking-tight text-[var(--color-text)] tabular-nums">{stat.value}</p>
+                <p className="mt-2 text-[1.7rem] font-semibold leading-none tracking-tight text-[var(--color-text)] tabular-nums">{stat.value}</p>
               </div>
-              <span className="mt-0.5 size-2 rounded-full" style={{ backgroundColor: stat.accent }} aria-hidden />
+              <span
+                className="flex size-8 shrink-0 items-center justify-center rounded-xl text-xs font-semibold"
+                style={{
+                  color: stat.accent,
+                  backgroundColor: `color-mix(in srgb, ${stat.accent} 13%, transparent)`,
+                }}
+                aria-hidden
+              >
+                {stat.title.charAt(0)}
+              </span>
             </div>
-            <p className="mt-2 line-clamp-2 min-h-8 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{stat.hint}</p>
-            <p className="mt-2 text-[11px] font-semibold text-[var(--color-primary-h)]">
+            <p className="mt-3 line-clamp-2 min-h-8 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{stat.hint}</p>
+            <p className="mt-2.5 text-[11px] font-semibold" style={{ color: stat.accent }}>
               {Number(stat.value) === 0 ? "Set up module" : "View details"} <span className="inline-block transition-transform group-hover:translate-x-0.5" aria-hidden>→</span>
             </p>
           </Link>
@@ -310,11 +322,11 @@ export function DashboardSectionSummary({
   if (!stats.length) return null;
 
   return (
-    <div className="grid overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
       {stats.slice(0, 4).map((stat) => (
         <div
           key={stat.label}
-          className="min-w-0 border-b border-[var(--color-border)] px-3.5 py-3 last:border-b-0 sm:[&:nth-child(odd)]:border-r lg:border-b-0 lg:border-r lg:last:border-r-0"
+          className="min-w-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-3"
         >
           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
             {stat.label}
@@ -353,11 +365,11 @@ export function DashboardChartGrid({
 
 export function DashboardStatFallback({ stats }: { stats: DashboardStat[] }) {
   return (
-    <div className="grid overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
       {stats.map((stat) => (
         <div
           key={stat.label}
-          className="border-b border-[var(--color-border)] px-4 py-3 last:border-b-0 sm:border-r"
+          className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3.5"
         >
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
             {stat.label}

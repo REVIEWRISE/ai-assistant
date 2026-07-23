@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { CustomSelect } from "@/components/custom-select";
+import { ThemeSwitch } from "@/components/theme-switch";
 
 type MobileNavItem = {
   href: string;
@@ -17,43 +18,43 @@ type HeaderCopy = {
 const headerByRoute: Record<string, HeaderCopy> = {
   "/dashboard": {
     eyebrow: "Command Center",
-    title: "AI Operations Dashboard",
+    title: "Operations dashboard",
   },
   "/appointments": {
     eyebrow: "Appointment Agent",
-    title: "Appointment Modules",
+    title: "Appointment modules",
   },
   "/appointments/overview": {
     eyebrow: "Appointment Agent",
-    title: "Scheduling and Booking Operations",
+    title: "Scheduling overview",
   },
   "/appointments/organization": {
     eyebrow: "Appointment Agent",
-    title: "Organization Setup",
+    title: "Organization setup",
   },
   "/appointments/knowledge-base": {
     eyebrow: "Appointment Agent",
-    title: "Knowledge Base",
+    title: "Knowledge base",
   },
   "/appointments/chatbot": {
     eyebrow: "Appointment Agent",
-    title: "Configure chatbot",
+    title: "Chatbot configuration",
   },
   "/reviews": {
     eyebrow: "Review Response",
-    title: "Reputation and Reply Operations",
+    title: "Reputation operations",
   },
   "/voice-agent": {
     eyebrow: "Voice Support",
-    title: "Voice Agent",
+    title: "Voice agent",
   },
   "/profile": {
-    eyebrow: "Account",
-    title: "Profile Settings",
+    eyebrow: "Account Settings",
+    title: "Your profile",
   },
   "/settings/access": {
     eyebrow: "Access Control",
-    title: "Menus and Permissions",
+    title: "Access governance",
   },
   "/settings/access/roles": {
     eyebrow: "Access Control",
@@ -69,15 +70,19 @@ const headerByRoute: Record<string, HeaderCopy> = {
   },
   "/platform": {
     eyebrow: "Platform Settings",
-    title: "System Configuration",
+    title: "System configuration",
   },
   "/platform/providers": {
     eyebrow: "Platform Settings",
-    title: "Providers",
+    title: "Provider connections",
+  },
+  "/platform/billing-plans": {
+    eyebrow: "Platform Settings",
+    title: "Billing plans",
   },
   "/users": {
     eyebrow: "User Management",
-    title: "Users",
+    title: "Team directory",
   },
 };
 
@@ -86,7 +91,7 @@ function isActive(pathname: string, href: string): boolean {
     return pathname === "/" || pathname === "/dashboard";
   }
 
-  return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 function getHeaderCopy(pathname: string): HeaderCopy {
@@ -115,6 +120,9 @@ function getHeaderCopy(pathname: string): HeaderCopy {
   if (pathname.startsWith("/settings/access/permissions")) {
     return headerByRoute["/settings/access/permissions"];
   }
+  if (pathname.startsWith("/platform/billing-plans")) {
+    return headerByRoute["/platform/billing-plans"];
+  }
   if (pathname.startsWith("/platform/providers")) {
     return headerByRoute["/platform/providers"];
   }
@@ -123,6 +131,18 @@ function getHeaderCopy(pathname: string): HeaderCopy {
   }
   if (pathname.startsWith("/users")) {
     return headerByRoute["/users"];
+  }
+  if (pathname.startsWith("/profile")) {
+    return headerByRoute["/profile"];
+  }
+  if (pathname.startsWith("/voice-agent")) {
+    return headerByRoute["/voice-agent"];
+  }
+  if (pathname.startsWith("/reviews")) {
+    return headerByRoute["/reviews"];
+  }
+  if (pathname.startsWith("/appointments")) {
+    return headerByRoute["/appointments"];
   }
 
   return headerByRoute[pathname] ?? headerByRoute["/dashboard"];
@@ -167,15 +187,18 @@ export function TopHeader({
   const copy = getHeaderCopy(pathname);
 
   return (
-    <header className="sticky top-0 z-10 shrink-0 border-b border-[var(--color-border)] px-4 py-3 lg:px-6">
-      <div className="flex items-center justify-between gap-3">
+    <header className="sticky top-0 z-20 shrink-0 border-b border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] backdrop-blur-xl">
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 lg:px-5">
         <div className="min-w-0 shrink">
-          <p className="truncate text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-h)]">
+          <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-h)]">
             {copy.eyebrow}
           </p>
-          <h2 className="truncate text-lg font-semibold text-[var(--color-text)]">{copy.title}</h2>
+          <h2 className="mt-0.5 truncate text-[15px] font-semibold tracking-tight text-[var(--color-text)] lg:text-base">
+            {copy.title}
+          </h2>
         </div>
-        <div className="flex min-w-0 shrink-0 items-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-[var(--shadow-sm)]">
+
+        <div className="flex min-w-0 shrink-0 items-center gap-1.5">
           {organizations.length > 0 ? (
             <CustomSelect
               value={activeOrganizationId ?? organizations[0]?.id ?? ""}
@@ -184,59 +207,68 @@ export function TopHeader({
               placeholder="Select organization"
               disabled={switchingOrganization}
               aria-label="Switch organization"
-              className="mt-0 w-[min(100%,11rem)] sm:w-[12.5rem]"
-              triggerClassName="rounded-xl border-0 bg-transparent py-1.5 shadow-none hover:bg-[var(--color-raised)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
+              className="mt-0 w-[min(100%,10.5rem)] sm:w-[12rem]"
+              triggerClassName="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] py-1.5 text-xs shadow-[var(--shadow-sm)] hover:bg-[var(--color-raised)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
               menuClassName="min-w-[220px]"
             />
           ) : null}
-          {organizations.length > 0 ? (
-            <span className="mx-0.5 hidden h-6 w-px shrink-0 bg-[var(--color-border)] sm:block" aria-hidden />
-          ) : null}
+          <ThemeSwitch />
           <div className="relative min-w-0">
             <button
               type="button"
               onClick={onToggleProfile}
+              aria-expanded={profileOpen}
+              aria-haspopup="menu"
               aria-label={`Profile menu for ${profileName}`}
-              className={`flex max-w-[min(100vw-8rem,13rem)] items-center gap-2 rounded-xl px-2 py-1.5 text-sm font-medium text-[var(--color-text)] transition hover:bg-[var(--color-raised)] sm:max-w-[14rem] ${
-                profileOpen ? "bg-[var(--color-raised)]" : ""
+              className={`flex max-w-[min(100vw-8rem,12.5rem)] items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-sm font-medium text-[var(--color-text)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--color-raised)] sm:max-w-[13.5rem] ${
+                profileOpen
+                  ? "bg-[var(--color-raised)] ring-2 ring-[color-mix(in_srgb,var(--color-primary)_18%,transparent)]"
+                  : ""
               }`}
             >
               <span className="shrink-0">{profileAvatar}</span>
               <span className="hidden min-w-0 flex-1 overflow-hidden text-left sm:block">
                 <span
-                  className="block truncate text-sm font-semibold leading-tight text-[var(--color-text)]"
+                  className="block truncate text-[13px] font-semibold leading-tight text-[var(--color-text)]"
                   title={profileName}
                 >
                   {profileName}
                 </span>
                 <span
-                  className="block truncate text-[11px] leading-tight text-[var(--color-text-muted)]"
-                  title={[profileRole ?? "Member", profileOrg].filter(Boolean).join(" • ")}
+                  className="block truncate text-[10px] leading-tight text-[var(--color-text-muted)]"
+                  title={[profileRole ?? "Member", profileOrg].filter(Boolean).join(" · ")}
                 >
                   {profileRole ?? "Member"}
-                  {profileOrg ? ` • ${profileOrg}` : ""}
+                  {profileOrg ? ` · ${profileOrg}` : ""}
                 </span>
               </span>
               <svg
                 viewBox="0 0 24 24"
-                className={`h-4 w-4 shrink-0 text-[var(--color-text-muted)] transition ${
+                className={`h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)] transition ${
                   profileOpen ? "rotate-180" : ""
                 }`}
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
+                aria-hidden
               >
                 <path d="m6 9 6 6 6-6" />
               </svg>
             </button>
             {profileOpen ? (
-              <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]">
-                <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
-                  <p className="truncate text-sm font-semibold text-[var(--color-text)]" title={profileName}>
+              <div
+                role="menu"
+                className="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]"
+              >
+                <div className="border-b border-[var(--color-border)] bg-[linear-gradient(125deg,#09101f_0%,#111a30_52%,#233b5b_100%)] px-4 py-3.5 text-white">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-indigo-300">
+                    Signed in
+                  </p>
+                  <p className="mt-1 truncate text-sm font-semibold" title={profileName}>
                     {profileName}
                   </p>
                   <p
-                    className="truncate text-xs text-[var(--color-text-muted)]"
+                    className="mt-0.5 truncate text-xs text-slate-300"
                     title={profileEmail ?? "user@example.com"}
                   >
                     {profileEmail ?? "user@example.com"}
@@ -246,19 +278,21 @@ export function TopHeader({
                   <div className="p-1.5">
                     <Link
                       href="/profile"
+                      role="menuitem"
                       onClick={onCloseProfile}
-                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
+                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-bg)]"
                     >
-                      View Profile
+                      View profile
                     </Link>
                   </div>
                 ) : null}
                 <div className="border-t border-[var(--color-border)] p-1.5">
-                <Link
-                  href="/logout"
-                  onClick={onCloseProfile}
-                  className="block rounded-xl px-3 py-2 text-sm font-medium text-[var(--color-danger)] transition hover:bg-[var(--color-danger-soft)]"
-                >
+                  <Link
+                    href="/logout"
+                    role="menuitem"
+                    onClick={onCloseProfile}
+                    className="block rounded-xl px-3 py-2 text-sm font-medium text-[var(--color-danger)] transition hover:bg-[var(--color-danger-soft)]"
+                  >
                     Log out
                   </Link>
                 </div>
@@ -267,17 +301,21 @@ export function TopHeader({
           </div>
         </div>
       </div>
-      <nav className="mt-3 flex gap-2 overflow-x-auto lg:hidden">
+
+      <nav
+        className="flex gap-1.5 overflow-x-auto border-t border-[var(--color-border)] px-4 py-2 lg:hidden"
+        aria-label="Mobile navigation"
+      >
         {navItems.map((item) => {
           const active = isActive(pathname, item.href);
           return (
             <Link
               key={`${item.href}-mobile`}
               href={item.href}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
+              className={`rounded-xl px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
                 active
-                  ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
-                  : "bg-[var(--color-surface)] text-[var(--color-text)]"
+                  ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] shadow-[var(--shadow-sm)]"
+                  : "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)] hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
               }`}
             >
               {item.shortLabel}

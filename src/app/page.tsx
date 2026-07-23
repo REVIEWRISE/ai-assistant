@@ -9,17 +9,17 @@ import { LandingPricingSection } from "@/components/landing/landing-pricing-sect
 import { LandingTestimonialsSection } from "@/components/landing/landing-testimonials-section";
 import { LandingTrustedSection } from "@/components/landing/landing-trusted-section";
 import { LandingHeader } from "@/components/landing-header";
-import { LandingChatbotDemo } from "@/components/landing/landing-chatbot-demo";
 import { hasValidSession } from "@/lib/has-valid-session";
+import { getPublicLandingPlans } from "@/lib/billing-plan-repository";
 import {
   LANDING_FAQ,
   LANDING_INTEGRATIONS,
-  LANDING_PLANS,
   LANDING_TRUSTED_BY,
 } from "@/lib/landing-data";
 
 export default async function Home() {
   const isLoggedIn = await hasValidSession();
+  const plans = await getPublicLandingPlans();
   const registerHref = isLoggedIn ? "/dashboard" : "/register";
 
   return (
@@ -39,6 +39,8 @@ export default async function Home() {
 
       <LandingPlaybookSection registerHref={registerHref} isLoggedIn={isLoggedIn} />
 
+      <LandingPricingSection plans={plans} registerHref={registerHref} isLoggedIn={isLoggedIn} />
+
       <LandingIntegrationsSection
         integrations={LANDING_INTEGRATIONS}
         registerHref={registerHref}
@@ -49,13 +51,10 @@ export default async function Home() {
 
       <LandingFaqSection faq={LANDING_FAQ} />
 
-      <LandingPricingSection plans={LANDING_PLANS} registerHref={registerHref} isLoggedIn={isLoggedIn} />
-
       <LandingContactSection />
 
       <LandingFooter isLoggedIn={isLoggedIn} />
 
-      <LandingChatbotDemo />
     </div>
   );
 }
