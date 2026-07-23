@@ -1,7 +1,6 @@
 import { loadEnvConfig } from "@next/env";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { BILLING_RULES, PRICING_PLANS, getPlanEntitlementRecord } from "../src/lib/pricing-plans";
 
 loadEnvConfig(process.cwd());
 
@@ -75,31 +74,6 @@ async function main() {
         parentId: "parentId" in item ? item.parentId : null,
       },
     });
-  }
-
-  const billingPlanCount = await prisma.billingPlan.count();
-  if (billingPlanCount === 0) {
-    for (const [sortOrder, plan] of PRICING_PLANS.entries()) {
-      await prisma.billingPlan.create({
-        data: {
-          slug: plan.slug,
-          name: plan.name,
-          positioning: plan.positioning,
-          monthlyPriceCents: plan.monthlyPriceCents,
-          yearlyPriceCents: plan.yearlyPriceCents,
-          currency: BILLING_RULES.currency,
-          trialDays: BILLING_RULES.trialDays,
-          includedLocations: plan.includedLocations,
-          teamMemberLimit: plan.teamMemberLimit,
-          includedVoiceMinutes: plan.includedVoiceMinutes,
-          highlights: plan.highlights,
-          entitlements: getPlanEntitlementRecord(plan.slug),
-          featured: plan.featured,
-          isActive: true,
-          sortOrder,
-        },
-      });
-    }
   }
 
   await prisma.$transaction(async (tx) => {

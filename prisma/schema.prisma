@@ -67,32 +67,6 @@ model Organization {
   @@map("organizations")
 }
 
-model BillingPlan {
-  id                         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug                       String   @unique
-  name                       String
-  positioning                String   @default("")
-  monthlyPriceCents          Int      @map("monthly_price_cents")
-  yearlyPriceCents           Int      @map("yearly_price_cents")
-  currency                   String   @default("USD")
-  trialDays                  Int      @default(14) @map("trial_days")
-  includedLocations          Int      @default(1) @map("included_locations")
-  teamMemberLimit            Int      @default(1) @map("team_member_limit")
-  includedVoiceMinutes       Int      @default(0) @map("included_voice_minutes")
-  highlights                 Json     @default(dbgenerated("'[]'::jsonb")) @db.JsonB
-  entitlements               Json     @default(dbgenerated("'{}'::jsonb")) @db.JsonB
-  stripeMonthlyPriceId       String?  @map("stripe_monthly_price_id")
-  stripeYearlyPriceId        String?  @map("stripe_yearly_price_id")
-  featured                   Boolean  @default(false)
-  isActive                   Boolean  @default(true) @map("is_active")
-  sortOrder                  Int      @default(0) @map("sort_order")
-  createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  @@index([isActive, sortOrder])
-  @@map("billing_plans")
-}
-
 model OrganizationReviewSettings {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String   @unique @map("organization_id") @db.Uuid

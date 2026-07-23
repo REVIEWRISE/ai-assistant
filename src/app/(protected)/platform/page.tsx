@@ -2,15 +2,18 @@ import Link from "next/link";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { PlatformNav } from "@/components/platform-nav";
 import { requireSession } from "@/lib/auth-session";
+import { getBillingCatalogPlans } from "@/lib/billing-plan-repository";
 import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
 
 export default async function PlatformSettingsPage() {
   const session = await requireSession();
-  const [providers, planCount, adminRole] = await Promise.all([
+  const [providers, catalog, adminRole] = await Promise.all([
     prisma.provider.findMany({
       select: { type: true, status: true, config: true },
     }),
-    prisma.billingPlan.count(),
+    getBillingCatalogPlans(),
     prisma.userRole.findFirst({
       where: { userId: session.userId, role: { name: "Admin" } },
       select: { id: true },
@@ -21,6 +24,7 @@ export default async function PlatformSettingsPage() {
   ).length;
   const providerTypes = new Set(providers.map((provider) => provider.type)).size;
   const isAdmin = Boolean(adminRole);
+  const planCount = catalog.plans.length;
   const modules = [
     {
       href: "/platform/providers",
@@ -38,7 +42,7 @@ export default async function PlatformSettingsPage() {
             eyebrow: "Commercial",
             title: "Billing plans",
             description:
-              "Manage pricing, product entitlements, usage limits, and Stripe references.",
+              "View pricing and plan contents from the Vyntrise Billing service.",
             count: planCount,
             label: planCount === 1 ? "plan" : "plans",
           },
@@ -49,6 +53,7 @@ export default async function PlatformSettingsPage() {
   return (
     <div className="mx-auto max-w-[92rem] space-y-4">
       <AppointmentPageHeader
+        variant="command"
         eyebrow="Platform Settings"
         title="Platform configuration"
         description="Manage provider connections, API keys, and platform-level behaviors."
@@ -73,7 +78,11 @@ export default async function PlatformSettingsPage() {
           {
             label: "Billing plans",
             value: isAdmin ? planCount : "Restricted",
-            hint: isAdmin ? "commercial offers" : "admin access",
+            hint: isAdmin
+              ? catalog.error
+                ? "billing unavailable"
+                : "from Billing API"
+              : "admin access",
           },
         ]}
       />

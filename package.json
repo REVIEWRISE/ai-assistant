@@ -12,7 +12,6 @@
     "postinstall": "prisma generate",
     "db:sync": "sh scripts/db-sync.sh",
     "db:seed": "prisma db seed",
-    "db:seed:billing": "tsx prisma/seed-billing-plans.ts",
     "db:setup": "npm run db:migrate && npm run db:seed",
     "cron:review-sync": "tsx scripts/review-sync-cron.ts",
     "retell:llm": "tsx scripts/retell-custom-llm-server.ts",

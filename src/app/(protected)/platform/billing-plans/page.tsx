@@ -1,103 +1,88 @@
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { PlatformNav } from "@/components/platform-nav";
-import {
-  BillingPlansManager,
-  type ManagedBillingPlan,
-} from "@/components/billing-plans-manager";
+import { BillingPlansManager } from "@/components/billing-plans-manager";
+import { BillingPlansToasts } from "@/components/billing-plans-toasts";
 import { requireAdminSession } from "@/lib/auth-session";
-import { prisma } from "@/lib/prisma";
-import { BILLING_RULES } from "@/lib/pricing-plans";
-import { createBillingPlan, deleteBillingPlan, updateBillingPlan } from "./actions";
+import { getBillingAdminUrl, isBillingConfigured } from "@/lib/billing-client";
+import { getBillingCatalogPlans } from "@/lib/billing-plan-repository";
 
-const MESSAGES: Record<string, string> = {
-  created: "Payment plan created.",
-  updated: "Payment plan updated.",
-  deleted: "Payment plan deleted.",
-};
+export const dynamic = "force-dynamic";
 
-const ERRORS: Record<string, string> = {
-  invalid: "Check the plan fields and prices, then try again.",
-  duplicate: "A plan with that slug already exists.",
-  create_failed: "The plan could not be created.",
-  update_failed: "The plan could not be updated.",
-  delete_failed: "The plan could not be deleted.",
-};
-
-export default async function BillingPlansPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ success?: string; error?: string }>;
-}) {
+export default async function BillingPlansPage() {
   await requireAdminSession();
-  const query = (await searchParams) ?? {};
-  const rows = await prisma.billingPlan.findMany({
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-  });
 
-  const plans: ManagedBillingPlan[] = rows.map((plan) => ({
-    id: plan.id,
-    slug: plan.slug,
-    name: plan.name,
-    positioning: plan.positioning,
-    monthlyPriceCents: plan.monthlyPriceCents,
-    yearlyPriceCents: plan.yearlyPriceCents,
-    currency: plan.currency,
-    trialDays: plan.trialDays,
-    includedLocations: plan.includedLocations,
-    teamMemberLimit: plan.teamMemberLimit,
-    includedVoiceMinutes: plan.includedVoiceMinutes,
-    highlights: Array.isArray(plan.highlights)
-      ? plan.highlights.map((item) => String(item)).filter(Boolean)
-      : [],
-    entitlements:
-      plan.entitlements && typeof plan.entitlements === "object" && !Array.isArray(plan.entitlements)
-        ? (plan.entitlements as Record<string, unknown>)
-        : {},
-    stripeMonthlyPriceId: plan.stripeMonthlyPriceId,
-    stripeYearlyPriceId: plan.stripeYearlyPriceId,
-    featured: plan.featured,
-    isActive: plan.isActive,
-    sortOrder: plan.sortOrder,
-  }));
-
-  const activeCount = plans.filter((plan) => plan.isActive).length;
-  const linkedPriceCount = plans.reduce(
-    (count, plan) =>
-      count + Number(Boolean(plan.stripeMonthlyPriceId)) + Number(Boolean(plan.stripeYearlyPriceId)),
+  const catalog = await getBillingCatalogPlans();
+  const adminUrl = getBillingAdminUrl();
+  const configured = isBillingConfigured();
+  const linkedPriceCount = catalog.plans.reduce(
+    (count, plan) => count + Number(Boolean(plan.stripePriceId)),
     0,
   );
+  const trialDays =
+    catalog.plans.find((plan) => plan.trialPeriodDays > 0)?.trialPeriodDays ?? 0;
+
+  const status = catalog.error
+    ? catalog.error === "not_configured"
+      ? "API key missing"
+      : catalog.error === "product_missing"
+        ? "Product not found"
+        : catalog.error === "empty"
+          ? "No plans yet"
+          : "Billing unavailable"
+    : `${catalog.plans.length} plans synced`;
 
   return (
-    <div className="mx-auto max-w-[92rem] space-y-4">
+    <div className="mx-auto max-w-[92rem] space-y-5">
+      <BillingPlansToasts error={catalog.error} />
+
       <AppointmentPageHeader
+        variant="command"
         eyebrow="Platform Settings"
         title="Billing plans"
-        description="Create, update, publish, and remove the plans shown to customers. Every mutation is restricted to the Admin role."
-        status="Admin access only"
-        statusTone="neutral"
+        description="Plans and entitlements are owned by the Vyntrise Billing service. This page mirrors the live catalog for the agents product."
+        status={status}
+        statusTone={catalog.error ? "warning" : "success"}
+        actions={[
+          { href: "/platform", label: "Platform overview" },
+          {
+            href: adminUrl,
+            label: "Billing Admin",
+            primary: true,
+            external: true,
+          },
+        ]}
         metrics={[
-          { label: "Total plans", value: plans.length, hint: "commercial offers" },
-          { label: "Active plans", value: activeCount, hint: "publicly available" },
-          { label: "Stripe prices", value: linkedPriceCount, hint: "linked references" },
-          { label: "Default trial", value: `${BILLING_RULES.trialDays} days`, hint: "platform rule" },
+          {
+            label: "Total plans",
+            value: catalog.plans.length,
+            hint: catalog.productDisplayName ?? "commercial offers",
+          },
+          {
+            label: "Source",
+            value: catalog.error ? "Unavailable" : "Billing API",
+            hint: configured ? "BILLING_API_KEY set" : "configure BILLING_API_KEY",
+          },
+          {
+            label: "Stripe prices",
+            value: linkedPriceCount,
+            hint: "linked references",
+          },
+          {
+            label: "Trial",
+            value: trialDays > 0 ? `${trialDays} days` : "None",
+            hint: "from remote plans",
+          },
         ]}
       />
+
       <PlatformNav showBilling />
 
-      {query.success && MESSAGES[query.success] ? (
-        <div className="vr-app-alert vr-app-alert-success">{MESSAGES[query.success]}</div>
-      ) : null}
-      {query.error && ERRORS[query.error] ? (
-        <div className="vr-app-alert vr-app-alert-danger">{ERRORS[query.error]}</div>
-      ) : null}
-
       <BillingPlansManager
-        plans={plans}
-        onCreate={createBillingPlan}
-        onUpdate={updateBillingPlan}
-        onDelete={deleteBillingPlan}
+        plans={catalog.plans}
+        productDisplayName={catalog.productDisplayName}
+        adminUrl={adminUrl}
+        error={catalog.error}
       />
-
     </div>
   );
 }
