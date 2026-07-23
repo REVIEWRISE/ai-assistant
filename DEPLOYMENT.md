@@ -34,6 +34,10 @@ Add the following secrets to your GitHub repository (Settings > Secrets and vari
 | `SERVER_SSH_KEY` | Private SSH key | `-----BEGIN RSA PRIVATE KEY-----...` |
 | `APP_DIR` | Deployment directory on server | `/var/www/ai-assistant` |
 | `ENV_FILE_CONTENTS` | Contents of the production `.env` file | See below |
+| `BILLING_API_URL` | Billing API base URL | `https://billing.vyntrise.com/api/v1` |
+| `BILLING_API_KEY` | Billing service API key | `vbk_live_…` |
+| `BILLING_PRODUCT_NAME` | Billing product slug | `agents` |
+| `BILLING_ADMIN_URL` | Billing Admin portal URL | `https://billing.vyntrise.com` |
 
 ### Environment variables
 
@@ -89,10 +93,12 @@ Plan catalog (prices + contents) is owned by billing — this app only reads it.
 
 | Secret | Description |
 | :--- | :--- |
-| `BILLING_API_URL` | Optional. Default `https://billing.vyntrise.com/api/v1` in prod (or `http://localhost:4001/api/v1` locally) |
-| `BILLING_API_KEY` | Service API key from Billing Admin → API Keys |
+| `BILLING_API_URL` | Optional. Default `https://billing.vyntrise.com/api/v1` |
+| `BILLING_API_KEY` | Service API key from Billing Admin → API Keys (`vbk_…`) |
 | `BILLING_PRODUCT_NAME` | Optional. Product slug (default `agents`) |
-| `BILLING_ADMIN_URL` | Optional. Billing Admin portal URL for manage links |
+| `BILLING_ADMIN_URL` | Optional. Billing Admin portal URL (default `https://billing.vyntrise.com`) |
+
+You can set these as individual GitHub secrets; deploy merges them into `.env.production` even when using `ENV_FILE_CONTENTS`.
 
 Without `BILLING_API_KEY`, landing and `/platform/billing-plans` show empty state (no static fallback).
 
