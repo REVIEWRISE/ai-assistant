@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BrandLogo } from "@/components/brand-logo";
+import { AppFooter } from "@/components/app-footer";
+import { AppSidebar } from "@/components/app-sidebar";
 import { TopHeader } from "@/components/top-header";
 import { NavAccessGuard } from "@/components/nav-access-guard";
-import { BRAND_NAME, PRODUCT_NAME } from "@/lib/brand";
-import { APP_NAV_ITEMS, type NavItem } from "@/lib/nav-config";
+import { APP_NAV_ITEMS } from "@/lib/nav-config";
 import { filterNavItemsByPermissions, isHrefAllowedForNav } from "@/lib/nav-access";
 
 function isActive(pathname: string, href: string): boolean {
@@ -16,23 +15,6 @@ function isActive(pathname: string, href: string): boolean {
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-function SidebarNavLoading() {
-  return (
-    <div className="space-y-2" aria-label="Loading workspace menus">
-      <p className="px-1 text-xs text-[var(--color-text-muted)]">Loading workspace menus…</p>
-      {[0, 1, 2, 3, 4].map((i) => (
-        <div key={i} className="flex items-center gap-3 rounded-2xl px-3 py-2.5">
-          <div className="h-8 w-8 shrink-0 animate-pulse rounded-lg bg-[var(--color-raised)]/80" />
-          <div
-            className="h-4 flex-1 animate-pulse rounded-md bg-[var(--color-raised)]/80"
-            style={{ maxWidth: i === 1 ? "72%" : i === 3 ? "55%" : "85%" }}
-          />
-        </div>
-      ))}
-    </div>
-  );
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -55,8 +37,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const visibleNavItems = useMemo(() => {
     const set = allowedNavPaths === null ? new Set<string>() : new Set(allowedNavPaths);
-    return filterNavItemsByPermissions(APP_NAV_ITEMS, set);
-  }, [allowedNavPaths]);
+    return filterNavItemsByPermissions(APP_NAV_ITEMS, set, profileRole === "Admin");
+  }, [allowedNavPaths, profileRole]);
 
   const showProfilePageLink = useMemo(() => {
     if (allowedNavPaths === null) return false;
@@ -182,131 +164,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="app-shell relative min-h-screen overflow-hidden">
+    <div className="app-shell relative h-dvh overflow-hidden">
       <div className="app-shell-mesh pointer-events-none absolute inset-0" aria-hidden />
       <div className="app-shell-grid pointer-events-none absolute inset-0 opacity-30" aria-hidden />
       <NavAccessGuard allowedNavPaths={allowedNavPaths} enabled={allowedNavPaths !== null} />
-      <div className="relative flex w-full gap-4 px-4 py-4 lg:gap-6 lg:px-6">
-        <aside className="vr-app-surface hidden w-68 shrink-0 rounded-3xl p-5 lg:block">
-          <div className="mb-6 min-w-0">
-            <BrandLogo
-              href="/dashboard"
-              size="sm"
-              primary={BRAND_NAME}
-              secondary={PRODUCT_NAME}
-              className="text-[var(--color-text)] [&_p:first-child]:text-[10px] [&_p:first-child]:font-semibold [&_p:first-child]:uppercase [&_p:first-child]:tracking-[0.16em] [&_p:first-child]:text-[var(--color-primary)] [&_p:last-child]:text-sm [&_p:last-child]:font-semibold [&_p:last-child]:leading-snug [&_p:last-child]:text-[var(--color-text)]"
-            />
-            <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-              Appointment, reviews, and lead operations in one place.
-            </p>
-          </div>
-          {(!navPermissionsReady || !hasNoMenuAccess) ? (
-            <div className="mb-2 px-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-                Workspaces
-              </p>
-            </div>
-          ) : null}
-          <nav
-            className="space-y-2"
-            aria-busy={!navPermissionsReady}
-            aria-label="Workspace navigation"
-          >
-            {!navPermissionsReady ? (
-              <SidebarNavLoading />
-            ) : hasNoMenuAccess ? (
-              <div className="rounded-2xl border border-[color-mix(in_srgb,var(--color-warning)_35%,var(--color-border))] bg-[var(--color-warning-soft)] px-3 py-3">
-                <p className="text-sm font-semibold text-[var(--color-text)]">No menu access</p>
-                <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-text-muted)]">
-                  Your administrator has not assigned any workspace menus to your role yet. Use
-                  the profile menu above to sign out, or contact your admin if you think this is
-                  a mistake.
-                </p>
-              </div>
-            ) : (
-              visibleNavItems.map((item: NavItem) => {
-              const hasChildren = Boolean(item.children?.length);
-              const childActive = item.children?.some((child) => isActive(pathname, child.href)) ?? false;
-              const highlighted = hasChildren ? childActive : isActive(pathname, item.href);
-              const submenuOpenKey = `submenu:${item.href}`;
-              const storedSubmenuOpen =
-                menuStateReady &&
-                submenuTick >= 0 &&
-                (sessionStorage.getItem(submenuOpenKey) ?? "0") !== "0";
-              const isSubmenuOpen = hasChildren && storedSubmenuOpen;
-              const showChildren = hasChildren && isSubmenuOpen;
-              const rowClass = `group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition ${
-                highlighted
-                  ? "vr-app-nav-active"
-                  : "vr-app-nav-idle hover:border-[var(--color-border)] hover:bg-[var(--color-surface)]"
-              }`;
-              const iconClass = `flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                highlighted
-                  ? "bg-white/20 text-white"
-                  : "bg-[var(--color-raised)] text-[var(--color-text)] group-hover:bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--color-raised))]"
-              }`;
+      <div className="relative flex h-dvh w-full">
+        <AppSidebar
+          pathname={pathname}
+          items={visibleNavItems}
+          ready={navPermissionsReady}
+          hasNoMenuAccess={hasNoMenuAccess}
+          menuStateReady={menuStateReady}
+          submenuTick={submenuTick}
+          onToggleSubmenu={setSubmenuOpen}
+          onCloseSubmenus={closeAllSubmenus}
+        />
 
-              return (
-                <div key={item.href} className="space-y-1">
-                  {hasChildren ? (
-                    <button
-                      type="button"
-                      aria-expanded={isSubmenuOpen}
-                      aria-label={isSubmenuOpen ? `Collapse ${item.label}` : `Expand ${item.label}`}
-                      onClick={() => setSubmenuOpen(item.href, !storedSubmenuOpen)}
-                      className={rowClass}
-                    >
-                      <span className={iconClass}>{item.icon}</span>
-                      <span className="flex-1 text-left leading-none">{item.label}</span>
-                      <svg
-                        viewBox="0 0 24 24"
-                        className={`h-4 w-4 shrink-0 transition ${isSubmenuOpen ? "rotate-180" : ""} ${highlighted ? "text-white/80" : "text-[var(--color-text-muted)]"}`}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        aria-hidden
-                      >
-                        <path d="m6 9 6 6 6-6" />
-                      </svg>
-                    </button>
-                  ) : (
-                    <Link href={item.href} prefetch onClick={closeAllSubmenus} className={rowClass}>
-                      <span className={iconClass}>{item.icon}</span>
-                      <span className="leading-none">{item.label}</span>
-                    </Link>
-                  )}
-                  {showChildren ? (
-                    <div className="ml-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
-                      {item.children?.map((child) => {
-                        const childActive = isActive(pathname, child.href);
-                        return (
-                          <Link
-                            key={child.href}
-                            href={child.href}
-                            prefetch
-                            className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition ${childActive
-                                ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] shadow-sm"
-                                : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg)]"
-                              }`}
-                          >
-                            <span
-                              className={`h-2 w-2 rounded-full ${childActive ? "bg-white" : "bg-[var(--color-border-hover)]"
-                                }`}
-                            />
-                            {child.label}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })
-            )}
-          </nav>
-        </aside>
-
-        <div className="vr-app-surface flex min-h-[calc(100vh-2rem)] flex-1 flex-col rounded-3xl">
+        <div className="vr-app-surface min-w-0 flex h-dvh flex-1 flex-col overflow-hidden rounded-none border-0">
           <TopHeader
             pathname={pathname}
             navItems={visibleNavItems.map((item) => ({
@@ -336,7 +210,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onSwitchOrganization={handleSwitchOrganization}
             switchingOrganization={switchingOrganization}
           />
-          <main className="flex-1 p-4 lg:p-6">{children}</main>
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 [scrollbar-width:thin] lg:p-5">{children}</main>
+          <AppFooter organization={profileOrg} role={profileRole} />
         </div>
       </div>
     </div>

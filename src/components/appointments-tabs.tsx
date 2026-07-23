@@ -77,10 +77,10 @@ type ProviderLoadItem = {
 
 type TabKey = "integrations" | "booked" | "analytics";
 
-const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: "integrations", label: "Integrations" },
-  { key: "booked", label: "Booked" },
-  { key: "analytics", label: "Analytics" },
+const tabs: Array<{ key: TabKey; label: string; hint: string }> = [
+  { key: "integrations", label: "Integrations", hint: "Calendars and delivery" },
+  { key: "booked", label: "Bookings", hint: "Schedule and guests" },
+  { key: "analytics", label: "Performance", hint: "Volume and sync health" },
 ];
 
 type AppointmentsTabsProps = {
@@ -95,6 +95,7 @@ type AppointmentsTabsProps = {
   retryCrmSync: (formData: FormData) => void | Promise<void>;
   crmWebhookConfigured: boolean;
   appointmentAnalytics: AppointmentAnalytics;
+  testBookingHref: string;
 };
 
 function dateKeyLocal(iso: string): string {
@@ -663,8 +664,10 @@ function BookedAppointmentsPanel({
         title="Booked appointments"
         subtitle="Reservations from your chatbot, phone agent, and other sources appear here once guests pick a time."
       >
-        <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
-          No appointments yet. When visitors book through your embedded chatbot or Retell phone agent, they will appear here.
+        <div className="flex min-h-[150px] flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border-hover)] bg-[linear-gradient(145deg,var(--color-bg),var(--color-surface))] px-5 py-7 text-center">
+          <span className="mb-2.5 flex size-10 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm font-semibold text-[var(--color-primary-h)] shadow-[var(--shadow-sm)]" aria-hidden>B</span>
+          <p className="text-sm font-semibold text-[var(--color-text)]">No appointments yet</p>
+          <p className="mt-1 max-w-lg text-xs leading-relaxed text-[var(--color-text-muted)]">When visitors book through your embedded chatbot or Retell phone agent, their reservations will appear here.</p>
         </div>
       </Panel>
     );
@@ -678,8 +681,10 @@ function BookedAppointmentsPanel({
       >
         <div className="space-y-4">
           <BookedSourceFilterSwitch value={sourceFilter} onChange={setSourceFilter} counts={sourceCounts} />
-          <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
-            No {appointmentSourceLabel(sourceFilter).toLowerCase()} bookings yet.
+          <div className="flex min-h-[140px] flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border-hover)] bg-[linear-gradient(145deg,var(--color-bg),var(--color-surface))] px-5 py-7 text-center">
+            <span className="mb-2.5 flex size-9 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm font-semibold text-[var(--color-text-muted)] shadow-[var(--shadow-sm)]" aria-hidden>—</span>
+            <p className="text-sm font-semibold text-[var(--color-text)]">No matching bookings</p>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">No {appointmentSourceLabel(sourceFilter).toLowerCase()} bookings have been recorded yet.</p>
           </div>
         </div>
       </Panel>
@@ -1299,6 +1304,7 @@ export function AppointmentsTabs({
   retryCrmSync,
   crmWebhookConfigured,
   appointmentAnalytics,
+  testBookingHref,
 }: AppointmentsTabsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("integrations");
 
@@ -1308,27 +1314,66 @@ export function AppointmentsTabs({
   );
   const showTrendPlaceholder =
     !trendHasActivity && appointmentAnalytics.totalLast30Days === 0;
+  const totalBookings = bookedAppointments.upcoming.length + bookedAppointments.recentPast.length;
+  const connectedProviders = calendarProviders.filter((provider) => provider.status === "Connected").length;
+  const tabContext: Record<TabKey, { eyebrow: string; title: string; description: string; badge: string }> = {
+    integrations: {
+      eyebrow: "Delivery infrastructure",
+      title: "Calendar integrations",
+      description: "Manage provider connections and verify that booking requests can reach the correct calendar.",
+      badge: `${connectedProviders} of ${calendarProviders.length} connected`,
+    },
+    booked: {
+      eyebrow: "Scheduling workspace",
+      title: "Booking calendar",
+      description: "Review upcoming and recent reservations across chatbot and Voice AI channels.",
+      badge: `${totalBookings} booking${totalBookings === 1 ? "" : "s"}`,
+    },
+    analytics: {
+      eyebrow: "Operational intelligence",
+      title: "Booking performance",
+      description: "Track booking volume, calendar delivery, and synchronization health over time.",
+      badge: "30-day view",
+    },
+  };
+  const activeContext = tabContext[activeTab];
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="grid max-w-full grid-cols-3 gap-1.5 overflow-x-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-[var(--shadow-md)]" role="tablist" aria-label="Appointment operations">
         {tabs.map((tab) => {
           const active = activeTab === tab.key;
           return (
             <button
               key={tab.key}
               type="button"
+              role="tab"
+              aria-selected={active}
               onClick={() => setActiveTab(tab.key)}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+              className={`min-w-0 rounded-xl border px-3 py-2.5 text-left transition-all duration-200 ${
                 active
-                  ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
-                  : "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)]"
+                  ? "border-[color-mix(in_srgb,var(--color-primary)_22%,var(--color-border))] bg-[var(--color-primary-soft)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)]"
+                  : "border-transparent text-[var(--color-text-muted)] hover:border-[var(--color-border-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-text)]"
               }`}
             >
-              {tab.label}
+              <span className="block truncate text-xs font-semibold">{tab.label}</span>
+              <span className={`mt-0.5 hidden truncate text-[10px] font-medium sm:block ${active ? "text-[color-mix(in_srgb,var(--color-primary-h)_72%,var(--color-text-muted))]" : "text-[var(--color-text-subtle)]"}`}>
+                {tab.hint}
+              </span>
             </button>
           );
         })}
+      </div>
+
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 shadow-[var(--shadow-sm)]">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">{activeContext.eyebrow}</p>
+          <h2 className="mt-1 text-lg font-semibold tracking-tight text-[var(--color-text)]">{activeContext.title}</h2>
+          <p className="mt-1 max-w-3xl text-xs leading-relaxed text-[var(--color-text-muted)]">{activeContext.description}</p>
+        </div>
+        <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-[10px] font-semibold text-[var(--color-text-muted)]">
+          {activeContext.badge}
+        </span>
       </div>
 
       {activeTab === "booked" ? (
@@ -1349,9 +1394,27 @@ export function AppointmentsTabs({
             title="Requests by Provider"
             subtitle="Incoming scheduling load by connected provider"
           >
-            {providerLoad.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
-                No provider load data yet.
+            {providerLoad.length === 0 || providerLoad.every((item) => Number(item.requests) === 0) ? (
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-dashed border-[var(--color-border-hover)] bg-[linear-gradient(145deg,var(--color-bg),var(--color-surface))] px-5 py-5">
+                <div className="flex items-center gap-3">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm font-semibold text-[var(--color-primary-h)] shadow-[var(--shadow-sm)]" aria-hidden>
+                    C
+                  </span>
+                  <div>
+                  <p className="text-sm font-semibold text-[var(--color-text)]">No booking requests yet</p>
+                  <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+                    Run a test through your booking assistant to confirm availability and calendar delivery.
+                  </p>
+                  </div>
+                </div>
+                <a
+                  href={testBookingHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="shrink-0 rounded-xl bg-[var(--color-primary)] px-3.5 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+                >
+                  Test booking flow ↗
+                </a>
               </div>
             ) : (
               <div className="space-y-3 text-sm text-[var(--color-text)]">
@@ -1378,26 +1441,35 @@ export function AppointmentsTabs({
       {activeTab === "analytics" ? (
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Last 30 days</p>
-              <p className="mt-1 text-2xl font-semibold text-[var(--color-text)]">
+            <div className="rounded-2xl border border-[color-mix(in_srgb,#0284c7_18%,var(--color-border))] bg-[linear-gradient(145deg,color-mix(in_srgb,#0284c7_7%,var(--color-surface)),var(--color-surface))] px-4 py-4 shadow-[var(--shadow-sm)]">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Last 30 days</p>
+                <span className="flex size-7 items-center justify-center rounded-lg bg-sky-500/10 text-[10px] font-bold text-sky-600 dark:text-sky-300" aria-hidden>B</span>
+              </div>
+              <p className="mt-2 text-3xl font-semibold tracking-tight text-[var(--color-text)]">
                 {appointmentAnalytics.totalLast30Days}
               </p>
-              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">Bookings recorded</p>
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">Bookings recorded</p>
             </div>
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">On calendar</p>
-              <p className="mt-1 text-2xl font-semibold text-[var(--color-success)]">
+            <div className="rounded-2xl border border-[color-mix(in_srgb,var(--color-success)_20%,var(--color-border))] bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-success)_7%,var(--color-surface)),var(--color-surface))] px-4 py-4 shadow-[var(--shadow-sm)]">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">On calendar</p>
+                <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-500/10 text-[10px] font-bold text-emerald-600 dark:text-emerald-300" aria-hidden>✓</span>
+              </div>
+              <p className="mt-2 text-3xl font-semibold tracking-tight text-[var(--color-success)]">
                 {appointmentAnalytics.postedToCalendarLast30Days}
               </p>
-              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">Synced or has external event</p>
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">Synced or has external event</p>
             </div>
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Not on calendar</p>
-              <p className="mt-1 text-2xl font-semibold text-[var(--color-warning)]">
+            <div className="rounded-2xl border border-[color-mix(in_srgb,var(--color-warning)_22%,var(--color-border))] bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-warning)_7%,var(--color-surface)),var(--color-surface))] px-4 py-4 shadow-[var(--shadow-sm)]">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Not on calendar</p>
+                <span className="flex size-7 items-center justify-center rounded-lg bg-amber-500/10 text-[10px] font-bold text-amber-600 dark:text-amber-300" aria-hidden>!</span>
+              </div>
+              <p className="mt-2 text-3xl font-semibold tracking-tight text-[var(--color-warning)]">
                 {appointmentAnalytics.awaitingCalendarLast30Days}
               </p>
-              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">Pending post or sync issue</p>
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">Pending post or sync issue</p>
             </div>
           </div>
 
@@ -1406,8 +1478,10 @@ export function AppointmentsTabs({
             subtitle="Last 7 days (UTC): new bookings recorded vs posted to a connected calendar that day"
           >
             {showTrendPlaceholder ? (
-              <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
-                No bookings yet. When guests book through your chatbot, daily counts will appear in this chart.
+              <div className="flex min-h-[135px] flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border-hover)] bg-[linear-gradient(145deg,var(--color-bg),var(--color-surface))] px-5 py-6 text-center">
+                <span className="mb-2 flex size-9 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm font-semibold text-[var(--color-text-muted)] shadow-[var(--shadow-sm)]" aria-hidden>—</span>
+                <p className="text-sm font-semibold text-[var(--color-text)]">No booking activity yet</p>
+                <p className="mt-1 max-w-md text-xs leading-relaxed text-[var(--color-text-muted)]">When guests book through your chatbot, daily recorded and calendar-delivery counts will appear here.</p>
               </div>
             ) : (
               <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">

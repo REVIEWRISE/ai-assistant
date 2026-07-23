@@ -1,9 +1,17 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Panel } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { CustomSelect } from "@/components/custom-select";
+import {
+  DataTable,
+  DataTableBody,
+  DataTableEmptyState,
+  DataTableHeader,
+  DataTablePagination,
+  DataTableRow,
+} from "@/components/data-table";
 
 type MenuRow = {
   id: string;
@@ -14,6 +22,8 @@ type MenuRow = {
   icon?: string | null;
   sortOrder?: number | null;
   createdAt: string | Date;
+  childCount?: number;
+  grantCount?: number;
 };
 
 type MenusManagerProps = {
@@ -28,6 +38,11 @@ type ModalState =
   | { type: "edit"; menu: MenuRow }
   | { type: "delete"; menu: MenuRow }
   | null;
+
+type LevelFilter = "all" | "top" | "nested";
+
+const fieldClass =
+  "mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]";
 
 function sortMenus(a: MenuRow, b: MenuRow): number {
   return (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.label.localeCompare(b.label);
@@ -59,6 +74,150 @@ function buildMenuTree(menus: MenuRow[]): MenuTreeNode[] {
     .map(toNode);
 }
 
+function MenuActionsMenu({
+  menu,
+  isOpen,
+  onToggle,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  menu: MenuRow;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState<{ bottom: number; left: number } | null>(
+    null,
+  );
+
+  function computeMenuPosition(rect: DOMRect) {
+    const menuWidth = 220;
+    const gap = 8;
+    const viewportPadding = 8;
+    const bottom = window.innerHeight - rect.top + gap;
+    let left = rect.right - menuWidth;
+    left = Math.min(
+      Math.max(viewportPadding, left),
+      window.innerWidth - menuWidth - viewportPadding,
+    );
+    return { bottom, left };
+  }
+
+  function handleTriggerClick() {
+    if (isOpen) {
+      onClose();
+      return;
+    }
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect) setMenuPosition(computeMenuPosition(rect));
+    onToggle();
+  }
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function updatePosition() {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (rect) setMenuPosition(computeMenuPosition(rect));
+    }
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      onClose();
+    }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isOpen, onClose]);
+
+  return (
+    <div className="flex justify-end">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={handleTriggerClick}
+        aria-label={`Open actions for ${menu.label}`}
+        title={`Actions for ${menu.label}`}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition ${
+          isOpen
+            ? "border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]"
+            : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+        }`}
+      >
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+          <circle cx="12" cy="5" r="1.75" />
+          <circle cx="12" cy="12" r="1.75" />
+          <circle cx="12" cy="19" r="1.75" />
+        </svg>
+      </button>
+
+      {isOpen && menuPosition
+        ? createPortal(
+            <div
+              ref={menuRef}
+              role="menu"
+              style={{ bottom: menuPosition.bottom, left: menuPosition.left }}
+              className="fixed z-[120] min-w-[13.75rem] max-w-[13.75rem] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] py-1 shadow-[var(--shadow-lg)]"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onEdit();
+                  onClose();
+                }}
+                className="flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left transition hover:bg-[var(--color-surface)]"
+              >
+                <span className="text-sm font-semibold text-[var(--color-text)]">Edit menu</span>
+                <span className="text-[11px] leading-snug text-[var(--color-text-muted)]">
+                  Update label, path, or nesting
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onDelete();
+                  onClose();
+                }}
+                className="flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left transition hover:bg-[var(--color-danger-soft)]"
+              >
+                <span className="text-sm font-semibold text-[var(--color-danger)]">Delete menu</span>
+                <span className="text-[11px] leading-snug text-[var(--color-text-muted)]">
+                  Permanently remove this route
+                </span>
+              </button>
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
+  );
+}
+
 export function MenusManager({
   menus,
   onCreateMenu,
@@ -66,11 +225,30 @@ export function MenusManager({
   onDeleteMenu,
 }: MenusManagerProps) {
   const [modal, setModal] = useState<ModalState>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(5);
+  const [perPage, setPerPage] = useState(10);
+  const [query, setQuery] = useState("");
+  const [levelFilter, setLevelFilter] = useState<LevelFilter>("all");
 
-  const menuTree = useMemo(() => buildMenuTree(menus), [menus]);
+  const filteredMenus = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return menus.filter((menu) => {
+      const matchesQuery =
+        !normalizedQuery ||
+        menu.label.toLowerCase().includes(normalizedQuery) ||
+        menu.path.toLowerCase().includes(normalizedQuery) ||
+        (menu.description ?? "").toLowerCase().includes(normalizedQuery);
+      const isTop = !menu.parentId;
+      const matchesLevel =
+        levelFilter === "all" ||
+        (levelFilter === "top" && isTop) ||
+        (levelFilter === "nested" && !isTop);
+      return matchesQuery && matchesLevel;
+    });
+  }, [levelFilter, menus, query]);
 
+  const menuTree = useMemo(() => buildMenuTree(filteredMenus), [filteredMenus]);
   const totalPages = Math.max(1, Math.ceil(menuTree.length / perPage));
   const currentPage = Math.min(page, totalPages);
   const pagedTree = useMemo(() => {
@@ -79,6 +257,14 @@ export function MenusManager({
   }, [menuTree, currentPage, perPage]);
 
   const topLevelMenus = useMemo(() => menus.filter((menu) => !menu.parentId), [menus]);
+  const nestedCount = menus.length - topLevelMenus.length;
+  const hasAnySubMenus = nestedCount > 0;
+
+  const levelCounts = {
+    all: menus.length,
+    top: topLevelMenus.length,
+    nested: nestedCount,
+  };
 
   const parentLabelById = useMemo(() => {
     const map = new Map<string, string>();
@@ -88,11 +274,16 @@ export function MenusManager({
     return map;
   }, [menus]);
 
-  const gridHeaderClass =
-    "hidden grid-cols-[52px_minmax(0,1fr)_minmax(0,1.1fr)_120px_120px_160px] items-center gap-2 vr-app-table-header px-4 py-3 md:grid";
-  const gridRowClass =
-    "group grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] md:grid-cols-[52px_minmax(0,1fr)_minmax(0,1.1fr)_120px_120px_160px]";
-  const hasAnySubMenus = menus.length > menuTree.length;
+  const levelFilters: Array<{ key: LevelFilter; label: string }> = [
+    { key: "all", label: "All" },
+    { key: "top", label: "Top level" },
+    { key: "nested", label: "Nested" },
+  ];
+
+  const levelOptions = levelFilters.map((filter) => ({
+    value: filter.key,
+    label: `${filter.label} · ${levelCounts[filter.key]}`,
+  }));
 
   function renderMenuRow(
     menu: MenuRow,
@@ -100,61 +291,77 @@ export function MenusManager({
   ) {
     const { rowKey, indexLabel, depth } = opts;
     const isNested = depth > 0;
+    const grantCount = menu.grantCount ?? 0;
 
     return (
-      <div key={rowKey} className={gridRowClass}>
-        <div className="text-xs font-semibold text-[var(--color-text-muted)] md:text-sm">
-          <span
-            className={`inline-flex min-w-[44px] items-center justify-center rounded-full border px-2 py-1 text-[11px] font-semibold ${
+      <DataTableRow
+        key={rowKey}
+        className="group gap-4 py-4 hover:bg-[var(--color-bg)] lg:grid-cols-[minmax(220px,1.3fr)_minmax(180px,1fr)_88px_100px_120px] lg:items-center lg:px-5 lg:py-3.5"
+      >
+        <div
+          className={`flex min-w-0 items-start gap-3 ${isNested ? "border-l-2 border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))]" : ""}`}
+          style={isNested ? { paddingLeft: 10 + Math.min(depth, 6) * 12 } : undefined}
+        >
+          <div
+            className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl text-[10px] font-bold ${
               isNested
-                ? "border-[var(--color-border-muted)] bg-[var(--color-raised)]/80 text-[var(--color-text-muted)]"
-                : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]"
+                ? "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
+                : "bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_22%,transparent),color-mix(in_srgb,var(--color-primary)_8%,transparent))] text-[var(--color-primary-h)] ring-1 ring-[color-mix(in_srgb,var(--color-primary)_18%,var(--color-border))]"
             }`}
           >
             {indexLabel}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-[var(--color-text)]">{menu.label}</p>
+            <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
+              {isNested ? `Under ${parentLabelById.get(menu.parentId ?? "") ?? "parent"} · ` : null}
+              {menu.description ?? "No description"}
+            </p>
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)] lg:hidden">
+            Path
+          </p>
+          <p className="truncate font-mono text-xs text-[var(--color-text-muted)]">{menu.path}</p>
+        </div>
+
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)] lg:hidden">
+            Order
+          </p>
+          <span className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-[11px] font-semibold tabular-nums text-[var(--color-text)]">
+            {menu.sortOrder ?? 0}
           </span>
         </div>
-        <div
-          className={`min-w-0 ${isNested ? "border-l-2 border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))]" : ""}`}
-          style={isNested ? { paddingLeft: 12 + Math.min(depth, 8) * 14 } : undefined}
-        >
-          <p className="font-semibold text-[var(--color-text)]">{menu.label}</p>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            {isNested ? `Under ${parentLabelById.get(menu.parentId ?? "") ?? "parent"} · ` : null}
-            {menu.description ?? "No description"}
+
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)] lg:hidden">
+            Grants
           </p>
-        </div>
-        <div className="truncate text-xs font-semibold text-[var(--color-text-muted)] md:text-sm">{menu.path}</div>
-        <div className="text-xs font-semibold text-[var(--color-text-muted)]">{menu.sortOrder ?? 0}</div>
-        <div className="text-xs font-semibold text-[var(--color-text-muted)]">
-          {new Date(menu.createdAt).toLocaleDateString()}
-        </div>
-        <div className="flex items-center justify-start gap-2 md:justify-end">
-          <button
-            type="button"
-            onClick={() => setModal({ type: "edit", menu })}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] transition hover:bg-[var(--color-bg)] group-hover:border-[var(--color-border-hover)]"
-            aria-label={`Edit ${menu.label}`}
+          <span
+            className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold tabular-nums ${
+              grantCount > 0 ? "vr-app-status-success" : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
+            }`}
           >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={() => setModal({ type: "delete", menu })}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)] text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))] transition hover:brightness-95"
-            aria-label={`Delete ${menu.label}`}
-          >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 6h18" />
-              <path d="M8 6V4h8v2" />
-              <path d="M19 6l-1 14H6L5 6" />
-            </svg>
-          </button>
+            {grantCount}
+          </span>
         </div>
-      </div>
+
+        <div className="flex items-center lg:justify-end">
+          <MenuActionsMenu
+            menu={menu}
+            isOpen={openMenuId === menu.id}
+            onToggle={() =>
+              setOpenMenuId((current) => (current === menu.id ? null : menu.id))
+            }
+            onClose={() => setOpenMenuId(null)}
+            onEdit={() => setModal({ type: "edit", menu })}
+            onDelete={() => setModal({ type: "delete", menu })}
+          />
+        </div>
+      </DataTableRow>
     );
   }
 
@@ -172,190 +379,198 @@ export function MenusManager({
   }
 
   return (
-    <Panel title="Menu Catalog" subtitle="Create, edit, and remove navigation items">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 flex-1 space-y-1">
-          <p className="text-sm text-[var(--color-text-muted)]">
-            Menus define the navigation structure and routes in the app.
+    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+      <div className="flex flex-col gap-4 border-b border-[var(--color-border)] px-4 py-4 sm:flex-row sm:items-start sm:justify-between lg:px-5">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+            Catalog
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold text-[var(--color-text)]">Navigation menus</h2>
+            <span className="rounded-full bg-[var(--color-primary-soft)] px-2.5 py-1 text-[10px] font-semibold text-[var(--color-primary-h)]">
+              {filteredMenus.length}
+              {filteredMenus.length !== menus.length ? ` of ${menus.length}` : ""} shown
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+            Define routes that can be granted through roles and user overrides.
           </p>
           {menus.length > 0 && !hasAnySubMenus ? (
-            <p className="text-xs text-[var(--color-text-muted)]">
-              <span className="font-semibold">Sub-menus</span> are listed under their parent. Edit a menu (or add one) and set{" "}
-              <span className="font-semibold">Parent menu</span> to nest it.
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              Set a <span className="font-semibold">Parent menu</span> when adding or editing to nest items.
             </p>
           ) : null}
         </div>
         <button
           type="button"
           onClick={() => setModal({ type: "create" })}
-          className="rounded-xl vr-btn-primary px-4 py-2 text-sm font-semibold"
+          className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
         >
-          Add Menu
+          Add menu
         </button>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-        <div className={gridHeaderClass}>
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]" />
-            Index
-          </div>
-          <div>Label</div>
-          <div>Path</div>
-          <div>Order</div>
-          <div>Created</div>
-          <div className="text-right">Actions</div>
-        </div>
-        <div className="divide-y divide-[var(--color-border-muted)]">
-          {pagedTree.map((node, index) => {
-            const parentIndex = String((currentPage - 1) * perPage + index + 1).padStart(2, "0");
-            return (
-              <div key={node.id} className="divide-y divide-[var(--color-border-muted)]">
-                {renderMenuSubtree(node, parentIndex, 0)}
-              </div>
-            );
-          })}
-          {menus.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
-              No menus yet. Create your first menu.
-            </div>
-          ) : null}
+      <div className="border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 lg:px-5">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem]">
+          <label className="block">
+            <span className="sr-only">Search menus</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search by label, path, or description…"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_18%,transparent)]"
+            />
+          </label>
+          <CustomSelect
+            value={levelFilter}
+            onChange={(value) => {
+              setLevelFilter(value);
+              setPage(1);
+            }}
+            options={levelOptions}
+            aria-label="Filter by menu level"
+            className="mt-0"
+            triggerClassName="rounded-xl border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm font-semibold"
+          />
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--color-text-muted)]">
-        <div>
-          <span className="text-[var(--color-text-muted)]">
-            {menus.length} menu{menus.length === 1 ? "" : "s"} total
-            {menuTree.length > 0 ? ` · ${menuTree.length} top-level` : null}
-            {menus.length > menuTree.length
-              ? ` · ${menus.length - menuTree.length} sub-menu${menus.length - menuTree.length === 1 ? "" : "s"}`
-              : null}
-          </span>
-          <span className="mx-2 text-[var(--color-text-subtle)]">|</span>
-          Showing{" "}
-          <span className="font-semibold text-[var(--color-text)]">
-            {menuTree.length === 0 ? 0 : (currentPage - 1) * perPage + 1}
-          </span>{" "}
-          to{" "}
-          <span className="font-semibold text-[var(--color-text)]">
-            {Math.min(currentPage * perPage, menuTree.length)}
-          </span>{" "}
-          of{" "}
-          <span className="font-semibold text-[var(--color-text)]">{menuTree.length}</span> top-level
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2">
-            Items per page
-            <select
-              value={perPage}
-              onChange={(event) => {
-                const next = Number(event.target.value);
-                setPerPage(next);
-                setPage(1);
-              }}
-              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]"
-            >
-              {[5, 10, 20, 50].map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] transition disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Prev
-            </button>
-            <span className="rounded-lg bg-[var(--color-raised)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] transition disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+      <div className="p-4 lg:p-5">
+        <DataTable>
+          <DataTableHeader className="hidden grid-cols-[minmax(220px,1.3fr)_minmax(180px,1fr)_88px_100px_120px] lg:grid lg:px-5">
+            <div>Menu</div>
+            <div>Path</div>
+            <div>Order</div>
+            <div>Grants</div>
+            <div className="text-right">Actions</div>
+          </DataTableHeader>
+        <DataTableBody>
+          {pagedTree.map((node, index) => {
+            const parentIndex = String((currentPage - 1) * perPage + index + 1).padStart(2, "0");
+            return (
+              <Fragment key={node.id}>{renderMenuSubtree(node, parentIndex, 0)}</Fragment>
+            );
+          })}
+          {filteredMenus.length === 0 ? (
+            <DataTableEmptyState
+              title={menus.length === 0 ? "No menus yet" : "No matching menus"}
+              description={
+                menus.length === 0
+                  ? "Create the first menu to begin defining navigation access."
+                  : "Try a different search or level filter."
+              }
+              action={
+                menus.length === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setModal({ type: "create" })}
+                    className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)]"
+                  >
+                    Add menu
+                  </button>
+                ) : null
+              }
+            />
+          ) : null}
+        </DataTableBody>
+        <DataTablePagination
+          totalItems={menuTree.length}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          perPage={perPage}
+          onPageChange={setPage}
+          onPerPageChange={(size) => {
+            setPerPage(size);
+            setPage(1);
+          }}
+          itemLabel="top-level menus"
+          summary={
+            <p>
+              <span className="font-semibold text-[var(--color-text)]">{menus.length}</span> menus ·{" "}
+              <span className="font-semibold text-[var(--color-text)]">{topLevelMenus.length}</span>{" "}
+              top-level ·{" "}
+              <span className="font-semibold text-[var(--color-text)]">{nestedCount}</span> nested
+            </p>
+          }
+        />
+        </DataTable>
       </div>
 
       {modal && modal.type !== "delete"
         ? createPortal(
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] px-4">
-              <div className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5 shadow-2xl">
-                <div className="flex items-start justify-between gap-3">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_42%,transparent)] px-4 backdrop-blur-sm">
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="menu-dialog-title"
+                className="w-full max-w-md overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"
+              >
+                <div className="flex items-start justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
-                      Access Control
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-h)]">
+                      Access control
                     </p>
-                    <h2 className="mt-2 text-lg font-semibold text-[var(--color-text)]">
-                      {modal.type === "create" ? "Add Menu" : "Edit Menu"}
+                    <h2
+                      id="menu-dialog-title"
+                      className="mt-1 text-lg font-semibold text-[var(--color-text)]"
+                    >
+                      {modal.type === "create" ? "Add a menu" : "Edit menu"}
                     </h2>
-                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                       {modal.type === "create"
-                        ? "Create a new menu entry."
-                        : "Update the menu details."}
+                        ? "Create a navigation entry that can be granted to roles."
+                        : "Update the menu label, path, nesting, or order."}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setModal(null)}
-                    className="rounded-lg p-1 text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)]"
-                    aria-label="Close"
+                    className="rounded-lg px-2 py-1 text-lg leading-none text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
+                    aria-label="Close dialog"
                   >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-5 w-5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M6 6l12 12M6 18L18 6" />
-                    </svg>
+                    ×
                   </button>
                 </div>
 
                 <form
                   action={modal.type === "create" ? onCreateMenu : onUpdateMenu}
-                  className="mt-4 space-y-4"
+                  className="space-y-4 p-5"
                 >
                   {modal.type === "edit" ? (
                     <input type="hidden" name="id" value={modal.menu.id} />
                   ) : null}
-                  <label className="block text-sm text-[var(--color-text)]">
+                  <label className="block text-xs font-semibold text-[var(--color-text)]">
                     Label
                     <input
                       type="text"
                       name="label"
                       defaultValue={modal.type === "edit" ? modal.menu.label : ""}
                       placeholder="e.g. Reporting"
-                      className="mt-1 w-full rounded-xl border border-[var(--color-border-hover)] bg-[var(--color-surface)] px-3 py-2 text-sm outline-none ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] transition focus:bg-[var(--color-bg)] focus:ring"
+                      required
+                      className={fieldClass}
                     />
                   </label>
-                  <label className="block text-sm text-[var(--color-text)]">
+                  <label className="block text-xs font-semibold text-[var(--color-text)]">
                     Path
                     <input
                       type="text"
                       name="path"
                       defaultValue={modal.type === "edit" ? modal.menu.path : ""}
                       placeholder="/settings/reporting"
-                      className="mt-1 w-full rounded-xl border border-[var(--color-border-hover)] bg-[var(--color-surface)] px-3 py-2 text-sm outline-none ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] transition focus:bg-[var(--color-bg)] focus:ring"
+                      required
+                      className={fieldClass}
                     />
                   </label>
-                  <label className="block text-sm text-[var(--color-text)]">
+                  <label className="block text-xs font-semibold text-[var(--color-text)]">
                     Parent menu
                     <select
                       name="parent_id"
                       defaultValue={modal.type === "edit" ? modal.menu.parentId ?? "" : ""}
-                      className="mt-1 w-full rounded-xl border border-[var(--color-border-hover)] bg-[var(--color-surface)] px-3 py-2 text-sm outline-none ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] transition focus:bg-[var(--color-bg)] focus:ring"
+                      className={fieldClass}
                     >
                       <option value="">No parent</option>
                       {topLevelMenus
@@ -367,51 +582,51 @@ export function MenusManager({
                         ))}
                     </select>
                   </label>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="block text-sm text-[var(--color-text)]">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block text-xs font-semibold text-[var(--color-text)]">
                       Icon key
                       <input
                         type="text"
                         name="icon"
                         defaultValue={modal.type === "edit" ? modal.menu.icon ?? "" : ""}
                         placeholder="e.g. shield, chart"
-                        className="mt-1 w-full rounded-xl border border-[var(--color-border-hover)] bg-[var(--color-surface)] px-3 py-2 text-sm outline-none ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] transition focus:bg-[var(--color-bg)] focus:ring"
+                        className={fieldClass}
                       />
                     </label>
-                    <label className="block text-sm text-[var(--color-text)]">
+                    <label className="block text-xs font-semibold text-[var(--color-text)]">
                       Sort order
                       <input
                         type="number"
                         name="sort_order"
-                        defaultValue={modal.type === "edit" ? modal.menu.sortOrder ?? 0 : 0}
-                        className="mt-1 w-full rounded-xl border border-[var(--color-border-hover)] bg-[var(--color-surface)] px-3 py-2 text-sm outline-none ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] transition focus:bg-[var(--color-bg)] focus:ring"
+                        defaultValue={modal.type === "edit" ? (modal.menu.sortOrder ?? 0) : 0}
+                        className={fieldClass}
                       />
                     </label>
                   </div>
-                  <label className="block text-sm text-[var(--color-text)]">
+                  <label className="block text-xs font-semibold text-[var(--color-text)]">
                     Description
                     <input
                       type="text"
                       name="description"
                       defaultValue={modal.type === "edit" ? modal.menu.description ?? "" : ""}
                       placeholder="Optional description"
-                      className="mt-1 w-full rounded-xl border border-[var(--color-border-hover)] bg-[var(--color-surface)] px-3 py-2 text-sm outline-none ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] transition focus:bg-[var(--color-bg)] focus:ring"
+                      className={fieldClass}
                     />
                   </label>
 
-                  <div className="flex flex-wrap items-center justify-end gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--color-border)] pt-4">
                     <button
                       type="button"
                       onClick={() => setModal(null)}
-                      className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+                      className="rounded-xl border border-[var(--color-border)] px-3.5 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="rounded-xl vr-btn-primary px-4 py-2 text-sm font-semibold"
+                      className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
                     >
-                      {modal.type === "create" ? "Create Menu" : "Save Changes"}
+                      {modal.type === "create" ? "Create menu" : "Save changes"}
                     </button>
                   </div>
                 </form>
@@ -426,16 +641,16 @@ export function MenusManager({
         title="Delete menu"
         description={
           modal?.type === "delete"
-            ? `This will permanently remove "${modal.menu.label}".`
+            ? `This will permanently remove “${modal.menu.label}”.`
             : ""
         }
-        confirmLabel="Delete Menu"
+        confirmLabel="Delete menu"
         onCancel={() => setModal(null)}
         action={onDeleteMenu}
         hiddenFields={
           modal?.type === "delete" ? [{ name: "id", value: modal.menu.id }] : []
         }
       />
-    </Panel>
+    </section>
   );
 }

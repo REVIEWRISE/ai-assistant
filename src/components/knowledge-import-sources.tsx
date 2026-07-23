@@ -14,7 +14,7 @@ function SubmitButton({ idleLabel, pendingLabel }: { idleLabel: string; pendingL
     <button
       type="submit"
       disabled={pending}
-      className="mt-3 w-full rounded-xl vr-btn-primary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-70"
+      className="shrink-0 rounded-xl vr-btn-primary px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_-14px_color-mix(in_srgb,var(--color-primary)_85%,transparent)] disabled:cursor-not-allowed disabled:opacity-70"
     >
       {pending ? pendingLabel : idleLabel}
     </button>
@@ -45,15 +45,17 @@ function WebsiteImportFields({ organizationId }: { organizationId: string }) {
       <p className="text-xs text-[var(--color-text-muted)]">
         Scrape public website content to generate a draft knowledge base.
       </p>
-      <input
-        type="url"
-        name="website_url"
-        placeholder="https://yourbusiness.com"
-        disabled={pending}
-        className="mt-3 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] disabled:cursor-not-allowed disabled:bg-[var(--color-surface)] disabled:text-[var(--color-text-muted)]"
-      />
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <input
+          type="url"
+          name="website_url"
+          placeholder="https://yourbusiness.com"
+          disabled={pending}
+          className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] disabled:cursor-not-allowed disabled:bg-[var(--color-raised)] disabled:text-[var(--color-text-muted)]"
+        />
+        <SubmitButton idleLabel="Import website" pendingLabel="Importing…" />
+      </div>
       <ImportWebsiteProgress />
-      <SubmitButton idleLabel="Import Website" pendingLabel="Importing website…" />
     </>
   );
 }
@@ -64,18 +66,13 @@ export function KnowledgeImportSources({
   onImportFromWebsite,
 }: KnowledgeImportSourcesProps) {
   return (
-    <div className="mt-4 space-y-4">
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
-        <p className="text-sm font-semibold text-[var(--color-text)]">Website URL</p>
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Target organization:{" "}
-          <span className="font-semibold text-[var(--color-text)]">{organizationName}</span>
-        </p>
-
-        <form action={onImportFromWebsite} className="mt-3">
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 shadow-[var(--shadow-sm)]">
+        <form action={onImportFromWebsite}>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+            Website URL · {organizationName}
+          </p>
           <WebsiteImportFields organizationId={organizationId} />
         </form>
-      </div>
     </div>
   );
 }

@@ -54,10 +54,12 @@ function SaveConnectionButton({ connected }: { connected: boolean }) {
 
 export function ReviewServiceManager({
   services,
+  readOnly = false,
   onConnectProvider,
   onSyncProvider,
 }: {
   services: ReviewService[];
+  readOnly?: boolean;
   onConnectProvider: (formData: FormData) => void | Promise<void>;
   onSyncProvider: (formData: FormData) => void | Promise<void>;
 }) {
@@ -129,27 +131,38 @@ export function ReviewServiceManager({
   }
 
   return (
-    <section className="vr-app-panel p-4 lg:p-5">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+    <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-5 lg:px-6">
         <div>
-          <h3 className="text-base font-semibold text-[var(--color-text)]">Review Service Integrations</h3>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            Connect a platform before pulling reviews and allowing AI responses.
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
+            Provider network
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="mt-1.5 text-lg font-semibold tracking-[-0.015em] text-[var(--color-text)]">Review sources</h3>
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-semibold ${connectedCount > 0 ? "vr-app-status-success" : "vr-app-status-warning"}`}>
+              <span className={`size-1.5 rounded-full ${connectedCount > 0 ? "bg-[var(--color-success)]" : "bg-[var(--color-warning)]"}`} aria-hidden />
+              {connectedCount > 0 ? `${connectedCount} connected` : "Connection needed"}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            {readOnly
+              ? "Review provider connection and synchronization status."
+              : "Connect platforms to sync reviews and publish responses."}
           </p>
         </div>
-        <div className="flex gap-2 text-xs">
-          <span className="inline-flex rounded-full vr-app-status-success px-3 py-1.5 font-semibold">
-            Connected: {connectedCount}
-          </span>
-          <span className="inline-flex rounded-full vr-app-status-muted px-3 py-1.5 font-semibold">
-            Not connected: {services.length - connectedCount}
-          </span>
+        <div className="flex items-center gap-2 text-xs">
+          {readOnly ? (
+            <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-[10px] font-semibold text-[var(--color-text-muted)]">
+              View only
+            </span>
+          ) : null}
+          <span className="hidden text-[11px] text-[var(--color-text-muted)] sm:inline">{services.length - connectedCount} need attention</span>
           <button
             type="button"
             onClick={() => setCollapsed((prev) => !prev)}
-            className="flex items-center gap-1 rounded-full vr-btn-primary px-3 py-1.5 font-semibold"
+            className="flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
           >
-            {collapsed ? "Expand" : "Collapse"}
+            {collapsed ? "Show sources" : "Hide sources"}
             <svg
               viewBox="0 0 24 24"
               className={`h-3.5 w-3.5 transition ${collapsed ? "" : "rotate-180"}`}
@@ -163,8 +176,9 @@ export function ReviewServiceManager({
         </div>
       </div>
 
+      <div className="p-4 lg:p-5">
       {collapsed && services.length > 0 ? (
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           {services.map((service) => (
             <span
               key={service.id}
@@ -181,7 +195,7 @@ export function ReviewServiceManager({
 
       {!collapsed ? (
         <>
-          <div className="mb-4 flex flex-wrap gap-2">
+          {services.length > 3 ? <div className="mb-4 flex flex-wrap gap-2">
             {filters.map((filter) => {
               const active = activeFilter === filter.id;
               return (
@@ -199,11 +213,11 @@ export function ReviewServiceManager({
                 </button>
               );
             })}
-          </div>
+          </div> : null}
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="divide-y divide-[var(--color-border)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
             {filteredServices.length === 0 ? (
-              <div className="vr-app-alert vr-app-alert-warning sm:col-span-2 xl:col-span-3">
+              <div className="vr-app-alert vr-app-alert-warning m-3">
                 <p className="font-semibold">No review providers found.</p>
                 <p className="mt-1 text-xs opacity-90">
                   In Platform → Providers, add a provider with type <strong>Review</strong> and status{" "}
@@ -214,78 +228,78 @@ export function ReviewServiceManager({
               filteredServices.map((service) => {
                 const connected = service.status === "Connected";
                 return (
-                  <div key={service.id} className={`rounded-2xl border p-4 shadow-sm ${service.tone}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 items-start gap-2.5">
+                  <div key={service.id} className="flex flex-wrap items-center gap-3 px-3.5 py-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
                         {service.logoUrl ? (
                           <Image
                             src={service.logoUrl}
                             alt={`${service.name} logo`}
-                            width={32}
-                            height={32}
+                            width={24}
+                            height={24}
                             unoptimized
-                            className="h-8 w-8 shrink-0 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] object-contain p-1"
+                            className="size-9 shrink-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] object-contain p-1.5"
                           />
                         ) : (
-                          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-bold text-[var(--color-text-muted)]">
+                          <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-bold text-[var(--color-text-muted)]">
                             {service.name.slice(0, 1).toUpperCase()}
                           </span>
                         )}
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-[var(--color-text)]">{service.name}</p>
-                          <p className="mt-1 text-xs uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-                            {service.type}
+                          <p className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]">
+                            {connected ? `${service.left} · ${service.autoReply}` : `${service.type} · Connect to start syncing`}
                           </p>
                         </div>
-                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                           connected ? "vr-app-status-success" : "vr-app-status-muted"
                         }`}
                       >
+                        <span className={`size-1.5 rounded-full ${connected ? "bg-[var(--color-success)]" : "bg-[var(--color-text-subtle)]"}`} aria-hidden />
                         {service.status}
                       </span>
-                    </div>
-                    <div className="mt-3 space-y-1 text-xs text-[var(--color-text)]">
-                      <p className="font-medium">{service.left}</p>
-                      <p className="text-[var(--color-text-muted)]">{service.lastSync}</p>
-                      <p className="text-[var(--color-text-muted)]">{service.autoReply}</p>
-                    </div>
-                    {service.oauthConnectHref ? (
+                      {!readOnly && service.syncable ? (
+                        <form action={onSyncProvider}>
+                          <input type="hidden" name="provider_id" value={service.id} />
+                          <button
+                            type="submit"
+                            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+                          >
+                            Sync now
+                          </button>
+                        </form>
+                      ) : null}
+                    {readOnly ? (
+                      <span className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text-muted)]">
+                        View only
+                      </span>
+                    ) : service.oauthConnectHref ? (
                       <Link
                         href={service.oauthConnectHref}
-                        className={`mt-3 inline-flex w-full items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                        className={`inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold transition ${
                           connected
-                            ? "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)]"
+                            ? "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-raised)]"
                             : "vr-btn-primary"
                         }`}
                       >
-                        {service.connectLabel ?? (connected ? "Reconnect with Google" : "Connect with Google")}
+                        {connected ? "Manage" : "Connect"}
                       </Link>
                     ) : (
                       <button
                         type="button"
                         onClick={() => openConnectionModal(service)}
-                        className={`mt-3 w-full rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                        className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
                           connected
-                            ? "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)]"
+                            ? "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-raised)]"
                             : "vr-btn-primary"
                         }`}
                       >
-                        {service.connectLabel ?? (connected ? "Manage Connection" : "Connect Service")}
+                        {connected ? "Manage" : "Connect"}
                       </button>
                     )}
-                    {service.syncable ? (
-                      <form action={onSyncProvider} className="mt-2">
-                        <input type="hidden" name="provider_id" value={service.id} />
-                        <button
-                          type="submit"
-                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
-                        >
-                          Sync now
-                        </button>
-                      </form>
-                    ) : null}
+                    </div>
                   </div>
                 );
               })
@@ -293,6 +307,7 @@ export function ReviewServiceManager({
           </div>
         </>
       ) : null}
+      </div>
 
       {typeof document !== "undefined" && activeConnectionService
         ? createPortal(

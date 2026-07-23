@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Panel } from "@/components/ui";
+import {
+  DataTable,
+  DataTableBody,
+  DataTableEmptyState,
+  DataTableHeader,
+  DataTablePagination,
+  DataTableRow,
+} from "@/components/data-table";
 
 type TranscriptTurn = {
   role?: string;
@@ -48,6 +55,8 @@ function formatPhoneNumber(num: string | null): string {
 
 export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
   const [selectedCall, setSelectedCall] = useState<CallItem | null>(null);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
 
   // Compute stats
   const totalCalls = calls.length;
@@ -55,50 +64,60 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
     totalCalls > 0
       ? Math.round(calls.reduce((acc, curr) => acc + curr.durationSeconds, 0) / totalCalls)
       : 0;
+  const inboundCalls = calls.filter((call) => call.direction.toLowerCase() === "inbound").length;
+  const completedCalls = calls.filter((call) => {
+    const status = call.callStatus.toLowerCase();
+    return status === "completed" || status === "ended" || status === "done";
+  }).length;
+  const positiveCalls = calls.filter((call) => {
+    const sentiment = call.sentiment?.toLowerCase().trim();
+    return sentiment === "positive" || sentiment === "friendly";
+  }).length;
+  const totalPages = Math.max(1, Math.ceil(calls.length / perPage));
+  const currentPage = Math.min(page, totalPages);
+  const pagedCalls = calls.slice((currentPage - 1) * perPage, currentPage * perPage);
 
   return (
     <section className="space-y-4">
-      {/* KPI Stats */}
-      <div className="grid gap-3 sm:grid-cols-2 text-sm">
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-            Total Calls
-          </p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-text)]">
-            {totalCalls}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-            Avg Duration
-          </p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-text)]">
-            {formatDuration(avgDuration)}
-          </p>
-        </div>
+      <div className="grid overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: "Total calls", value: totalCalls, hint: "all recorded calls" },
+          { label: "Inbound", value: inboundCalls, hint: totalCalls > 0 ? `${Math.round((inboundCalls / totalCalls) * 100)}% of volume` : "no call volume" },
+          { label: "Completed", value: completedCalls, hint: "finished conversations" },
+          { label: "Avg duration", value: formatDuration(avgDuration), hint: positiveCalls > 0 ? `${positiveCalls} positive` : "no sentiment yet" },
+        ].map((metric, index) => (
+          <div key={metric.label} className={`min-w-0 bg-[var(--color-bg)] px-5 py-5 ${index < 3 ? "border-b border-[var(--color-border)] sm:border-r lg:border-b-0" : ""}`}>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{metric.label}</p>
+            <p className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-[var(--color-text)] tabular-nums">{metric.value}</p>
+            <p className="mt-1 truncate text-xs text-[var(--color-text-muted)]">{metric.hint}</p>
+          </div>
+        ))}
       </div>
 
-      <Panel
-        title="Call History"
-        subtitle="Live call metrics and transcripts"
-      >
+      <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+        <div className="border-b border-[var(--color-border)] px-5 py-5 lg:px-6">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Conversation archive</p>
+          <h3 className="mt-1.5 text-lg font-semibold tracking-[-0.015em] text-[var(--color-text)]">Call history</h3>
+          <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">Completed conversations, recordings, sentiment, and transcripts.</p>
+        </div>
+        <div className="p-4 lg:p-5">
         {calls.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-text-muted)]">
-            <p className="font-semibold text-[var(--color-text)]">No calls recorded yet.</p>
-            <p className="mt-1">
-              Calls made to your support phone number will automatically sync here once completed.
-            </p>
-          </div>
+          <DataTable>
+            <DataTableEmptyState
+              title="No call history yet"
+              description="Completed calls will appear here with recordings, summaries, sentiment, and transcripts."
+            />
+          </DataTable>
         ) : null}
 
         {calls.length > 0 ? (
           <>
             {/* Mobile View */}
             <div className="space-y-3 md:hidden">
-              {calls.map((call) => (
+              {pagedCalls.map((call) => (
                 <div
                   key={call.id}
-                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm space-y-2"
+                  className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 text-sm shadow-[var(--shadow-xs)]"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-semibold text-[var(--color-text)]">
@@ -131,31 +150,42 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
                   <button
                     type="button"
                     onClick={() => setSelectedCall(call)}
-                    className="w-full text-center rounded-lg border border-[var(--color-border-hover)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-center text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
                   >
                     View Details
                   </button>
                 </div>
               ))}
+              <DataTablePagination
+                totalItems={calls.length}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                perPage={perPage}
+                onPageChange={setPage}
+                onPerPageChange={(size) => {
+                  setPerPage(size);
+                  setPage(1);
+                }}
+                pageSizes={[5, 10, 20]}
+                itemLabel="calls"
+              />
             </div>
 
             {/* Desktop View */}
-            <div className="hidden overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] md:block">
-              <div
-                className={`vr-app-table-header hidden items-center gap-3 px-4 py-3 md:grid ${tableGridClass}`}
-              >
+            <DataTable className="hidden md:block">
+              <DataTableHeader className={`hidden md:grid ${tableGridClass}`}>
                 <div>Date & Time</div>
                 <div>Number</div>
                 <div>Duration</div>
                 <div>Sentiment</div>
                 <div>Summary</div>
                 <div className="text-right">Action</div>
-              </div>
-              <div className="divide-y divide-[var(--color-border-muted)]">
-                {calls.map((call) => (
-                  <div
+              </DataTableHeader>
+              <DataTableBody>
+                {pagedCalls.map((call) => (
+                  <DataTableRow
                     key={call.id}
-                    className={`group grid items-center gap-3 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] ${tableGridClass}`}
+                    className={`group items-center ${tableGridClass}`}
                   >
                     <div className="min-w-0 font-medium">
                       <p>{new Date(call.createdAt).toLocaleDateString()}</p>
@@ -197,13 +227,27 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
                         Details
                       </button>
                     </div>
-                  </div>
+                  </DataTableRow>
                 ))}
-              </div>
-            </div>
+              </DataTableBody>
+              <DataTablePagination
+                totalItems={calls.length}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                perPage={perPage}
+                onPageChange={setPage}
+                onPerPageChange={(size) => {
+                  setPerPage(size);
+                  setPage(1);
+                }}
+                pageSizes={[5, 10, 20]}
+                itemLabel="calls"
+              />
+            </DataTable>
           </>
         ) : null}
-      </Panel>
+        </div>
+      </section>
 
       {/* Call Details Modal */}
       {typeof document !== "undefined" && selectedCall
@@ -211,17 +255,17 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] p-4">
               <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)] flex flex-col max-h-[85vh]">
                 {/* Modal Header */}
-                <div className="vr-app-table-header flex items-start justify-between gap-3 px-5 py-4 shrink-0">
+                <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.1em] opacity-90">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary-h)]">
                       Call Details • {selectedCall.direction} ({new Date(selectedCall.createdAt).toLocaleDateString()})
                     </p>
-                    <h3 className="mt-1 text-xl font-semibold text-white">Call Analytics View</h3>
+                    <h3 className="mt-1 text-lg font-semibold text-[var(--color-text)]">Call details</h3>
                   </div>
                   <button
                     type="button"
                     onClick={() => setSelectedCall(null)}
-                    className="rounded-lg border border-white/30 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
+                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
                   >
                     Close
                   </button>

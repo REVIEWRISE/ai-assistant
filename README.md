@@ -90,9 +90,26 @@ BOOKING_NOTIFY_EMAIL=
 SEED_ADMIN_EMAIL=
 SEED_ADMIN_PASSWORD=
 SEED_ADMIN_NAME=
+BILLING_API_URL=http://localhost:4001/api/v1
+BILLING_API_KEY=
+BILLING_PRODUCT_NAME=agents
+BILLING_ADMIN_URL=http://localhost:4001
 ```
 
 `RETELL_API_KEY` powers **Voice Support** with [Retell AI](https://www.retellai.com/): create a per-organization voice agent, sync prompts/knowledge on save, and link phone numbers. Find the key in the Retell dashboard under API keys.
+
+### Vyntrise Billing microservice
+
+Plan prices and contents are owned by the billing service — not this app’s database.
+
+| Variable | Description |
+| :--- | :--- |
+| `BILLING_API_URL` | Billing API base (default `http://localhost:4001/api/v1`; prod `https://billing.vyntrise.com/api/v1`) |
+| `BILLING_API_KEY` | Service API key from Billing Admin → API Keys (`vbk_…`) |
+| `BILLING_PRODUCT_NAME` | Product slug to load (default `agents`) |
+| `BILLING_ADMIN_URL` | Portal URL for the “Manage plans” link (default derived from API URL) |
+
+Landing pricing and **Platform → Billing plans** read from the Billing API only (no static catalog). If the key is missing or the API is unreachable, the UI shows an empty state and a warning toast. Create/edit plans in Billing Admin.
 
 ### Use your own OpenAI key for live voice calls (Custom LLM)
 

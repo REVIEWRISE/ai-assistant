@@ -338,7 +338,7 @@ export function ChatbotVoiceBookingModal({
                 </p>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--color-primary)_30%,var(--color-border))] bg-[var(--color-primary-soft)]">
+              <div className="overflow-hidden rounded-2xl border-2 border-indigo-500 bg-indigo-50 shadow-md dark:border-indigo-400 dark:bg-indigo-950/60">
                 <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
                     <div
@@ -431,14 +431,25 @@ export function ChatbotVoiceBookingModal({
                     <button
                       key={profile.id}
                       type="button"
+                      aria-pressed={selected}
                       onClick={() => selectProfile(profile.id)}
-                      className={`rounded-xl border px-3 py-2.5 text-left transition ${
+                      className={`relative rounded-xl border-2 px-3.5 py-3 text-left transition ${
                         selected
-                          ? "border-[color-mix(in_srgb,var(--color-primary)_45%,var(--color-border))] bg-[var(--color-primary-soft)] ring-2 ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
-                          : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-border-hover)]"
+                          ? "border-indigo-600 bg-indigo-100 shadow-md ring-2 ring-indigo-300 ring-offset-2 ring-offset-white dark:border-indigo-400 dark:bg-indigo-950/70 dark:ring-indigo-500/40 dark:ring-offset-[var(--color-bg)]"
+                          : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-indigo-300 hover:bg-indigo-50/60 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/30"
                       }`}
                     >
-                      <p className="text-sm font-semibold text-[var(--color-text)]">{profile.label}</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className={`text-sm font-semibold ${selected ? "text-indigo-800 dark:text-indigo-200" : "text-[var(--color-text)]"}`}>
+                          {profile.label}
+                        </p>
+                        {selected ? (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white dark:bg-indigo-400 dark:text-slate-950">
+                            <span aria-hidden>✓</span>
+                            Selected
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
                         {profile.gender === "female" ? "Female" : "Male"} · {profile.accent}
                       </p>

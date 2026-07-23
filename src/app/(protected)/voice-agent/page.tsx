@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { AppPageHero, AppPageHeroStat, AppPageHeroStatGrid, AppPageHeroStatPanel } from "@/components/app-page-hero";
+import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { VoiceAgentPageAlerts } from "@/components/voice-agent-page-alerts";
 import { VoiceAgentTabs } from "@/components/voice-agent-tabs";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +13,6 @@ import {
 } from "@/lib/retell-voice-sync";
 import {
   buildRetellVoiceSelectOptions,
-  formatVoiceAgentCallSummary,
   resolveVoiceAgentSettings,
 } from "@/lib/retell-voice-agent";
 import {
@@ -21,7 +20,6 @@ import {
   generateVoiceAgentSystemPromptAction,
   pullRetellVoiceAgentSettings,
   saveRetellVoiceAgentSettings,
-  saveVoiceAgentPhoneSettings,
   buyRetellPhoneNumberAction,
   linkRetellPhoneNumberAction,
   assignRetellPhoneNumberAction,
@@ -45,7 +43,14 @@ export default async function VoiceAgentPage() {
     where: { token, expiresAt: { gt: new Date() } },
     select: {
       user: {
-        select: { id: true },
+        select: {
+          id: true,
+          userRoles: {
+            select: {
+              role: { select: { name: true } },
+            },
+          },
+        },
       },
       activeOrganization: {
         select: {
@@ -75,6 +80,7 @@ export default async function VoiceAgentPage() {
   if (!session.activeOrganization) redirect("/appointments/organization");
 
   const org = session.activeOrganization;
+  const isAdmin = session.user.userRoles.some((userRole) => userRole.role.name === "Admin");
   const retellApiConfigured = isRetellApiConfigured();
   const retellVoices = retellApiConfigured ? await fetchRetellVoiceCatalog() : [];
   const localSettings = resolveVoiceAgentSettings(org.voiceAgentSettings, retellVoices);
@@ -82,13 +88,18 @@ export default async function VoiceAgentPage() {
 
   const retellConfig = localSettings.retell;
   let retellRemoteStatus: string | null = null;
+  let remoteAgentMissing = false;
 
   if (retellApiConfigured && localSettings.retell.retellAgentId.trim()) {
     const imported = await fetchRetellVoiceAgentConfig(localSettings.retell);
     if (imported.ok) {
       retellRemoteStatus = "Live — save & sync after editing opening message or prompts";
+    } else if (imported.status === 404) {
+      remoteAgentMissing = true;
+      retellRemoteStatus =
+        "The saved voice agent no longer exists in Retell. Review the settings and select Save & recreate to create and relink it.";
     } else {
-      retellRemoteStatus = imported.error;
+      retellRemoteStatus = `Could not verify the voice agent: ${imported.error}`;
     }
   } else if (!retellApiConfigured) {
     retellRemoteStatus = "Add API key to connect voice service";
@@ -99,7 +110,7 @@ export default async function VoiceAgentPage() {
     phoneConfig = await resolveVoiceAgentPhoneFromRetell(phoneConfig);
   }
 
-  if (retellApiConfigured && localSettings.retell.retellAgentId.trim()) {
+  if (!isAdmin && retellApiConfigured && localSettings.retell.retellAgentId.trim()) {
     await ensureLegacyPrimaryPhoneImported({
       organizationId: org.id,
       legacyPhoneNumber: phoneConfig.twilioPhoneNumber,
@@ -139,65 +150,71 @@ export default async function VoiceAgentPage() {
     transcript: call.transcript,
     createdAt: call.createdAt.toISOString(),
   }));
+  const callsReceived = phoneStats.reduce((sum, phone) => sum + phone.callsReceived, 0);
+  const phoneBookings = phoneStats.reduce((sum, phone) => sum + phone.bookingsCount, 0);
+  const agentReady =
+    Boolean(localSettings.retell.retellAgentId.trim()) && !remoteAgentMissing;
+  const voiceStatus = !retellApiConfigured
+    ? "Voice service setup required"
+    : phones.length === 0
+      ? "Phone line required"
+      : remoteAgentMissing
+        ? "Agent connection needs repair"
+      : agentReady
+        ? "Voice agent operational"
+        : "Agent setup required";
+  const voiceStatusTone: "success" | "warning" =
+    retellApiConfigured && phones.length > 0 && agentReady ? "success" : "warning";
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-[92rem] space-y-5">
       <Suspense fallback={null}>
-        <VoiceAgentPageAlerts />
+        <VoiceAgentPageAlerts
+          statusMessage={
+            retellRemoteStatus && !retellRemoteStatus.startsWith("Live")
+              ? retellRemoteStatus
+              : null
+          }
+        />
       </Suspense>
 
-      <AppPageHero
-        eyebrow="Voice Support Agent"
-        title={
-          <>
-            Configure your{" "}
-            <span className="vr-brand-gradient-text">AI phone agent</span>
-          </>
+      <AppointmentPageHeader
+        variant="command"
+        eyebrow="Voice Support"
+        title="Voice operations"
+        description={
+          isAdmin
+            ? <>Review the AI phone agent, line health, and call activity for {org.name}. Configuration is reserved for users.</>
+            : <>Configure and monitor the AI phone agent serving {org.name}.</>
         }
-        description="Configure your voice agent, support phone number, prompts, knowledge, and phone booking."
-      >
-        <AppPageHeroStatPanel>
-          <AppPageHeroStatGrid columns="2">
-            <AppPageHeroStat
-              label="Connection"
-              value={retellApiConfigured ? "Connected" : "No API key"}
-            />
-            <AppPageHeroStat
-              label="Support line"
-              value={phoneConfig.twilioPhoneNumber.trim() || "Not set"}
-            />
-          </AppPageHeroStatGrid>
-        </AppPageHeroStatPanel>
-      </AppPageHero>
-
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text-muted)]">
-        <span className="font-semibold text-[var(--color-text)]">{org.name}</span>
-        {" · "}
-        {formatVoiceAgentCallSummary(phoneConfig)}
-        {" · "}
-        Knowledge: {kbStatus === "approved" ? "approved" : kbStatus}
-        {retellRemoteStatus ? (
-          <>
-            {" · "}
-            <span
-              className={
-                retellRemoteStatus.startsWith("Live")
-                  ? "text-[var(--color-success)]"
-                  : ""
-              }
-            >
-              {retellRemoteStatus}
-            </span>
-          </>
-        ) : null}
-      </div>
+        status={isAdmin ? "Admin · View only" : voiceStatus}
+        statusTone={voiceStatusTone}
+        actions={isAdmin ? [] : [
+          { href: "/voice-agent?tab=agent", label: "Configure agent" },
+          { href: "/voice-agent?tab=phone", label: phones.length > 0 ? "Manage phone lines" : "Set up phone line", primary: true },
+        ]}
+        metrics={[
+          { label: "Phone lines", value: phones.length, hint: primaryPhone ? "primary line active" : "no primary line" },
+          { label: "Calls received", value: callsReceived, hint: "last 30 days" },
+          { label: "Bookings by phone", value: phoneBookings, hint: "last 30 days" },
+          {
+            label: "Voice booking",
+            value: localSettings.knowledge.enablePhoneBooking ? "On" : "Off",
+            hint: localSettings.knowledge.enablePhoneBooking
+              ? "Callers can book on this line"
+              : "Hidden until enabled in Agent setup",
+          },
+        ]}
+      />
 
       <VoiceAgentTabs
         organizationId={org.id}
         organizationName={org.name}
+        readOnly={isAdmin}
         canManageAgent
         canManagePhone
         retellApiConfigured={retellApiConfigured}
+        remoteAgentMissing={remoteAgentMissing}
         voiceOptions={voiceOptions}
         voiceCatalog={retellVoices}
         retellConfig={retellConfig}
@@ -214,7 +231,6 @@ export default async function VoiceAgentPage() {
         }}
         calls={calls}
         onSaveRetell={saveRetellVoiceAgentSettings}
-        onSavePhone={saveVoiceAgentPhoneSettings}
         onBuyPhone={buyRetellPhoneNumberAction}
         onLinkPhone={linkRetellPhoneNumberAction}
         onAssignPhone={assignRetellPhoneNumberAction}

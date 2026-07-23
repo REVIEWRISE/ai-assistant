@@ -100,7 +100,7 @@ export function KnowledgePreview({
   const showRawPanel = rawLen > 0;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 shadow-[var(--shadow-sm)]">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
@@ -121,12 +121,12 @@ export function KnowledgePreview({
         </div>
       </div>
 
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5">
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-3">
         <FormattedPreviewBody text={digestText} />
       </div>
 
       {showRawPanel ? (
-        <details className="rounded-xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_80%,transparent)] px-3 py-2">
+        <details className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5">
           <summary className="cursor-pointer select-none text-sm font-semibold text-[var(--color-text)]">
             Full imported text
             <span className="ml-2 font-normal text-[var(--color-text-muted)]">({rawLen.toLocaleString()} characters)</span>

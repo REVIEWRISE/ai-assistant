@@ -79,12 +79,12 @@ function ChartShell({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] ${
+      className={`overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] ${
         featured ? "lg:col-span-2" : ""
       }`}
     >
-      <div className="p-4 lg:p-5">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+      <div className="border-b border-[var(--color-border-muted)] bg-[var(--color-bg)] px-4 py-3.5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
               <span
@@ -101,8 +101,8 @@ function ChartShell({
             ) : null}
           </div>
         </div>
-        {children}
       </div>
+      <div className="p-4">{children}</div>
     </div>
   );
 }
@@ -122,9 +122,9 @@ function ChartEmptyState({
 }) {
   return (
     <ChartShell title={title} subtitle={subtitle} accent={accent} featured={featured}>
-      <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg)_70%,transparent)] px-6 py-10 text-center">
+      <div className="flex min-h-[125px] flex-col items-center justify-center rounded-xl border border-dashed border-[var(--color-border-hover)] bg-[linear-gradient(145deg,var(--color-bg),var(--color-surface))] px-5 py-6 text-center">
         <div
-          className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] text-lg font-semibold text-[var(--color-text-muted)]"
+          className="mb-2.5 flex size-9 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-base font-semibold text-[var(--color-text-muted)] shadow-[var(--shadow-sm)]"
           aria-hidden
         >
           —
@@ -159,7 +159,7 @@ function DashboardLineChartCard({
 
   return (
     <ChartShell title={chart.title} subtitle={chart.subtitle} accent={accent} featured={featured}>
-      <div className="h-[280px] w-full">
+      <div className="h-[240px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chart.data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -224,7 +224,7 @@ function DashboardBarChartCard({
 
   return (
     <ChartShell title={chart.title} subtitle={chart.subtitle} accent={barColor} featured={featured}>
-      <div className="h-[240px] w-full">
+      <div className="h-[210px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chart.data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -264,40 +264,46 @@ export function DashboardOverviewGrid({
   if (!stats.length) return null;
 
   return (
-    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-      <div className="border-b border-[var(--color-border)] px-5 py-4 lg:px-6">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-h)]">
-          Workspace overview
-        </p>
-        <h2 className="mt-1 text-lg font-semibold text-[var(--color-text)]">
-          Collective performance
-          {organizationName ? (
-            <span className="font-normal text-[var(--color-text-muted)]"> · {organizationName}</span>
-          ) : null}
-        </h2>
-        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          Combined stats across bookings, review response, voice support, and users.
-        </p>
+    <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-md)] lg:p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 px-1">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Workspace pulse</p>
+          <h2 className="mt-1 text-base font-semibold text-[var(--color-text)]">
+            {organizationName ?? "Collective performance"}
+          </h2>
+        </div>
+        <p className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-[10px] font-medium text-[var(--color-text-muted)]">Live operational totals</p>
       </div>
-      <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4 lg:p-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Link
             key={stat.id}
             href={stat.href}
-            className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 transition hover:border-[color-mix(in_srgb,var(--color-primary)_30%,var(--color-border))] hover:bg-[var(--color-raised)] hover:shadow-[var(--shadow-sm)]"
+            className="group relative min-w-0 overflow-hidden rounded-2xl border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]"
+            style={{
+              borderColor: `color-mix(in srgb, ${stat.accent} 18%, var(--color-border))`,
+              background: `linear-gradient(145deg, color-mix(in srgb, ${stat.accent} 8%, var(--color-surface)), var(--color-surface) 62%)`,
+            }}
           >
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-              {stat.title}
-            </p>
-            <p
-              className="mt-2 text-3xl font-semibold tracking-tight tabular-nums"
-              style={{ color: stat.accent }}
-            >
-              {stat.value}
-            </p>
-            <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">{stat.hint}</p>
-            <p className="mt-3 text-xs font-semibold text-[var(--color-primary-h)] transition group-hover:underline">
-              Open module →
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">{stat.title}</p>
+                <p className="mt-2 text-[1.7rem] font-semibold leading-none tracking-tight text-[var(--color-text)] tabular-nums">{stat.value}</p>
+              </div>
+              <span
+                className="flex size-8 shrink-0 items-center justify-center rounded-xl text-xs font-semibold"
+                style={{
+                  color: stat.accent,
+                  backgroundColor: `color-mix(in srgb, ${stat.accent} 13%, transparent)`,
+                }}
+                aria-hidden
+              >
+                {stat.title.charAt(0)}
+              </span>
+            </div>
+            <p className="mt-3 line-clamp-2 min-h-8 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{stat.hint}</p>
+            <p className="mt-2.5 text-[11px] font-semibold" style={{ color: stat.accent }}>
+              {Number(stat.value) === 0 ? "Set up module" : "View details"} <span className="inline-block transition-transform group-hover:translate-x-0.5" aria-hidden>→</span>
             </p>
           </Link>
         ))}
@@ -316,19 +322,16 @@ export function DashboardSectionSummary({
   if (!stats.length) return null;
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
       {stats.slice(0, 4).map((stat) => (
         <div
           key={stat.label}
-          className="min-w-[9rem] flex-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-3"
+          className="min-w-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-3"
         >
           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
             {stat.label}
           </p>
-          <p
-            className={`mt-1 text-xl font-semibold tabular-nums ${stat.accent ? "" : "text-[var(--color-text)]"}`}
-            style={stat.accent ? { color: stat.accent } : undefined}
-          >
+          <p className="mt-1 text-xl font-semibold text-[var(--color-text)] tabular-nums">
             {stat.value}
           </p>
           {stat.hint ? <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{stat.hint}</p> : null}
@@ -348,7 +351,7 @@ export function DashboardChartGrid({
   if (!charts.length) return null;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-3 lg:grid-cols-2">
       {charts.map((chart) =>
         chart.kind === "line" ? (
           <DashboardLineChartCard key={chart.id} chart={chart} accent={accent} />
@@ -362,11 +365,11 @@ export function DashboardChartGrid({
 
 export function DashboardStatFallback({ stats }: { stats: DashboardStat[] }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
       {stats.map((stat) => (
         <div
           key={stat.label}
-          className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3"
+          className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3.5"
         >
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
             {stat.label}

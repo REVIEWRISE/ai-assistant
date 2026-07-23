@@ -1,18 +1,17 @@
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { PermissionsHub } from "@/components/permissions-hub";
 import { PermissionsToasts } from "@/components/permissions-toasts";
-import {
-  AppPageHero,
-  AppPageHeroStat,
-  AppPageHeroStatGrid,
-  AppPageHeroStatPanel,
-} from "@/components/app-page-hero";
+import { AppointmentPageHeader } from "@/components/appointment-page-header";
+import { AccessControlNav } from "@/components/access-control-nav";
 import {
   createMemberMenuAccess,
   createRoleMenuAccess,
   deleteMemberMenuAccess,
   deleteRoleMenuAccess,
 } from "./actions";
+
+export const dynamic = "force-dynamic";
 
 export default async function AccessPermissionsPage() {
   const [memberPermissions, rolePermissions, organizations, memberships, roles, menus] =
@@ -53,22 +52,57 @@ export default async function AccessPermissionsPage() {
       }),
     ]);
 
+  const totalRules = rolePermissions.length + memberPermissions.length;
+  const rolesWithGrants = new Set(rolePermissions.map((permission) => permission.role.id)).size;
+  const status =
+    rolePermissions.length === 0
+      ? "Assign role defaults"
+      : memberPermissions.length > 0
+        ? `${totalRules} rules active`
+        : "Role defaults configured";
+
   return (
-    <div className="space-y-4 lg:space-y-6">
-      <PermissionsToasts />
-      <AppPageHero
+    <div className="mx-auto max-w-[92rem] space-y-5">
+      <Suspense fallback={null}>
+        <PermissionsToasts />
+      </Suspense>
+
+      <AppointmentPageHeader
+        variant="command"
         eyebrow="Access Control"
-        title={<span className="vr-brand-gradient-text">Permissions</span>}
-        description="Manage role defaults and per-user organization overrides in one place."
-      >
-        <AppPageHeroStatPanel>
-          <AppPageHeroStatGrid columns="3">
-            <AppPageHeroStat label="Role Defaults" value={rolePermissions.length} />
-            <AppPageHeroStat label="User Overrides" value={memberPermissions.length} />
-            <AppPageHeroStat label="Roles" value={roles.length} />
-          </AppPageHeroStatGrid>
-        </AppPageHeroStatPanel>
-      </AppPageHero>
+        title="Permission policy"
+        description="Manage role defaults and per-user organization overrides that control which menus appear."
+        status={status}
+        statusTone={rolePermissions.length > 0 ? "success" : "warning"}
+        actions={[
+          { href: "/settings/access/roles", label: "Manage roles" },
+          { href: "/settings/access/menus", label: "Manage menus", primary: true },
+        ]}
+        metrics={[
+          {
+            label: "Role defaults",
+            value: rolePermissions.length,
+            hint: `${rolesWithGrants} of ${roles.length} roles covered`,
+          },
+          {
+            label: "User overrides",
+            value: memberPermissions.length,
+            hint: "organization-specific grants",
+          },
+          {
+            label: "Roles",
+            value: roles.length,
+            hint: "available tiers",
+          },
+          {
+            label: "Menus",
+            value: menus.length,
+            hint: "grantable routes",
+          },
+        ]}
+      />
+
+      <AccessControlNav />
 
       <PermissionsHub
         roleCount={rolePermissions.length}

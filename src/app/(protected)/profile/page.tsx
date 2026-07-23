@@ -1,11 +1,7 @@
+import { Suspense } from "react";
 import { ProfileTabs } from "@/components/profile-tabs";
 import { ProfileToasts } from "@/components/profile-toasts";
-import {
-  AppPageHero,
-  AppPageHeroStat,
-  AppPageHeroStatGrid,
-  AppPageHeroStatPanel,
-} from "@/components/app-page-hero";
+import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
 import { prisma } from "@/lib/prisma";
 import { isHrefAllowedForNav, redirectPathWhenMenuForbidden } from "@/lib/nav-access";
@@ -15,6 +11,8 @@ import {
   updatePassword,
   updateProfile,
 } from "./actions";
+
+export const dynamic = "force-dynamic";
 
 export default async function ProfileSettingsPage() {
   const cookieStore = await cookies();
@@ -70,7 +68,8 @@ export default async function ProfileSettingsPage() {
   const user = session.user;
   const roleName = user.userRoles[0]?.role?.name ?? "Member";
   const orgOptions = user.organizationMembers.map((member) => member.organization);
-  const activeOrg = orgOptions.find((org) => org.id === session.activeOrganizationId) ?? orgOptions[0] ?? null;
+  const activeOrg =
+    orgOptions.find((org) => org.id === session.activeOrganizationId) ?? orgOptions[0] ?? null;
   const orgName = activeOrg?.name ?? "Workspace";
   const initials =
     user.fullName
@@ -81,44 +80,57 @@ export default async function ProfileSettingsPage() {
       .join("") || user.email.slice(0, 2).toUpperCase();
   const statusLabel =
     user.accountStatus?.charAt(0).toUpperCase() + user.accountStatus.slice(1);
+  const isActive = user.accountStatus?.toLowerCase() === "active";
 
   return (
-    <div className="space-y-4 lg:space-y-6">
-      <ProfileToasts />
-      <AppPageHero
+    <div className="mx-auto max-w-[92rem] space-y-5">
+      <Suspense fallback={null}>
+        <ProfileToasts />
+      </Suspense>
+
+      <AppointmentPageHeader
+        variant="command"
         eyebrow="Account Settings"
-        title={
-          <>
-            Manage your profile and{" "}
-            <span className="vr-brand-gradient-text">workspace preferences</span>
-          </>
-        }
-        description="Keep your profile and security settings aligned with how your team operates day-to-day."
-      >
-        <AppPageHeroStatPanel>
-          <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-base font-bold text-[var(--color-text)]">
-              {initials}
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-white">{user.fullName}</p>
-              <p className="text-xs text-slate-300">
-                {roleName} • {orgName}
-              </p>
-            </div>
-          </div>
-          <AppPageHeroStatGrid columns="3">
-            <AppPageHeroStat label="Role" value={roleName} />
-            <AppPageHeroStat label="Status" value={statusLabel} />
-            <AppPageHeroStat label="Email" value={user.emailVerified ? "Verified" : "Unverified"} />
-          </AppPageHeroStatGrid>
-        </AppPageHeroStatPanel>
-      </AppPageHero>
+        title="Your profile"
+        description="Update personal details, review workspace membership, and keep your sign-in credentials current."
+        status={statusLabel}
+        statusTone={isActive ? "success" : "warning"}
+        actions={[
+          { href: "/dashboard", label: "Dashboard" },
+          { href: "/profile#profile-settings", label: "Edit details", primary: true },
+        ]}
+        metrics={[
+          {
+            label: "Role",
+            value: roleName,
+            hint: "account permissions",
+          },
+          {
+            label: "Active workspace",
+            value: orgName,
+            hint: "current context",
+          },
+          {
+            label: "Workspaces",
+            value: orgOptions.length,
+            hint: orgOptions.length === 1 ? "membership" : "memberships",
+          },
+          {
+            label: "Email status",
+            value: user.emailVerified ? "Verified" : "Pending",
+            hint: user.emailVerified ? "identity confirmed" : "verification needed",
+          },
+        ]}
+      />
 
       <ProfileTabs
+        initials={initials}
         fullName={user.fullName}
         email={user.email}
         roleName={roleName}
+        organizationName={orgName}
+        organizationCount={orgOptions.length}
+        emailVerified={user.emailVerified}
         onUpdateProfile={updateProfile}
         onUpdatePassword={updatePassword}
       />

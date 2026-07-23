@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { CustomSelect } from "@/components/custom-select";
-import { Panel } from "@/components/ui";
 import {
   REVIEW_SYNC_CRON_INTERVAL_OPTIONS,
   defaultReviewSyncCronConfig,
@@ -19,11 +18,13 @@ export function ReviewSyncCronSettings({
   organizationId,
   initialConfig,
   initialReplyAutomation,
+  readOnly = false,
   onSave,
 }: {
   organizationId: string;
   initialConfig: ReviewSyncCronConfig;
   initialReplyAutomation: ReviewReplyAutomationConfig;
+  readOnly?: boolean;
   onSave: (formData: FormData) => void | Promise<void>;
 }) {
   const [config, setConfig] = useState<ReviewSyncCronConfig>(initialConfig);
@@ -40,11 +41,15 @@ export function ReviewSyncCronSettings({
   }, [initialReplyAutomation]);
 
   return (
-    <Panel
-      title="Automatic review sync"
-      subtitle="Pull new reviews on a schedule instead of clicking Sync now every time"
-    >
-      <form action={onSave} className="space-y-4">
+    <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+      <div className="border-b border-[var(--color-border)] px-5 py-5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Collection cadence</p>
+        <h3 className="mt-1.5 text-lg font-semibold tracking-[-0.015em] text-[var(--color-text)]">Automatic review sync</h3>
+        <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
+          {readOnly ? "Review the current synchronization and reply automation settings." : "Pull new reviews on a schedule instead of clicking Sync now every time."}
+        </p>
+      </div>
+      <form action={onSave} className="space-y-4 p-4 lg:p-5">
         <input type="hidden" name="organization_id" value={organizationId} />
         <input type="hidden" name="sync_cron_enabled" value={config.enabled ? "1" : "0"} />
         <input type="hidden" name="sync_cron_interval_minutes" value={String(config.intervalMinutes)} />
@@ -70,6 +75,7 @@ export function ReviewSyncCronSettings({
             role="switch"
             aria-checked={config.enabled}
             aria-label={config.enabled ? "Turn off scheduled sync" : "Turn on scheduled sync"}
+            disabled={readOnly}
             onClick={() => setConfig((prev) => ({ ...prev, enabled: !prev.enabled }))}
             className={`relative h-7 w-12 shrink-0 rounded-full transition ${
               config.enabled ? "bg-[var(--color-primary)]" : "bg-[var(--color-border)]"
@@ -97,7 +103,7 @@ export function ReviewSyncCronSettings({
               value: String(option.value),
               label: option.label,
             }))}
-            disabled={!config.enabled}
+            disabled={readOnly || !config.enabled}
             aria-label="Review sync interval"
           />
         </div>
@@ -120,6 +126,7 @@ export function ReviewSyncCronSettings({
                 ? "Turn off AI draft replies on sync"
                 : "Turn on AI draft replies on sync"
             }
+            disabled={readOnly}
             onClick={() =>
               setReplyAutomation((prev) => ({ ...prev, draftOnSync: !prev.draftOnSync }))
             }
@@ -136,6 +143,12 @@ export function ReviewSyncCronSettings({
         </div>
 
         <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--color-border-muted)] pt-4">
+          {readOnly ? (
+            <span className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-semibold text-[var(--color-text-muted)]">
+              View-only access
+            </span>
+          ) : (
+            <>
           <button
             type="button"
             onClick={() => {
@@ -152,8 +165,10 @@ export function ReviewSyncCronSettings({
           >
             Save sync schedule
           </button>
+            </>
+          )}
         </div>
       </form>
-    </Panel>
+    </section>
   );
 }

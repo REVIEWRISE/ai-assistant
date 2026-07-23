@@ -23,6 +23,7 @@ const MENU_ITEMS = [
   { id: "e1f3ffe1-2158-4e4a-8b10-c6a2476dadb3", label: "Menus", path: "/settings/access/menus", sortOrder: 1, parentId: "33c86cd0-a6b0-48f9-a04b-684dd8671ef7" },
   { id: "b4b7c925-5791-4108-aafd-941d31a610c6", label: "Permissions", path: "/settings/access/permissions", sortOrder: 2, parentId: "33c86cd0-a6b0-48f9-a04b-684dd8671ef7" },
   { id: "8391fd57-8c49-46e1-8356-424d12f4d1d2", label: "Providers", path: "/platform/providers", sortOrder: 0, parentId: "18d185ec-9cb2-46d9-bd27-e65d1341b66c" },
+  { id: "b3710de3-d222-45c7-9d1d-85acba65a0ef", label: "Billing Plans", path: "/platform/billing-plans", sortOrder: 1, parentId: "18d185ec-9cb2-46d9-bd27-e65d1341b66c" },
 ] as const;
 
 async function main() {

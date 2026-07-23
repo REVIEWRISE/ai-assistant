@@ -5,7 +5,6 @@ import { type ReactNode, useMemo, useState, useTransition } from "react";
 import type { VoiceAgentAiResult } from "@/lib/voice-agent-ai";
 import { CustomSelect } from "@/components/custom-select";
 import { VoiceAgentPhoneGateOverlay } from "@/components/voice-agent-phone-gate-overlay";
-import { Panel } from "@/components/ui";
 import { toast } from "@/lib/toast";
 import {
   RETELL_LANGUAGE_OPTIONS,
@@ -28,13 +27,14 @@ type KnowledgeSnapshot = {
   lastImportedAt: string | null;
 };
 
-type SectionKey = "setup" | "voice" | "conversation" | "knowledge" | "advanced";
+type SectionKey = "setup" | "voice" | "conversation" | "knowledge" | "booking" | "advanced";
 
 const sections: Array<{ key: SectionKey; label: string; description: string }> = [
   { key: "setup", label: "Setup", description: "Agent identity & status" },
   { key: "voice", label: "Voice", description: "Sound & language" },
   { key: "conversation", label: "Conversation", description: "Greeting & instructions" },
   { key: "knowledge", label: "Knowledge", description: "Business context" },
+  { key: "booking", label: "Voice booking", description: "Book on calls" },
   { key: "advanced", label: "Advanced", description: "Call behavior" },
 ];
 
@@ -149,20 +149,20 @@ function SectionCard({
   return (
     <section
       id={`voice-agent-section-${sectionKey}`}
-      className="scroll-mt-28 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+      className="scroll-mt-28 overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]"
     >
-      <div className="border-b border-[var(--color-border-muted)] px-4 py-3 sm:px-5">
-        <div className="flex items-start gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-soft)] text-sm font-bold text-[var(--color-primary-h)]">
+      <div className="border-b border-[var(--color-border)] px-5 py-5 lg:px-6">
+        <div className="flex items-start gap-3.5">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-sm font-bold text-[var(--color-primary-h)]">
             {index}
           </span>
           <div>
-            <h4 className="text-sm font-semibold text-[var(--color-text)]">{title}</h4>
-            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{description}</p>
+            <h4 className="text-base font-semibold tracking-[-0.01em] text-[var(--color-text)]">{title}</h4>
+            <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">{description}</p>
           </div>
         </div>
       </div>
-      <div className="space-y-4 p-4 sm:p-5">{children}</div>
+      <div className="space-y-4 p-5 lg:p-6">{children}</div>
     </section>
   );
 }
@@ -207,6 +207,7 @@ export function VoiceAgentRetellSettings({
   organizationId,
   organizationName,
   retellApiConfigured,
+  remoteAgentMissing,
   voiceOptions,
   voiceCatalog,
   initialConfig,
@@ -222,6 +223,7 @@ export function VoiceAgentRetellSettings({
   organizationId: string;
   organizationName: string;
   retellApiConfigured: boolean;
+  remoteAgentMissing: boolean;
   voiceOptions: RetellVoiceSelectOption[];
   voiceCatalog: RetellVoiceListItem[];
   initialConfig: RetellVoiceAgentConfig;
@@ -298,10 +300,7 @@ export function VoiceAgentRetellSettings({
   }
 
   return (
-    <Panel
-      title="Agent & voice"
-      subtitle="Configure your phone agent in clear steps. Changes sync when you save."
-    >
+    <section className="space-y-4">
       {retellApiConfigured ? (
         <form id="pull-retell-voice-agent-form" action={onPullFromRetell} className="hidden">
           <input type="hidden" name="organization_id" value={organizationId} />
@@ -311,38 +310,56 @@ export function VoiceAgentRetellSettings({
 
       <div className={`relative min-h-[28rem] ${agentConfigLocked ? "overflow-hidden rounded-2xl" : ""}`}>
         <div className={agentConfigLocked ? "pointer-events-none select-none" : undefined}>
-      <div className="mb-5 flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-5 shadow-[var(--shadow-sm)] lg:px-6">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Configuration workspace</p>
+          <h2 className="mt-1.5 text-lg font-semibold tracking-[-0.015em] text-[var(--color-text)]">Agent settings</h2>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">Work through each section, then save and synchronize from the action bar below.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
         <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+          className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
             config.enabled ? "vr-app-status-success" : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
           }`}
         >
-          {config.enabled ? "Agent enabled" : "Agent disabled"}
+          {config.enabled ? "Configuration active" : "Configuration paused"}
         </span>
         <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-            hasAgent
+          className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+            remoteAgentMissing
+              ? "vr-app-status-warning"
+              : hasAgent
               ? "bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]"
               : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
           }`}
         >
-          {hasAgent ? "Agent linked" : "No voice agent yet"}
+          {remoteAgentMissing ? "Retell agent missing" : hasAgent ? "Retell connected" : "Retell not linked"}
         </span>
-        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusTone(knowledge.status)}`}>
+        <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${statusTone(knowledge.status)}`}>
           KB: {statusLabel(knowledge.status)}
         </span>
+        <span
+          className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+            knowledgeConfig.enablePhoneBooking
+              ? "vr-app-status-success"
+              : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
+          }`}
+        >
+          Voice booking: {knowledgeConfig.enablePhoneBooking ? "On" : "Off"}
+        </span>
         {!retellApiConfigured ? (
-          <span className="rounded-full bg-[var(--color-surface)] px-3 py-1 text-xs font-semibold text-[var(--color-text-muted)]">
+          <span className="rounded-full bg-[var(--color-raised)] px-2.5 py-1 text-[10px] font-semibold text-[var(--color-text-muted)]">
             Voice service API not configured
           </span>
         ) : null}
+        </div>
       </div>
 
       <nav
         aria-label="Agent configuration sections"
-        className="mb-6 -mx-1 overflow-x-auto px-1 pb-1"
+        className="my-4 max-w-full overflow-x-auto"
       >
-        <div className="flex min-w-max gap-2">
+        <div className="inline-flex min-w-max gap-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-[var(--shadow-sm)]">
           {sections.map((section) => {
             const active = activeSection === section.key;
             return (
@@ -350,27 +367,20 @@ export function VoiceAgentRetellSettings({
                 key={section.key}
                 type="button"
                 onClick={() => jumpToSection(section.key)}
-                className={`rounded-xl border px-3 py-2 text-left transition sm:min-w-[9.5rem] ${
+                className={`rounded-xl px-3.5 py-2.5 text-left text-xs font-semibold transition ${
                   active
-                    ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)]"
-                    : "border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-surface)]"
+                    ? "bg-[var(--color-bg)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border)]"
+                    : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-text)]"
                 }`}
               >
-                <p
-                  className={`text-sm font-semibold ${
-                    active ? "text-[var(--color-primary-h)]" : "text-[var(--color-text)]"
-                  }`}
-                >
-                  {section.label}
-                </p>
-                <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{section.description}</p>
+                {section.label}
               </button>
             );
           })}
         </div>
       </nav>
 
-      <form action={onSave} className="space-y-5">
+      <form action={onSave} className="space-y-4">
         <input type="hidden" name="organization_id" value={organizationId} />
         <input type="hidden" name="enabled" value="1" />
         <input type="hidden" name="voice_id" value={config.voiceId} />
@@ -405,7 +415,6 @@ export function VoiceAgentRetellSettings({
               Finish setup below, then save to create one.
             </div>
           ) : null}
-
           <div className="grid gap-4 lg:grid-cols-2">
             <label className="block space-y-1.5">
               <span className="text-xs font-semibold text-[var(--color-text)]">Display name</span>
@@ -633,10 +642,46 @@ export function VoiceAgentRetellSettings({
               ariaLabel="Toggle require approved knowledge base"
             />
           </div>
+        </SectionCard>
+
+        <SectionCard
+          sectionKey="booking"
+          title="Voice booking"
+          description="Let callers book appointments during live support calls."
+        >
+          <div
+            className={`rounded-2xl border px-4 py-3 ${
+              knowledgeConfig.enablePhoneBooking
+                ? "border-emerald-500/25 bg-emerald-500/10"
+                : "border-[var(--color-border)] bg-[var(--color-bg)]"
+            }`}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[var(--color-text)]">
+                  {knowledgeConfig.enablePhoneBooking ? "Voice booking is on" : "Voice booking is off"}
+                </p>
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                  {knowledgeConfig.enablePhoneBooking
+                    ? "Callers can book appointments on this support line using your chatbot booking flow."
+                    : "Turn this on so the phone agent can check availability and create bookings."}
+                </p>
+              </div>
+              <span
+                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                  knowledgeConfig.enablePhoneBooking
+                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                    : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
+                }`}
+              >
+                {knowledgeConfig.enablePhoneBooking ? "Visible on calls" : "Hidden on calls"}
+              </span>
+            </div>
+          </div>
 
           <ToggleRow
-            title="Enable phone booking"
-            description="Let callers book appointments on the support line using your chatbot booking flow and knowledge base."
+            title="Enable voice booking"
+            description="Show booking tools on live calls. Uses your Appointments → Chatbot flow, services, calendar, and confirmation emails."
             checked={knowledgeConfig.enablePhoneBooking}
             onChange={() =>
               setKnowledgeConfig((prev) => ({
@@ -644,17 +689,16 @@ export function VoiceAgentRetellSettings({
                 enablePhoneBooking: !prev.enablePhoneBooking,
               }))
             }
-            ariaLabel="Toggle phone booking on voice calls"
+            ariaLabel="Toggle voice booking on phone calls"
           />
 
           {knowledgeConfig.enablePhoneBooking ? (
             <p className="text-xs text-[var(--color-text-muted)]">
-              Uses the same booking rules as your embed chatbot (approved knowledge base, services, calendar, and confirmation emails).
-              Configure steps under{" "}
+              Configure booking steps under{" "}
               <Link href="/appointments/chatbot" className="font-semibold text-[var(--color-primary-h)] underline">
                 Appointments → Chatbot
               </Link>
-              .
+              . Save &amp; sync this agent after changing this setting.
             </p>
           ) : null}
         </SectionCard>
@@ -705,11 +749,13 @@ export function VoiceAgentRetellSettings({
           </CollapsibleBlock>
         </SectionCard>
 
-        <div className="sticky bottom-3 z-10 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]/95 p-3 shadow-lg backdrop-blur sm:p-4">
+        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 shadow-[var(--shadow-sm)] sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-[var(--color-text-muted)]">
               {retellApiConfigured
-                ? hasAgent
+                ? remoteAgentMissing
+                  ? "Saving recreates the missing agent and relinks this organization."
+                  : hasAgent
                   ? "Save pushes voice, conversation, and knowledge to the voice service."
                   : "Save creates your voice agent with these settings."
                 : "Settings are saved locally until voice service is connected."}
@@ -730,7 +776,7 @@ export function VoiceAgentRetellSettings({
               >
                 Reset defaults
               </button>
-              {retellApiConfigured && hasAgent ? (
+              {retellApiConfigured && hasAgent && !remoteAgentMissing ? (
                 <button
                   type="submit"
                   form="pull-retell-voice-agent-form"
@@ -746,6 +792,8 @@ export function VoiceAgentRetellSettings({
               >
                 {!retellApiConfigured
                   ? "Save settings"
+                  : remoteAgentMissing
+                    ? "Save & recreate"
                   : hasAgent
                     ? "Save & sync"
                     : linkExistingAgent && config.retellAgentId.trim()
@@ -760,6 +808,6 @@ export function VoiceAgentRetellSettings({
 
         {agentConfigLocked ? <VoiceAgentPhoneGateOverlay onConfigurePhone={onGoToPhoneTab} /> : null}
       </div>
-    </Panel>
+    </section>
   );
 }

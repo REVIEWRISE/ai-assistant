@@ -1,14 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Panel } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { CustomSelect } from "@/components/custom-select";
+import {
+  DataTable,
+  DataTableBody,
+  DataTableEmptyState,
+  DataTableHeader,
+  DataTablePagination,
+  DataTableRow,
+} from "@/components/data-table";
 
 type RoleRow = {
   id: string;
   name: string;
   createdAt: string | Date;
+  userCount?: number;
+  permissionCount?: number;
 };
 
 type RolesManagerProps = {
@@ -24,6 +34,189 @@ type ModalState =
   | { type: "delete"; role: RoleRow }
   | null;
 
+type CoverageFilter = "all" | "with_grants" | "no_grants";
+
+const fieldClass =
+  "mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]";
+
+function initialsFor(name: string): string {
+  return (
+    name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || name.slice(0, 2).toUpperCase()
+  );
+}
+
+function RoleActionsMenu({
+  role,
+  isOpen,
+  onToggle,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  role: RoleRow;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState<{ bottom: number; left: number } | null>(
+    null,
+  );
+
+  function computeMenuPosition(rect: DOMRect) {
+    const menuWidth = 220;
+    const gap = 8;
+    const viewportPadding = 8;
+    const bottom = window.innerHeight - rect.top + gap;
+    let left = rect.right - menuWidth;
+
+    left = Math.min(
+      Math.max(viewportPadding, left),
+      window.innerWidth - menuWidth - viewportPadding,
+    );
+
+    return { bottom, left };
+  }
+
+  function handleTriggerClick() {
+    if (isOpen) {
+      onClose();
+      return;
+    }
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect) setMenuPosition(computeMenuPosition(rect));
+    onToggle();
+  }
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function updatePosition() {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (rect) setMenuPosition(computeMenuPosition(rect));
+    }
+
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      onClose();
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isOpen, onClose]);
+
+  const menuItems = [
+    {
+      id: "edit",
+      label: "Edit role",
+      description: "Rename this access tier",
+      onClick: onEdit,
+      danger: false,
+    },
+    {
+      id: "delete",
+      label: "Delete role",
+      description: "Permanently remove this role",
+      onClick: onDelete,
+      danger: true,
+    },
+  ];
+
+  return (
+    <div className="flex justify-end">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={handleTriggerClick}
+        aria-label={`Open actions for ${role.name}`}
+        title={`Actions for ${role.name}`}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition ${
+          isOpen
+            ? "border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]"
+            : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+        }`}
+      >
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+          <circle cx="12" cy="5" r="1.75" />
+          <circle cx="12" cy="12" r="1.75" />
+          <circle cx="12" cy="19" r="1.75" />
+        </svg>
+      </button>
+
+      {isOpen && menuPosition
+        ? createPortal(
+            <div
+              ref={menuRef}
+              role="menu"
+              style={{ bottom: menuPosition.bottom, left: menuPosition.left }}
+              className="fixed z-[120] min-w-[13.75rem] max-w-[13.75rem] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] py-1 shadow-[var(--shadow-lg)]"
+            >
+              {menuItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    item.onClick();
+                    onClose();
+                  }}
+                  className={`flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left transition ${
+                    item.danger
+                      ? "hover:bg-[var(--color-danger-soft)]"
+                      : "hover:bg-[var(--color-surface)]"
+                  }`}
+                >
+                  <span
+                    className={`text-sm font-semibold ${
+                      item.danger ? "text-[var(--color-danger)]" : "text-[var(--color-text)]"
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                  <span className="text-[11px] leading-snug text-[var(--color-text-muted)]">
+                    {item.description}
+                  </span>
+                </button>
+              ))}
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
+  );
+}
+
 export function RolesManager({
   roles,
   onCreateRole,
@@ -31,234 +224,292 @@ export function RolesManager({
   onDeleteRole,
 }: RolesManagerProps) {
   const [modal, setModal] = useState<ModalState>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(5);
+  const [perPage, setPerPage] = useState(10);
+  const [query, setQuery] = useState("");
+  const [coverageFilter, setCoverageFilter] = useState<CoverageFilter>("all");
 
-  const sortedRoles = useMemo(
-    () => roles.slice().sort((a, b) => a.name.localeCompare(b.name)),
-    [roles],
-  );
+  const coverageCounts = useMemo(() => {
+    return {
+      all: roles.length,
+      with_grants: roles.filter((role) => (role.permissionCount ?? 0) > 0).length,
+      no_grants: roles.filter((role) => (role.permissionCount ?? 0) === 0).length,
+    };
+  }, [roles]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedRoles.length / perPage));
+  const filteredRoles = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return roles
+      .filter((role) => {
+        const matchesQuery =
+          !normalizedQuery || role.name.toLowerCase().includes(normalizedQuery);
+        const grants = role.permissionCount ?? 0;
+        const matchesCoverage =
+          coverageFilter === "all" ||
+          (coverageFilter === "with_grants" && grants > 0) ||
+          (coverageFilter === "no_grants" && grants === 0);
+        return matchesQuery && matchesCoverage;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [coverageFilter, query, roles]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRoles.length / perPage));
   const currentPage = Math.min(page, totalPages);
   const pagedRoles = useMemo(() => {
     const start = (currentPage - 1) * perPage;
-    return sortedRoles.slice(start, start + perPage);
-  }, [sortedRoles, currentPage, perPage]);
+    return filteredRoles.slice(start, start + perPage);
+  }, [filteredRoles, currentPage, perPage]);
+
+  const coverageOptions = [
+    { value: "all" as const, label: `All · ${coverageCounts.all}` },
+    { value: "with_grants" as const, label: `With grants · ${coverageCounts.with_grants}` },
+    { value: "no_grants" as const, label: `No grants · ${coverageCounts.no_grants}` },
+  ];
 
   return (
-    <Panel title="Role Inventory" subtitle="Create, edit, and remove roles">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-[var(--color-text-muted)]">
-          Roles control which menus and permissions are available.
-        </p>
+    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+      <div className="flex flex-col gap-4 border-b border-[var(--color-border)] px-4 py-4 sm:flex-row sm:items-start sm:justify-between lg:px-5">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+            Inventory
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold text-[var(--color-text)]">Workspace roles</h2>
+            <span className="rounded-full bg-[var(--color-primary-soft)] px-2.5 py-1 text-[10px] font-semibold text-[var(--color-primary-h)]">
+              {filteredRoles.length}
+              {filteredRoles.length !== roles.length ? ` of ${roles.length}` : ""} shown
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+            Create access tiers, then assign menus under Permissions.
+          </p>
+        </div>
         <button
           type="button"
           onClick={() => setModal({ type: "create" })}
-          className="rounded-xl vr-btn-primary px-4 py-2 text-sm font-semibold"
+          className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
         >
-          Add Role
+          Add role
         </button>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-        <div className="vr-app-table-header hidden grid-cols-[80px_1fr_160px_160px] items-center gap-2 px-4 py-3 md:grid">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]" />
-            Index
-          </div>
-          <div>Role Name</div>
-          <div>Created</div>
-          <div className="text-right">Actions</div>
-        </div>
-        <div className="divide-y divide-[var(--color-border-muted)]">
-          {pagedRoles.map((role, index) => (
-            <div
-              key={role.id}
-              className="group grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] md:grid-cols-[80px_1fr_160px_160px]"
-            >
-              <div className="text-xs font-semibold text-[var(--color-text-muted)] md:text-sm">
-                <span className="inline-flex min-w-[44px] items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
-                  {String((currentPage - 1) * perPage + index + 1).padStart(2, "0")}
-                </span>
-              </div>
-              <div>
-                <p className="font-semibold text-[var(--color-text)]">{role.name}</p>
-                <p className="text-xs text-[var(--color-text-muted)]">Access control</p>
-              </div>
-              <div className="text-xs font-semibold text-[var(--color-text-muted)]">
-                {new Date(role.createdAt).toLocaleDateString()}
-              </div>
-              <div className="flex items-center justify-start gap-2 md:justify-end">
-                <button
-                  type="button"
-                  onClick={() => setModal({ type: "edit", role })}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] transition hover:bg-[var(--color-bg)] group-hover:border-[var(--color-border-hover)]"
-                  aria-label={`Edit ${role.name}`}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModal({ type: "delete", role })}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)] text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))] transition hover:brightness-95"
-                  aria-label={`Delete ${role.name}`}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M3 6h18" />
-                    <path d="M8 6V4h8v2" />
-                    <path d="M19 6l-1 14H6L5 6" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          ))}
-          {sortedRoles.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
-              No roles yet. Create your first role.
-            </div>
-          ) : null}
+      <div className="border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 lg:px-5">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem]">
+          <label className="block">
+            <span className="sr-only">Search roles</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search by role name…"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_18%,transparent)]"
+            />
+          </label>
+          <CustomSelect
+            value={coverageFilter}
+            onChange={(value) => {
+              setCoverageFilter(value);
+              setPage(1);
+            }}
+            options={coverageOptions}
+            aria-label="Filter by permission coverage"
+            className="mt-0"
+            triggerClassName="rounded-xl border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm font-semibold"
+          />
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--color-text-muted)]">
-        <div>
-          Showing{" "}
-          <span className="font-semibold text-[var(--color-text)]">
-            {sortedRoles.length === 0 ? 0 : (currentPage - 1) * perPage + 1}
-          </span>{" "}
-          to{" "}
-          <span className="font-semibold text-[var(--color-text)]">
-            {Math.min(currentPage * perPage, sortedRoles.length)}
-          </span>{" "}
-          of{" "}
-          <span className="font-semibold text-[var(--color-text)]">{sortedRoles.length}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2">
-            Items per page
-            <select
-              value={perPage}
-              onChange={(event) => {
-                const next = Number(event.target.value);
-                setPerPage(next);
-                setPage(1);
-              }}
-              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]"
-            >
-              {[5, 10, 20, 50].map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] transition disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Prev
-            </button>
-            <span className="rounded-lg bg-[var(--color-raised)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] transition disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+      <div className="p-4 lg:p-5">
+        <DataTable>
+          <DataTableHeader className="hidden grid-cols-[minmax(220px,1.4fr)_120px_140px_140px_120px] lg:grid lg:px-5">
+            <div>Role</div>
+            <div>Users</div>
+            <div>Menu grants</div>
+            <div>Created</div>
+            <div className="text-right">Actions</div>
+          </DataTableHeader>
+
+        <DataTableBody>
+          {pagedRoles.map((role) => {
+            const userCount = role.userCount ?? 0;
+            const permissionCount = role.permissionCount ?? 0;
+            return (
+              <DataTableRow
+                key={role.id}
+                className="gap-4 py-4 hover:bg-[var(--color-bg)] lg:grid-cols-[minmax(220px,1.4fr)_120px_140px_140px_120px] lg:items-center lg:px-5 lg:py-3.5"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_22%,transparent),color-mix(in_srgb,var(--color-primary)_8%,transparent))] text-[11px] font-bold text-[var(--color-primary-h)] ring-1 ring-[color-mix(in_srgb,var(--color-primary)_18%,var(--color-border))]">
+                    {initialsFor(role.name)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[var(--color-text)]">
+                      {role.name}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
+                      Access tier
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)] lg:hidden">
+                    Users
+                  </p>
+                  <span className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-[11px] font-semibold tabular-nums text-[var(--color-text)]">
+                    {userCount}
+                  </span>
+                </div>
+
+                <div>
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)] lg:hidden">
+                    Menu grants
+                  </p>
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold tabular-nums ${
+                      permissionCount > 0
+                        ? "vr-app-status-success"
+                        : "vr-app-status-warning"
+                    }`}
+                  >
+                    {permissionCount > 0 ? `${permissionCount} grants` : "No grants"}
+                  </span>
+                </div>
+
+                <div>
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)] lg:hidden">
+                    Created
+                  </p>
+                  <p className="text-sm text-[var(--color-text-muted)]">
+                    {new Date(role.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+
+                <div className="flex items-center lg:justify-end">
+                  <RoleActionsMenu
+                    role={role}
+                    isOpen={openMenuId === role.id}
+                    onToggle={() =>
+                      setOpenMenuId((current) => (current === role.id ? null : role.id))
+                    }
+                    onClose={() => setOpenMenuId(null)}
+                    onEdit={() => setModal({ type: "edit", role })}
+                    onDelete={() => setModal({ type: "delete", role })}
+                  />
+                </div>
+              </DataTableRow>
+            );
+          })}
+
+          {filteredRoles.length === 0 ? (
+            <DataTableEmptyState
+              title={roles.length === 0 ? "No roles yet" : "No matching roles"}
+              description={
+                roles.length === 0
+                  ? "Create the first role to define reusable access."
+                  : "Try a different search or coverage filter."
+              }
+              action={
+                roles.length === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setModal({ type: "create" })}
+                    className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)]"
+                  >
+                    Add role
+                  </button>
+                ) : null
+              }
+            />
+          ) : null}
+        </DataTableBody>
+        <DataTablePagination
+          totalItems={filteredRoles.length}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          perPage={perPage}
+          onPageChange={setPage}
+          onPerPageChange={(size) => {
+            setPerPage(size);
+            setPage(1);
+          }}
+          itemLabel="roles"
+        />
+        </DataTable>
       </div>
 
       {modal && modal.type !== "delete"
         ? createPortal(
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] px-4">
-              <div className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5 shadow-2xl">
-                <div className="flex items-start justify-between gap-3">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_42%,transparent)] px-4 backdrop-blur-sm">
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="role-dialog-title"
+                className="w-full max-w-md overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"
+              >
+                <div className="flex items-start justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
-                      Access Control
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-h)]">
+                      Access control
                     </p>
-                    <h2 className="mt-2 text-lg font-semibold text-[var(--color-text)]">
-                      {modal.type === "create" ? "Add Role" : "Edit Role"}
+                    <h2
+                      id="role-dialog-title"
+                      className="mt-1 text-lg font-semibold text-[var(--color-text)]"
+                    >
+                      {modal.type === "create" ? "Add a role" : "Edit role"}
                     </h2>
-                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                       {modal.type === "create"
-                        ? "Create a new role for the workspace."
-                        : "Update the role name."}
+                        ? "Create a reusable access tier for the workspace."
+                        : "Update the role name used across permissions."}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setModal(null)}
-                    className="rounded-lg p-1 text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)]"
-                    aria-label="Close"
+                    className="rounded-lg px-2 py-1 text-lg leading-none text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
+                    aria-label="Close dialog"
                   >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-5 w-5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M6 6l12 12M6 18L18 6" />
-                    </svg>
+                    ×
                   </button>
                 </div>
 
                 <form
                   action={modal.type === "create" ? onCreateRole : onUpdateRole}
-                  className="mt-4 space-y-4"
+                  className="space-y-4 p-5"
                 >
                   {modal.type === "edit" ? (
                     <input type="hidden" name="id" value={modal.role.id} />
                   ) : null}
-                  <label className="block text-sm text-[var(--color-text)]">
+                  <label className="block text-xs font-semibold text-[var(--color-text)]">
                     Role name
                     <input
                       type="text"
                       name="name"
                       defaultValue={modal.type === "edit" ? modal.role.name : ""}
                       placeholder="e.g. Supervisor"
-                      className="mt-1 w-full rounded-xl border border-[var(--color-border-hover)] bg-[var(--color-surface)] px-3 py-2 text-sm outline-none ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] transition focus:bg-[var(--color-bg)] focus:ring"
+                      required
+                      className={fieldClass}
                     />
                   </label>
 
-                  <div className="flex flex-wrap items-center justify-end gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--color-border)] pt-4">
                     <button
                       type="button"
                       onClick={() => setModal(null)}
-                      className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+                      className="rounded-xl border border-[var(--color-border)] px-3.5 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="rounded-xl vr-btn-primary px-4 py-2 text-sm font-semibold"
+                      className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
                     >
-                      {modal.type === "create" ? "Create Role" : "Save Changes"}
+                      {modal.type === "create" ? "Create role" : "Save changes"}
                     </button>
                   </div>
                 </form>
@@ -273,16 +524,16 @@ export function RolesManager({
         title="Delete role"
         description={
           modal?.type === "delete"
-            ? `This will permanently remove "${modal.role.name}".`
+            ? `This will permanently remove “${modal.role.name}”.`
             : ""
         }
-        confirmLabel="Delete Role"
+        confirmLabel="Delete role"
         onCancel={() => setModal(null)}
         action={onDeleteRole}
         hiddenFields={
           modal?.type === "delete" ? [{ name: "id", value: modal.role.id }] : []
         }
       />
-    </Panel>
+    </section>
   );
 }

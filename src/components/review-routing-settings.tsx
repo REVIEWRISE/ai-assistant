@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { CustomSelect } from "@/components/custom-select";
-import { Panel } from "@/components/ui";
 import {
   REVIEW_ROUTING_BUCKET_OPTIONS,
   defaultReviewRoutingRules,
@@ -20,10 +19,12 @@ function toStars(rating: ReviewStarRating): string {
 export function ReviewRoutingSettings({
   organizationId,
   initialRules,
+  readOnly = false,
   onSave,
 }: {
   organizationId: string;
   initialRules: ReviewRoutingRules;
+  readOnly?: boolean;
   onSave: (formData: FormData) => void | Promise<void>;
 }) {
   const [rules, setRules] = useState<ReviewRoutingRules>(initialRules);
@@ -42,11 +43,15 @@ export function ReviewRoutingSettings({
   }
 
   return (
-    <Panel
-      title="Approval routing by rating"
-      subtitle="Choose what happens when a review syncs, based on its star rating"
-    >
-      <form action={onSave} className="space-y-4">
+    <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+      <div className="border-b border-[var(--color-border)] px-5 py-5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Approval policy</p>
+        <h3 className="mt-1.5 text-lg font-semibold tracking-[-0.015em] text-[var(--color-text)]">Routing by rating</h3>
+        <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
+          {readOnly ? "Review how each star rating is routed after sync." : "Choose what happens when a review syncs, based on its star rating."}
+        </p>
+      </div>
+      <form action={onSave} className="space-y-4 p-4 lg:p-5">
         <input type="hidden" name="organization_id" value={organizationId} />
         {STAR_RATINGS.map((star) => (
           <input
@@ -82,6 +87,7 @@ export function ReviewRoutingSettings({
                   value={rules.ratings[String(star) as `${typeof star}`]}
                   onChange={(value) => setRatingBucket(star, value as ReviewRoutingBucket)}
                   options={REVIEW_ROUTING_BUCKET_OPTIONS}
+                  disabled={readOnly}
                   aria-label={`Routing for ${star} star reviews`}
                 />
               </div>
@@ -90,6 +96,12 @@ export function ReviewRoutingSettings({
         </div>
 
         <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--color-border-muted)] pt-4">
+          {readOnly ? (
+            <span className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-semibold text-[var(--color-text-muted)]">
+              View-only access
+            </span>
+          ) : (
+            <>
           <button
             type="button"
             onClick={resetDefaults}
@@ -103,8 +115,10 @@ export function ReviewRoutingSettings({
           >
             Save routing rules
           </button>
+            </>
+          )}
         </div>
       </form>
-    </Panel>
+    </section>
   );
 }

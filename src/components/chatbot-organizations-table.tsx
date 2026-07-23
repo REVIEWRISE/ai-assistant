@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { Panel } from "@/components/ui";
+import {
+  DataTable,
+  DataTableBody,
+  DataTableEmptyState,
+  DataTableHeader,
+  DataTablePagination,
+  DataTableRow,
+} from "@/components/data-table";
 import { BookingChatbotIcon } from "@/components/floating-booking-chatbot";
 import type { ChatbotConfigData } from "@/lib/chatbot-config";
 import { PRODUCT_NAME } from "@/lib/brand";
@@ -320,12 +327,14 @@ export type ChatbotOrgRow = {
   name: string;
   createdAt: string;
   isActive: boolean;
+  configured: boolean;
   config: ChatbotConfigData;
 };
 
 type ChatbotOrganizationsTableProps = {
   embedBaseUrl: string;
   rows: ChatbotOrgRow[];
+  readOnly?: boolean;
   onSaveChatbot: (formData: FormData) => void | Promise<void>;
   onSaveCrmIntegration: (formData: FormData) => void | Promise<void>;
   onSaveVoiceBooking: (formData: FormData) => void | Promise<void>;
@@ -336,6 +345,7 @@ type ChatbotOrganizationsTableProps = {
 export function ChatbotOrganizationsTable({
   embedBaseUrl,
   rows,
+  readOnly = false,
   onSaveChatbot,
   onSaveCrmIntegration,
   onSaveVoiceBooking,
@@ -377,34 +387,102 @@ export function ChatbotOrganizationsTable({
     return sorted.slice(start, start + perPage);
   }, [sorted, currentPage, perPage]);
 
+  const configuredCount = sorted.filter((row) => row.configured).length;
+  const activeCount = sorted.filter((row) => row.isActive).length;
+
   return (
-    <Panel
-      title="All your organizations"
-      subtitle="Every workspace you created or were added to appears here. Open Configure for any row—settings are saved per organization."
-    >
-      <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-        <div className="vr-app-table-header hidden grid-cols-[72px_1fr_140px_56px] items-center gap-2 px-4 py-3 lg:grid">
-          <div>#</div>
-          <div>Organization</div>
-          <div>Session</div>
-          <div className="text-right">Actions</div>
+    <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+      <div className="flex flex-col gap-4 border-b border-[var(--color-border)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between lg:px-6">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
+            Assistant directory
+          </p>
+          <h2 className="mt-1.5 text-lg font-semibold tracking-[-0.015em] text-[var(--color-text)]">
+            Organization experiences
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--color-text-muted)]">
+            {readOnly
+              ? "Review assistant readiness and enabled capabilities across each organization."
+              : "Configure each website assistant, then extend it with booking flow, voice, and CRM delivery."}
+          </p>
         </div>
-        <div className="divide-y divide-[var(--color-border-muted)]">
+        <div className="flex flex-wrap gap-2">
+          {readOnly ? (
+            <span className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
+              View-only access
+            </span>
+          ) : null}
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
+            <span className="size-1.5 rounded-full bg-[var(--color-primary)]" aria-hidden />
+            {configuredCount} configured
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full vr-app-status-success px-3 py-1.5 text-xs font-semibold">
+            <span className="size-1.5 rounded-full bg-current" aria-hidden />
+            {activeCount} active
+          </span>
+        </div>
+      </div>
+
+      <div className="p-4 lg:p-5">
+        <DataTable>
+          <DataTableHeader className="hidden grid-cols-[64px_minmax(220px,1.2fr)_minmax(240px,1fr)_130px_56px] lg:grid">
+            <div>Index</div>
+            <div>Organization</div>
+            <div>Capabilities</div>
+            <div>Session</div>
+            <div className="text-right">{readOnly ? "Access" : "Actions"}</div>
+          </DataTableHeader>
+          <DataTableBody>
+            {paged.length === 0 ? (
+              <DataTableEmptyState
+                title="No organizations available"
+                description="Create an organization before configuring a booking assistant."
+              />
+            ) : null}
           {paged.map((row, index) => (
-            <div
+            <DataTableRow
               key={row.id}
-              className="grid items-center gap-2 px-4 py-3 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface)] lg:grid-cols-[72px_1fr_140px_56px]"
+              className="items-center lg:grid-cols-[64px_minmax(220px,1.2fr)_minmax(240px,1fr)_130px_56px]"
             >
               <div className="text-xs font-semibold text-[var(--color-text-muted)]">
                 <span className="inline-flex min-w-[40px] items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
                   {String((currentPage - 1) * perPage + index + 1).padStart(2, "0")}
                 </span>
               </div>
-              <div>
-                <p className="font-semibold text-[var(--color-text)]">{row.name}</p>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  Created {new Date(row.createdAt).toLocaleDateString()}
-                </p>
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-sm font-bold text-[var(--color-primary-h)]">
+                  {row.name.trim().charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-[var(--color-text)]">{row.name}</p>
+                  <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                    {row.configured ? "Assistant configured" : "Setup required"} · Created{" "}
+                    {new Date(row.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <span className={`rounded-lg px-2 py-1 text-[10px] font-semibold ${
+                  row.configured
+                    ? "bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]"
+                    : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
+                }`}>
+                  Widget {row.configured ? "ready" : "draft"}
+                </span>
+                <span className={`rounded-lg px-2 py-1 text-[10px] font-semibold ${
+                  row.config.voiceBooking.enabled
+                    ? "vr-app-status-success"
+                    : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
+                }`}>
+                  Voice {row.config.voiceBooking.enabled ? "on" : "off"}
+                </span>
+                <span className={`rounded-lg px-2 py-1 text-[10px] font-semibold ${
+                  row.config.crmIntegration.enabled
+                    ? "vr-app-status-success"
+                    : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
+                }`}>
+                  CRM {row.config.crmIntegration.enabled ? "on" : "off"}
+                </span>
               </div>
               <div>
                 {row.isActive ? (
@@ -417,75 +495,43 @@ export function ChatbotOrganizationsTable({
                   </span>
                 )}
               </div>
-              <ChatbotOrgActionsMenu
-                row={row}
-                isOpen={openActionsMenuOrgId === row.id}
-                onToggle={() =>
-                  setOpenActionsMenuOrgId((current) => (current === row.id ? null : row.id))
-                }
-                onClose={() => setOpenActionsMenuOrgId(null)}
-                onConfigure={() => openConfigure(row)}
-                onBookingFlow={() => openBookingFlow(row)}
-                onVoice={() => setVoiceModalOrg(row)}
-                onCrm={() => setCrmModalOrg(row)}
-              />
-            </div>
+              {readOnly ? (
+                <div className="flex justify-end">
+                  <span className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text-muted)]">
+                    View only
+                  </span>
+                </div>
+              ) : (
+                <ChatbotOrgActionsMenu
+                  row={row}
+                  isOpen={openActionsMenuOrgId === row.id}
+                  onToggle={() =>
+                    setOpenActionsMenuOrgId((current) => (current === row.id ? null : row.id))
+                  }
+                  onClose={() => setOpenActionsMenuOrgId(null)}
+                  onConfigure={() => openConfigure(row)}
+                  onBookingFlow={() => openBookingFlow(row)}
+                  onVoice={() => setVoiceModalOrg(row)}
+                  onCrm={() => setCrmModalOrg(row)}
+                />
+              )}
+            </DataTableRow>
           ))}
-        </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--color-text-muted)]">
-        <div>
-          Showing{" "}
-          <span className="font-semibold text-[var(--color-text)]">
-            {sorted.length === 0 ? 0 : (currentPage - 1) * perPage + 1}
-          </span>{" "}
-          to{" "}
-          <span className="font-semibold text-[var(--color-text)]">
-            {Math.min(currentPage * perPage, sorted.length)}
-          </span>{" "}
-          of <span className="font-semibold text-[var(--color-text)]">{sorted.length}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2">
-            Per page
-            <select
-              value={perPage}
-              onChange={(e) => {
-                setPerPage(Number(e.target.value));
-                setPage(1);
-              }}
-              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]"
-            >
-              {[5, 10, 20].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] disabled:opacity-50"
-            >
-              Prev
-            </button>
-            <span className="rounded-lg bg-[var(--color-raised)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text)] disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+          </DataTableBody>
+          <DataTablePagination
+            totalItems={sorted.length}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            perPage={perPage}
+            onPageChange={setPage}
+            onPerPageChange={(size) => {
+              setPerPage(size);
+              setPage(1);
+            }}
+            pageSizes={[5, 10, 20]}
+            itemLabel="organizations"
+          />
+        </DataTable>
       </div>
 
       {configureModalOrg
@@ -700,6 +746,6 @@ export function ChatbotOrganizationsTable({
           onClose={() => setCrmModalOrg(null)}
         />
       ) : null}
-    </Panel>
+    </section>
   );
 }

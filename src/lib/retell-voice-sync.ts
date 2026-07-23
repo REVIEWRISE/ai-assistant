@@ -204,19 +204,30 @@ export function mapRetellRecordsToVoiceAgentConfig(args: {
 
 export async function fetchRetellVoiceAgentConfig(
   local: RetellVoiceAgentConfig,
-): Promise<{ ok: true; config: RetellVoiceAgentConfig } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; config: RetellVoiceAgentConfig }
+  | { ok: false; error: string; status: number }
+> {
   if (!isRetellApiConfigured()) {
-    return { ok: false, error: "RETELL_API_KEY is not set on the server." };
+    return { ok: false, error: "RETELL_API_KEY is not set on the server.", status: 0 };
   }
 
   const agentId = local.retellAgentId.trim();
   if (!agentId) {
-    return { ok: false, error: "Enter a Retell agent ID to load settings from Retell." };
+    return {
+      ok: false,
+      error: "Enter a Retell agent ID to load settings from Retell.",
+      status: 400,
+    };
   }
 
   const agentResult = await getRetellAgent(agentId);
   if (!agentResult.ok) {
-    return { ok: false, error: agentResult.error };
+    return {
+      ok: false,
+      error: agentResult.error,
+      status: agentResult.status,
+    };
   }
 
   const llmId = extractRetellLlmId(agentResult.data);

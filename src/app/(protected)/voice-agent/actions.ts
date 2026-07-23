@@ -19,7 +19,6 @@ import {
 } from "@/lib/voice-agent-ai";
 import {
   buyOrgRetellPhoneNumber,
-  ensureLegacyPrimaryPhoneImported,
   linkOrgRetellPhoneNumber,
   assignOrgRetellPhoneAgent,
   refreshOrgRetellPhoneNumbersFromRetell,
@@ -31,6 +30,7 @@ import {
   parseVoiceAgentPhoneForm,
   resolveVoiceAgentSettings,
 } from "@/lib/retell-voice-agent";
+import { userHasAdminRole } from "@/lib/admin-view-only";
 
 const VOICE_AGENT_ROUTE = "/voice-agent";
 
@@ -57,6 +57,9 @@ async function requireVoiceAgentOrgSession(organizationId: string) {
   });
   if (!membership) {
     redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
+  }
+  if (await userHasAdminRole(session.userId)) {
+    redirect(`${VOICE_AGENT_ROUTE}?error=voice_agent_read_only`);
   }
 
   return session;

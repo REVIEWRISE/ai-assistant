@@ -34,6 +34,10 @@ Add the following secrets to your GitHub repository (Settings > Secrets and vari
 | `SERVER_SSH_KEY` | Private SSH key | `-----BEGIN RSA PRIVATE KEY-----...` |
 | `APP_DIR` | Deployment directory on server | `/var/www/ai-assistant` |
 | `ENV_FILE_CONTENTS` | Contents of the production `.env` file | See below |
+| `BILLING_API_URL` | Billing API base URL | `https://billing.vyntrise.com/api/v1` |
+| `BILLING_API_KEY` | Billing service API key | `vbk_live_…` |
+| `BILLING_PRODUCT_NAME` | Billing product slug | `agents` |
+| `BILLING_ADMIN_URL` | Billing Admin portal URL | `https://billing.vyntrise.com` |
 
 ### Environment variables
 
@@ -83,6 +87,21 @@ You can set `RETELL_API_KEY` as its own GitHub secret; deploy merges it into `.e
 
 These are merged into `.env.production` on every deploy, including when using `ENV_FILE_CONTENTS`.
 
+#### Vyntrise Billing microservice
+
+Plan catalog (prices + contents) is owned by billing — this app only reads it.
+
+| Secret | Description |
+| :--- | :--- |
+| `BILLING_API_URL` | Optional. Default `https://billing.vyntrise.com/api/v1` |
+| `BILLING_API_KEY` | Service API key from Billing Admin → API Keys (`vbk_…`) |
+| `BILLING_PRODUCT_NAME` | Optional. Product slug (default `agents`) |
+| `BILLING_ADMIN_URL` | Optional. Billing Admin portal URL (default `https://billing.vyntrise.com`) |
+
+You can set these as individual GitHub secrets; deploy merges them into `.env.production` even when using `ENV_FILE_CONTENTS`.
+
+Without `BILLING_API_KEY`, landing and `/platform/billing-plans` show empty state (no static fallback).
+
 #### `ENV_FILE_CONTENTS` example
 
 ```env
@@ -108,6 +127,11 @@ SMTP_USER=you@gmail.com
 SMTP_PASSWORD=your-google-app-password
 BOOKING_EMAIL_FROM=VyntRise Bookings <you@gmail.com>
 BOOKING_NOTIFY_EMAIL=you@gmail.com
+
+BILLING_API_URL=https://billing.vyntrise.com/api/v1
+BILLING_API_KEY=vbk_live_...
+BILLING_PRODUCT_NAME=agents
+BILLING_ADMIN_URL=https://billing.vyntrise.com
 ```
 
 ### Will deploy wipe my database?
