@@ -12,6 +12,7 @@
   --color-border:          #e2e8f0;
   --color-border-muted:    #f1f5f9;
   --color-border-hover:    #cbd5e1;
+  --color-skeleton:        #d8dee8;
 
   --color-text:            #0f172a;
   --color-text-muted:      #64748b;
@@ -57,6 +58,7 @@
   --color-border:          #1e2538;
   --color-border-muted:    #151b2b;
   --color-border-hover:    #2d3755;
+  --color-skeleton:        #2d3755;
 
   --color-text:            #ffffff;
   --color-text-muted:      #8a96a8;
@@ -96,6 +98,7 @@
 .vr-bg-base    { background-color: var(--color-bg); }
 .vr-bg-surface { background-color: var(--color-surface); }
 .vr-bg-raised  { background-color: var(--color-raised); }
+.vr-skeleton   { background-color: var(--color-skeleton); }
 
 .vr-text-base   { color: var(--color-text); }
 .vr-text-muted  { color: var(--color-text-muted); }

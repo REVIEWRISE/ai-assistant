@@ -25,6 +25,7 @@ export default async function PlatformSettingsPage() {
   const providerTypes = new Set(providers.map((provider) => provider.type)).size;
   const isAdmin = Boolean(adminRole);
   const planCount = catalog.plans.length;
+
   const modules = [
     {
       href: "/platform/providers",
@@ -42,7 +43,7 @@ export default async function PlatformSettingsPage() {
             eyebrow: "Commercial",
             title: "Billing plans",
             description:
-              "View pricing and plan contents from the Vyntrise Billing service.",
+              "View plans and manage feature modules from the Vyntrise Billing service.",
             count: planCount,
             label: planCount === 1 ? "plan" : "plans",
           },

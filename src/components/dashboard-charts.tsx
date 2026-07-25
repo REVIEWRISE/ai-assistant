@@ -314,7 +314,6 @@ export function DashboardOverviewGrid({
 
 export function DashboardSectionSummary({
   stats,
-  accent,
 }: {
   stats: DashboardStat[];
   accent: string;

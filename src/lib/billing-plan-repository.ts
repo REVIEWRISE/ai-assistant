@@ -3,7 +3,11 @@ import "server-only";
 import type { LandingPlan } from "@/lib/landing-data";
 import {
   getAgentBillingCatalog,
+  getBillingPlanDetail,
   isBillingConfigured,
+  listBillingModules,
+  type BillingModule,
+  type BillingPlanModule,
   type BillingRemotePlan,
 } from "@/lib/billing-client";
 import { BILLING_RULES, formatUsd } from "@/lib/pricing-plans";
@@ -30,12 +34,17 @@ export type CatalogPlanView = {
   contents: string[];
   monthlyPriceCents: number | null;
   yearlyPriceCents: number | null;
+  monthlyPlanId: string | null;
+  yearlyPlanId: string | null;
+  modules: BillingPlanModule[];
 };
 
 export type BillingCatalogResult = {
   plans: CatalogPlanView[];
+  productId?: string;
   productName?: string;
   productDisplayName?: string;
+  productModules: BillingModule[];
   error: BillingCatalogError | null;
 };
 
@@ -60,7 +69,19 @@ function limitValue(
   return fallback;
 }
 
-function contentsForPlan(plan: BillingRemotePlan): string[] {
+function contentsFromModules(modules: BillingPlanModule[]): string[] {
+  return modules.map((module) => {
+    const unlimited = module.featureLimits.some((limit) => limit.isUnlimited);
+    if (unlimited) return module.displayName;
+    const first = module.featureLimits[0];
+    if (!first) return module.displayName;
+    return `${module.displayName}: ${first.limitValue}${first.unit ? ` ${first.unit}` : ""}`;
+  });
+}
+
+function contentsForPlan(plan: BillingRemotePlan, modules: BillingPlanModule[]): string[] {
+  const fromModules = contentsFromModules(modules);
+  if (fromModules.length) return fromModules;
   if (plan.highlights?.length) return [...plan.highlights];
 
   const fromLimits =
@@ -92,7 +113,37 @@ function contentsForPlan(plan: BillingRemotePlan): string[] {
   return bullets;
 }
 
-function groupRemotePlans(plans: BillingRemotePlan[]): CatalogPlanView[] {
+function mergeModules(lists: BillingPlanModule[][]): BillingPlanModule[] {
+  const byKey = new Map<string, BillingPlanModule>();
+  for (const list of lists) {
+    for (const billingModule of list) {
+      if (!byKey.has(billingModule.key)) byKey.set(billingModule.key, billingModule);
+    }
+  }
+  return Array.from(byKey.values());
+}
+
+async function loadPlanModules(
+  planIds: Array<string | null | undefined>,
+): Promise<Map<string, BillingPlanModule[]>> {
+  const unique = [...new Set(planIds.filter((id): id is string => Boolean(id)))];
+  const entries = await Promise.all(
+    unique.map(async (planId) => {
+      try {
+        const detail = await getBillingPlanDetail(planId);
+        return [planId, detail.modules] as const;
+      } catch {
+        return [planId, [] as BillingPlanModule[]] as const;
+      }
+    }),
+  );
+  return new Map(entries);
+}
+
+function groupRemotePlans(
+  plans: BillingRemotePlan[],
+  modulesByPlanId: Map<string, BillingPlanModule[]>,
+): CatalogPlanView[] {
   const groups = new Map<
     string,
     {
@@ -120,6 +171,10 @@ function groupRemotePlans(plans: BillingRemotePlan[]): CatalogPlanView[] {
     const primary = group.monthly ?? group.yearly ?? group.any;
     const monthlyPriceCents = group.monthly?.priceAmount ?? null;
     const yearlyPriceCents = group.yearly?.priceAmount ?? null;
+    const modules = mergeModules([
+      group.monthly ? (modulesByPlanId.get(group.monthly.id) ?? []) : [],
+      group.yearly ? (modulesByPlanId.get(group.yearly.id) ?? []) : [],
+    ]);
 
     return {
       id: primary.id,
@@ -151,9 +206,12 @@ function groupRemotePlans(plans: BillingRemotePlan[]): CatalogPlanView[] {
         "included_voice_minutes",
         "voice_minutes",
       ]),
-      contents: contentsForPlan(primary),
+      contents: contentsForPlan(primary, modules),
       monthlyPriceCents,
       yearlyPriceCents,
+      monthlyPlanId: group.monthly?.id ?? null,
+      yearlyPlanId: group.yearly?.id ?? null,
+      modules,
     } satisfies CatalogPlanView;
   });
 
@@ -187,33 +245,81 @@ function toLandingPlan(plan: CatalogPlanView): LandingPlan {
   };
 }
 
+function catalogFromPlanModules(
+  productId: string,
+  modulesByPlanId: Map<string, BillingPlanModule[]>,
+): BillingModule[] {
+  const byId = new Map<string, BillingModule>();
+  for (const modules of modulesByPlanId.values()) {
+    for (const billingModule of modules) {
+      if (byId.has(billingModule.id)) continue;
+      byId.set(billingModule.id, {
+        id: billingModule.id,
+        productId,
+        key: billingModule.key,
+        displayName: billingModule.displayName,
+        description: null,
+        isActive: billingModule.isActive,
+        createdAt: null,
+        updatedAt: null,
+      });
+    }
+  }
+  return Array.from(byId.values());
+}
+
 export async function getBillingCatalogPlans(): Promise<BillingCatalogResult> {
   if (!isBillingConfigured()) {
-    return { plans: [], error: "not_configured" };
+    return { plans: [], productModules: [], error: "not_configured" };
   }
 
   try {
     const catalog = await getAgentBillingCatalog();
     if (!catalog) {
-      return { plans: [], error: "product_missing" };
+      return { plans: [], productModules: [], error: "product_missing" };
     }
     if (catalog.plans.length === 0) {
       return {
         plans: [],
+        productId: catalog.product.id,
         productName: catalog.product.name,
         productDisplayName: catalog.product.displayName,
+        productModules: [],
         error: "empty",
       };
     }
 
+    const modulesByPlanId = await loadPlanModules(catalog.plans.map((plan) => plan.id));
+    let productModules: BillingModule[] = [];
+    try {
+      productModules = await listBillingModules(catalog.product.id);
+    } catch {
+      productModules = [];
+    }
+
+    // If the product catalog endpoint flakes (common 503), fall back to the
+    // unique modules already attached across plans so Manage modules still works.
+    if (productModules.length === 0) {
+      productModules = catalogFromPlanModules(catalog.product.id, modulesByPlanId);
+    }
+
+    const sortedProductModules = [...productModules].sort((a, b) => {
+      const aTime = a.createdAt ? Date.parse(a.createdAt) : 0;
+      const bTime = b.createdAt ? Date.parse(b.createdAt) : 0;
+      if (aTime || bTime) return bTime - aTime;
+      return a.displayName.localeCompare(b.displayName);
+    });
+
     return {
-      plans: groupRemotePlans(catalog.plans),
+      plans: groupRemotePlans(catalog.plans, modulesByPlanId),
+      productId: catalog.product.id,
       productName: catalog.product.name,
       productDisplayName: catalog.product.displayName,
+      productModules: sortedProductModules,
       error: null,
     };
   } catch {
-    return { plans: [], error: "unavailable" };
+    return { plans: [], productModules: [], error: "unavailable" };
   }
 }
 

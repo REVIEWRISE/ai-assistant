@@ -13,6 +13,11 @@
     "db:sync": "sh scripts/db-sync.sh",
     "db:seed": "prisma db seed",
     "db:setup": "npm run db:migrate && npm run db:seed",
+    "seed:billing-modules": "tsx scripts/seed-billing-modules.ts",
+    "seed:billing-starter": "tsx scripts/seed-billing-modules.ts --only=starter",
+    "seed:billing-growth": "tsx scripts/seed-billing-modules.ts --only=growth",
+    "seed:billing-pro-voice": "tsx scripts/seed-billing-modules.ts --only=pro_voice",
+    "cleanup:legacy-plan-modules": "tsx scripts/cleanup-legacy-plan-modules.ts",
     "cron:review-sync": "tsx scripts/review-sync-cron.ts",
     "retell:llm": "tsx scripts/retell-custom-llm-server.ts",
     "retell:migrate": "tsx scripts/migrate-retell-to-custom-llm.ts"

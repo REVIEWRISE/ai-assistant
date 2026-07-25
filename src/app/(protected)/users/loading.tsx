@@ -23,17 +23,17 @@ export default function UsersLoading() {
 
       <div className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="border-b border-[var(--color-border)] px-5 py-4">
-          <div className="h-4 w-24 rounded bg-[var(--color-raised)]/70" />
-          <div className="mt-2 h-6 w-44 rounded bg-[var(--color-raised)]/60" />
+          <div className="h-4 w-24 rounded bg-[var(--color-skeleton)]" />
+          <div className="mt-2 h-6 w-44 rounded bg-[var(--color-skeleton)]" />
         </div>
         <div className="space-y-3 px-5 py-4">
           <div className="flex gap-2">
-            <div className="h-8 w-16 rounded-lg bg-[var(--color-raised)]/60" />
-            <div className="h-8 w-16 rounded-lg bg-[var(--color-raised)]/40" />
-            <div className="h-8 w-16 rounded-lg bg-[var(--color-raised)]/40" />
+            <div className="h-8 w-16 rounded-lg bg-[var(--color-skeleton)]" />
+            <div className="h-8 w-16 rounded-lg bg-[var(--color-skeleton)]" />
+            <div className="h-8 w-16 rounded-lg bg-[var(--color-skeleton)]" />
           </div>
-          <div className="h-11 rounded-xl bg-[var(--color-raised)]/50" />
-          <div className="h-56 rounded-2xl bg-[var(--color-raised)]/40" />
+          <div className="h-11 rounded-xl bg-[var(--color-skeleton)]" />
+          <div className="h-56 rounded-2xl bg-[var(--color-skeleton)]" />
         </div>
       </div>
     </div>

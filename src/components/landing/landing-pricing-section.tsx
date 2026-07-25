@@ -44,18 +44,18 @@ function PricingPlaceholder() {
               index === 1 ? "lg:-translate-y-2" : ""
             }`}
           >
-            <div className="h-3 w-20 animate-pulse rounded bg-[var(--color-raised)]" />
-            <div className="mt-4 h-4 w-full max-w-[14rem] animate-pulse rounded bg-[var(--color-raised)]/70" />
+            <div className="h-3 w-20 animate-pulse rounded bg-[var(--color-skeleton)]" />
+            <div className="mt-4 h-4 w-full max-w-[14rem] animate-pulse rounded bg-[var(--color-skeleton)]" />
             <div className="mt-6 border-y border-[var(--color-border)] py-6">
-              <div className="h-12 w-28 animate-pulse rounded-lg bg-[var(--color-raised)]" />
-              <div className="mt-3 h-3 w-40 animate-pulse rounded bg-[var(--color-raised)]/60" />
+              <div className="h-12 w-28 animate-pulse rounded-lg bg-[var(--color-skeleton)]" />
+              <div className="mt-3 h-3 w-40 animate-pulse rounded bg-[var(--color-skeleton)]" />
             </div>
             <div className="space-y-3 pt-5">
-              <div className="h-3 w-full animate-pulse rounded bg-[var(--color-raised)]/50" />
-              <div className="h-3 w-[90%] animate-pulse rounded bg-[var(--color-raised)]/50" />
-              <div className="h-3 w-[80%] animate-pulse rounded bg-[var(--color-raised)]/50" />
+              <div className="h-3 w-full animate-pulse rounded bg-[var(--color-skeleton)]" />
+              <div className="h-3 w-[90%] animate-pulse rounded bg-[var(--color-skeleton)]" />
+              <div className="h-3 w-[80%] animate-pulse rounded bg-[var(--color-skeleton)]" />
             </div>
-            <div className="mt-7 h-12 animate-pulse rounded-full bg-[var(--color-raised)]/40" />
+            <div className="mt-7 h-12 animate-pulse rounded-full bg-[var(--color-skeleton)]" />
           </div>
         ))}
       </div>

@@ -20,8 +20,8 @@ export default function AccessMenusLoading() {
           ))}
         </div>
       </div>
-      <div className="h-10 w-72 rounded-xl bg-[var(--color-raised)]/60" />
-      <div className="h-72 rounded-[1.5rem] bg-[var(--color-raised)]/45" />
+      <div className="h-10 w-72 rounded-xl bg-[var(--color-skeleton)]" />
+      <div className="h-72 rounded-[1.5rem] bg-[var(--color-skeleton)]" />
     </div>
   );
 }

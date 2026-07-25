@@ -28,18 +28,18 @@ export default function ProfileLoading() {
       <div className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="flex flex-col gap-4 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="h-3 w-20 rounded bg-[var(--color-raised)]/70" />
-            <div className="mt-2 h-6 w-44 rounded bg-[var(--color-raised)]/60" />
-            <div className="mt-2 h-4 w-72 rounded bg-[var(--color-raised)]/40" />
+            <div className="h-3 w-20 rounded bg-[var(--color-skeleton)]" />
+            <div className="mt-2 h-6 w-44 rounded bg-[var(--color-skeleton)]" />
+            <div className="mt-2 h-4 w-72 rounded bg-[var(--color-skeleton)]" />
           </div>
           <div className="flex gap-2">
-            <div className="h-9 w-36 rounded-lg bg-[var(--color-raised)]/60" />
-            <div className="h-9 w-36 rounded-lg bg-[var(--color-raised)]/40" />
+            <div className="h-9 w-36 rounded-lg bg-[var(--color-skeleton)]" />
+            <div className="h-9 w-36 rounded-lg bg-[var(--color-skeleton)]" />
           </div>
         </div>
         <div className="grid gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_19rem]">
-          <div className="h-72 rounded-2xl bg-[var(--color-raised)]/40" />
-          <div className="h-56 rounded-2xl bg-[var(--color-raised)]/35" />
+          <div className="h-72 rounded-2xl bg-[var(--color-skeleton)]" />
+          <div className="h-56 rounded-2xl bg-[var(--color-skeleton)]" />
         </div>
       </div>
     </div>

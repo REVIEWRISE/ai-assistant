@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "@/lib/toast";
 import type { BillingCatalogError } from "@/lib/billing-catalog-types";
 
@@ -29,7 +30,29 @@ const ERROR_TOASTS: Record<
   },
 };
 
+const successMessages: Record<string, string> = {
+  created: "Module created.",
+  updated: "Module updated.",
+  deleted: "Module deleted.",
+  plan_updated: "Plan updated.",
+  plan_created: "Plan created.",
+};
+
+const actionErrorMessages: Record<string, string> = {
+  invalid: "Check the module key and display name, then try again.",
+  duplicate: "A module with that key already exists.",
+  create_failed: "The module could not be created.",
+  update_failed: "The module could not be updated.",
+  delete_failed: "The module could not be deleted.",
+  plan_invalid: "Check the plan name and prices, then try again.",
+  plan_update_failed: "The plan could not be updated.",
+  plan_create_failed: "The plan could not be created in Billing.",
+  not_configured: "Set BILLING_API_KEY before managing billing.",
+  product_missing: "No product matched BILLING_PRODUCT_NAME.",
+};
+
 export function BillingPlansToasts({ error }: { error: BillingCatalogError | null }) {
+  const searchParams = useSearchParams();
   const lastToast = useRef<string | null>(null);
 
   useEffect(() => {
@@ -38,6 +61,22 @@ export function BillingPlansToasts({ error }: { error: BillingCatalogError | nul
     const message = ERROR_TOASTS[error];
     toast.warning(message.title, { description: message.description });
   }, [error]);
+
+  useEffect(() => {
+    const success = searchParams.get("success");
+    const actionError = searchParams.get("error");
+    const key = success ? `success:${success}` : actionError ? `error:${actionError}` : null;
+    if (!key || key === lastToast.current) return;
+    lastToast.current = key;
+
+    if (success && successMessages[success]) {
+      toast.success(successMessages[success]);
+      return;
+    }
+    if (actionError && actionErrorMessages[actionError]) {
+      toast.error(actionErrorMessages[actionError]);
+    }
+  }, [searchParams]);
 
   return null;
 }
