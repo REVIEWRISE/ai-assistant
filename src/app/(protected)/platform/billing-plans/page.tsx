@@ -83,7 +83,6 @@ export default async function BillingPlansPage() {
           productModules={catalog.productModules}
           productId={catalog.productId}
           productDisplayName={catalog.productDisplayName}
-          error={catalog.error}
           onCreateModule={createModuleAction}
           onUpdateModule={updateModuleAction}
           onDeleteModule={deleteModuleAction}

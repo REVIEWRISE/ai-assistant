@@ -147,20 +147,20 @@ async function main() {
     console.log(
       `\n${plan.name} (${plan.billingInterval}): ${modules.length} attached, ${legacy.length} legacy`,
     );
-    for (const module of legacy) {
-      console.log(`  - ${module.key} (${module.displayName})`);
+    for (const billingModule of legacy) {
+      console.log(`  - ${billingModule.key} (${billingModule.displayName})`);
       if (apply) {
         try {
-          await detachModule(plan.id, module.id);
+          await detachModule(plan.id, billingModule.id);
           console.log(`    ✓ detached`);
           detachCount += 1;
-          detachedKeys.add(module.key);
+          detachedKeys.add(billingModule.key);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           console.warn(`    ! detach failed: ${message}`);
         }
       } else {
-        detachedKeys.add(module.key);
+        detachedKeys.add(billingModule.key);
       }
     }
   }
@@ -168,21 +168,21 @@ async function main() {
   const catalog = await listCatalog(product.id);
   const orphanCatalog = catalog.filter((module) => !PRICING_SPEC_KEYS.has(module.key));
   console.log(`\nCatalog orphans (not pricing-spec): ${orphanCatalog.length}`);
-  for (const module of orphanCatalog) {
-    console.log(`  - ${module.key}`);
+  for (const billingModule of orphanCatalog) {
+    console.log(`  - ${billingModule.key}`);
   }
 
   let deletedCount = 0;
   if (apply && !keepCatalog) {
     console.log("\nDeleting catalog orphans…");
-    for (const module of orphanCatalog) {
+    for (const billingModule of orphanCatalog) {
       try {
-        await deleteCatalogModule(module.id);
-        console.log(`  ✓ deleted ${module.key}`);
+        await deleteCatalogModule(billingModule.id);
+        console.log(`  ✓ deleted ${billingModule.key}`);
         deletedCount += 1;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.warn(`  ! delete ${module.key}: ${message}`);
+        console.warn(`  ! delete ${billingModule.key}: ${message}`);
       }
     }
   }

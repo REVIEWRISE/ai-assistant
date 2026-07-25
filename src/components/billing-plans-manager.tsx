@@ -49,7 +49,6 @@ type BillingPlansManagerProps = {
   productModules: BillingModule[];
   productId?: string;
   productDisplayName?: string;
-  error?: string | null;
   onCreateModule: (formData: FormData) => Promise<void>;
   onUpdateModule: (formData: FormData) => Promise<void>;
   onDeleteModule: (formData: FormData) => Promise<void>;
@@ -73,14 +72,14 @@ function moduleLimit(
   modules: BillingPlanModule[],
   keys: string[],
 ): number | null {
-  for (const module of modules) {
-    if (keys.includes(module.key)) {
-      const limit = module.featureLimits[0];
+  for (const billingModule of modules) {
+    if (keys.includes(billingModule.key)) {
+      const limit = billingModule.featureLimits[0];
       if (!limit) continue;
       if (limit.isUnlimited) return Number.POSITIVE_INFINITY;
       return limit.limitValue;
     }
-    for (const limit of module.featureLimits) {
+    for (const limit of billingModule.featureLimits) {
       if (!keys.includes(limit.featureKey)) continue;
       if (limit.isUnlimited) return Number.POSITIVE_INFINITY;
       return limit.limitValue;
@@ -134,10 +133,10 @@ function modulesForManageSheet(
   productId?: string,
 ): BillingModule[] {
   const byId = new Map<string, BillingModule>();
-  for (const module of productModules) byId.set(module.id, module);
-  for (const module of plan.modules) {
-    if (byId.has(module.id)) continue;
-    byId.set(module.id, resolveEditableModule(module, productModules, productId));
+  for (const billingModule of productModules) byId.set(billingModule.id, billingModule);
+  for (const billingModule of plan.modules) {
+    if (byId.has(billingModule.id)) continue;
+    byId.set(billingModule.id, resolveEditableModule(billingModule, productModules, productId));
   }
   return Array.from(byId.values()).sort((a, b) =>
     a.displayName.localeCompare(b.displayName),
@@ -149,7 +148,6 @@ export function BillingPlansManager({
   productModules,
   productId,
   productDisplayName,
-  error,
   onCreateModule,
   onUpdateModule,
   onDeleteModule,
@@ -887,7 +885,7 @@ function PlanModulesPanel({
 
   const planModuleByKey = useMemo(() => {
     const map = new Map<string, BillingPlanModule>();
-    for (const module of plan.modules) map.set(module.key, module);
+    for (const billingModule of plan.modules) map.set(billingModule.key, billingModule);
     return map;
   }, [plan.modules]);
   const planModuleIds = useMemo(

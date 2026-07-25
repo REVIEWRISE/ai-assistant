@@ -187,9 +187,9 @@ async function createModule(
     }),
   });
   const body = (await res.json()) as { data?: BillingModule } & BillingModule;
-  const module = body.data ?? body;
-  if (!module.id || !module.key) throw new Error(`Invalid create payload for ${def.key}`);
-  return module;
+  const billingModule = body.data ?? body;
+  if (!billingModule.id || !billingModule.key) throw new Error(`Invalid create payload for ${def.key}`);
+  return billingModule;
 }
 
 async function attachModule(
@@ -248,10 +248,10 @@ async function attachForPlans(
     console.log(`\nPlan ${plan.name} (${plan.billingInterval}) → ${slug}`);
     for (const def of defs) {
       if (!shouldAttach(slug, def.key)) continue;
-      const module = modulesByKey.get(def.key);
-      if (!module) continue;
+      const billingModule = modulesByKey.get(def.key);
+      if (!billingModule) continue;
       try {
-        await attachModule(plan.id, module.id, featureLimitsFor(slug, def.key));
+        await attachModule(plan.id, billingModule.id, featureLimitsFor(slug, def.key));
         console.log(`  ✓ attach ${def.key}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

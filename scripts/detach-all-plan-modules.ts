@@ -115,11 +115,11 @@ async function main() {
     const modules = await listPlanModules(plan.id);
     total += modules.length;
     console.log(`${plan.name} (${plan.billingInterval}): ${modules.length} modules`);
-    for (const module of modules) {
-      console.log(`  - ${module.key}`);
+    for (const billingModule of modules) {
+      console.log(`  - ${billingModule.key}`);
       if (!apply) continue;
       try {
-        await detachModule(plan.id, module.id);
+        await detachModule(plan.id, billingModule.id);
         detached += 1;
         console.log(`    ✓ detached`);
       } catch (error) {

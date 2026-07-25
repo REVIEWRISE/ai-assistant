@@ -1,5 +1,4 @@
 import {
-  buildRetellGeneralPromptWithKnowledge,
   splitRetellGeneralPrompt,
 } from "@/lib/retell-voice-prompt";
 import { isRetellCustomLlmEnabled, getRetellCustomLlmWebSocketUrl } from "@/lib/retell-custom-llm-config";

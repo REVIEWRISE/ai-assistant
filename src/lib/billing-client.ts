@@ -376,9 +376,9 @@ export async function createBillingModule(input: BillingModuleInput): Promise<Bi
     }),
   });
   const body = (await res.json()) as { data?: unknown } & Record<string, unknown>;
-  const module = normalizeModule(body.data ?? body);
-  if (!module) throw new Error("Billing API returned an invalid module payload.");
-  return module;
+  const billingModule = normalizeModule(body.data ?? body);
+  if (!billingModule) throw new Error("Billing API returned an invalid module payload.");
+  return billingModule;
 }
 
 export async function updateBillingModule(
@@ -395,9 +395,9 @@ export async function updateBillingModule(
     }),
   });
   const body = (await res.json()) as { data?: unknown } & Record<string, unknown>;
-  const module = normalizeModule(body.data ?? body);
-  if (!module) throw new Error("Billing API returned an invalid module payload.");
-  return module;
+  const billingModule = normalizeModule(body.data ?? body);
+  if (!billingModule) throw new Error("Billing API returned an invalid module payload.");
+  return billingModule;
 }
 
 export async function deleteBillingModule(moduleId: string): Promise<void> {

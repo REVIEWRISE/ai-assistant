@@ -116,8 +116,8 @@ function contentsForPlan(plan: BillingRemotePlan, modules: BillingPlanModule[]):
 function mergeModules(lists: BillingPlanModule[][]): BillingPlanModule[] {
   const byKey = new Map<string, BillingPlanModule>();
   for (const list of lists) {
-    for (const module of list) {
-      if (!byKey.has(module.key)) byKey.set(module.key, module);
+    for (const billingModule of list) {
+      if (!byKey.has(billingModule.key)) byKey.set(billingModule.key, billingModule);
     }
   }
   return Array.from(byKey.values());
@@ -251,15 +251,15 @@ function catalogFromPlanModules(
 ): BillingModule[] {
   const byId = new Map<string, BillingModule>();
   for (const modules of modulesByPlanId.values()) {
-    for (const module of modules) {
-      if (byId.has(module.id)) continue;
-      byId.set(module.id, {
-        id: module.id,
+    for (const billingModule of modules) {
+      if (byId.has(billingModule.id)) continue;
+      byId.set(billingModule.id, {
+        id: billingModule.id,
         productId,
-        key: module.key,
-        displayName: module.displayName,
+        key: billingModule.key,
+        displayName: billingModule.displayName,
         description: null,
-        isActive: module.isActive,
+        isActive: billingModule.isActive,
         createdAt: null,
         updatedAt: null,
       });
