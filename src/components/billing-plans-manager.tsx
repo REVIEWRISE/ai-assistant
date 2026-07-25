@@ -716,9 +716,9 @@ function PlanEditSheet({
                 />
                 <span className="mt-1.5 block text-[10px] font-normal text-[var(--color-text-subtle)]">
                   {isCreate
-                    ? "Optional — enable yearly below."
+                    ? "Optional — enable yearly below. Use monthly equivalent (e.g. 33) or annual total (e.g. 396)."
                     : showYearly
-                      ? "Amount in major units (e.g. 290 = $290)."
+                      ? "Monthly equivalent when billed yearly (e.g. 33), or annual total (e.g. 396)."
                       : "No yearly plan."}
                 </span>
               </label>
