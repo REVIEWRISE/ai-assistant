@@ -20,11 +20,11 @@ export default function AccessOverviewLoading() {
           ))}
         </div>
       </div>
-      <div className="h-10 w-72 rounded-xl bg-[var(--color-raised)]/60" />
+      <div className="h-10 w-72 rounded-xl bg-[var(--color-skeleton)]" />
       <div className="grid gap-3 md:grid-cols-3">
-        <div className="h-40 rounded-[1.35rem] bg-[var(--color-raised)]/50" />
-        <div className="h-40 rounded-[1.35rem] bg-[var(--color-raised)]/40" />
-        <div className="h-40 rounded-[1.35rem] bg-[var(--color-raised)]/40" />
+        <div className="h-40 rounded-[1.35rem] bg-[var(--color-skeleton)]" />
+        <div className="h-40 rounded-[1.35rem] bg-[var(--color-skeleton)]" />
+        <div className="h-40 rounded-[1.35rem] bg-[var(--color-skeleton)]" />
       </div>
     </div>
   );

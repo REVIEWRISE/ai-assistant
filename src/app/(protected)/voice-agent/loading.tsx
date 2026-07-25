@@ -20,22 +20,22 @@ export default function VoiceAgentLoading() {
       </div>
 
       <div className="flex gap-2">
-        <div className="h-10 w-28 rounded-xl bg-[var(--color-raised)]/70" />
-        <div className="h-10 w-28 rounded-xl bg-[var(--color-raised)]/50" />
-        <div className="h-10 w-28 rounded-xl bg-[var(--color-raised)]/50" />
+        <div className="h-10 w-28 rounded-xl bg-[var(--color-skeleton)]" />
+        <div className="h-10 w-28 rounded-xl bg-[var(--color-skeleton)]" />
+        <div className="h-10 w-28 rounded-xl bg-[var(--color-skeleton)]" />
       </div>
 
       <div className="space-y-4 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-        <div className="h-5 w-40 rounded bg-[var(--color-raised)]/70" />
-        <div className="h-24 rounded-2xl bg-[var(--color-raised)]/50" />
+        <div className="h-5 w-40 rounded bg-[var(--color-skeleton)]" />
+        <div className="h-24 rounded-2xl bg-[var(--color-skeleton)]" />
         <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
             Voice booking
           </p>
-          <div className="mt-3 h-4 w-48 rounded bg-[var(--color-raised)]/60" />
-          <div className="mt-2 h-10 w-full rounded-xl bg-[var(--color-raised)]/40" />
+          <div className="mt-3 h-4 w-48 rounded bg-[var(--color-skeleton)]" />
+          <div className="mt-2 h-10 w-full rounded-xl bg-[var(--color-skeleton)]" />
         </div>
-        <div className="h-48 rounded-2xl bg-[var(--color-raised)]/45" />
+        <div className="h-48 rounded-2xl bg-[var(--color-skeleton)]" />
       </div>
     </div>
   );
