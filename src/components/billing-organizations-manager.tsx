@@ -378,19 +378,12 @@ export function BillingOrganizationsManager({
   }, [organizations, filter, query]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / perPage));
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filter, query, perPage]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(totalPages);
-  }, [currentPage, totalPages]);
+  const safePage = Math.min(currentPage, totalPages);
 
   const rows = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
+    const start = (safePage - 1) * perPage;
     return filteredRows.slice(start, start + perPage);
-  }, [filteredRows, currentPage, perPage]);
+  }, [filteredRows, safePage, perPage]);
 
   const viewOrg = organizations.find((org) => org.id === viewOrgId) ?? null;
 
@@ -404,7 +397,10 @@ export function BillingOrganizationsManager({
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setFilter(item.id)}
+                onClick={() => {
+                  setFilter(item.id);
+                  setCurrentPage(1);
+                }}
                 className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                   active
                     ? "bg-[var(--color-surface)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border)]"
@@ -424,7 +420,10 @@ export function BillingOrganizationsManager({
           <span className="sr-only">Search workspaces</span>
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Search workspaces…"
             className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] py-2.5 pl-3 pr-3 text-sm text-[var(--color-text)] outline-none ring-[var(--color-primary)] placeholder:text-[var(--color-text-muted)] focus:ring-2"
           />
@@ -522,7 +521,7 @@ export function BillingOrganizationsManager({
 
         <DataTablePagination
           totalItems={filteredRows.length}
-          currentPage={currentPage}
+          currentPage={safePage}
           totalPages={totalPages}
           perPage={perPage}
           onPageChange={setCurrentPage}

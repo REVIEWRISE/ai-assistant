@@ -186,7 +186,7 @@ export function LandingPricingSection({
                         Locations
                       </dt>
                       <dd className="mt-1 text-sm font-semibold text-[var(--color-text)]">
-                        {plan.includedLocations}
+                        {plan.includedLocations || "—"}
                       </dd>
                     </div>
                     <div className="px-1">
@@ -194,7 +194,7 @@ export function LandingPricingSection({
                         Members
                       </dt>
                       <dd className="mt-1 text-sm font-semibold text-[var(--color-text)]">
-                        {plan.teamMemberLimit}
+                        {plan.teamMemberLimit || "—"}
                       </dd>
                     </div>
                     <div className="px-1">

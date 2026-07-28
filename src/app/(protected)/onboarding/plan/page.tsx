@@ -7,12 +7,7 @@ import { requireSession } from "@/lib/auth-session";
 import { getPublicLandingPlans } from "@/lib/billing-plan-repository";
 import { BRAND_NAME, PRODUCT_NAME } from "@/lib/brand";
 import { getOrgBilling } from "@/lib/entitlements";
-import {
-  BILLING_RULES,
-  PRICING_PLANS,
-  formatUsd,
-  type PlanSlug,
-} from "@/lib/pricing-plans";
+import { BILLING_RULES } from "@/lib/pricing-plans";
 import { mapCatalogNameToPlanSlug } from "@/lib/billing-checkout";
 
 export const dynamic = "force-dynamic";
@@ -47,38 +42,35 @@ export default async function OnboardingPlanPage({ searchParams }: PageProps) {
   const workspaceName = session.activeOrganization?.name ?? "Your workspace";
   const justRegistered = params.success === "register";
 
-  const plans = PRICING_PLANS.map((plan) => {
-    const live = catalog.find((item) => {
-      const mapped = mapCatalogNameToPlanSlug(item.slug) ?? mapCatalogNameToPlanSlug(item.title);
-      return mapped === plan.slug || item.slug === plan.slug;
-    });
-    const liveLocations = live?.includedLocations ?? 0;
-    const liveSeats = live?.teamMemberLimit ?? 0;
-    const liveVoice = live?.includedVoiceMinutes ?? 0;
-
-    return {
-      slug: plan.slug as PlanSlug,
-      title: live?.title ?? plan.name,
-      description: live?.description ?? plan.positioning,
-      monthlyPrice: live?.price ?? formatUsd(plan.monthlyPriceCents),
-      yearlyMonthlyPrice:
-        live?.yearlyMonthlyPrice ?? formatUsd(plan.yearlyMonthlyEquivalentCents),
-      yearlyTotal: live?.yearlyPrice ?? formatUsd(plan.yearlyPriceCents),
-      featured: live?.featured ?? plan.featured,
-      // Prefer static plan highlights so each selection shows distinct entitlements.
-      highlights: [...plan.highlights],
-      includedLocations: liveLocations > 0 ? liveLocations : plan.includedLocations,
-      teamMemberLimit: liveSeats > 0 ? liveSeats : plan.teamMemberLimit,
-      includedVoiceMinutes: liveVoice > 0 ? liveVoice : plan.includedVoiceMinutes,
-    };
-  });
+  const plans = catalog
+    .map((live) => {
+      const slug =
+        mapCatalogNameToPlanSlug(live.slug) ?? mapCatalogNameToPlanSlug(live.title);
+      if (!slug) return null;
+      return {
+        slug,
+        title: live.title,
+        description: live.description,
+        monthlyPrice: live.price,
+        yearlyMonthlyPrice: live.yearlyMonthlyPrice,
+        yearlyTotal: live.yearlyPrice,
+        featured: Boolean(live.featured),
+        highlights: live.items.length ? [...live.items] : [],
+        includedLocations: live.includedLocations,
+        teamMemberLimit: live.teamMemberLimit,
+        includedVoiceMinutes: live.includedVoiceMinutes,
+      };
+    })
+    .filter((plan): plan is NonNullable<typeof plan> => Boolean(plan));
 
   const errorMessage =
     params.error === "plan_invalid"
       ? "Choose a valid plan to continue."
       : params.error === "organization_required"
         ? "Create or select a workspace first."
-        : null;
+        : catalog.length === 0
+          ? "Plans are unavailable from Billing right now. Try again shortly."
+          : null;
 
   return (
     <div className="relative min-h-[100dvh] bg-[var(--color-bg)] text-[var(--color-text)]">
