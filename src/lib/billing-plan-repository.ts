@@ -97,14 +97,54 @@ function slugifyPlanName(name: string): string {
 function limitValue(
   limits: BillingRemotePlan["featureLimits"],
   keys: string[],
-  fallback = 0,
-): number {
-  if (!limits?.length) return fallback;
+): number | null {
+  if (!limits?.length) return null;
   for (const key of keys) {
     const hit = limits.find((item) => item.key === key);
     if (typeof hit?.value === "number" && Number.isFinite(hit.value)) return hit.value;
   }
-  return fallback;
+  return null;
+}
+
+const LOCATION_LIMIT_KEYS = ["max_locations", "locations", "included_locations"];
+const TEAM_LIMIT_KEYS = ["team_members", "max_team_members", "team_member_limit"];
+const VOICE_LIMIT_KEYS = [
+  "included_calling_minutes",
+  "included_voice_minutes",
+  "voice_minutes",
+];
+
+function moduleLimitValue(
+  modules: BillingPlanModule[],
+  keys: string[],
+): number | null {
+  for (const billingModule of modules) {
+    if (keys.includes(billingModule.key)) {
+      const limit = billingModule.featureLimits[0];
+      if (!limit) continue;
+      if (limit.isUnlimited) return Number.POSITIVE_INFINITY;
+      if (Number.isFinite(limit.limitValue)) return limit.limitValue;
+    }
+    for (const limit of billingModule.featureLimits) {
+      if (!keys.includes(limit.featureKey)) continue;
+      if (limit.isUnlimited) return Number.POSITIVE_INFINITY;
+      if (Number.isFinite(limit.limitValue)) return limit.limitValue;
+    }
+  }
+  return null;
+}
+
+function resolvePlanLimit(
+  planLimits: BillingRemotePlan["featureLimits"],
+  modules: BillingPlanModule[],
+  keys: string[],
+): number {
+  const fromPlan = limitValue(planLimits, keys);
+  if (fromPlan != null) return fromPlan;
+  const fromModules = moduleLimitValue(modules, keys);
+  if (fromModules != null && Number.isFinite(fromModules)) return fromModules;
+  if (fromModules != null) return fromModules;
+  return 0;
 }
 
 function contentsFromModules(modules: BillingPlanModule[]): string[] {
@@ -229,21 +269,9 @@ function groupRemotePlans(
       isActive: primary.isActive,
       isCustomPricing: primary.isCustomPricing,
       featured: false,
-      includedLocations: limitValue(primary.featureLimits, [
-        "max_locations",
-        "locations",
-        "included_locations",
-      ]),
-      teamMemberLimit: limitValue(primary.featureLimits, [
-        "team_members",
-        "max_team_members",
-        "team_member_limit",
-      ]),
-      includedVoiceMinutes: limitValue(primary.featureLimits, [
-        "included_calling_minutes",
-        "included_voice_minutes",
-        "voice_minutes",
-      ]),
+      includedLocations: resolvePlanLimit(primary.featureLimits, modules, LOCATION_LIMIT_KEYS),
+      teamMemberLimit: resolvePlanLimit(primary.featureLimits, modules, TEAM_LIMIT_KEYS),
+      includedVoiceMinutes: resolvePlanLimit(primary.featureLimits, modules, VOICE_LIMIT_KEYS),
       contents: contentsForPlan(primary, modules),
       monthlyPriceCents,
       yearlyPriceCents,

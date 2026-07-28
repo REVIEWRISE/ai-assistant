@@ -14,6 +14,9 @@ export type CheckoutPlanOption = {
   featured: boolean;
   isCustomPricing: boolean;
   contents: string[];
+  includedLocations: number;
+  teamMemberLimit: number;
+  includedVoiceMinutes: number;
 };
 
 export type ResolvedCheckoutPlan = {

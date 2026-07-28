@@ -52,6 +52,9 @@ function toCheckoutOption(plan: CatalogPlanView): CheckoutPlanOption | null {
     featured: plan.featured,
     isCustomPricing: plan.isCustomPricing,
     contents: plan.contents,
+    includedLocations: plan.includedLocations,
+    teamMemberLimit: plan.teamMemberLimit,
+    includedVoiceMinutes: plan.includedVoiceMinutes,
   };
 }
 

@@ -5,11 +5,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
 import { createEmbeddedCheckoutSession } from "@/app/(protected)/billing/actions";
 import type { CheckoutPlanOption } from "@/lib/billing-checkout-types";
-import {
-  formatUsd,
-  getPlanBySlug,
-  type PlanSlug,
-} from "@/lib/pricing-plans";
+import { formatUsd, type PlanSlug } from "@/lib/pricing-plans";
 import { toast } from "@/lib/toast";
 
 type BillingExpiredPlanPickerProps = {
@@ -69,7 +65,6 @@ export function BillingExpiredPlanPicker({
     [plans, selected],
   );
 
-  const catalog = active ? getPlanBySlug(active.slug) : null;
   const priceCents = active ? monthlyDisplayCents(active, interval) : null;
   const yearlyTotalCents = active?.yearlyPriceCents ?? null;
   const hasStripe = Boolean(
@@ -149,8 +144,7 @@ export function BillingExpiredPlanPicker({
     );
   }
 
-  const highlights =
-    (active?.contents?.length ? active.contents : catalog?.highlights) ?? [];
+  const highlights = active?.contents ?? [];
 
   return (
     <div className="space-y-6">
@@ -226,7 +220,7 @@ export function BillingExpiredPlanPicker({
                     ) : null}
                   </div>
                   <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-                    {plan.description || getPlanBySlug(plan.slug).positioning}
+                    {plan.description}
                   </p>
                   {!planHasStripe ? (
                     <p className="mt-2 text-[11px] font-medium text-amber-700 [[data-theme=dark]_&]:text-amber-300">
@@ -247,7 +241,7 @@ export function BillingExpiredPlanPicker({
         })}
       </div>
 
-      {active && catalog ? (
+      {active ? (
         <div
           key={active.slug}
           className="onboarding-panel-in overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-bg)]"
@@ -258,16 +252,20 @@ export function BillingExpiredPlanPicker({
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-                {catalog.includedLocations} location
-                {catalog.includedLocations === 1 ? "" : "s"}
+                {Number.isFinite(active.includedLocations)
+                  ? `${active.includedLocations} location${active.includedLocations === 1 ? "" : "s"}`
+                  : "Unlimited locations"}
               </span>
               <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-                {catalog.teamMemberLimit} team seat
-                {catalog.teamMemberLimit === 1 ? "" : "s"}
+                {Number.isFinite(active.teamMemberLimit)
+                  ? `${active.teamMemberLimit} team seat${active.teamMemberLimit === 1 ? "" : "s"}`
+                  : "Unlimited team seats"}
               </span>
-              {catalog.includedVoiceMinutes > 0 ? (
+              {active.includedVoiceMinutes > 0 ? (
                 <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-                  {catalog.includedVoiceMinutes} voice minutes
+                  {Number.isFinite(active.includedVoiceMinutes)
+                    ? `${active.includedVoiceMinutes} voice minutes`
+                    : "Unlimited voice minutes"}
                 </span>
               ) : (
                 <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
@@ -276,20 +274,26 @@ export function BillingExpiredPlanPicker({
               )}
             </div>
           </div>
-          <ul className="grid gap-0 sm:grid-cols-2">
-            {highlights.slice(0, 6).map((item) => (
-              <li
-                key={`${active.slug}-${item}`}
-                className="flex gap-3 border-b border-[var(--color-border)] px-5 py-3.5 text-sm leading-6 text-[var(--color-text-muted)] last:border-b-0 sm:odd:border-r sm:px-6 sm:[&:nth-last-child(-n+2)]:border-b-0"
-              >
-                <span
-                  className="mt-2 size-1.5 shrink-0 rounded-full bg-[var(--color-primary)]"
-                  aria-hidden
-                />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
+          {highlights.length ? (
+            <ul className="grid gap-0 sm:grid-cols-2">
+              {highlights.slice(0, 6).map((item) => (
+                <li
+                  key={`${active.slug}-${item}`}
+                  className="flex gap-3 border-b border-[var(--color-border)] px-5 py-3.5 text-sm leading-6 text-[var(--color-text-muted)] last:border-b-0 sm:odd:border-r sm:px-6 sm:[&:nth-last-child(-n+2)]:border-b-0"
+                >
+                  <span
+                    className="mt-2 size-1.5 shrink-0 rounded-full bg-[var(--color-primary)]"
+                    aria-hidden
+                  />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="px-5 py-4 text-sm text-[var(--color-text-muted)] sm:px-6">
+              Module details for this plan will appear once they are attached in Billing.
+            </p>
+          )}
         </div>
       ) : null}
 
