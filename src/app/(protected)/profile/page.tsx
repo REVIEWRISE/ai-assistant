@@ -95,10 +95,6 @@ export default async function ProfileSettingsPage() {
         description="Update personal details, review workspace membership, and keep your sign-in credentials current."
         status={statusLabel}
         statusTone={isActive ? "success" : "warning"}
-        actions={[
-          { href: "/dashboard", label: "Dashboard" },
-          { href: "/profile#profile-settings", label: "Edit details", primary: true },
-        ]}
         metrics={[
           {
             label: "Role",

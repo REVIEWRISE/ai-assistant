@@ -105,7 +105,7 @@ export function LandingPricingSection({
               className="inline-flex w-fit rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-sm"
               aria-label="Billing interval"
             >
-              {(["monthly", "yearly"] as const).map((option) => (
+              {(["yearly", "monthly"] as const).map((option) => (
                 <button
                   key={option}
                   type="button"
@@ -138,7 +138,7 @@ export function LandingPricingSection({
                 interval === "yearly" ? plan.yearlyMonthlyPrice : plan.price;
               const href = isLoggedIn
                 ? registerHref
-                : `${registerHref}?plan=${encodeURIComponent(plan.slug)}`;
+                : `${registerHref}?plan=${encodeURIComponent(plan.slug)}&interval=yearly`;
 
               return (
                 <article
@@ -186,7 +186,7 @@ export function LandingPricingSection({
                         Locations
                       </dt>
                       <dd className="mt-1 text-sm font-semibold text-[var(--color-text)]">
-                        {plan.includedLocations}
+                        {plan.includedLocations || "—"}
                       </dd>
                     </div>
                     <div className="px-1">
@@ -194,7 +194,7 @@ export function LandingPricingSection({
                         Members
                       </dt>
                       <dd className="mt-1 text-sm font-semibold text-[var(--color-text)]">
-                        {plan.teamMemberLimit}
+                        {plan.teamMemberLimit || "—"}
                       </dd>
                     </div>
                     <div className="px-1">

@@ -13,7 +13,7 @@ import {
   updateBillingPlan,
 } from "@/lib/billing-client";
 
-const ADMIN_PATH = "/platform/billing-plans";
+const ADMIN_PATH = "/billing-admin/plans";
 
 function text(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
@@ -33,7 +33,7 @@ function intField(formData: FormData, key: string, fallback = 0): number {
 
 function refresh() {
   revalidatePath(ADMIN_PATH);
-  revalidatePath("/platform");
+  revalidatePath("/billing-admin");
   revalidatePath("/");
 }
 

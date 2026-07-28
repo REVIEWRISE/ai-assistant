@@ -4,20 +4,14 @@ import { ProvidersManager } from "@/components/providers-manager";
 import { ProvidersToasts } from "@/components/providers-toasts";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { PlatformNav } from "@/components/platform-nav";
-import { requireSession } from "@/lib/auth-session";
+import { requireAdminSession } from "@/lib/auth-session";
 import { createProvider, deleteProvider, updateProvider } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlatformProvidersPage() {
-  const session = await requireSession();
-  const [providers, adminRole] = await Promise.all([
-    prisma.provider.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.userRole.findFirst({
-      where: { userId: session.userId, role: { name: "Admin" } },
-      select: { id: true },
-    }),
-  ]);
+  await requireAdminSession();
+  const providers = await prisma.provider.findMany({ orderBy: { createdAt: "asc" } });
 
   const totalProviders = providers.length;
   const providerTypeCount = new Set(providers.map((provider) => provider.type)).size;
@@ -47,12 +41,7 @@ export default async function PlatformProvidersPage() {
         description="Connect external systems to power automation, routing, and analytics across every organization."
         status={status}
         statusTone={enabledCount > 0 ? "success" : "warning"}
-        actions={[
-          { href: "/platform", label: "Platform overview" },
-          ...(adminRole
-            ? [{ href: "/platform/billing-plans", label: "Billing plans", primary: true }]
-            : [{ href: "/platform/providers", label: "Manage providers", primary: true }]),
-        ]}
+        actions={[{ href: "/platform", label: "Platform overview" }]}
         metrics={[
           {
             label: "Total providers",
@@ -77,7 +66,7 @@ export default async function PlatformProvidersPage() {
         ]}
       />
 
-      <PlatformNav showBilling={Boolean(adminRole)} />
+      <PlatformNav />
 
       <ProvidersManager
         providers={providers as Array<{

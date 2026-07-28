@@ -14,7 +14,8 @@ const MENU_ITEMS = [
   { id: "c4e8a1b2-9f3d-4a5e-b6c7-d8e9f0a1b2c3", label: "Voice Support", path: "/voice-agent", sortOrder: 4 },
   { id: "33c86cd0-a6b0-48f9-a04b-684dd8671ef7", label: "Access Control", path: "/settings/access", sortOrder: 5 },
   { id: "18d185ec-9cb2-46d9-bd27-e65d1341b66c", label: "Platform Settings", path: "/platform", sortOrder: 6 },
-  { id: "7604c907-bca0-4927-adff-4dc0febc2868", label: "Profile", path: "/profile", sortOrder: 7 },
+  { id: "c8f2a1b0-3d4e-4f5a-9b6c-7d8e9f0a1b2c", label: "Billing", path: "/billing-admin", sortOrder: 7 },
+  { id: "7604c907-bca0-4927-adff-4dc0febc2868", label: "Profile", path: "/profile", sortOrder: 8 },
   { id: "48be418c-69cf-4c35-93b0-b572519677e3", label: "Overview", path: "/appointments/overview", sortOrder: 0, parentId: "9555f0bd-d829-44e9-a31f-5cb230a10478" },
   { id: "487de9f5-1954-4bfc-a0f1-06a3f5798250", label: "Organization", path: "/appointments/organization", sortOrder: 1, parentId: "9555f0bd-d829-44e9-a31f-5cb230a10478" },
   { id: "f9ea5923-c5a5-4a4a-81f4-76d09447d7e8", label: "Knowledge Base", path: "/appointments/knowledge-base", sortOrder: 2, parentId: "9555f0bd-d829-44e9-a31f-5cb230a10478" },
@@ -23,7 +24,8 @@ const MENU_ITEMS = [
   { id: "e1f3ffe1-2158-4e4a-8b10-c6a2476dadb3", label: "Menus", path: "/settings/access/menus", sortOrder: 1, parentId: "33c86cd0-a6b0-48f9-a04b-684dd8671ef7" },
   { id: "b4b7c925-5791-4108-aafd-941d31a610c6", label: "Permissions", path: "/settings/access/permissions", sortOrder: 2, parentId: "33c86cd0-a6b0-48f9-a04b-684dd8671ef7" },
   { id: "8391fd57-8c49-46e1-8356-424d12f4d1d2", label: "Providers", path: "/platform/providers", sortOrder: 0, parentId: "18d185ec-9cb2-46d9-bd27-e65d1341b66c" },
-  { id: "b3710de3-d222-45c7-9d1d-85acba65a0ef", label: "Billing Plans", path: "/platform/billing-plans", sortOrder: 1, parentId: "18d185ec-9cb2-46d9-bd27-e65d1341b66c" },
+  { id: "d9e3b2c1-4e5f-4a6b-8c7d-9e0f1a2b3c4d", label: "Organizations", path: "/billing-admin/organizations", sortOrder: 0, parentId: "c8f2a1b0-3d4e-4f5a-9b6c-7d8e9f0a1b2c" },
+  { id: "b3710de3-d222-45c7-9d1d-85acba65a0ef", label: "Plans", path: "/billing-admin/plans", sortOrder: 1, parentId: "c8f2a1b0-3d4e-4f5a-9b6c-7d8e9f0a1b2c" },
 ] as const;
 
 async function main() {

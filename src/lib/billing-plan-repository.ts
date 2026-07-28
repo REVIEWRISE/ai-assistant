@@ -10,10 +10,48 @@ import {
   type BillingPlanModule,
   type BillingRemotePlan,
 } from "@/lib/billing-client";
-import { BILLING_RULES, formatUsd } from "@/lib/pricing-plans";
+import { BILLING_RULES, formatUsd, PLAN_SLUGS, type PlanSlug } from "@/lib/pricing-plans";
 import type { BillingCatalogError } from "@/lib/billing-catalog-types";
 
 export type { BillingCatalogError } from "@/lib/billing-catalog-types";
+
+const LANDING_PLAN_ORDER = PLAN_SLUGS;
+
+function mapNameToPlanSlug(nameOrSlug: string): PlanSlug | null {
+  const key = nameOrSlug.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if ((PLAN_SLUGS as readonly string[]).includes(key)) return key as PlanSlug;
+  if (key === "professional" || key === "pro" || key === "growth_plan") return "growth";
+  if (key === "enterprise" || key === "pro_voice_plan") return "pro_voice";
+  if (key.startsWith("starter")) return "starter";
+  if (key.startsWith("growth") || key.startsWith("professional")) return "growth";
+  if (key.startsWith("pro_voice") || key.startsWith("enterprise") || key.includes("voice")) {
+    return "pro_voice";
+  }
+  return null;
+}
+
+function planSortRank(slug: string, name: string): number {
+  const mapped = mapNameToPlanSlug(slug) ?? mapNameToPlanSlug(name);
+  if (!mapped) return 99;
+  const index = LANDING_PLAN_ORDER.indexOf(mapped);
+  return index === -1 ? 99 : index;
+}
+
+function withCanonicalOrderAndFeatured(plans: CatalogPlanView[]): CatalogPlanView[] {
+  return [...plans]
+    .map((plan) => {
+      const mapped = mapNameToPlanSlug(plan.slug) ?? mapNameToPlanSlug(plan.name);
+      return {
+        ...plan,
+        featured: mapped === "growth",
+      };
+    })
+    .sort((a, b) => {
+      const rank = planSortRank(a.slug, a.name) - planSortRank(b.slug, b.name);
+      if (rank !== 0) return rank;
+      return a.name.localeCompare(b.name);
+    });
+}
 
 export type CatalogPlanView = {
   id: string;
@@ -59,14 +97,54 @@ function slugifyPlanName(name: string): string {
 function limitValue(
   limits: BillingRemotePlan["featureLimits"],
   keys: string[],
-  fallback = 0,
-): number {
-  if (!limits?.length) return fallback;
+): number | null {
+  if (!limits?.length) return null;
   for (const key of keys) {
     const hit = limits.find((item) => item.key === key);
     if (typeof hit?.value === "number" && Number.isFinite(hit.value)) return hit.value;
   }
-  return fallback;
+  return null;
+}
+
+const LOCATION_LIMIT_KEYS = ["max_locations", "locations", "included_locations"];
+const TEAM_LIMIT_KEYS = ["team_members", "max_team_members", "team_member_limit"];
+const VOICE_LIMIT_KEYS = [
+  "included_calling_minutes",
+  "included_voice_minutes",
+  "voice_minutes",
+];
+
+function moduleLimitValue(
+  modules: BillingPlanModule[],
+  keys: string[],
+): number | null {
+  for (const billingModule of modules) {
+    if (keys.includes(billingModule.key)) {
+      const limit = billingModule.featureLimits[0];
+      if (!limit) continue;
+      if (limit.isUnlimited) return Number.POSITIVE_INFINITY;
+      if (Number.isFinite(limit.limitValue)) return limit.limitValue;
+    }
+    for (const limit of billingModule.featureLimits) {
+      if (!keys.includes(limit.featureKey)) continue;
+      if (limit.isUnlimited) return Number.POSITIVE_INFINITY;
+      if (Number.isFinite(limit.limitValue)) return limit.limitValue;
+    }
+  }
+  return null;
+}
+
+function resolvePlanLimit(
+  planLimits: BillingRemotePlan["featureLimits"],
+  modules: BillingPlanModule[],
+  keys: string[],
+): number {
+  const fromPlan = limitValue(planLimits, keys);
+  if (fromPlan != null) return fromPlan;
+  const fromModules = moduleLimitValue(modules, keys);
+  if (fromModules != null && Number.isFinite(fromModules)) return fromModules;
+  if (fromModules != null) return fromModules;
+  return 0;
 }
 
 function contentsFromModules(modules: BillingPlanModule[]): string[] {
@@ -167,7 +245,7 @@ function groupRemotePlans(
     groups.set(key, existing);
   }
 
-  const grouped = Array.from(groups.values()).map((group, index) => {
+  const grouped = Array.from(groups.values()).map((group) => {
     const primary = group.monthly ?? group.yearly ?? group.any;
     const monthlyPriceCents = group.monthly?.priceAmount ?? null;
     const yearlyPriceCents = group.yearly?.priceAmount ?? null;
@@ -190,22 +268,10 @@ function groupRemotePlans(
       stripePriceId: primary.stripePriceId,
       isActive: primary.isActive,
       isCustomPricing: primary.isCustomPricing,
-      featured: index === 1 || groups.size === 1,
-      includedLocations: limitValue(primary.featureLimits, [
-        "max_locations",
-        "locations",
-        "included_locations",
-      ]),
-      teamMemberLimit: limitValue(primary.featureLimits, [
-        "team_members",
-        "max_team_members",
-        "team_member_limit",
-      ]),
-      includedVoiceMinutes: limitValue(primary.featureLimits, [
-        "included_calling_minutes",
-        "included_voice_minutes",
-        "voice_minutes",
-      ]),
+      featured: false,
+      includedLocations: resolvePlanLimit(primary.featureLimits, modules, LOCATION_LIMIT_KEYS),
+      teamMemberLimit: resolvePlanLimit(primary.featureLimits, modules, TEAM_LIMIT_KEYS),
+      includedVoiceMinutes: resolvePlanLimit(primary.featureLimits, modules, VOICE_LIMIT_KEYS),
       contents: contentsForPlan(primary, modules),
       monthlyPriceCents,
       yearlyPriceCents,
@@ -215,7 +281,7 @@ function groupRemotePlans(
     } satisfies CatalogPlanView;
   });
 
-  return grouped;
+  return withCanonicalOrderAndFeatured(grouped);
 }
 
 function toLandingPlan(plan: CatalogPlanView): LandingPlan {

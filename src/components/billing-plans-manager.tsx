@@ -305,7 +305,8 @@ export function BillingPlansManager({
           </DataTable>
         ) : (
           <DataTable>
-            <DataTableHeader className="hidden grid-cols-[minmax(0,1.5fr)_6.5rem_6.5rem_minmax(0,1.2fr)_3rem] lg:grid">
+            <DataTableHeader className="hidden grid-cols-[64px_minmax(0,1.5fr)_6.5rem_6.5rem_minmax(0,1.2fr)_3rem] lg:grid">
+              <span>Index</span>
               <span>Plan</span>
               <span>Monthly</span>
               <span>Yearly</span>
@@ -313,7 +314,7 @@ export function BillingPlansManager({
               <span className="sr-only">Actions</span>
             </DataTableHeader>
             <DataTableBody>
-              {orderedPlans.map((plan) => {
+              {orderedPlans.map((plan, index) => {
                 const locations = moduleLimit(plan.modules, [
                   "locations",
                   "max_locations",
@@ -345,8 +346,13 @@ export function BillingPlansManager({
                 return (
                   <DataTableRow
                     key={plan.id}
-                    className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.5fr)_6.5rem_6.5rem_minmax(0,1.2fr)_3rem] lg:items-center"
+                    className="grid grid-cols-1 gap-3 lg:grid-cols-[64px_minmax(0,1.5fr)_6.5rem_6.5rem_minmax(0,1.2fr)_3rem] lg:items-center"
                   >
+                    <div className="text-xs font-semibold text-[var(--color-text-muted)] lg:text-sm">
+                      <span className="inline-flex min-w-[40px] items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--color-text-muted)]">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                    </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold text-[var(--color-text)]">{plan.name}</p>

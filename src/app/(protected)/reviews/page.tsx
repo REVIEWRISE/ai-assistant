@@ -30,17 +30,6 @@ function toStars(rating: number): string {
   return "★".repeat(clamped) + "☆".repeat(5 - clamped);
 }
 
-function isAutoPublishedStatus(status: string): boolean {
-  const normalized = status.trim().toLowerCase();
-  return normalized === "approved" || normalized === "published" || normalized === "sent";
-}
-
-function startOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
 function classifyProviderType(name: string): string {
   const n = name.toLowerCase();
   if (n.includes("google") || n.includes("yelp") || n.includes("tripadvisor")) return "Local";
@@ -250,7 +239,7 @@ export default async function ReviewsPage() {
 
   const reviewRows = await prisma.review.findMany({
     where: { organizationId },
-    select: { provider: true, status: true, rating: true, createdAt: true },
+    select: { provider: true, status: true, rating: true },
   });
   const statsByProvider = new Map<string, { pending: number; autoReady: number }>();
   for (const row of reviewRows) {
@@ -302,11 +291,6 @@ export default async function ReviewsPage() {
     };
   });
 
-  const now = new Date();
-  const currentWeekStart = startOfDay(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000));
-  const previousWeekStart = startOfDay(new Date(currentWeekStart.getTime() - 7 * 24 * 60 * 60 * 1000));
-  const previousWeekEnd = currentWeekStart;
-
   const totals = {
     total: reviewRows.length,
     pending: reviewRows.filter((r) => r.status.toLowerCase() === "pending").length,
@@ -315,83 +299,6 @@ export default async function ReviewsPage() {
     ).length,
   };
 
-  const currentWeek = {
-    total: 0,
-    pending: 0,
-    autoReady: 0,
-  };
-  const previousWeek = {
-    total: 0,
-    pending: 0,
-    autoReady: 0,
-  };
-  for (const row of reviewRows) {
-    const createdAt = row.createdAt;
-    const isPending = row.status.toLowerCase() === "pending";
-    const isAutoReady = isPending && isAutoReadyPendingReview(row.rating, routingRules);
-    if (createdAt >= currentWeekStart) {
-      currentWeek.total += 1;
-      if (isPending) currentWeek.pending += 1;
-      if (isAutoReady) currentWeek.autoReady += 1;
-      continue;
-    }
-    if (createdAt >= previousWeekStart && createdAt < previousWeekEnd) {
-      previousWeek.total += 1;
-      if (isPending) previousWeek.pending += 1;
-      if (isAutoReady) previousWeek.autoReady += 1;
-    }
-  }
-  const formatDelta = (current: number, prev: number): string => {
-    if (prev === 0) return current === 0 ? "0%" : "+100%";
-    const diff = Math.round(((current - prev) / prev) * 100);
-    return `${diff >= 0 ? "+" : ""}${diff}%`;
-  };
-  const performance = [
-    {
-      label: "Total Reviews",
-      value: String(totals.total),
-      delta: formatDelta(currentWeek.total, previousWeek.total),
-    },
-    {
-      label: "Pending Reviews",
-      value: String(totals.pending),
-      delta: formatDelta(currentWeek.pending, previousWeek.pending),
-    },
-    {
-      label: "Auto-Ready",
-      value: String(totals.autoReady),
-      delta: formatDelta(currentWeek.autoReady, previousWeek.autoReady),
-    },
-  ];
-
-  const autoPublishedTrend = Array.from({ length: 7 }, (_, index) => {
-    const dayDate = startOfDay(new Date(now.getTime() - (6 - index) * 24 * 60 * 60 * 1000));
-    const nextDate = new Date(dayDate.getTime() + 24 * 60 * 60 * 1000);
-    const count = reviewRows.filter(
-      (row) =>
-        row.createdAt >= dayDate &&
-        row.createdAt < nextDate &&
-        isAutoPublishedStatus(row.status),
-    ).length;
-    return {
-      day: dayDate.toLocaleDateString("en-US", { weekday: "short" }),
-      count,
-    };
-  });
-
-  const byService = new Map<string, { total: number; autoPublished: number }>();
-  for (const row of reviewRows) {
-    const key = row.provider.trim() || "Unknown";
-    const prev = byService.get(key) ?? { total: 0, autoPublished: 0 };
-    byService.set(key, {
-      total: prev.total + 1,
-      autoPublished: prev.autoPublished + (isAutoPublishedStatus(row.status) ? 1 : 0),
-    });
-  }
-  const serviceReviewVolume = Array.from(byService.entries())
-    .map(([service, values]) => ({ service, ...values }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 8);
   const connectedSources = reviewServices.filter((service) => service.status === "Connected").length;
 
   return (
@@ -431,9 +338,6 @@ export default async function ReviewsPage() {
         reviewServices={reviewServices}
         pendingBySource={pendingBySource}
         inbox={inbox}
-        performance={performance}
-        autoPublishedTrend={autoPublishedTrend}
-        serviceReviewVolume={serviceReviewVolume}
         onConnectProvider={connectReviewProvider}
         onSyncProvider={syncReviewProvider}
         onSaveRoutingRules={saveReviewRoutingRules}

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getAllowedMenuPathsForUser, displayRoleFromUserRoles } from "@/lib/allowed-menu-paths";
+import { getOrgBilling } from "@/lib/entitlements";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -34,10 +35,11 @@ export async function GET() {
   }
 
   const roles = session.user.userRoles.map((ur) => ur.role);
-  const allowedPaths = await getAllowedMenuPathsForUser(
-    session.userId,
-    session.activeOrganization?.id ?? null,
-  );
+  const organizationId = session.activeOrganization?.id ?? null;
+  const [allowedPaths, billing] = await Promise.all([
+    getAllowedMenuPathsForUser(session.userId, organizationId),
+    organizationId ? getOrgBilling(organizationId) : Promise.resolve(null),
+  ]);
 
   return NextResponse.json({
     user: {
@@ -45,9 +47,16 @@ export async function GET() {
       email: session.user.email,
       role: displayRoleFromUserRoles(roles),
       organization: session.activeOrganization?.name ?? "Workspace",
-      organizationId: session.activeOrganization?.id ?? null,
+      organizationId,
     },
     organizations: (session.user.organizationMembers ?? []).map((member) => member.organization),
     allowedNavPaths: Array.from(allowedPaths),
+    billing: billing
+      ? {
+          planSlug: billing.planSlug,
+          billingStatus: billing.billingStatus,
+          trialEndsAt: billing.trialEndsAt?.toISOString() ?? null,
+        }
+      : null,
   });
 }

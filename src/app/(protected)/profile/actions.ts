@@ -134,6 +134,8 @@ export async function createOrganization(formData: FormData) {
   const organization = await prisma.organization.create({
     data: {
       name: organizationName,
+      billingStatus: "needs_plan",
+      planSlug: null,
     },
     select: { id: true },
   });
@@ -153,7 +155,7 @@ export async function createOrganization(formData: FormData) {
     },
   });
 
-  redirect(`${destination}?success=organization_created`);
+  redirect(`/onboarding/plan?success=organization_created`);
 }
 
 export async function switchOrganization(formData: FormData) {

@@ -90,6 +90,7 @@ These are merged into `.env.production` on every deploy, including when using `E
 #### Vyntrise Billing microservice
 
 Plan catalog (prices + contents) is owned by billing — this app only reads it.
+Self-serve checkout creates a Stripe Embedded Checkout session in this app; Billing receives Stripe’s webhook, then notifies this app via a platform webhook to unlock the org (`markOrgPaid`).
 
 | Secret | Description |
 | :--- | :--- |
@@ -97,10 +98,16 @@ Plan catalog (prices + contents) is owned by billing — this app only reads it.
 | `BILLING_API_KEY` | Service API key from Billing Admin → API Keys (`vbk_…`) |
 | `BILLING_PRODUCT_NAME` | Optional. Product slug (default `agents`) |
 | `BILLING_ADMIN_URL` | Optional. Billing Admin portal URL (default `https://billing.vyntrise.com`) |
+| `STRIPE_SECRET_KEY` | Stripe secret key (same account as Billing plan `stripePriceId`s) |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key for Embedded Checkout |
+| `VYNTRISE_WEBHOOK_SECRET` | Platform webhook signing secret (`whsec_vbk_…`) from Billing Admin → Platform Webhooks |
+| `APP_URL` | Optional public app origin for Checkout return URL (falls back to `NEXT_PUBLIC_APP_URL`) |
 
 You can set these as individual GitHub secrets; deploy merges them into `.env.production` even when using `ENV_FILE_CONTENTS`.
 
-Without `BILLING_API_KEY`, landing and `/platform/billing-plans` show empty state (no static fallback).
+Without `BILLING_API_KEY`, landing and `/billing-admin/plans` show empty state (no static fallback).
+
+Register platform webhook URL `https://<your-domain>/api/webhooks/billing` in Billing Admin for product `agents`, events: `subscription.activated`, `subscription.manually_activated`, `subscription.canceled`, `subscription.paused`, `invoice.paid`.
 
 #### `ENV_FILE_CONTENTS` example
 
@@ -132,6 +139,10 @@ BILLING_API_URL=https://billing.vyntrise.com/api/v1
 BILLING_API_KEY=vbk_live_...
 BILLING_PRODUCT_NAME=agents
 BILLING_ADMIN_URL=https://billing.vyntrise.com
+STRIPE_SECRET_KEY=sk_live_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+VYNTRISE_WEBHOOK_SECRET=whsec_vbk_...
+APP_URL=https://your-domain.com
 ```
 
 ### Will deploy wipe my database?

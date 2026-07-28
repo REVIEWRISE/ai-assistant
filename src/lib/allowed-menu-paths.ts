@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getAllStaticNavHrefs } from "@/lib/nav-config";
 import { normalizeNavPath } from "@/lib/nav-access";
+import { filterPathsByPlanEntitlements, getOrgBilling } from "@/lib/entitlements";
 
 function pathsFromMenus(items: { path: string }[]): Set<string> {
   return new Set(
@@ -33,40 +34,58 @@ export async function getAllowedMenuPathsForUser(
   const allPaths = pathsFromMenus(menuPaths);
   const logoutOnly = new Set<string>(["/logout"].map(normalizeNavPath));
 
-  if (globalRoleAccessCount === 0 && memberAccessCount === 0) {
-    return allPaths;
-  }
-
   const roles = user.userRoles.map((ur) => ur.role);
-  if (userHasAdminRole(roles)) {
-    return allPaths;
-  }
+  const isAdmin = userHasAdminRole(roles);
+  let paths: Set<string>;
 
-  if (organizationId && memberAccessCount > 0) {
+  if (globalRoleAccessCount === 0 && memberAccessCount === 0) {
+    paths = allPaths;
+  } else if (isAdmin) {
+    paths = allPaths;
+  } else if (organizationId && memberAccessCount > 0) {
     const memberAccesses = await prisma.organizationMemberMenuAccess.findMany({
       where: { organizationId, userId },
       select: { menuItem: { select: { path: true } } },
     });
-    const paths = new Set(logoutOnly);
+    paths = new Set(logoutOnly);
     for (const access of memberAccesses) {
       paths.add(normalizeNavPath(access.menuItem.path));
     }
-    return paths;
+  } else {
+    const roleIds = roles.map((role) => role.id);
+    if (roleIds.length === 0) {
+      paths = logoutOnly;
+    } else {
+      const roleAccesses = await prisma.menuAccess.findMany({
+        where: { roleId: { in: roleIds } },
+        select: { menuItem: { select: { path: true } } },
+      });
+      paths = new Set(logoutOnly);
+      for (const access of roleAccesses) {
+        paths.add(normalizeNavPath(access.menuItem.path));
+      }
+    }
   }
 
-  const roleIds = roles.map((role) => role.id);
-  if (roleIds.length === 0) {
-    return logoutOnly;
+  // Platform and billing admin are admin-only, even if a menu row exists for other roles.
+  if (!isAdmin) {
+    for (const path of [...paths]) {
+      if (
+        path === "/platform" ||
+        path.startsWith("/platform/") ||
+        path === "/billing-admin" ||
+        path.startsWith("/billing-admin/")
+      ) {
+        paths.delete(path);
+      }
+    }
   }
 
-  const roleAccesses = await prisma.menuAccess.findMany({
-    where: { roleId: { in: roleIds } },
-    select: { menuItem: { select: { path: true } } },
-  });
-  const paths = new Set(logoutOnly);
-  for (const access of roleAccesses) {
-    paths.add(normalizeNavPath(access.menuItem.path));
+  if (organizationId) {
+    const billing = await getOrgBilling(organizationId);
+    paths = filterPathsByPlanEntitlements(paths, billing, { isAdmin });
   }
+
   return paths;
 }
 

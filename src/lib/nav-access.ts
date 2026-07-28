@@ -11,11 +11,18 @@ export function normalizeNavPath(path: string): string {
 }
 
 /** Paths that are always reachable for signed-in users in the shell. */
-const ALWAYS_ALLOW = new Set(["/logout"].map(normalizeNavPath));
+const ALWAYS_ALLOW = new Set(
+  ["/logout", "/billing", "/billing/expired", "/onboarding/plan", "/profile"].map(
+    normalizeNavPath,
+  ),
+);
 
 export function isHrefAllowedForNav(href: string, allowed: Set<string>): boolean {
   const h = normalizeNavPath(href);
   if (ALWAYS_ALLOW.has(h)) return true;
+  for (const allowedPath of ALWAYS_ALLOW) {
+    if (h === allowedPath || h.startsWith(`${allowedPath}/`)) return true;
+  }
 
   if (allowed.has(h)) return true;
 
@@ -39,6 +46,11 @@ export function isHrefAllowedForNav(href: string, allowed: Set<string>): boolean
 
 /** When a route is forbidden, send the user to the first usable menu path they have. */
 export function redirectPathWhenMenuForbidden(allowed: Set<string>): string {
+  const billing = normalizeNavPath("/billing");
+  for (const p of allowed) {
+    if (normalizeNavPath(p) === billing) return "/billing";
+  }
+
   if (isHrefAllowedForNav("/dashboard", allowed)) {
     return "/dashboard";
   }

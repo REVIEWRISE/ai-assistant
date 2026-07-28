@@ -36,6 +36,8 @@ export async function registerUser(formData: FormData) {
       const organization = await tx.organization.create({
         data: {
           name: `${fullName.split(" ")[0] || "New"} Workspace`,
+          billingStatus: "needs_plan",
+          planSlug: null,
         },
       });
 
@@ -89,5 +91,14 @@ export async function registerUser(formData: FormData) {
     sameSite: "lax",
   });
 
-  redirect("/dashboard?success=register");
+  const planHint = String(formData.get("plan") || "").trim();
+  const intervalHint = String(formData.get("interval") || "").trim();
+  const onboardingQs = new URLSearchParams({ success: "register" });
+  if (planHint) onboardingQs.set("plan", planHint);
+  if (intervalHint === "monthly" || intervalHint === "yearly") {
+    onboardingQs.set("interval", intervalHint);
+  } else {
+    onboardingQs.set("interval", "yearly");
+  }
+  redirect(`/onboarding/plan?${onboardingQs.toString()}`);
 }

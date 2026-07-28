@@ -1,30 +1,20 @@
 import Link from "next/link";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { PlatformNav } from "@/components/platform-nav";
-import { requireSession } from "@/lib/auth-session";
-import { getBillingCatalogPlans } from "@/lib/billing-plan-repository";
+import { requireAdminSession } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlatformSettingsPage() {
-  const session = await requireSession();
-  const [providers, catalog, adminRole] = await Promise.all([
-    prisma.provider.findMany({
-      select: { type: true, status: true, config: true },
-    }),
-    getBillingCatalogPlans(),
-    prisma.userRole.findFirst({
-      where: { userId: session.userId, role: { name: "Admin" } },
-      select: { id: true },
-    }),
-  ]);
+  await requireAdminSession();
+  const providers = await prisma.provider.findMany({
+    select: { type: true, status: true, config: true },
+  });
   const enabledProviders = providers.filter(
     (provider) => provider.status === "enabled",
   ).length;
   const providerTypes = new Set(providers.map((provider) => provider.type)).size;
-  const isAdmin = Boolean(adminRole);
-  const planCount = catalog.plans.length;
 
   const modules = [
     {
@@ -36,19 +26,6 @@ export default async function PlatformSettingsPage() {
       count: providers.length,
       label: providers.length === 1 ? "provider" : "providers",
     },
-    ...(isAdmin
-      ? [
-          {
-            href: "/platform/billing-plans",
-            eyebrow: "Commercial",
-            title: "Billing plans",
-            description:
-              "View plans and manage feature modules from the Vyntrise Billing service.",
-            count: planCount,
-            label: planCount === 1 ? "plan" : "plans",
-          },
-        ]
-      : []),
   ];
 
   return (
@@ -57,7 +34,7 @@ export default async function PlatformSettingsPage() {
         variant="command"
         eyebrow="Platform Settings"
         title="Platform configuration"
-        description="Manage provider connections, API keys, and platform-level behaviors."
+        description="Manage provider connections, API keys, and platform-level behaviors. Billing lives under its own admin menu."
         status={`${enabledProviders} providers enabled`}
         statusTone={enabledProviders > 0 ? "success" : "warning"}
         metrics={[
@@ -76,19 +53,10 @@ export default async function PlatformSettingsPage() {
             value: providerTypes,
             hint: "service categories",
           },
-          {
-            label: "Billing plans",
-            value: isAdmin ? planCount : "Restricted",
-            hint: isAdmin
-              ? catalog.error
-                ? "billing unavailable"
-                : "from Billing API"
-              : "admin access",
-          },
         ]}
       />
 
-      <PlatformNav showBilling={isAdmin} />
+      <PlatformNav />
 
       <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
         <div className="border-b border-[var(--color-border)] px-4 py-4 lg:px-5">

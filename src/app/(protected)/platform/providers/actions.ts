@@ -6,6 +6,7 @@ import crypto from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { requireAdminSession } from "@/lib/auth-session";
 
 async function saveProviderLogo(file: File, providerId?: string) {
   if (!file || file.size === 0) {
@@ -37,6 +38,7 @@ function parseProviderConfig(configRaw: string): Prisma.InputJsonValue | Prisma.
 }
 
 export async function createProvider(formData: FormData) {
+  await requireAdminSession();
   const name = String(formData.get("name") || "").trim();
   const type = String(formData.get("type") || "").trim();
   const apiUrl = String(formData.get("api_url") || "").trim();
@@ -91,6 +93,7 @@ export async function createProvider(formData: FormData) {
 }
 
 export async function updateProvider(formData: FormData) {
+  await requireAdminSession();
   const id = String(formData.get("id") || "");
   const name = String(formData.get("name") || "").trim();
   const type = String(formData.get("type") || "").trim();
@@ -149,6 +152,7 @@ export async function updateProvider(formData: FormData) {
 }
 
 export async function deleteProvider(formData: FormData) {
+  await requireAdminSession();
   const id = String(formData.get("id") || "");
   if (!id) {
     redirect("/platform/providers?error=missing");

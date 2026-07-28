@@ -3,17 +3,6 @@
 import { useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { ReviewServiceManager } from "@/components/review-service-manager";
 import { ReviewRoutingSettings } from "@/components/review-routing-settings";
 import { ReviewSyncCronSettings } from "@/components/review-sync-cron-settings";
@@ -82,15 +71,10 @@ type PendingItem = {
   autoReady: string;
 };
 
-type TabKey = "integrations" | "workflow" | "analytics" | "configuration";
+type TabKey = "integrations" | "workflow" | "configuration";
 
 function parseTabKey(raw: string | null): TabKey | null {
-  if (
-    raw === "integrations" ||
-    raw === "workflow" ||
-    raw === "analytics" ||
-    raw === "configuration"
-  ) {
+  if (raw === "integrations" || raw === "workflow" || raw === "configuration") {
     return raw;
   }
   return null;
@@ -99,7 +83,6 @@ function parseTabKey(raw: string | null): TabKey | null {
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "workflow", label: "Inbox" },
   { key: "integrations", label: "Integrations" },
-  { key: "analytics", label: "Performance" },
   { key: "configuration", label: "Automation" },
 ];
 
@@ -132,120 +115,6 @@ function TabSectionHeader({
   );
 }
 
-function ChartTooltip({
-  active,
-  label,
-  payload,
-}: {
-  active?: boolean;
-  label?: string;
-  payload?: Array<{ name?: string; value?: number; color?: string }>;
-}) {
-  if (!active || !payload?.length) {
-    return null;
-  }
-
-  return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 shadow-lg">
-      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-        {label}
-      </p>
-      <div className="mt-1 space-y-1">
-        {payload.map((entry) => (
-          <p key={`${entry.name}-${entry.value}`} className="flex items-center gap-2 text-xs">
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: entry.color ?? "#94a3b8" }}
-            />
-            <span className="font-medium text-[var(--color-text)]">{entry.name}:</span>
-            <span className="font-semibold text-[var(--color-text)]">{entry.value}</span>
-          </p>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TrendLineChart({
-  points,
-}: {
-  points: Array<{ day: string; count: number }>;
-}) {
-  return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
-      <div className="h-64 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={points}
-            margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
-          >
-            <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" />
-            <XAxis dataKey="day" tick={{ fill: "var(--color-text-muted)", fontSize: 12 }} />
-            <YAxis tick={{ fill: "var(--color-text-subtle)", fontSize: 12 }} />
-            <Tooltip
-              content={<ChartTooltip />}
-              cursor={{ stroke: "var(--color-border-hover)", strokeDasharray: "4 4" }}
-            />
-            <Line
-              type="monotone"
-              dataKey="count"
-              name="Auto-published"
-              stroke="#6366f1"
-              strokeWidth={3}
-              dot={{ r: 5, fill: "#6366f1" }}
-              activeDot={{ r: 7 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
-
-function ServiceBarChart({
-  items,
-}: {
-  items: Array<{ service: string; total: number; autoPublished: number }>;
-}) {
-  return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
-      <div className="h-72 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={items}
-            margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
-            barGap={6}
-          >
-            <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" />
-            <XAxis dataKey="service" tick={{ fill: "var(--color-text-muted)", fontSize: 12 }} />
-            <YAxis tick={{ fill: "var(--color-text-subtle)", fontSize: 12 }} />
-            <Tooltip
-              content={<ChartTooltip />}
-            />
-            <Bar dataKey="total" name="Total reviews" fill="#6366f1" radius={[6, 6, 0, 0]} />
-            <Bar
-              dataKey="autoPublished"
-              name="Auto-published"
-              fill="#10b981"
-              radius={[6, 6, 0, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2 text-xs">
-        <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary-soft)] px-3 py-1.5 font-semibold text-[var(--color-primary-h)]">
-          <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-primary)]" />
-          Total reviews
-        </span>
-        <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-success-soft)] px-3 py-1.5 font-semibold text-[var(--color-success)]">
-          <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-success)]" />
-          Auto-published
-        </span>
-      </div>
-    </div>
-  );
-}
-
 type ReviewsTabsProps = {
   readOnly?: boolean;
   defaultTab?: TabKey;
@@ -256,9 +125,6 @@ type ReviewsTabsProps = {
   reviewServices: ReviewService[];
   pendingBySource: PendingItem[];
   inbox: InboxItem[];
-  performance: Array<{ label: string; value: string; delta: string }>;
-  autoPublishedTrend: Array<{ day: string; count: number }>;
-  serviceReviewVolume: Array<{ service: string; total: number; autoPublished: number }>;
   onConnectProvider: (formData: FormData) => void | Promise<void>;
   onSyncProvider: (formData: FormData) => void | Promise<void>;
   onSaveRoutingRules: (formData: FormData) => void | Promise<void>;
@@ -285,9 +151,6 @@ export function ReviewsTabs({
   reviewServices,
   pendingBySource,
   inbox,
-  performance,
-  autoPublishedTrend,
-  serviceReviewVolume,
   onConnectProvider,
   onSyncProvider,
   onSaveRoutingRules,
@@ -303,7 +166,6 @@ export function ReviewsTabs({
   const [isEditing, setIsEditing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const hasReviewActivity = performance.some((metric) => Number(metric.value) > 0);
   const connectedSourceCount = reviewServices.filter((service) => service.status === "Connected").length;
   const pendingReviewCount = inbox.length;
   const humanReviewCount = inbox.filter((review) => review.status === "Needs human review").length;
@@ -593,86 +455,6 @@ export function ReviewsTabs({
               ) : null}
           </div>
         </section>
-      ) : null}
-
-      {activeTab === "analytics" ? (
-        <div className="space-y-5">
-          <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-            <TabSectionHeader
-              eyebrow="Weekly pulse"
-              title="Performance snapshot"
-              description="Compare this week’s review volume and response workload with the previous week."
-              aside={
-                <span className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
-                  Updated from synced reviews
-                </span>
-              }
-            />
-            <div className="grid sm:grid-cols-3">
-              {performance.map((metric) => (
-                <div key={metric.label} className="border-b border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-5 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-                    {metric.label}
-                  </p>
-                  <div className="mt-2 flex items-end justify-between gap-3">
-                    <p className="text-3xl font-semibold tracking-[-0.03em] text-[var(--color-text)]">{metric.value}</p>
-                  <p
-                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      metric.delta.startsWith("-")
-                        ? "vr-app-status-success"
-                        : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
-                    }`}
-                  >
-                    {metric.delta} vs last week
-                  </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <div className="grid gap-5 xl:grid-cols-2">
-            <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-              <TabSectionHeader
-                eyebrow="Publishing velocity"
-                title="Auto-published trend"
-                description="Automatically published responses over the last seven days."
-              />
-              <div className="p-4 lg:p-5">
-              {hasReviewActivity ? (
-                <TrendLineChart points={autoPublishedTrend} />
-              ) : (
-                <div className="flex min-h-72 items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] p-5 text-center">
-                  <div>
-                  <p className="text-sm font-semibold text-[var(--color-text)]">No publishing activity yet</p>
-                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">Trend data appears after reviews are synced and responses are sent.</p>
-                  </div>
-                </div>
-              )}
-              </div>
-            </section>
-
-            <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-              <TabSectionHeader
-                eyebrow="Channel mix"
-                title="Reviews by service"
-                description="Compare total volume and auto-published responses by source."
-              />
-              <div className="p-4 lg:p-5">
-              {serviceReviewVolume.length > 0 ? (
-                <ServiceBarChart items={serviceReviewVolume} />
-              ) : (
-                <div className="flex min-h-72 items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] p-5 text-center">
-                  <div>
-                  <p className="text-sm font-semibold text-[var(--color-text)]">No source volume yet</p>
-                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">Connect and sync a review source to compare volume.</p>
-                  </div>
-                </div>
-              )}
-              </div>
-            </section>
-          </div>
-        </div>
       ) : null}
 
       {activeTab === "configuration" ? (
