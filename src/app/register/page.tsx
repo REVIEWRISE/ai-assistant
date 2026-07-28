@@ -38,6 +38,8 @@ function RegisterPageContent() {
   const error = searchParams?.get("error") ?? undefined;
   const selectedPlanSlug = searchParams?.get("plan") ?? "";
   const selectedPlan = PLAN_LABELS[selectedPlanSlug];
+  const selectedInterval =
+    searchParams?.get("interval") === "monthly" ? "monthly" : "yearly";
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -67,6 +69,7 @@ function RegisterPageContent() {
 
       <form className="mt-7 space-y-4" action={registerUser}>
         {selectedPlan ? <input type="hidden" name="plan" value={selectedPlanSlug} /> : null}
+        <input type="hidden" name="interval" value={selectedInterval} />
         <label className="block">
           <span className="mb-2 block text-sm font-semibold text-[var(--color-text)]">Full name</span>
           <input id="name" name="name" type="text" required placeholder="Jane Doe" autoComplete="name" className={INPUT_CLASS} />

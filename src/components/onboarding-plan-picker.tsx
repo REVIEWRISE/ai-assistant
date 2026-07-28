@@ -63,7 +63,7 @@ export function OnboardingPlanPicker({
         role="group"
         aria-label="Billing interval"
       >
-        {(["monthly", "yearly"] as const).map((value) => (
+        {(["yearly", "monthly"] as const).map((value) => (
           <button
             key={value}
             type="button"

@@ -146,7 +146,7 @@ export default async function BillingTrialExpiredPage() {
             <BillingExpiredPlanPicker
               plans={plans}
               initialPlanSlug={(billing.planSlug as PlanSlug | null) ?? null}
-              initialInterval={billing.billingInterval === "yearly" ? "yearly" : "monthly"}
+              initialInterval={billing.billingInterval === "monthly" ? "monthly" : "yearly"}
               publishableKey={publishableKey}
               stripeConfigured={stripeConfigured}
               billingConfigured={billingConfigured}
