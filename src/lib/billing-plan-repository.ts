@@ -10,10 +10,48 @@ import {
   type BillingPlanModule,
   type BillingRemotePlan,
 } from "@/lib/billing-client";
-import { BILLING_RULES, formatUsd } from "@/lib/pricing-plans";
+import { BILLING_RULES, formatUsd, PLAN_SLUGS, type PlanSlug } from "@/lib/pricing-plans";
 import type { BillingCatalogError } from "@/lib/billing-catalog-types";
 
 export type { BillingCatalogError } from "@/lib/billing-catalog-types";
+
+const LANDING_PLAN_ORDER = PLAN_SLUGS;
+
+function mapNameToPlanSlug(nameOrSlug: string): PlanSlug | null {
+  const key = nameOrSlug.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if ((PLAN_SLUGS as readonly string[]).includes(key)) return key as PlanSlug;
+  if (key === "professional" || key === "pro" || key === "growth_plan") return "growth";
+  if (key === "enterprise" || key === "pro_voice_plan") return "pro_voice";
+  if (key.startsWith("starter")) return "starter";
+  if (key.startsWith("growth") || key.startsWith("professional")) return "growth";
+  if (key.startsWith("pro_voice") || key.startsWith("enterprise") || key.includes("voice")) {
+    return "pro_voice";
+  }
+  return null;
+}
+
+function planSortRank(slug: string, name: string): number {
+  const mapped = mapNameToPlanSlug(slug) ?? mapNameToPlanSlug(name);
+  if (!mapped) return 99;
+  const index = LANDING_PLAN_ORDER.indexOf(mapped);
+  return index === -1 ? 99 : index;
+}
+
+function withCanonicalOrderAndFeatured(plans: CatalogPlanView[]): CatalogPlanView[] {
+  return [...plans]
+    .map((plan) => {
+      const mapped = mapNameToPlanSlug(plan.slug) ?? mapNameToPlanSlug(plan.name);
+      return {
+        ...plan,
+        featured: mapped === "growth",
+      };
+    })
+    .sort((a, b) => {
+      const rank = planSortRank(a.slug, a.name) - planSortRank(b.slug, b.name);
+      if (rank !== 0) return rank;
+      return a.name.localeCompare(b.name);
+    });
+}
 
 export type CatalogPlanView = {
   id: string;
@@ -167,7 +205,7 @@ function groupRemotePlans(
     groups.set(key, existing);
   }
 
-  const grouped = Array.from(groups.values()).map((group, index) => {
+  const grouped = Array.from(groups.values()).map((group) => {
     const primary = group.monthly ?? group.yearly ?? group.any;
     const monthlyPriceCents = group.monthly?.priceAmount ?? null;
     const yearlyPriceCents = group.yearly?.priceAmount ?? null;
@@ -190,7 +228,7 @@ function groupRemotePlans(
       stripePriceId: primary.stripePriceId,
       isActive: primary.isActive,
       isCustomPricing: primary.isCustomPricing,
-      featured: index === 1 || groups.size === 1,
+      featured: false,
       includedLocations: limitValue(primary.featureLimits, [
         "max_locations",
         "locations",
@@ -215,7 +253,7 @@ function groupRemotePlans(
     } satisfies CatalogPlanView;
   });
 
-  return grouped;
+  return withCanonicalOrderAndFeatured(grouped);
 }
 
 function toLandingPlan(plan: CatalogPlanView): LandingPlan {
