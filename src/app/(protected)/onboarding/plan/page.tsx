@@ -37,7 +37,7 @@ export default async function OnboardingPlanPage({ searchParams }: PageProps) {
 
   const billing = await getOrgBilling(organizationId);
   if (billing && billing.billingStatus !== "needs_plan" && billing.planSlug) {
-    if (billing.billingStatus === "expired") redirect("/billing?error=trial_expired");
+    if (billing.billingStatus === "expired") redirect("/billing/expired");
     redirect("/dashboard");
   }
 

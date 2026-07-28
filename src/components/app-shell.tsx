@@ -38,6 +38,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isEmbedRoute = pathname.startsWith("/embed");
   const isOnboardingPlan =
     pathname === "/onboarding/plan" || pathname.startsWith("/onboarding/plan/");
+  const isBillingExpiredWall =
+    pathname === "/billing/expired" || pathname.startsWith("/billing/expired/");
+  const isChromeFreeBillingGate = isOnboardingPlan || isBillingExpiredWall;
 
   const visibleNavItems = useMemo(() => {
     const set = allowedNavPaths === null ? new Set<string>() : new Set(allowedNavPaths);
@@ -101,7 +104,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => {
       isMounted = false;
     };
-  }, [authRoute, isPublicLanding, isEmbedRoute, isOnboardingPlan]);
+  }, [authRoute, isPublicLanding, isEmbedRoute, isChromeFreeBillingGate]);
 
   const handleSwitchOrganization = async (organizationId: string) => {
     if (!organizationId || organizationId === activeOrganizationId || switchingOrganization) return;
@@ -165,7 +168,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isOnboardingPlan) {
+  if (isChromeFreeBillingGate) {
     return (
       <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
         <BillingAccessGuard

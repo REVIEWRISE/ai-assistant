@@ -39,7 +39,7 @@ export async function selectPlanAction(formData: FormData) {
 
   const billing = await getOrgBilling(organizationId);
   if (billing?.billingStatus === "expired") {
-    redirect("/billing?error=trial_expired");
+    redirect("/billing/expired");
   }
 
   redirect("/dashboard?success=trial_started");

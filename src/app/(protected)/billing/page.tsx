@@ -5,7 +5,7 @@ import { userHasAdminRole } from "@/lib/admin-view-only";
 import { isBillingConfigured } from "@/lib/billing-client";
 import { listCheckoutPlanOptions } from "@/lib/billing-checkout";
 import { getOrgBilling, isBillingAccessAllowed } from "@/lib/entitlements";
-import { BILLING_RULES, getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
+import { getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
 import { getStripePublishableKey, isStripeConfigured } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
@@ -36,27 +36,25 @@ export default async function BillingPage({ searchParams }: PageProps) {
     redirect("/onboarding/plan");
   }
 
+  if (billing.billingStatus === "expired" || params.error === "trial_expired") {
+    redirect("/billing/expired");
+  }
+
   if (isBillingAccessAllowed(billing.billingStatus) && params.error !== "upgrade_required") {
     redirect("/dashboard");
   }
 
   const planName = billing.planSlug ? getPlanBySlug(billing.planSlug).name : "your plan";
   const workspaceName = session.activeOrganization?.name ?? "Workspace";
-  const trialEnded =
-    billing.billingStatus === "expired" || params.error === "trial_expired";
   const upgradeRequired = params.error === "upgrade_required";
 
-  const title = trialEnded
-    ? "Your trial has ended"
-    : upgradeRequired
-      ? "This feature needs a higher plan"
-      : "Upgrade your workspace";
+  const title = upgradeRequired
+    ? "This feature needs a higher plan"
+    : "Upgrade your workspace";
 
-  const description = trialEnded
-    ? `The ${BILLING_RULES.trialDays}-day trial for ${planName} on ${workspaceName} is over. Subscribe below to restore access.`
-    : upgradeRequired
-      ? `${planName} does not include this feature. Choose a higher plan and pay here to unlock it.`
-      : "Choose a plan and complete payment without leaving this page.";
+  const description = upgradeRequired
+    ? `${planName} does not include this feature. Choose a higher plan and pay here to unlock it.`
+    : "Choose a plan and complete payment without leaving this page.";
 
   const [{ plans }, stripeConfigured, billingConfigured, publishableKey] = await Promise.all([
     listCheckoutPlanOptions(),
@@ -84,7 +82,7 @@ export default async function BillingPage({ searchParams }: PageProps) {
             </p>
             <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-400/10 px-2.5 py-1 text-[10px] font-semibold text-amber-100">
               <span className="size-1.5 rounded-full bg-amber-300" aria-hidden />
-              {trialEnded ? "Trial expired" : upgradeRequired ? "Upgrade needed" : "Payment required"}
+              {upgradeRequired ? "Upgrade needed" : "Payment required"}
             </span>
           </div>
 
@@ -103,7 +101,7 @@ export default async function BillingPage({ searchParams }: PageProps) {
           <h2 className="mt-1 text-lg font-semibold text-[var(--color-text)]">{workspaceName}</h2>
         </div>
 
-        <div className="grid gap-px bg-[var(--color-border)] sm:grid-cols-3">
+        <div className="grid gap-px bg-[var(--color-border)] sm:grid-cols-2">
           <div className="bg-[var(--color-bg)] px-5 py-5">
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
               Plan
@@ -122,23 +120,6 @@ export default async function BillingPage({ searchParams }: PageProps) {
             </p>
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
               {billing.paidAt ? "Payment on file" : "Not paid"}
-            </p>
-          </div>
-          <div className="bg-[var(--color-bg)] px-5 py-5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-              Trial window
-            </p>
-            <p className="mt-2 text-xl font-semibold text-[var(--color-text)]">
-              {billing.trialEndsAt
-                ? billing.trialEndsAt.toLocaleDateString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })
-                : "—"}
-            </p>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              {BILLING_RULES.trialDays} days from account creation
             </p>
           </div>
         </div>

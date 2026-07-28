@@ -43,7 +43,7 @@ export function BillingAccessGuard({
       return;
     }
     if (billingStatus === "expired") {
-      router.replace("/billing?error=trial_expired");
+      router.replace("/billing/expired");
     }
   }, [billingStatus, enabled, isAdmin, pathname, router]);
 

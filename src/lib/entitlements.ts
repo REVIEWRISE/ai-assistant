@@ -54,6 +54,7 @@ const ALWAYS_ALLOWED_PREFIXES = [
 /** Paths reachable while billing is locked (needs plan / expired trial). */
 const BILLING_LOCKOUT_PATHS = [
   "/billing",
+  "/billing/expired",
   "/onboarding/plan",
   "/profile",
   "/logout",
@@ -272,7 +273,7 @@ export async function requireOrgFeature(
     redirect("/onboarding/plan");
   }
   if (billing.billingStatus === "expired") {
-    redirect("/billing?error=trial_expired");
+    redirect("/billing/expired");
   }
   if (!orgHasFeatureFromBilling(billing, key)) {
     redirect(options?.redirectTo ?? `/billing?error=upgrade_required&feature=${key}`);
@@ -351,7 +352,7 @@ export function isBillingBypassPath(pathname: string): boolean {
 
 export function billingRedirectForStatus(status: BillingStatus): string | null {
   if (status === "needs_plan") return "/onboarding/plan";
-  if (status === "expired") return "/billing?error=trial_expired";
+  if (status === "expired") return "/billing/expired";
   return null;
 }
 
