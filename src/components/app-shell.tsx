@@ -6,6 +6,7 @@ import { AppFooter } from "@/components/app-footer";
 import { AppSidebar } from "@/components/app-sidebar";
 import { TopHeader } from "@/components/top-header";
 import { NavAccessGuard } from "@/components/nav-access-guard";
+import { BillingAccessGuard } from "@/components/billing-access-guard";
 import { APP_NAV_ITEMS } from "@/lib/nav-config";
 import { filterNavItemsByPermissions, isHrefAllowedForNav } from "@/lib/nav-access";
 
@@ -30,10 +31,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [organizations, setOrganizations] = useState<Array<{ id: string; name: string }>>([]);
   const [switchingOrganization, setSwitchingOrganization] = useState(false);
   const [allowedNavPaths, setAllowedNavPaths] = useState<string[] | null>(null);
+  const [billingStatus, setBillingStatus] = useState<string | null>(null);
 
   const authRoute = pathname === "/login" || pathname === "/register" || pathname === "/logout";
   const isPublicLanding = pathname === "/";
   const isEmbedRoute = pathname.startsWith("/embed");
+  const isOnboardingPlan =
+    pathname === "/onboarding/plan" || pathname.startsWith("/onboarding/plan/");
 
   const visibleNavItems = useMemo(() => {
     const set = allowedNavPaths === null ? new Set<string>() : new Set(allowedNavPaths);
@@ -68,6 +72,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           };
           organizations?: Array<{ id: string; name: string }>;
           allowedNavPaths?: string[];
+          billing?: { billingStatus?: string } | null;
         };
         if (!isMounted || !data.user) return;
         if (data.user.fullName) setProfileName(data.user.fullName);
@@ -79,6 +84,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }
         setOrganizations(Array.isArray(data.organizations) ? data.organizations : []);
         setAllowedNavPaths(Array.isArray(data.allowedNavPaths) ? data.allowedNavPaths : []);
+        setBillingStatus(data.billing?.billingStatus ?? null);
       } catch {
         if (isMounted) setAllowedNavPaths([]);
       }
@@ -95,7 +101,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => {
       isMounted = false;
     };
-  }, [authRoute, isPublicLanding, isEmbedRoute]);
+  }, [authRoute, isPublicLanding, isEmbedRoute, isOnboardingPlan]);
 
   const handleSwitchOrganization = async (organizationId: string) => {
     if (!organizationId || organizationId === activeOrganizationId || switchingOrganization) return;
@@ -159,6 +165,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  if (isOnboardingPlan) {
+    return (
+      <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+        <BillingAccessGuard
+          billingStatus={billingStatus}
+          enabled={billingStatus !== null}
+          isAdmin={profileRole === "Admin"}
+        />
+        <main className="min-h-screen overflow-y-auto">{children}</main>
+      </div>
+    );
+  }
+
   if (isPublicLanding || isEmbedRoute) {
     return <>{children}</>;
   }
@@ -168,6 +187,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="app-shell-mesh pointer-events-none absolute inset-0" aria-hidden />
       <div className="app-shell-grid pointer-events-none absolute inset-0 opacity-30" aria-hidden />
       <NavAccessGuard allowedNavPaths={allowedNavPaths} enabled={allowedNavPaths !== null} />
+      <BillingAccessGuard
+        billingStatus={billingStatus}
+        enabled={billingStatus !== null}
+        isAdmin={profileRole === "Admin"}
+      />
       <div className="relative flex h-dvh w-full">
         <AppSidebar
           pathname={pathname}

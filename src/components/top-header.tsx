@@ -76,9 +76,17 @@ const headerByRoute: Record<string, HeaderCopy> = {
     eyebrow: "Platform Settings",
     title: "Provider connections",
   },
-  "/platform/billing-plans": {
-    eyebrow: "Platform Settings",
-    title: "Billing plans",
+  "/billing-admin": {
+    eyebrow: "Billing",
+    title: "Billing administration",
+  },
+  "/billing-admin/organizations": {
+    eyebrow: "Billing",
+    title: "Organizations",
+  },
+  "/billing-admin/plans": {
+    eyebrow: "Billing",
+    title: "Plans & modules",
   },
   "/users": {
     eyebrow: "User Management",
@@ -120,8 +128,14 @@ function getHeaderCopy(pathname: string): HeaderCopy {
   if (pathname.startsWith("/settings/access/permissions")) {
     return headerByRoute["/settings/access/permissions"];
   }
-  if (pathname.startsWith("/platform/billing-plans")) {
-    return headerByRoute["/platform/billing-plans"];
+  if (pathname.startsWith("/billing-admin/organizations")) {
+    return headerByRoute["/billing-admin/organizations"];
+  }
+  if (pathname.startsWith("/billing-admin/plans")) {
+    return headerByRoute["/billing-admin/plans"];
+  }
+  if (pathname.startsWith("/billing-admin")) {
+    return headerByRoute["/billing-admin"];
   }
   if (pathname.startsWith("/platform/providers")) {
     return headerByRoute["/platform/providers"];

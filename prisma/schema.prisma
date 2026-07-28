@@ -49,6 +49,14 @@ model Organization {
   timezone  String   @default("UTC")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
+  planSlug             String?   @map("plan_slug")
+  billingStatus        String    @default("needs_plan") @map("billing_status")
+  billingInterval      String?   @map("billing_interval")
+  trialStartsAt        DateTime? @map("trial_starts_at") @db.Timestamptz(6)
+  trialEndsAt          DateTime? @map("trial_ends_at") @db.Timestamptz(6)
+  paidAt               DateTime? @map("paid_at") @db.Timestamptz(6)
+  currentPeriodEndsAt  DateTime? @map("current_period_ends_at") @db.Timestamptz(6)
+
   members        OrganizationMember[]
   memberMenuAccesses OrganizationMemberMenuAccess[]
   reviewServices ReviewService[]
@@ -380,4 +388,17 @@ model ProviderConnection {
 
   @@unique([userId, providerId])
   @@map("provider_connections")
+}
+
+model BillingWebhookEvent {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId        String   @unique @map("event_id")
+  eventType      String   @map("event_type")
+  organizationId String?  @map("organization_id") @db.Uuid
+  productId      String?  @map("product_id")
+  processedAt    DateTime @default(now()) @map("processed_at") @db.Timestamptz(6)
+  payload        Json     @default(dbgenerated("'{}'::jsonb")) @db.JsonB
+
+  @@index([organizationId])
+  @@map("billing_webhook_events")
 }

@@ -10,6 +10,7 @@ import {
   markAppointmentCalendarSyncFailed,
   syncAppointmentToExternalCalendar,
 } from "@/lib/sync-appointment-calendar-event";
+import { requireOrgFeature } from "@/lib/entitlements";
 
 const OVERVIEW_ROUTE = "/appointments/overview";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -28,6 +29,7 @@ async function requireActiveOrganizationId(): Promise<string> {
   if (!session.activeOrganizationId) {
     redirect("/appointments/organization");
   }
+  await requireOrgFeature(session.activeOrganizationId, "calendar_booking");
   return session.activeOrganizationId;
 }
 

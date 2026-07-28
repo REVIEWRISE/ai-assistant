@@ -27,6 +27,8 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",
+    "@stripe/react-stripe-js": "^6.8.0",
+    "@stripe/stripe-js": "^9.12.0",
     "bcryptjs": "^3.0.3",
     "next": "16.1.6",
     "nodemailer": "^8.0.8",
@@ -36,6 +38,7 @@
     "react-dom": "19.2.3",
     "recharts": "^3.8.0",
     "sonner": "^2.0.7",
+    "stripe": "^22.3.2",
     "ws": "^8.18.3"
   },
   "devDependencies": {

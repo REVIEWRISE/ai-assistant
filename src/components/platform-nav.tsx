@@ -3,20 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export function PlatformNav({ showBilling }: { showBilling: boolean }) {
+const ITEMS = [
+  { href: "/platform", label: "Overview" },
+  { href: "/platform/providers", label: "Providers" },
+] as const;
+
+export function PlatformNav() {
   const pathname = usePathname();
-  const items = [
-    { href: "/platform", label: "Overview" },
-    { href: "/platform/providers", label: "Providers" },
-    ...(showBilling
-      ? [{ href: "/platform/billing-plans", label: "Billing plans" }]
-      : []),
-  ];
 
   return (
     <nav aria-label="Platform sections" className="max-w-full overflow-x-auto">
       <div className="inline-flex min-w-max gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
-        {items.map((item) => {
+        {ITEMS.map((item) => {
           const active = pathname === item.href;
           return (
             <Link

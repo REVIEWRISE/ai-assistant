@@ -1,0 +1,28 @@
+import type { PlanSlug } from "@/lib/pricing-plans";
+
+export type CheckoutPlanOption = {
+  slug: PlanSlug;
+  name: string;
+  description: string;
+  monthlyPriceCents: number | null;
+  yearlyPriceCents: number | null;
+  currencyCode: string;
+  monthlyPlanId: string | null;
+  yearlyPlanId: string | null;
+  monthlyStripePriceId: string | null;
+  yearlyStripePriceId: string | null;
+  featured: boolean;
+  isCustomPricing: boolean;
+  contents: string[];
+};
+
+export type ResolvedCheckoutPlan = {
+  productId: string;
+  planId: string;
+  stripePriceId: string;
+  planSlug: PlanSlug;
+  planName: string;
+  billingInterval: "monthly" | "yearly";
+  priceAmount: number;
+  currencyCode: string;
+};

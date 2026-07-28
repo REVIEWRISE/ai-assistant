@@ -22,6 +22,7 @@ import { truncateKnowledgeRawTextForPrompt } from "@/lib/knowledge-base-raw-trun
 import { isRetellApiConfigured } from "@/lib/retell-api";
 import { fetchRetellVoiceCatalog, syncVoiceAgentToRetell } from "@/lib/retell-voice-sync";
 import { resolveVoiceAgentSettings } from "@/lib/retell-voice-agent";
+import { requireOrgFeature, orgHasFeature } from "@/lib/entitlements";
 
 const CHATBOT_ROUTE = "/appointments/chatbot";
 
@@ -102,12 +103,18 @@ function sessionHasAdminRole(session: Awaited<ReturnType<typeof requireSessionFo
   return session.user.userRoles.some((userRole) => userRole.role.name === "Admin");
 }
 
+async function requireChatbotOrganization(organizationId: string) {
+  await requireOrgFeature(organizationId, "web_chatbot");
+}
+
 export async function saveChatbotConfig(formData: FormData) {
   const session = await requireSessionForChatbot();
   const organizationId = String(formData.get("organization_id") || "").trim();
   if (!organizationId) {
     redirect(`${CHATBOT_ROUTE}?error=chatbot_org_missing`);
   }
+
+  await requireChatbotOrganization(organizationId);
 
   const membership = await prisma.organizationMember.findFirst({
     where: {
@@ -209,6 +216,8 @@ export async function saveCrmIntegration(formData: FormData) {
     redirect(`${CHATBOT_ROUTE}?error=chatbot_org_missing`);
   }
 
+  await requireChatbotOrganization(organizationId);
+
   const membership = await prisma.organizationMember.findFirst({
     where: {
       userId: session.userId,
@@ -284,6 +293,10 @@ export async function generateVoiceBookingGreeting(
   const organizationId = String(formData.get("organization_id") || "").trim();
   if (!organizationId) {
     return { ok: false, error: "org_missing" };
+  }
+
+  if (!(await orgHasFeature(organizationId, "web_chatbot"))) {
+    return { ok: false, error: "denied" };
   }
 
   const membership = await prisma.organizationMember.findFirst({
@@ -429,6 +442,8 @@ export async function saveVoiceBooking(formData: FormData) {
     redirect(`${CHATBOT_ROUTE}?error=chatbot_org_missing`);
   }
 
+  await requireChatbotOrganization(organizationId);
+
   const membership = await prisma.organizationMember.findFirst({
     where: {
       userId: session.userId,
@@ -517,6 +532,10 @@ export async function generateChatbotFromKnowledge(
   const organizationId = String(formData.get("organization_id") || "").trim();
   if (!organizationId) {
     return { ok: false, error: "org_missing" };
+  }
+
+  if (!(await orgHasFeature(organizationId, "web_chatbot"))) {
+    return { ok: false, error: "denied" };
   }
 
   const membership = await prisma.organizationMember.findFirst({

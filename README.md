@@ -109,7 +109,7 @@ Plan prices and contents are owned by the billing service — not this app’s d
 | `BILLING_PRODUCT_NAME` | Product slug to load (default `agents`) |
 | `BILLING_ADMIN_URL` | Portal URL for the “Manage plans” link (default derived from API URL) |
 
-Landing pricing and **Platform → Billing plans** read from the Billing API only (no static catalog). If the key is missing or the API is unreachable, the UI shows an empty state and a warning toast. Create/edit plans in Billing Admin.
+Landing pricing and **Billing → Plans** read from the Billing API only (no static catalog). If the key is missing or the API is unreachable, the UI shows an empty state and a warning toast. Create/edit plans under Billing admin.
 
 ### Use your own OpenAI key for live voice calls (Custom LLM)
 

@@ -89,9 +89,27 @@ export const APP_NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    href: "/billing-admin",
+    label: "Billing",
+    shortLabel: "Billing",
+    requiresAdmin: true,
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <path d="M3 10h18" />
+        <path d="M7 15h2M12 15h5" />
+      </svg>
+    ),
+    children: [
+      { href: "/billing-admin/organizations", label: "Organizations", requiresAdmin: true },
+      { href: "/billing-admin/plans", label: "Plans", requiresAdmin: true },
+    ],
+  },
+  {
     href: "/platform",
     label: "Platform Settings",
     shortLabel: "Platform",
+    requiresAdmin: true,
     icon: (
       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
         <rect x="3" y="4" width="18" height="6" rx="2" />
@@ -100,8 +118,7 @@ export const APP_NAV_ITEMS: NavItem[] = [
       </svg>
     ),
     children: [
-      { href: "/platform/providers", label: "Providers" },
-      { href: "/platform/billing-plans", label: "Billing Plans", requiresAdmin: true },
+      { href: "/platform/providers", label: "Providers", requiresAdmin: true },
     ],
   },
   {

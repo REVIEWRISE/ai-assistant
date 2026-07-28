@@ -263,6 +263,15 @@ export function DashboardOverviewGrid({
 }) {
   if (!stats.length) return null;
 
+  const gridCols =
+    stats.length === 1
+      ? "grid-cols-1"
+      : stats.length === 2
+        ? "grid-cols-1 sm:grid-cols-2"
+        : stats.length === 3
+          ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+          : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
+
   return (
     <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-md)] lg:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 px-1">
@@ -274,21 +283,26 @@ export function DashboardOverviewGrid({
         </div>
         <p className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-[10px] font-medium text-[var(--color-text-muted)]">Live operational totals</p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid gap-3 ${gridCols}`}>
         {stats.map((stat) => (
           <Link
             key={stat.id}
             href={stat.href}
-            className="group relative min-w-0 overflow-hidden rounded-2xl border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]"
+            className={`group relative min-w-0 overflow-hidden rounded-2xl border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] ${
+              stats.length === 1
+                ? "flex flex-wrap items-center justify-between gap-4 sm:flex-nowrap"
+                : ""
+            }`}
             style={{
               borderColor: `color-mix(in srgb, ${stat.accent} 18%, var(--color-border))`,
               background: `linear-gradient(145deg, color-mix(in srgb, ${stat.accent} 8%, var(--color-surface)), var(--color-surface) 62%)`,
             }}
           >
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">{stat.title}</p>
                 <p className="mt-2 text-[1.7rem] font-semibold leading-none tracking-tight text-[var(--color-text)] tabular-nums">{stat.value}</p>
+                <p className="mt-3 line-clamp-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{stat.hint}</p>
               </div>
               <span
                 className="flex size-8 shrink-0 items-center justify-center rounded-xl text-xs font-semibold"
@@ -301,9 +315,14 @@ export function DashboardOverviewGrid({
                 {stat.title.charAt(0)}
               </span>
             </div>
-            <p className="mt-3 line-clamp-2 min-h-8 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{stat.hint}</p>
-            <p className="mt-2.5 text-[11px] font-semibold" style={{ color: stat.accent }}>
-              {Number(stat.value) === 0 ? "Set up module" : "View details"} <span className="inline-block transition-transform group-hover:translate-x-0.5" aria-hidden>→</span>
+            <p
+              className={`text-[11px] font-semibold ${stats.length === 1 ? "shrink-0 sm:self-end" : "mt-2.5"}`}
+              style={{ color: stat.accent }}
+            >
+              {Number(stat.value) === 0 ? "Set up module" : "View details"}{" "}
+              <span className="inline-block transition-transform group-hover:translate-x-0.5" aria-hidden>
+                →
+              </span>
             </p>
           </Link>
         ))}

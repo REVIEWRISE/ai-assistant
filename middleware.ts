@@ -19,14 +19,22 @@ export function middleware(request: NextRequest) {
 
   const isAuthRoute = AUTH_ROUTES.has(pathname);
   const isAuthed = Boolean(request.cookies.get(AUTH_COOKIE)?.value);
+  const isPublicLanding = pathname === "/";
 
-  if (!isAuthed && !isAuthRoute) {
+  if (!isAuthed && !isAuthRoute && !isPublicLanding) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 }
 
 export const config = {

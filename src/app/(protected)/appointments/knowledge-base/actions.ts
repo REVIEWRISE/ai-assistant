@@ -17,6 +17,7 @@ import {
   KNOWLEDGE_STORED_RAW_TEXT_MAX_CHARS,
 } from "@/lib/knowledge-base-limits";
 import { getOpenAiApiKey } from "@/lib/openai-chat-reply";
+import { requireOrgFeature } from "@/lib/entitlements";
 
 const KB_ROUTE = "/appointments/knowledge-base";
 
@@ -256,6 +257,8 @@ async function requireActiveOrganization() {
 
   if (!session) redirect("/login");
   if (!session.activeOrganizationId) redirect(`${KB_ROUTE}?error=organization_required`);
+
+  await requireOrgFeature(session.activeOrganizationId, "knowledge_base");
 
   return session.activeOrganizationId;
 }
