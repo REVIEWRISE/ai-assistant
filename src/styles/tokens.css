@@ -29,6 +29,7 @@
   --color-success:         #10b981;
   --color-success-soft:    #ecfdf5;
   --color-danger:          #ef4444;
+  --color-danger-fg:       #ffffff;
   --color-danger-soft:     #fef2f2;
   --color-warning:         #f59e0b;
   --color-warning-soft:    #fffbeb;
@@ -75,8 +76,9 @@
 
   --color-success:         #d6d6d6;
   --color-success-soft:    #1a1a1a;
-  --color-danger:          #f4f4f4;
-  --color-danger-soft:     #1a1a1a;
+  --color-danger:          #ef4444;
+  --color-danger-fg:       #ffffff;
+  --color-danger-soft:     #2a1515;
   --color-warning:         #b0b0b0;
   --color-warning-soft:    #1a1a1a;
 

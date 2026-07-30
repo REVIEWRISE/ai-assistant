@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "@/lib/toast";
 import type { BillingCatalogError } from "@/lib/billing-catalog-types";
 
@@ -52,6 +52,8 @@ const actionErrorMessages: Record<string, string> = {
 };
 
 export function BillingPlansToasts({ error }: { error: BillingCatalogError | null }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const lastToast = useRef<string | null>(null);
 
@@ -71,12 +73,21 @@ export function BillingPlansToasts({ error }: { error: BillingCatalogError | nul
 
     if (success && successMessages[success]) {
       toast.success(successMessages[success]);
+    } else if (actionError && actionErrorMessages[actionError]) {
+      toast.error(actionErrorMessages[actionError]);
+    } else {
       return;
     }
-    if (actionError && actionErrorMessages[actionError]) {
-      toast.error(actionErrorMessages[actionError]);
-    }
-  }, [searchParams]);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("success");
+    params.delete("error");
+    params.delete("manage");
+    params.delete("edit");
+    params.delete("create");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
 
   return null;
 }

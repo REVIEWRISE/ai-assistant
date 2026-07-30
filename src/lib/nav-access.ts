@@ -38,8 +38,10 @@ export function isHrefAllowedForNav(href: string, allowed: Set<string>): boolean
   for (const p of allowed) {
     const pn = normalizeNavPath(p);
     if (pn === h) return true;
-    if (h.startsWith(pn + "/")) return true;
-    if (pn.startsWith(h + "/")) return true;
+    // A child grant should still surface its parent nav group (e.g. /settings/access/roles
+    // keeps Access Control visible). A parent grant must NOT unlock every child — each
+    // menu row is an explicit permission.
+    if (pn.startsWith(`${h}/`)) return true;
   }
   return false;
 }

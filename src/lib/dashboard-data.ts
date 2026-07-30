@@ -96,7 +96,7 @@ function heroCopyForRole(
       heroTitle: "Your workspace",
       heroTitleAccent: "operations at a glance",
       heroDescription:
-        "Cross-module stats for appointments, reviews, users, and platform health — scoped to menus your team can access.",
+        "Full cross-module stats for appointments, reviews, voice, users, and platform health — independent of sidebar menu grants.",
     };
   }
   if (sectionCount === 0) {
@@ -153,15 +153,17 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
 
   const roleName = displayRoleFromUserRoles(user?.userRoles.map((ur) => ur.role) ?? []);
   const allowed = allowedPaths;
+  const isAdmin = roleName === "Admin";
   const now = new Date();
   const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const in7d = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  const showAppointments = canAccess(allowed, "/appointments");
-  const showReviews = canAccess(allowed, "/reviews");
-  const showVoice = canAccess(allowed, "/voice-agent");
-  const showUsers = canAccess(allowed, "/users");
-  const showPlatform = canAccess(allowed, "/platform");
+  // Admin dashboard is a full ops overview. Menu permissions only control nav, not these cards.
+  const showAppointments = isAdmin || canAccess(allowed, "/appointments");
+  const showReviews = isAdmin || canAccess(allowed, "/reviews");
+  const showVoice = isAdmin || canAccess(allowed, "/voice-agent");
+  const showUsers = isAdmin || canAccess(allowed, "/users");
+  const showPlatform = isAdmin || canAccess(allowed, "/platform");
 
   const sections: DashboardSection[] = [];
   const headlineStats: DashboardStat[] = [];

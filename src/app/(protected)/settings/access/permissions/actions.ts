@@ -1,7 +1,16 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+
+const PERMISSIONS_PATH = "/settings/access/permissions";
+
+function refreshPermissions() {
+  revalidatePath(PERMISSIONS_PATH);
+  revalidatePath("/settings/access");
+  revalidatePath("/dashboard");
+}
 
 async function assertOrganizationMember(organizationId: string, userId: string) {
   const membership = await prisma.organizationMember.findFirst({
@@ -42,6 +51,7 @@ export async function createMemberMenuAccess(formData: FormData) {
     redirect("/settings/access/permissions?error=unknown");
   }
 
+  refreshPermissions();
   redirect("/settings/access/permissions?success=created");
 }
 
@@ -57,6 +67,7 @@ export async function deleteMemberMenuAccess(formData: FormData) {
     redirect("/settings/access/permissions?error=delete_failed");
   }
 
+  refreshPermissions();
   redirect("/settings/access/permissions?success=deleted");
 }
 
@@ -82,6 +93,7 @@ export async function createRoleMenuAccess(formData: FormData) {
     redirect("/settings/access/permissions?error=unknown");
   }
 
+  refreshPermissions();
   redirect("/settings/access/permissions?success=created");
 }
 
@@ -97,5 +109,6 @@ export async function deleteRoleMenuAccess(formData: FormData) {
     redirect("/settings/access/permissions?error=delete_failed");
   }
 
+  refreshPermissions();
   redirect("/settings/access/permissions?success=deleted");
 }

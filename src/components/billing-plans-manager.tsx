@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createPortal, useFormStatus } from "react-dom";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
@@ -154,81 +153,42 @@ export function BillingPlansManager({
   onUpdatePlan,
   onCreatePlan,
 }: BillingPlansManagerProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const manageFromUrl = searchParams.get("manage");
-  const editFromUrl = searchParams.get("edit");
-  const createFromUrl = searchParams.get("create") === "1";
-
-  const [managingPlanId, setManagingPlanId] = useState<string | null>(manageFromUrl);
-  const [editingPlanId, setEditingPlanId] = useState<string | null>(editFromUrl);
-  const [creatingPlan, setCreatingPlan] = useState(createFromUrl);
+  const [managingPlanId, setManagingPlanId] = useState<string | null>(null);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [creatingPlan, setCreatingPlan] = useState(false);
   const [form, setForm] = useState<FormOverlay>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setManagingPlanId(manageFromUrl);
-  }, [manageFromUrl]);
-
-  useEffect(() => {
-    setEditingPlanId(editFromUrl);
-  }, [editFromUrl]);
-
-  useEffect(() => {
-    setCreatingPlan(createFromUrl);
-  }, [createFromUrl]);
-
   const managedPlan = useMemo(
-    () => plans.find((plan) => plan.id === managingPlanId) ?? null,
+    () =>
+      managingPlanId
+        ? (plans.find((plan) => plan.id === managingPlanId) ?? null)
+        : null,
     [plans, managingPlanId],
   );
 
-  const editingPlan = useMemo(
-    () =>
+  const editingPlan = useMemo(() => {
+    if (!editingPlanId) return null;
+    return (
       plans.find(
         (plan) =>
           plan.id === editingPlanId ||
           plan.monthlyPlanId === editingPlanId ||
           plan.yearlyPlanId === editingPlanId,
-      ) ?? null,
-    [plans, editingPlanId],
-  );
-
-  function setSheetQuery(next: {
-    manage?: string | null;
-    edit?: string | null;
-    create?: boolean | null;
-  }) {
-    const params = new URLSearchParams(searchParams.toString());
-    if ("manage" in next) {
-      if (next.manage) params.set("manage", next.manage);
-      else params.delete("manage");
-    }
-    if ("edit" in next) {
-      if (next.edit) params.set("edit", next.edit);
-      else params.delete("edit");
-    }
-    if ("create" in next) {
-      if (next.create) params.set("create", "1");
-      else params.delete("create");
-    }
-    const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  }
+      ) ?? null
+    );
+  }, [plans, editingPlanId]);
 
   function openManage(plan: RemoteCatalogPlan) {
     setManagingPlanId(plan.id);
     setEditingPlanId(null);
     setCreatingPlan(false);
     setForm(null);
-    setSheetQuery({ manage: plan.id, edit: null, create: false });
   }
 
   function closeManage() {
     setManagingPlanId(null);
     setForm(null);
-    setSheetQuery({ manage: null });
   }
 
   function openEdit(plan: RemoteCatalogPlan) {
@@ -236,12 +196,10 @@ export function BillingPlansManager({
     setManagingPlanId(null);
     setCreatingPlan(false);
     setForm(null);
-    setSheetQuery({ edit: plan.id, manage: null, create: false });
   }
 
   function closeEdit() {
     setEditingPlanId(null);
-    setSheetQuery({ edit: null });
   }
 
   function openCreate() {
@@ -249,12 +207,10 @@ export function BillingPlansManager({
     setEditingPlanId(null);
     setManagingPlanId(null);
     setForm(null);
-    setSheetQuery({ create: true, edit: null, manage: null });
   }
 
   function closeCreate() {
     setCreatingPlan(false);
-    setSheetQuery({ create: false });
   }
 
   const orderedPlans = useMemo(() => sortPlans(plans), [plans]);

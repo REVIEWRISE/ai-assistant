@@ -5,6 +5,18 @@ import { prisma } from "@/lib/prisma";
 const DEFAULT_BILLING_API_URL = "http://localhost:4001/api/v1";
 const DEFAULT_PRODUCT_NAME = "agents";
 
+const billingDebugEnabled = process.env.NODE_ENV !== "production";
+
+function billingLog(...args: unknown[]) {
+  if (!billingDebugEnabled) return;
+  console.info(...args);
+}
+
+function billingLogError(...args: unknown[]) {
+  if (!billingDebugEnabled) return;
+  console.error(...args);
+}
+
 export type BillingProduct = {
   id: string;
   name: string;
@@ -68,12 +80,19 @@ export async function billingFetch(
     throw new Error("Billing API key is not configured (BILLING_API_KEY).");
   }
 
+  const method = (options.method ?? "GET").toUpperCase();
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const url = `${getBillingApiUrl()}${normalizedPath}`;
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= 4; attempt += 1) {
+    const startedAt = Date.now();
     try {
-      const res = await fetch(`${getBillingApiUrl()}${normalizedPath}`, {
+      billingLog(
+        `[billing] → ${method} ${normalizedPath}${attempt > 1 ? ` (retry ${attempt}/4)` : ""}`,
+      );
+
+      const res = await fetch(url, {
         ...options,
         headers: {
           "Content-Type": "application/json",
@@ -83,13 +102,47 @@ export async function billingFetch(
         cache: "no-store",
       });
 
-      if (res.ok) return res;
+      const elapsedMs = Date.now() - startedAt;
 
-      const error = (await res.json().catch(() => ({}))) as {
-        detail?: string;
-        title?: string;
-      };
-      const message = `Billing API error ${res.status} on ${options.method ?? "GET"} ${normalizedPath}: ${error.detail ?? error.title ?? "Unknown"}`;
+      if (res.ok) {
+        billingLog(`[billing] ← ${res.status} ${method} ${normalizedPath} (${elapsedMs}ms)`);
+        return res;
+      }
+
+      const rawText = await res.text().catch(() => "");
+      let errorBody: Record<string, unknown> = {};
+      if (rawText) {
+        try {
+          const parsed = JSON.parse(rawText) as unknown;
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            errorBody = parsed as Record<string, unknown>;
+          } else {
+            errorBody = { raw: parsed };
+          }
+        } catch {
+          errorBody = { raw: rawText };
+        }
+      }
+
+      const detail =
+        (typeof errorBody.detail === "string" && errorBody.detail) ||
+        (typeof errorBody.title === "string" && errorBody.title) ||
+        (typeof errorBody.message === "string" && errorBody.message) ||
+        (typeof errorBody.raw === "string" && errorBody.raw) ||
+        "Unknown";
+      const message = `Billing API error ${res.status} on ${method} ${normalizedPath}: ${detail}`;
+
+      billingLogError(`[billing] ← ${res.status} ${method} ${normalizedPath} (${elapsedMs}ms) error response`, {
+        status: res.status,
+        statusText: res.statusText,
+        path: normalizedPath,
+        method,
+        attempt,
+        elapsedMs,
+        body: errorBody,
+        raw: rawText || null,
+      });
+
       if ((res.status === 429 || res.status >= 500) && attempt < 4) {
         lastError = new Error(message);
         await new Promise((resolve) => setTimeout(resolve, attempt * 650));
@@ -98,6 +151,13 @@ export async function billingFetch(
       throw new Error(message);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+      if (!/^Billing API error /.test(lastError.message)) {
+        billingLogError(`[billing] ✕ ${method} ${normalizedPath} failed`, {
+          error: lastError.message,
+          attempt,
+          elapsedMs: Date.now() - startedAt,
+        });
+      }
       if (attempt >= 4 || /Billing API error (4\d\d)/.test(lastError.message)) {
         break;
       }
@@ -105,6 +165,9 @@ export async function billingFetch(
     }
   }
 
+  billingLogError(`[billing] giving up on ${method} ${normalizedPath}`, {
+    error: lastError?.message ?? "Billing API request failed.",
+  });
   throw lastError ?? new Error("Billing API request failed.");
 }
 
@@ -691,22 +754,27 @@ export async function getBillingCustomerEntitlements(
 export async function createBillingCheckout(
   input: BillingCheckoutCreateInput,
 ): Promise<BillingCheckoutCreateResult> {
+  const payload = {
+    customerId: input.customerId,
+    planId: input.planId,
+    successUrl: input.successUrl,
+    cancelUrl: input.cancelUrl,
+    ...(input.customerEmail ? { customerEmail: input.customerEmail } : {}),
+    ...(input.couponId ? { couponId: input.couponId } : {}),
+  };
+
+  billingLog("[billing] checkout/create payload", payload);
+
   const res = await billingFetch("/billing/checkout/create", {
     method: "POST",
-    body: JSON.stringify({
-      customerId: input.customerId,
-      planId: input.planId,
-      successUrl: input.successUrl,
-      cancelUrl: input.cancelUrl,
-      ...(input.customerEmail ? { customerEmail: input.customerEmail } : {}),
-      ...(input.couponId ? { couponId: input.couponId } : {}),
-    }),
+    body: JSON.stringify(payload),
   });
 
   const body = (await res.json()) as {
     checkoutUrl?: unknown;
     sessionId?: unknown;
     subscriptionId?: unknown;
+    [key: string]: unknown;
   };
 
   const checkoutUrl =
@@ -714,6 +782,7 @@ export async function createBillingCheckout(
       ? body.checkoutUrl.trim()
       : null;
   if (!checkoutUrl) {
+    billingLogError("[billing] checkout/create missing checkoutUrl", { body });
     throw new Error("Billing checkout did not return a checkout URL.");
   }
 

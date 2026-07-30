@@ -39,8 +39,7 @@ export async function getAllowedMenuPathsForUser(
   let paths: Set<string>;
 
   if (globalRoleAccessCount === 0 && memberAccessCount === 0) {
-    paths = allPaths;
-  } else if (isAdmin) {
+    // Bootstrap: no grants configured yet → allow everything.
     paths = allPaths;
   } else if (organizationId && memberAccessCount > 0) {
     const memberAccesses = await prisma.organizationMemberMenuAccess.findMany({

@@ -37,12 +37,8 @@ function refresh() {
   revalidatePath("/");
 }
 
-function redirectResult(formData: FormData, params: Record<string, string>) {
+function redirectResult(_formData: FormData, params: Record<string, string>) {
   const qs = new URLSearchParams(params);
-  const managePlanId = text(formData, "manage_plan_id");
-  const editPlanId = text(formData, "edit_plan_id");
-  if (managePlanId) qs.set("manage", managePlanId);
-  if (editPlanId) qs.set("edit", editPlanId);
   redirect(`${ADMIN_PATH}?${qs.toString()}`);
 }
 
@@ -198,12 +194,12 @@ export async function createPlanAction(formData: FormData) {
   const yearlyStripePriceId = text(formData, "yearly_stripe_price_id") || null;
 
   const product = await resolveBillingProduct();
-  if (!product) redirect(`${ADMIN_PATH}?error=product_missing&create=1`);
+  if (!product) redirect(`${ADMIN_PATH}?error=product_missing`);
 
-  if (!name) redirect(`${ADMIN_PATH}?error=plan_invalid&create=1`);
-  if (monthlyCents === null) redirect(`${ADMIN_PATH}?error=plan_invalid&create=1`);
+  if (!name) redirect(`${ADMIN_PATH}?error=plan_invalid`);
+  if (monthlyCents === null) redirect(`${ADMIN_PATH}?error=plan_invalid`);
   if (createYearly && yearlyCents === null) {
-    redirect(`${ADMIN_PATH}?error=plan_invalid&create=1`);
+    redirect(`${ADMIN_PATH}?error=plan_invalid`);
   }
 
   try {
@@ -231,7 +227,7 @@ export async function createPlanAction(formData: FormData) {
       await updateBillingPlan(yearly.id, { isActive, isCustomPricing });
     }
   } catch {
-    redirect(`${ADMIN_PATH}?error=plan_create_failed&create=1`);
+    redirect(`${ADMIN_PATH}?error=plan_create_failed`);
   }
 
   refresh();
