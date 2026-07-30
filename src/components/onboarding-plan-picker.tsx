@@ -130,6 +130,48 @@ export function OnboardingPlanPicker({
                   <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
                     {plan.description}
                   </p>
+
+                  {isSelected ? (
+                    <div className="mt-4 space-y-3 border-t border-[color-mix(in_srgb,var(--color-primary)_18%,var(--color-border))] pt-4">
+                      <div className="flex flex-wrap gap-2">
+                        <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
+                          {plan.includedLocations} location{plan.includedLocations === 1 ? "" : "s"}
+                        </span>
+                        <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
+                          {plan.teamMemberLimit} team seat{plan.teamMemberLimit === 1 ? "" : "s"}
+                        </span>
+                        {plan.includedVoiceMinutes > 0 ? (
+                          <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
+                            {plan.includedVoiceMinutes} voice minutes
+                          </span>
+                        ) : (
+                          <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
+                            No voice minutes
+                          </span>
+                        )}
+                      </div>
+                      {plan.highlights.length ? (
+                        <ul className="grid gap-2 sm:grid-cols-2">
+                          {plan.highlights.slice(0, 6).map((item) => (
+                            <li
+                              key={`${plan.slug}-${item}`}
+                              className="flex gap-2 text-sm leading-5 text-[var(--color-text-muted)]"
+                            >
+                              <span
+                                className="mt-1.5 size-1.5 shrink-0 rounded-full bg-[var(--color-primary)]"
+                                aria-hidden
+                              />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-[var(--color-text-muted)]">
+                          Module details for this plan will appear once they are attached in Billing.
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="shrink-0 text-right">
@@ -142,48 +184,6 @@ export function OnboardingPlanPicker({
             </button>
           );
         })}
-      </div>
-
-      <div
-        key={active.slug}
-        className="onboarding-panel-in overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-bg)]"
-      >
-        <div className="border-b border-[var(--color-border)] px-5 py-4 sm:px-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-h)]">
-            Included with {active.title}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-              {active.includedLocations} location{active.includedLocations === 1 ? "" : "s"}
-            </span>
-            <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-              {active.teamMemberLimit} team seat{active.teamMemberLimit === 1 ? "" : "s"}
-            </span>
-            {active.includedVoiceMinutes > 0 ? (
-              <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-                {active.includedVoiceMinutes} voice minutes
-              </span>
-            ) : (
-              <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-                No voice minutes
-              </span>
-            )}
-          </div>
-        </div>
-        <ul className="grid gap-0 sm:grid-cols-2">
-          {active.highlights.slice(0, 6).map((item) => (
-            <li
-              key={`${active.slug}-${item}`}
-              className="flex gap-3 border-b border-[var(--color-border)] px-5 py-3.5 text-sm leading-6 text-[var(--color-text-muted)] last:border-b-0 sm:odd:border-r sm:px-6 sm:[&:nth-last-child(-n+2)]:border-b-0"
-            >
-              <span
-                className="mt-2 size-1.5 shrink-0 rounded-full bg-[var(--color-primary)]"
-                aria-hidden
-              />
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
       </div>
 
       <div className="sticky bottom-4 z-10 rounded-[1.35rem] border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-4 shadow-[var(--shadow-lg)] backdrop-blur-xl sm:p-5">

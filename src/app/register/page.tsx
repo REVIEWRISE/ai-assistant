@@ -93,7 +93,7 @@ function RegisterPageContent() {
           </span>
         </label>
 
-        <button type="submit" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--color-primary)] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--color-primary-h)]">
+        <button type="submit" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] shadow-sm transition hover:bg-[var(--color-primary-h)]">
           Create free account <span aria-hidden>→</span>
         </button>
       </form>
