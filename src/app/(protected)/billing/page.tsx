@@ -6,7 +6,6 @@ import { isBillingConfigured } from "@/lib/billing-client";
 import { listCheckoutPlanOptions } from "@/lib/billing-checkout";
 import { getOrgBilling, isBillingAccessAllowed } from "@/lib/entitlements";
 import { getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
-import { getStripePublishableKey, isStripeConfigured } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -54,13 +53,11 @@ export default async function BillingPage({ searchParams }: PageProps) {
 
   const description = upgradeRequired
     ? `${planName} does not include this feature. Choose a higher plan and pay here to unlock it.`
-    : "Choose a plan and complete payment without leaving this page.";
+    : "Choose a plan and complete payment on a secure checkout page.";
 
-  const [{ plans }, stripeConfigured, billingConfigured, publishableKey] = await Promise.all([
+  const [{ plans }, billingConfigured] = await Promise.all([
     listCheckoutPlanOptions(),
-    Promise.resolve(isStripeConfigured()),
     Promise.resolve(isBillingConfigured()),
-    Promise.resolve(getStripePublishableKey()),
   ]);
 
   return (
@@ -129,8 +126,6 @@ export default async function BillingPage({ searchParams }: PageProps) {
             plans={plans}
             initialPlanSlug={(billing.planSlug as PlanSlug | null) ?? null}
             initialInterval={billing.billingInterval === "yearly" ? "yearly" : "monthly"}
-            publishableKey={publishableKey}
-            stripeConfigured={stripeConfigured}
             billingConfigured={billingConfigured}
           />
         </div>

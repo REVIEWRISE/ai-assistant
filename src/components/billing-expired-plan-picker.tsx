@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { loadStripe } from "@stripe/stripe-js";
-import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
-import { createEmbeddedCheckoutSession } from "@/app/(protected)/billing/actions";
+import { createBillingCheckoutSession } from "@/app/(protected)/billing/actions";
 import type { CheckoutPlanOption } from "@/lib/billing-checkout-types";
 import { formatUsd, type PlanSlug } from "@/lib/pricing-plans";
 import { toast } from "@/lib/toast";
@@ -12,23 +10,20 @@ type BillingExpiredPlanPickerProps = {
   plans: CheckoutPlanOption[];
   initialPlanSlug: PlanSlug | null;
   initialInterval: "monthly" | "yearly";
-  publishableKey: string | null;
-  stripeConfigured: boolean;
   billingConfigured: boolean;
 };
 
-function monthlyDisplayCents(plan: CheckoutPlanOption, interval: "monthly" | "yearly"): number | null {
-  if (interval === "monthly") return plan.monthlyPriceCents;
-  if (plan.yearlyPriceCents == null) return null;
-  return Math.round(plan.yearlyPriceCents / 12);
+function displayPriceCents(
+  plan: CheckoutPlanOption,
+  interval: "monthly" | "yearly",
+): number | null {
+  return interval === "yearly" ? plan.yearlyPriceCents : plan.monthlyPriceCents;
 }
 
 export function BillingExpiredPlanPicker({
   plans,
   initialPlanSlug,
   initialInterval,
-  publishableKey,
-  stripeConfigured,
   billingConfigured,
 }: BillingExpiredPlanPickerProps) {
   const defaultSlug =
@@ -40,63 +35,43 @@ export function BillingExpiredPlanPicker({
 
   const [interval, setInterval] = useState<"monthly" | "yearly">(initialInterval);
   const [selected, setSelected] = useState<PlanSlug | null>(defaultSlug);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const configToastShown = useRef(false);
 
   useEffect(() => {
-    if (stripeConfigured && billingConfigured) return;
+    if (billingConfigured) return;
     if (configToastShown.current) return;
     configToastShown.current = true;
 
-    const missing = [
-      !billingConfigured ? "Billing API" : null,
-      !stripeConfigured ? "Stripe keys" : null,
-    ].filter(Boolean);
-
-    toast.warning("Self-serve checkout is not fully configured yet", {
-      description: `${missing.join(" and ")} missing. Complete billing setup before customers can subscribe.`,
+    toast.warning("Self-serve checkout is not configured yet", {
+      description: "Billing API is missing. Complete billing setup before customers can subscribe.",
     });
-  }, [stripeConfigured, billingConfigured]);
+  }, [billingConfigured]);
 
   const active = useMemo(
     () => plans.find((plan) => plan.slug === selected) ?? plans[0] ?? null,
     [plans, selected],
   );
 
-  const priceCents = active ? monthlyDisplayCents(active, interval) : null;
-  const yearlyTotalCents = active?.yearlyPriceCents ?? null;
-  const hasStripe = Boolean(
-    active &&
-      (interval === "yearly" ? active.yearlyStripePriceId : active.monthlyStripePriceId),
+  const priceCents = active ? displayPriceCents(active, interval) : null;
+  const priceSuffix = interval === "yearly" ? "/yr" : "/mo";
+  const hasPlanId = Boolean(
+    active && (interval === "yearly" ? active.yearlyPlanId : active.monthlyPlanId),
   );
-  const canCheckout =
-    stripeConfigured &&
-    billingConfigured &&
-    Boolean(publishableKey) &&
-    Boolean(active) &&
-    hasStripe;
-
-  const stripePromise = useMemo(
-    () => (publishableKey ? loadStripe(publishableKey) : null),
-    [publishableKey],
-  );
+  const canCheckout = billingConfigured && Boolean(active) && hasPlanId;
 
   function startCheckout() {
     if (!active) return;
-    setError(null);
     startTransition(async () => {
-      const result = await createEmbeddedCheckoutSession({
+      const result = await createBillingCheckoutSession({
         planSlug: active.slug,
         billingInterval: interval,
       });
       if (!result.ok) {
-        setClientSecret(null);
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
-      setClientSecret(result.clientSecret);
+      window.location.assign(result.checkoutUrl);
     });
   }
 
@@ -105,41 +80,6 @@ export function BillingExpiredPlanPicker({
       <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-raised)] px-4 py-4 text-sm text-[var(--color-text-muted)]">
         No paid plans are available from Billing yet. Ask a platform admin to configure prices in
         Billing → Plans.
-      </div>
-    );
-  }
-
-  if (clientSecret && stripePromise && active) {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
-              Payment
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--color-text)]">
-              Complete subscription
-            </h2>
-            <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-              {active.name} · {interval === "yearly" ? "Yearly" : "Monthly"}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setClientSecret(null);
-              setError(null);
-            }}
-            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
-          >
-            Change plan
-          </button>
-        </div>
-        <div className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-white p-2 shadow-[var(--shadow-sm)]">
-          <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
-            <EmbeddedCheckout />
-          </EmbeddedCheckoutProvider>
-        </div>
       </div>
     );
   }
@@ -178,9 +118,9 @@ export function BillingExpiredPlanPicker({
       <div className="space-y-3" role="radiogroup" aria-label="Plans">
         {plans.map((plan) => {
           const isSelected = selected === plan.slug;
-          const planPriceCents = monthlyDisplayCents(plan, interval);
-          const planHasStripe = Boolean(
-            interval === "yearly" ? plan.yearlyStripePriceId : plan.monthlyStripePriceId,
+          const planPriceCents = displayPriceCents(plan, interval);
+          const planAvailable = Boolean(
+            interval === "yearly" ? plan.yearlyPlanId : plan.monthlyPlanId,
           );
 
           return (
@@ -222,9 +162,9 @@ export function BillingExpiredPlanPicker({
                   <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
                     {plan.description}
                   </p>
-                  {!planHasStripe ? (
+                  {!planAvailable ? (
                     <p className="mt-2 text-[11px] font-medium text-amber-700 [[data-theme=dark]_&]:text-amber-300">
-                      Stripe price not linked
+                      Not available for checkout
                     </p>
                   ) : null}
                 </div>
@@ -233,7 +173,9 @@ export function BillingExpiredPlanPicker({
                   <p className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
                     {planPriceCents != null ? formatUsd(planPriceCents) : "Custom"}
                   </p>
-                  <p className="text-xs text-[var(--color-text-muted)]">/mo</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    {interval === "yearly" ? "/yr" : "/mo"}
+                  </p>
                 </div>
               </div>
             </button>
@@ -297,22 +239,16 @@ export function BillingExpiredPlanPicker({
         </div>
       ) : null}
 
-      {error ? (
-        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 [[data-theme=dark]_&]:border-red-900/50 [[data-theme=dark]_&]:bg-red-950/40 [[data-theme=dark]_&]:text-red-200">
-          {error}
-        </p>
-      ) : null}
-
       <div className="sticky bottom-4 z-10 rounded-[1.35rem] border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-4 shadow-[var(--shadow-lg)] backdrop-blur-xl sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-[var(--color-text)]">
               {active?.name ?? "Plan"}
-              {priceCents != null ? ` · ${formatUsd(priceCents)}/mo` : ""}
+              {priceCents != null ? ` · ${formatUsd(priceCents)}${priceSuffix}` : ""}
             </p>
             <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">
-              {interval === "yearly" && yearlyTotalCents != null
-                ? `${formatUsd(yearlyTotalCents)}/yr · billed annually`
+              {interval === "yearly"
+                ? "Billed annually · access restores after payment"
                 : "Billed monthly · access restores after payment"}
             </p>
           </div>
@@ -323,9 +259,9 @@ export function BillingExpiredPlanPicker({
             className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending
-              ? "Starting checkout…"
+              ? "Redirecting…"
               : priceCents != null
-                ? `Subscribe · ${formatUsd(priceCents)}/mo`
+                ? `Subscribe · ${formatUsd(priceCents)}${priceSuffix}`
                 : "Subscribe"}
           </button>
         </div>

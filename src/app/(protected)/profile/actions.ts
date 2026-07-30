@@ -7,6 +7,10 @@ import { prisma } from "@/lib/prisma";
 import { saveOrganizationLogo } from "@/lib/organization-logo";
 import { getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
 import { isHrefAllowedForNav, redirectPathWhenMenuForbidden } from "@/lib/nav-access";
+import {
+  ensureBillingCustomerForOrganization,
+  isBillingConfigured,
+} from "@/lib/billing-client";
 
 function resolveReturnTo(formData: FormData, fallback: string): string {
   const returnTo = String(formData.get("return_to") || "").trim();
@@ -137,7 +141,7 @@ export async function createOrganization(formData: FormData) {
       billingStatus: "needs_plan",
       planSlug: null,
     },
-    select: { id: true },
+    select: { id: true, name: true },
   });
 
   await prisma.organizationMember.create({
@@ -154,6 +158,25 @@ export async function createOrganization(formData: FormData) {
       activeOrganizationId: organization.id,
     },
   });
+
+  // Steps 2–3: register workspace in Billing and store billingCustomerId.
+  if (isBillingConfigured()) {
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { email: true },
+    });
+    if (user?.email) {
+      try {
+        await ensureBillingCustomerForOrganization({
+          organizationId: organization.id,
+          organizationName: organization.name,
+          primaryEmail: user.email,
+        });
+      } catch (error) {
+        console.error("[billing] failed to register customer on org create", error);
+      }
+    }
+  }
 
   redirect(`/onboarding/plan?success=organization_created`);
 }

@@ -89,8 +89,17 @@ These are merged into `.env.production` on every deploy, including when using `E
 
 #### Vyntrise Billing microservice
 
-Plan catalog (prices + contents) is owned by billing — this app only reads it.
-Self-serve checkout creates a Stripe Embedded Checkout session in this app; Billing receives Stripe’s webhook, then notifies this app via a platform webhook to unlock the org (`markOrgPaid`).
+Plan catalog (prices + contents) is owned by Billing — this app only reads it.
+Self-serve billing follows the platform onboarding flow:
+
+1. Create workspace locally
+2. `POST /billing/admin/customers` (`name`, `primaryEmail`) → `customer.id`
+3. Store `organizations.billing_customer_id`
+4. `POST /billing/checkout/create` with that `customerId`
+5. Stripe → Billing webhook unlocks the org (`markOrgPaid`)
+6. Paid feature checks can use `GET /billing/admin/entitlements?customerId=…` (falls back to local plan matrix)
+
+Registration happens on workspace create / plan select, and again as a safety net before checkout.
 
 | Secret | Description |
 | :--- | :--- |
@@ -98,16 +107,20 @@ Self-serve checkout creates a Stripe Embedded Checkout session in this app; Bill
 | `BILLING_API_KEY` | Service API key from Billing Admin → API Keys (`vbk_…`) |
 | `BILLING_PRODUCT_NAME` | Optional. Product slug (default `agents`) |
 | `BILLING_ADMIN_URL` | Optional. Billing Admin portal URL (default `https://billing.vyntrise.com`) |
-| `STRIPE_SECRET_KEY` | Stripe secret key (same account as Billing plan `stripePriceId`s) |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key for Embedded Checkout |
 | `VYNTRISE_WEBHOOK_SECRET` | Platform webhook signing secret (`whsec_vbk_…`) from Billing Admin → Platform Webhooks |
-| `APP_URL` | Optional public app origin for Checkout return URL (falls back to `NEXT_PUBLIC_APP_URL`) |
+| `APP_URL` | Optional public app origin for Checkout success/cancel URLs (falls back to `NEXT_PUBLIC_APP_URL`) |
+
+Stripe keys (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`) are **not** required in this app when checkout is created by Billing.
 
 You can set these as individual GitHub secrets; deploy merges them into `.env.production` even when using `ENV_FILE_CONTENTS`.
 
 Without `BILLING_API_KEY`, landing and `/billing-admin/plans` show empty state (no static fallback).
 
 Register platform webhook URL `https://<your-domain>/api/webhooks/billing` in Billing Admin for product `agents`, events: `subscription.activated`, `subscription.manually_activated`, `subscription.canceled`, `subscription.paused`, `invoice.paid`.
+
+Checkout return URLs:
+- Success: `https://<your-domain>/billing/success?session_id={CHECKOUT_SESSION_ID}`
+- Cancel: `https://<your-domain>/billing/canceled`
 
 #### `ENV_FILE_CONTENTS` example
 
@@ -139,8 +152,6 @@ BILLING_API_URL=https://billing.vyntrise.com/api/v1
 BILLING_API_KEY=vbk_live_...
 BILLING_PRODUCT_NAME=agents
 BILLING_ADMIN_URL=https://billing.vyntrise.com
-STRIPE_SECRET_KEY=sk_live_...
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
 VYNTRISE_WEBHOOK_SECRET=whsec_vbk_...
 APP_URL=https://your-domain.com
 ```

@@ -56,6 +56,7 @@ model Organization {
   trialEndsAt          DateTime? @map("trial_ends_at") @db.Timestamptz(6)
   paidAt               DateTime? @map("paid_at") @db.Timestamptz(6)
   currentPeriodEndsAt  DateTime? @map("current_period_ends_at") @db.Timestamptz(6)
+  billingCustomerId    String?   @map("billing_customer_id")
 
   members        OrganizationMember[]
   memberMenuAccesses OrganizationMemberMenuAccess[]

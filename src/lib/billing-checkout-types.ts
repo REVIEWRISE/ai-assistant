@@ -22,10 +22,10 @@ export type CheckoutPlanOption = {
 export type ResolvedCheckoutPlan = {
   productId: string;
   planId: string;
-  stripePriceId: string;
+  stripePriceId: string | null;
   planSlug: PlanSlug;
   planName: string;
   billingInterval: "monthly" | "yearly";
-  priceAmount: number;
+  priceAmount: number | null;
   currencyCode: string;
 };
