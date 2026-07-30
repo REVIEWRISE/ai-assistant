@@ -9,17 +9,37 @@
   background:
     radial-gradient(
       ellipse 90% 55% at 50% -8%,
-      color-mix(in srgb, var(--color-primary) 20%, transparent),
+      color-mix(in srgb, var(--color-text) 5%, transparent),
       transparent
     ),
     radial-gradient(
       ellipse 45% 40% at 100% 0%,
-      color-mix(in srgb, var(--color-grad-start) 16%, transparent),
+      color-mix(in srgb, var(--color-primary) 8%, transparent),
       transparent
     ),
     radial-gradient(
       ellipse 40% 35% at 0% 25%,
-      color-mix(in srgb, var(--color-data-purple) 8%, transparent),
+      color-mix(in srgb, var(--color-border) 55%, transparent),
+      transparent
+    );
+}
+
+.dark .landing-mesh,
+[data-theme="dark"] .landing-mesh {
+  background:
+    radial-gradient(
+      ellipse 90% 55% at 50% -8%,
+      color-mix(in srgb, var(--color-primary) 10%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 45% 40% at 100% 0%,
+      color-mix(in srgb, var(--color-grad-start) 8%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 40% 35% at 0% 25%,
+      color-mix(in srgb, var(--color-text) 4%, transparent),
       transparent
     );
 }
@@ -29,6 +49,56 @@
     linear-gradient(color-mix(in srgb, var(--color-text) 4%, transparent) 1px, transparent 1px),
     linear-gradient(90deg, color-mix(in srgb, var(--color-text) 4%, transparent) 1px, transparent 1px);
   background-size: 48px 48px;
+}
+
+/* Hero / contact spotlight — light surface in light mode, charcoal in dark */
+.landing-spotlight {
+  position: relative;
+  overflow: hidden;
+  border-radius: 2rem;
+  border: 1px solid var(--color-border);
+  background:
+    linear-gradient(
+      145deg,
+      var(--color-bg) 0%,
+      var(--color-surface) 52%,
+      var(--color-raised) 100%
+    );
+  box-shadow: 0 30px 90px -48px rgb(15 23 42 / 0.18);
+}
+
+.dark .landing-spotlight,
+[data-theme="dark"] .landing-spotlight {
+  border-color: rgb(255 255 255 / 0.1);
+  background: linear-gradient(145deg, #0c0c0c 0%, #141414 52%, #1c1c1c 100%);
+  box-shadow: 0 30px 90px -42px rgb(0 0 0 / 0.75);
+}
+
+.landing-spotlight-glow {
+  pointer-events: none;
+  position: absolute;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  filter: blur(64px);
+}
+
+.dark .landing-spotlight-glow,
+[data-theme="dark"] .landing-spotlight-glow {
+  background: rgb(255 255 255 / 0.06);
+}
+
+.landing-spotlight-panel {
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(16px);
+}
+
+.dark .landing-spotlight-panel,
+[data-theme="dark"] .landing-spotlight-panel {
+  border-color: rgb(255 255 255 / 0.12);
+  background: rgb(0 0 0 / 0.5);
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.4);
 }
 
 .vr-landing-eyebrow {
@@ -171,34 +241,40 @@
   color: #0f172a;
 }
 
-/* Dark band (contact, footer, playbook) */
-.landing-dark {
-  --color-bg: #0b101a;
-  --color-surface: #151b2b;
-  --color-raised: #1e2538;
-  --color-border: #1e2538;
-  --color-border-hover: #2d3755;
-  --color-text: #ffffff;
-  --color-text-muted: #8a96a8;
-  --color-text-subtle: #5a6478;
-  --color-primary-soft: #1e1b4b;
+/* Dark band overrides — only when theme is dark */
+.dark .landing-dark,
+[data-theme="dark"] .landing-dark {
+  --color-bg: #0c0c0c;
+  --color-surface: #161616;
+  --color-raised: #1f1f1f;
+  --color-border: #2e2e2e;
+  --color-border-hover: #454545;
+  --color-text: #f4f4f4;
+  --color-text-muted: #b0b0b0;
+  --color-text-subtle: #8a8a8a;
+  --color-primary: #f4f4f4;
+  --color-primary-h: #ffffff;
+  --color-primary-fg: #0c0c0c;
+  --color-primary-soft: #242424;
+  --color-grad-start: #e8e8e8;
+  --color-grad-end: #8a8a8a;
 }
 
 .landing-dark-mesh {
   background:
     radial-gradient(
       ellipse 85% 55% at 50% -10%,
-      color-mix(in srgb, var(--color-primary) 28%, transparent),
+      color-mix(in srgb, var(--color-primary) 14%, transparent),
       transparent 55%
     ),
     radial-gradient(
       ellipse 50% 45% at 100% 85%,
-      color-mix(in srgb, var(--color-grad-start) 18%, transparent),
+      color-mix(in srgb, var(--color-grad-start) 12%, transparent),
       transparent
     ),
     radial-gradient(
       ellipse 40% 35% at 0% 55%,
-      color-mix(in srgb, var(--color-data-purple) 14%, transparent),
+      color-mix(in srgb, var(--color-border) 40%, transparent),
       transparent
     );
 }
@@ -225,3 +301,66 @@
 .vr-landing-eyebrow-dark svg {
   color: var(--color-grad-start);
 }
+
+/* Entrance motion — respects reduced motion */
+@keyframes landing-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes landing-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.landing-animate-up {
+  animation: landing-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.landing-animate-in {
+  animation: landing-fade-in 0.8s ease-out both;
+}
+
+.landing-animate-delay-1 {
+  animation-delay: 0.08s;
+}
+
+.landing-animate-delay-2 {
+  animation-delay: 0.16s;
+}
+
+.landing-animate-delay-3 {
+  animation-delay: 0.24s;
+}
+
+.landing-animate-delay-4 {
+  animation-delay: 0.32s;
+}
+
+/* Scroll into view for below-fold sections when supported */
+@supports (animation-timeline: view()) {
+  .landing-animate-view {
+    animation: landing-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 35%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-animate-up,
+  .landing-animate-in,
+  .landing-animate-view {
+    animation: none;
+  }
+}
+

@@ -1,7 +1,7 @@
 export default function UsersLoading() {
   return (
     <div className="mx-auto max-w-[92rem] space-y-5 animate-pulse" aria-busy aria-label="Loading users">
-      <div className="overflow-hidden rounded-[1.65rem] border border-white/10 bg-[linear-gradient(125deg,#09101f_0%,#111a30_52%,#233b5b_100%)] px-5 pb-5 pt-6 lg:px-7 lg:pb-7 lg:pt-7">
+      <div className="overflow-hidden rounded-[1.65rem] border border-white/10 bg-[linear-gradient(125deg,#0c0c0c_0%,#161616_52%,#222222_100%)] px-5 pb-5 pt-6 lg:px-7 lg:pb-7 lg:pt-7">
         <div className="h-3 w-32 rounded bg-white/15" />
         <div className="mt-3 h-8 w-52 rounded-lg bg-white/20" />
         <div className="mt-3 h-4 w-full max-w-xl rounded bg-white/10" />

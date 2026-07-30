@@ -113,7 +113,7 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
               {isLoggedIn ? (
                 <Link
                   href="/dashboard"
-                  className="inline-flex h-9 items-center rounded-full bg-[var(--color-primary)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--color-primary-h)]"
+                  className="inline-flex h-9 items-center rounded-full bg-[var(--color-primary)] px-4 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
                 >
                   Open dashboard
                 </Link>
@@ -127,7 +127,7 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
                   </Link>
                   <Link
                     href="/register"
-                    className="inline-flex h-9 items-center rounded-full bg-[var(--color-primary)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--color-primary-h)]"
+                    className="inline-flex h-9 items-center rounded-full bg-[var(--color-primary)] px-4 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
                   >
                     Start free
                   </Link>
@@ -189,7 +189,7 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
                   <Link
                     href="/dashboard"
                     onClick={() => setOpen(false)}
-                    className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--color-primary)] px-5 text-sm font-semibold text-white"
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-primary-fg)]"
                   >
                     Open dashboard
                   </Link>
@@ -198,7 +198,7 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
                     <Link
                       href="/register"
                       onClick={() => setOpen(false)}
-                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-semibold text-white"
+                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-semibold text-[var(--color-primary-fg)]"
                     >
                       Start free
                     </Link>

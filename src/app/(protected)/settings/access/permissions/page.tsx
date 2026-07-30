@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { PermissionsHub } from "@/components/permissions-hub";
 import { PermissionsToasts } from "@/components/permissions-toasts";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
-import { AccessControlNav } from "@/components/access-control-nav";
 import {
   createMemberMenuAccess,
   createRoleMenuAccess,
@@ -101,8 +100,6 @@ export default async function AccessPermissionsPage() {
           },
         ]}
       />
-
-      <AccessControlNav />
 
       <PermissionsHub
         roleCount={rolePermissions.length}

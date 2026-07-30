@@ -23,7 +23,7 @@ function PricingPlaceholder() {
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <a
             href="#contact"
-            className="inline-flex min-h-11 items-center justify-center rounded-full bg-[var(--color-primary)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--color-primary-h)]"
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
           >
             Talk with our team
           </a>
@@ -113,7 +113,7 @@ export function LandingPricingSection({
                   aria-pressed={interval === option}
                   className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                     interval === option
-                      ? "bg-[var(--color-bg)] text-[var(--color-text)] shadow-sm"
+                      ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] shadow-sm"
                       : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
                   }`}
                 >
@@ -150,7 +150,7 @@ export function LandingPricingSection({
                   }`}
                 >
                   {plan.featured ? (
-                    <span className="absolute right-5 top-5 rounded-full bg-[var(--color-primary)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white">
+                    <span className="absolute right-5 top-5 rounded-full bg-[var(--color-primary)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--color-primary-fg)]">
                       Most popular
                     </span>
                   ) : null}
@@ -236,7 +236,7 @@ export function LandingPricingSection({
                     href={href}
                     className={`mt-7 inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${
                       plan.featured
-                        ? "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-h)]"
+                        ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] hover:bg-[var(--color-primary-h)]"
                         : "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:border-[var(--color-primary)]"
                     }`}
                   >

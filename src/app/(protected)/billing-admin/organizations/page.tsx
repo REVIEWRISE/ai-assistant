@@ -1,5 +1,4 @@
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
-import { BillingAdminNav } from "@/components/billing-admin-nav";
 import { BillingOrganizationsManager } from "@/components/billing-organizations-manager";
 import { requireAdminSession } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
@@ -85,8 +84,6 @@ export default async function BillingAdminOrganizationsPage() {
           },
         ]}
       />
-
-      <BillingAdminNav />
 
       <BillingOrganizationsManager organizations={rows} />
     </div>

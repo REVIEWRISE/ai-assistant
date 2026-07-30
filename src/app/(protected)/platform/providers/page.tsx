@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { ProvidersManager } from "@/components/providers-manager";
 import { ProvidersToasts } from "@/components/providers-toasts";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
-import { PlatformNav } from "@/components/platform-nav";
 import { requireAdminSession } from "@/lib/auth-session";
 import { createProvider, deleteProvider, updateProvider } from "./actions";
 
@@ -65,8 +64,6 @@ export default async function PlatformProvidersPage() {
           },
         ]}
       />
-
-      <PlatformNav />
 
       <ProvidersManager
         providers={providers as Array<{

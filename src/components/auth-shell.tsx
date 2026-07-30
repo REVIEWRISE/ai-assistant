@@ -5,7 +5,7 @@ import { PRODUCT_NAME } from "@/lib/brand";
 
 const ACTIVITY = [
   ["Review response", "Draft ready", "text-emerald-300 bg-emerald-400/10"],
-  ["New appointment", "Booked", "text-indigo-300 bg-indigo-400/10"],
+  ["New appointment", "Booked", "text-neutral-400 bg-indigo-400/10"],
   ["Lead follow-up", "Assigned", "text-amber-300 bg-amber-400/10"],
 ] as const;
 
@@ -27,8 +27,8 @@ export function AuthShell({
         <div className="grid w-full overflow-hidden rounded-[2rem] border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[0_30px_90px_-50px_rgba(15,23,42,0.55)] lg:min-h-[min(780px,calc(100dvh-4rem))] lg:grid-cols-[0.92fr_1.08fr]">
           <aside className="landing-dark relative hidden overflow-hidden bg-[linear-gradient(145deg,#080d18,#111a31_55%,#252f6a)] p-10 text-white lg:flex lg:flex-col xl:p-12">
             <div className="landing-grid pointer-events-none absolute inset-0 opacity-[0.1]" aria-hidden />
-            <div className="pointer-events-none absolute -left-24 -top-24 size-72 rounded-full bg-indigo-500/25 blur-3xl" aria-hidden />
-            <div className="pointer-events-none absolute -bottom-32 -right-20 size-80 rounded-full bg-sky-400/15 blur-3xl" aria-hidden />
+            <div className="pointer-events-none absolute -left-24 -top-24 size-72 rounded-full bg-white/10 blur-3xl" aria-hidden />
+            <div className="pointer-events-none absolute -bottom-32 -right-20 size-80 rounded-full bg-white/5 blur-3xl" aria-hidden />
 
             <div className="relative flex h-full flex-col">
               <BrandLogo
@@ -36,11 +36,11 @@ export function AuthShell({
                 size="sm"
                 primary={PRODUCT_NAME}
                 secondary="AI operations"
-                className="text-white [&_p:first-child]:text-[10px] [&_p:first-child]:font-semibold [&_p:first-child]:uppercase [&_p:first-child]:tracking-[0.2em] [&_p:first-child]:text-indigo-300 [&_p:last-child]:text-sm [&_p:last-child]:font-medium [&_p:last-child]:text-slate-300"
+                className="text-white [&_p:first-child]:text-[10px] [&_p:first-child]:font-semibold [&_p:first-child]:uppercase [&_p:first-child]:tracking-[0.2em] [&_p:first-child]:text-neutral-400 [&_p:last-child]:text-sm [&_p:last-child]:font-medium [&_p:last-child]:text-slate-300"
               />
 
               <div className="my-auto py-10">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-300">Your operations workspace</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">Your operations workspace</p>
                 <h1 className="mt-5 max-w-md text-4xl font-semibold leading-[1.08] tracking-[-0.04em] text-white xl:text-5xl">
                   {sideTitle}
                 </h1>

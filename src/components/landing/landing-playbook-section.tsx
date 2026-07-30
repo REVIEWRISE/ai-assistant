@@ -31,7 +31,7 @@ export function LandingPlaybookSection({ registerHref, isLoggedIn }: { registerH
             <p className="mt-5 max-w-lg text-base leading-7 text-[var(--color-text-muted)]">
               Start with one workflow, keep your existing stack, and expand when your team is ready.
             </p>
-            <Link href={registerHref} className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--color-primary)] px-6 text-sm font-semibold text-white transition hover:bg-[var(--color-primary-h)]">
+            <Link href={registerHref} className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]">
               {isLoggedIn ? "Open workspace" : "Build your first workflow"}
               <span aria-hidden>→</span>
             </Link>

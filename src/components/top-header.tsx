@@ -274,8 +274,8 @@ export function TopHeader({
                 role="menu"
                 className="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]"
               >
-                <div className="border-b border-[var(--color-border)] bg-[linear-gradient(125deg,#09101f_0%,#111a30_52%,#233b5b_100%)] px-4 py-3.5 text-white">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-indigo-300">
+                <div className="border-b border-[var(--color-border)] bg-[linear-gradient(125deg,#0c0c0c_0%,#161616_52%,#222222_100%)] px-4 py-3.5 text-white">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     Signed in
                   </p>
                   <p className="mt-1 truncate text-sm font-semibold" title={profileName}>

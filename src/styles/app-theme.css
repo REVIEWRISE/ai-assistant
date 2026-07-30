@@ -47,8 +47,8 @@
 
 .vr-app-hero {
   border-radius: var(--radius-2xl);
-  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, #0f172a);
-  background: linear-gradient(125deg, #0b101a 0%, #0f172a 42%, #1e293b 72%, #334155 100%);
+  border: 1px solid color-mix(in srgb, white 12%, transparent);
+  background: linear-gradient(125deg, #0c0c0c 0%, #161616 42%, #1f1f1f 72%, #2a2a2a 100%);
   color: #ffffff;
   box-shadow:
     var(--shadow-md),
@@ -60,11 +60,11 @@
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: color-mix(in srgb, #a5b4fc 95%, white);
+  color: #a3a3a3;
 }
 
 .vr-app-hero-muted {
-  color: color-mix(in srgb, #cbd5e1 92%, white);
+  color: #a3a3a3;
 }
 
 .vr-app-nav-active {
@@ -85,8 +85,8 @@
 }
 
 .vr-app-table-header {
-  background: linear-gradient(125deg, #0b101a 0%, #0f172a 42%, #1e293b 72%, #334155 100%);
-  color: color-mix(in srgb, #cbd5e1 92%, white);
+  background: linear-gradient(125deg, #0c0c0c 0%, #161616 42%, #1f1f1f 72%, #2a2a2a 100%);
+  color: #a3a3a3;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.16em;

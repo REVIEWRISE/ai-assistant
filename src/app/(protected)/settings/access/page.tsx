@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
-import { AccessControlNav } from "@/components/access-control-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -85,8 +84,6 @@ export default async function AccessManagementPage() {
           },
         ]}
       />
-
-      <AccessControlNav />
 
       <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
         <div className="border-b border-[var(--color-border)] px-4 py-4 lg:px-5">

@@ -65,7 +65,7 @@ function statusTone(status: StatusFilter): {
         label: "Trialing",
         className:
           "border-sky-200 bg-sky-50 text-sky-800 [[data-theme=dark]_&]:border-sky-500/30 [[data-theme=dark]_&]:bg-sky-500/15 [[data-theme=dark]_&]:text-sky-200",
-        dot: "bg-sky-600 [[data-theme=dark]_&]:bg-sky-400",
+        dot: "bg-neutral-600 [[data-theme=dark]_&]:bg-neutral-300",
       };
     case "expired":
       return {
@@ -206,9 +206,9 @@ function OrganizationBillingSheet({
           entered ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <header className="relative shrink-0 overflow-hidden border-b border-[var(--color-border)] bg-[linear-gradient(135deg,#09101f_0%,#152038_55%,#243b5c_100%)] px-5 pb-5 pt-5 text-white">
-          <div className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-indigo-500/25 blur-3xl" aria-hidden />
-          <div className="pointer-events-none absolute -bottom-20 left-10 size-40 rounded-full bg-sky-400/15 blur-3xl" aria-hidden />
+        <header className="relative shrink-0 overflow-hidden border-b border-[var(--color-border)] bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 pb-5 pt-5 text-white">
+          <div className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-white/10 blur-3xl" aria-hidden />
+          <div className="pointer-events-none absolute -bottom-20 left-10 size-40 rounded-full bg-white/5 blur-3xl" aria-hidden />
 
           <div className="relative flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
@@ -216,7 +216,7 @@ function OrganizationBillingSheet({
                 {initials || "WS"}
               </span>
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-indigo-300">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
                   Workspace billing
                 </p>
                 <h3
@@ -388,50 +388,71 @@ export function BillingOrganizationsManager({
   const viewOrg = organizations.find((org) => org.id === viewOrgId) ?? null;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)] sm:flex-row sm:items-center sm:justify-between sm:p-4">
-        <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1">
-          {FILTERS.map((item) => {
-            const active = filter === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setFilter(item.id);
-                  setCurrentPage(1);
-                }}
-                className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  active
-                    ? "bg-[var(--color-surface)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border)]"
-                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-                }`}
-              >
-                {item.label}
-                <span className="ml-1.5 text-[10px] tabular-nums opacity-70">
-                  {counts[item.id]}
-                </span>
-              </button>
-            );
-          })}
+    <div>
+      <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+        <div className="border-b border-[var(--color-border)] px-4 py-4 lg:px-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+            Directory
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold text-[var(--color-text)]">Workspace subscriptions</h2>
+            <span className="rounded-full bg-[var(--color-primary-soft)] px-2.5 py-1 text-[10px] font-semibold text-[var(--color-primary-h)]">
+              {filteredRows.length}
+              {filteredRows.length !== organizations.length ? ` of ${organizations.length}` : ""} shown
+            </span>
+          </div>
+          <p className="mt-1 max-w-2xl text-sm text-[var(--color-text-muted)]">
+            Filter by billing status and open a workspace to review plan, trial, and payment timeline. Plan changes
+            come from customer checkout.
+          </p>
         </div>
 
-        <label className="relative block min-w-0 sm:w-72">
-          <span className="sr-only">Search workspaces</span>
-          <input
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setCurrentPage(1);
-            }}
-            placeholder="Search workspaces…"
-            className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] py-2.5 pl-3 pr-3 text-sm text-[var(--color-text)] outline-none ring-[var(--color-primary)] placeholder:text-[var(--color-text-muted)] focus:ring-2"
-          />
-        </label>
-      </div>
+        <div className="flex flex-col gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between lg:px-5">
+          <div
+            className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1"
+            role="tablist"
+            aria-label="Filter by billing status"
+          >
+            {FILTERS.map((item) => {
+              const active = filter === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => {
+                    setFilter(item.id);
+                    setCurrentPage(1);
+                  }}
+                  className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    active
+                      ? "bg-[var(--color-bg)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border)]"
+                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                  }`}
+                >
+                  {item.label}
+                  <span className="ml-1.5 text-[10px] tabular-nums opacity-70">{counts[item.id]}</span>
+                </button>
+              );
+            })}
+          </div>
 
-      <div className="overflow-hidden rounded-[1.4rem] border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-sm)]">
-        <div className="overflow-x-auto">
+          <label className="relative block min-w-0 sm:w-72">
+            <span className="sr-only">Search workspaces</span>
+            <input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder="Search workspaces…"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] py-2.5 pl-3 pr-3 text-sm text-[var(--color-text)] outline-none ring-[var(--color-primary)] placeholder:text-[var(--color-text-muted)] focus:ring-2"
+            />
+          </label>
+        </div>
+
+        <div className="overflow-x-auto bg-[var(--color-bg)]">
           <table className="w-full min-w-[52rem] border-collapse text-left text-sm">
             <thead className="border-b border-[var(--color-border)] bg-[var(--color-raised)] text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">
               <tr>
@@ -471,9 +492,7 @@ export function BillingOrganizationsManager({
                         </p>
                       </td>
                       <td className="px-4 py-3.5">
-                        <p className="font-medium text-[var(--color-text)]">
-                          {planLabel(org.planSlug)}
-                        </p>
+                        <p className="font-medium text-[var(--color-text)]">{planLabel(org.planSlug)}</p>
                         <p className="mt-0.5 text-xs capitalize text-[var(--color-text-muted)]">
                           {org.billingInterval ?? "—"}
                         </p>
@@ -496,9 +515,7 @@ export function BillingOrganizationsManager({
                         >
                           {timeline.primary}
                         </p>
-                        <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                          {timeline.secondary}
-                        </p>
+                        <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{timeline.secondary}</p>
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         <button
@@ -531,7 +548,7 @@ export function BillingOrganizationsManager({
           }}
           itemLabel="workspaces"
         />
-      </div>
+      </section>
 
       {viewOrg
         ? createPortal(

@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { MenusManager } from "@/components/menus-manager";
 import { MenusToasts } from "@/components/menus-toasts";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
-import { AccessControlNav } from "@/components/access-control-nav";
 import { createMenuItem, deleteMenuItem, updateMenuItem } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -77,8 +76,6 @@ export default async function AccessMenusPage() {
           },
         ]}
       />
-
-      <AccessControlNav />
 
       <MenusManager
         menus={menus.map((menu) => ({

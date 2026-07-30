@@ -62,23 +62,23 @@ export default async function BillingPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-5">
-      <section className="relative overflow-hidden rounded-[1.65rem] border border-white/10 bg-[linear-gradient(125deg,#09101f_0%,#111a30_52%,#233b5b_100%)] px-5 py-7 text-white shadow-[var(--shadow-lg)] sm:px-8 sm:py-9">
+      <section className="relative overflow-hidden rounded-[1.65rem] border border-white/10 bg-[linear-gradient(125deg,#0c0c0c_0%,#161616_52%,#222222_100%)] px-5 py-7 text-white shadow-[var(--shadow-lg)] sm:px-8 sm:py-9">
         <div
-          className="pointer-events-none absolute -right-20 -top-24 size-64 rounded-full bg-sky-400/15 blur-3xl"
+          className="pointer-events-none absolute -right-20 -top-24 size-64 rounded-full bg-white/5 blur-3xl"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute -bottom-28 left-1/4 size-56 rounded-full bg-indigo-500/20 blur-3xl"
+          className="pointer-events-none absolute -bottom-28 left-1/4 size-56 rounded-full bg-white/5 blur-3xl"
           aria-hidden
         />
 
         <div className="relative">
           <div className="flex flex-wrap items-center gap-2.5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-200/90">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
               Billing
             </p>
-            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-400/10 px-2.5 py-1 text-[10px] font-semibold text-amber-100">
-              <span className="size-1.5 rounded-full bg-amber-300" aria-hidden />
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-neutral-100">
+              <span className="size-1.5 rounded-full bg-white" aria-hidden />
               {upgradeRequired ? "Upgrade needed" : "Payment required"}
             </span>
           </div>
@@ -86,7 +86,7 @@ export default async function BillingPage({ searchParams }: PageProps) {
           <h1 className="mt-4 max-w-2xl text-3xl font-semibold tracking-[-0.03em] text-white sm:text-[2.15rem] sm:leading-tight">
             {title}
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">{description}</p>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-400">{description}</p>
         </div>
       </section>
 

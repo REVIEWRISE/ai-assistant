@@ -190,7 +190,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           title: "Appointment Agent",
           description: orgName ? `Bookings and chatbot for ${orgName}` : "Bookings and chatbot automation",
           href: "/appointments/overview",
-          accent: "#0284c7",
+          accent: "#38bdf8",
           stats: [
             { label: "Upcoming (24h)", value: upcoming24h },
             { label: "Upcoming (7d)", value: upcoming7d },
@@ -215,8 +215,8 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
                 synced: point.synced,
               })),
               series: [
-                { key: "recorded", name: "Recorded", color: "#0284c7" },
-                { key: "synced", name: "On calendar", color: "#059669" },
+                { key: "recorded", name: "Recorded", color: "#38bdf8" },
+                { key: "synced", name: "On calendar", color: "#34d399" },
               ],
               emptyMessage:
                 "No bookings yet. Daily counts will appear here once guests start booking.",
@@ -233,7 +233,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
                 { label: "30d bookings", value: analytics.totalLast30Days },
                 { label: "On calendar", value: analytics.postedToCalendarLast30Days },
               ],
-              color: "#6366f1",
+              color: "#38bdf8",
             },
           ],
         });
@@ -249,7 +249,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           value: analytics.totalLast30Days,
           hint: `${upcoming7d} upcoming this week · ${analytics.postedToCalendarLast30Days} on calendar`,
           href: "/appointments/overview",
-          accent: "#0284c7",
+          accent: "#38bdf8",
         });
       })(),
     );
@@ -259,7 +259,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
       title: "Appointment Agent",
       description: "Select a workspace organization to see booking stats.",
       href: "/appointments/organization",
-      accent: "#0284c7",
+      accent: "#38bdf8",
       stats: [{ label: "Active organization", value: "Not set" }],
       charts: [],
     });
@@ -302,7 +302,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           title: "Review Response",
           description: "Inbox and provider sync for your active organization",
           href: "/reviews",
-          accent: "#8b5cf6",
+          accent: "#a78bfa",
           stats: [
             { label: "Total reviews", value: reviews.length },
             { label: "Pending inbox", value: pending },
@@ -317,12 +317,12 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
               title: "Review inbox",
               subtitle: routingSummary,
               data: [
-                { label: "Total", value: reviews.length },
-                { label: "Pending", value: pending },
-                { label: "Auto-ready", value: autoReady },
-                { label: "Needs review", value: needsReview },
+                { label: "Total", value: reviews.length, color: "#a78bfa" },
+                { label: "Pending", value: pending, color: "#fbbf24" },
+                { label: "Auto-ready", value: autoReady, color: "#34d399" },
+                { label: "Needs review", value: needsReview, color: "#f87171" },
               ],
-              color: "#8b5cf6",
+              color: "#a78bfa",
             },
             {
               kind: "bar",
@@ -332,8 +332,10 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
               data: [5, 4, 3, 2, 1].map((rating) => ({
                 label: `${rating}★`,
                 value: reviews.filter((review) => review.rating === rating).length,
+                color:
+                  rating >= 4 ? "#34d399" : rating === 3 ? "#fbbf24" : "#f87171",
               })),
-              color: "#f59e0b",
+              color: "#a78bfa",
               emptyMessage: "No reviews yet.",
             },
           ],
@@ -347,7 +349,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           value: pending,
           hint: `${reviews.length} total · ${autoReady} auto-ready · ${needsReview} need review`,
           href: "/reviews",
-          accent: "#8b5cf6",
+          accent: "#a78bfa",
         });
       })(),
     );
@@ -357,7 +359,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
       title: "Review Response",
       description: "Select a workspace organization to see review stats.",
       href: "/appointments/organization",
-      accent: "#8b5cf6",
+      accent: "#a78bfa",
       stats: [{ label: "Active organization", value: "Not set" }],
       charts: [],
     });
@@ -374,7 +376,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
         const phoneLineCount = phoneStats.length;
         const callsProcessedOnLines = phoneStats.reduce((sum, line) => sum + line.callsProcessed, 0);
         const bookingsOnLines = phoneStats.reduce((sum, line) => sum + line.bookingsCount, 0);
-        const phoneLineColors = ["#7c3aed", "#06b6d4", "#f97316", "#059669", "#ec4899"];
+        const phoneLineColors = ["#2dd4bf", "#38bdf8", "#a78bfa", "#fbbf24", "#f472b6"];
 
         const phoneLineCharts: DashboardChart[] =
           phoneLineCount > 0
@@ -390,7 +392,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
                     value: line.callsReceived,
                     color: phoneLineColors[index % phoneLineColors.length],
                   })),
-                  color: "#7c3aed",
+                  color: "#2dd4bf",
                   emptyMessage: "No calls on your phone lines yet.",
                 },
                 {
@@ -403,7 +405,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
                     value: line.bookingsCount,
                     color: phoneLineColors[(index + 1) % phoneLineColors.length],
                   })),
-                  color: "#06b6d4",
+                  color: "#38bdf8",
                   emptyMessage: "Bookings linked to calls will appear here.",
                 },
               ]
@@ -416,7 +418,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
             ? `Phone agent calls and voice bookings for ${orgName}`
             : "Phone agent calls and voice bookings",
           href: "/voice-agent",
-          accent: "#7c3aed",
+          accent: "#2dd4bf",
           stats: [
             { label: "Phone lines", value: phoneLineCount },
             { label: "Calls (30d)", value: analytics.totalCallsLast30Days },
@@ -448,8 +450,8 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
                 bookings: point.bookings,
               })),
               series: [
-                { key: "calls", name: "Calls", color: "#7c3aed" },
-                { key: "bookings", name: "Phone bookings", color: "#06b6d4" },
+                { key: "calls", name: "Calls", color: "#2dd4bf" },
+                { key: "bookings", name: "Phone bookings", color: "#38bdf8" },
               ],
               emptyMessage: "No voice calls or phone bookings yet.",
             },
@@ -460,13 +462,13 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
               title: "Voice pipeline (30d)",
               subtitle: "Call volume, processing, and bookings captured by the phone agent",
               data: [
-                { label: "Total calls", value: analytics.totalCallsLast30Days },
-                { label: "Inbound", value: analytics.inboundCallsLast30Days },
-                { label: "Processed", value: callsProcessedOnLines },
-                { label: "Booked on calls", value: bookingsOnLines },
-                { label: "Phone bookings", value: analytics.voiceBookingsLast30Days },
+                { label: "Total calls", value: analytics.totalCallsLast30Days, color: "#2dd4bf" },
+                { label: "Inbound", value: analytics.inboundCallsLast30Days, color: "#38bdf8" },
+                { label: "Processed", value: callsProcessedOnLines, color: "#a78bfa" },
+                { label: "Booked on calls", value: bookingsOnLines, color: "#34d399" },
+                { label: "Phone bookings", value: analytics.voiceBookingsLast30Days, color: "#fbbf24" },
               ],
-              color: "#7c3aed",
+              color: "#2dd4bf",
             },
             {
               kind: "bar",
@@ -475,7 +477,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
               title: "Call sentiment",
               subtitle: "Distribution across completed calls in the last 30 days",
               data: analytics.sentimentCounts,
-              color: "#f97316",
+              color: "#2dd4bf",
               emptyMessage: "Sentiment data appears after calls are analyzed.",
             },
           ],
@@ -495,7 +497,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           value: analytics.totalCallsLast30Days,
           hint: `${phoneHint} · ${avgMinutes}:${avgSeconds} avg call`,
           href: "/voice-agent",
-          accent: "#7c3aed",
+          accent: "#2dd4bf",
         });
       })(),
     );
@@ -505,7 +507,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
       title: "Voice Support",
       description: "Select a workspace organization to see voice agent stats.",
       href: "/voice-agent",
-      accent: "#7c3aed",
+      accent: "#2dd4bf",
       stats: [{ label: "Active organization", value: "Not set" }],
       charts: [],
     });
@@ -525,7 +527,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           value: totalUsers,
           hint: `${activeUsers} active · ${Math.max(0, totalUsers - activeUsers)} inactive`,
           href: "/users",
-          accent: "#0ea5e9",
+          accent: "#fbbf24",
         });
 
         if (roleName === "Admin") {
@@ -549,11 +551,11 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           title: "Platform Settings",
           description: "Enabled integrations and provider catalog",
           href: "/platform/providers",
-          accent: "#6366f1",
+          accent: "#38bdf8",
           stats: [
-            { label: "Enabled providers", value: enabledProviders, accent: "#6366f1" },
-            { label: "Calendar providers", value: calendarProviders, accent: "#0284c7" },
-            { label: "Review providers", value: reviewProviders, accent: "#f59e0b" },
+            { label: "Enabled providers", value: enabledProviders, accent: "#38bdf8" },
+            { label: "Calendar providers", value: calendarProviders, accent: "#34d399" },
+            { label: "Review providers", value: reviewProviders, accent: "#a78bfa" },
           ],
           charts: [
             {
@@ -562,11 +564,11 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
               featured: true,
               title: "Provider catalog",
               data: [
-                { label: "Enabled", value: enabledProviders, color: "#6366f1" },
-                { label: "Calendar", value: calendarProviders, color: "#0284c7" },
-                { label: "Review", value: reviewProviders, color: "#f59e0b" },
+                { label: "Enabled", value: enabledProviders, color: "#38bdf8" },
+                { label: "Calendar", value: calendarProviders, color: "#34d399" },
+                { label: "Review", value: reviewProviders, color: "#a78bfa" },
               ],
-              color: "#6366f1",
+              color: "#38bdf8",
             },
           ],
         });
