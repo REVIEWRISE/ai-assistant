@@ -119,7 +119,13 @@ export function LandingPricingSection({
                 >
                   {option === "monthly" ? "Monthly" : "Yearly"}
                   {option === "yearly" ? (
-                    <span className="ml-2 text-[10px] font-bold uppercase text-[var(--color-success)]">
+                    <span
+                      className={`ml-2 text-[10px] font-bold uppercase tracking-[0.08em] ${
+                        interval === "yearly"
+                          ? "text-[var(--color-primary-fg)]/75"
+                          : "text-emerald-600"
+                      }`}
+                    >
                       Save
                     </span>
                   ) : null}
