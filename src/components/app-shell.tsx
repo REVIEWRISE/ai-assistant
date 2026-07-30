@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppFooter } from "@/components/app-footer";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -20,6 +20,8 @@ function isActive(pathname: string, href: string): boolean {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchKey = searchParams.toString();
   const [profileOpen, setProfileOpen] = useState(false);
   const [menuStateReady, setMenuStateReady] = useState(false);
   const [submenuTick, setSubmenuTick] = useState(0);
@@ -40,7 +42,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname === "/onboarding/plan" || pathname.startsWith("/onboarding/plan/");
   const isBillingExpiredWall =
     pathname === "/billing/expired" || pathname.startsWith("/billing/expired/");
-  const isChromeFreeBillingGate = isOnboardingPlan || isBillingExpiredWall;
+  const isBillingCheckoutReturn =
+    pathname === "/billing/success" ||
+    pathname.startsWith("/billing/success/") ||
+    pathname === "/billing/canceled" ||
+    pathname.startsWith("/billing/canceled/");
+  const isChromeFreeBillingGate =
+    isOnboardingPlan || isBillingExpiredWall || isBillingCheckoutReturn;
 
   const visibleNavItems = useMemo(() => {
     const set = allowedNavPaths === null ? new Set<string>() : new Set(allowedNavPaths);
@@ -60,7 +68,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     async function loadSession() {
       try {
-        const res = await fetch("/api/me");
+        const res = await fetch("/api/me", { cache: "no-store" });
         if (!res.ok) {
           if (isMounted) setAllowedNavPaths([]);
           return;
@@ -104,7 +112,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => {
       isMounted = false;
     };
-  }, [authRoute, isPublicLanding, isEmbedRoute, isChromeFreeBillingGate]);
+  }, [authRoute, isPublicLanding, isEmbedRoute, isChromeFreeBillingGate, pathname, searchKey]);
 
   const handleSwitchOrganization = async (organizationId: string) => {
     if (!organizationId || organizationId === activeOrganizationId || switchingOrganization) return;

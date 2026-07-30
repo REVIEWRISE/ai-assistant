@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { userHasAdminRole } from "@/lib/admin-view-only";
 
 export async function POST(req: Request) {
   const cookieStore = await cookies();
@@ -23,12 +24,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const membership = await prisma.organizationMember.findFirst({
-    where: { userId: session.userId, organizationId },
-    select: { id: true },
-  });
-  if (!membership) {
-    return NextResponse.json({ error: "organization_invalid" }, { status: 403 });
+  const isAdmin = await userHasAdminRole(session.userId);
+  if (!isAdmin) {
+    const membership = await prisma.organizationMember.findFirst({
+      where: { userId: session.userId, organizationId },
+      select: { id: true },
+    });
+    if (!membership) {
+      return NextResponse.json({ error: "organization_invalid" }, { status: 403 });
+    }
+  } else {
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true },
+    });
+    if (!organization) {
+      return NextResponse.json({ error: "organization_invalid" }, { status: 403 });
+    }
   }
 
   await prisma.session.update({

@@ -104,17 +104,45 @@ export async function createBillingCheckoutSession(input: {
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Checkout failed.";
-    const unknownField = message.match(/Unknown field `[^`]+`[^\n]*/)?.[0];
-    const billingApi = message.match(/Billing API error[^\n]*/)?.[0];
-    const short =
-      unknownField ??
-      billingApi ??
-      message
-        .split("\n")
-        .map((line) => line.trim())
-        .find(Boolean) ??
-      message;
-    return { ok: false, error: short };
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[billing/checkout]", message);
+    }
+
+    if (/not configured|BILLING_API_KEY/i.test(message)) {
+      return {
+        ok: false,
+        error: "Billing is not configured yet. Ask a platform admin to finish setup.",
+      };
+    }
+    if (/422|validation|required/i.test(message)) {
+      return {
+        ok: false,
+        error: "Checkout could not be started with the selected plan. Try again or contact support.",
+      };
+    }
+    if (/401|403|unauthorized|forbidden/i.test(message)) {
+      return {
+        ok: false,
+        error: "Billing authentication failed. Ask a platform admin to check the API key.",
+      };
+    }
+    if (/429|rate/i.test(message)) {
+      return {
+        ok: false,
+        error: "Billing is busy right now. Please wait a moment and try again.",
+      };
+    }
+    if (/5\d\d|unavailable|network|fetch failed/i.test(message)) {
+      return {
+        ok: false,
+        error: "Checkout is temporarily unavailable. Please try again in a few minutes.",
+      };
+    }
+
+    return {
+      ok: false,
+      error: "Unable to start checkout. Please try again or contact support.",
+    };
   }
 }
 

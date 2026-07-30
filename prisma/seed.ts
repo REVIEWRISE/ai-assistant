@@ -11,7 +11,7 @@ const MENU_ITEMS = [
   { id: "82e4d5db-f33c-4fca-a8be-a9d0631ac751", label: "User Management", path: "/users", sortOrder: 1 },
   { id: "9555f0bd-d829-44e9-a31f-5cb230a10478", label: "Appointment Agent", path: "/appointments", sortOrder: 2 },
   { id: "a6efd6f9-fc80-4555-a3f6-11889a625b0f", label: "Review Response", path: "/reviews", sortOrder: 3 },
-  { id: "c4e8a1b2-9f3d-4a5e-b6c7-d8e9f0a1b2c3", label: "Voice Support", path: "/voice-agent", sortOrder: 4 },
+  { id: "fa2b6751-f080-414e-b901-8f8cb86a8e60", label: "Voice Agent", path: "/voice-agent", sortOrder: 4 },
   { id: "33c86cd0-a6b0-48f9-a04b-684dd8671ef7", label: "Access Control", path: "/settings/access", sortOrder: 5 },
   { id: "18d185ec-9cb2-46d9-bd27-e65d1341b66c", label: "Platform Settings", path: "/platform", sortOrder: 6 },
   { id: "c8f2a1b0-3d4e-4f5a-9b6c-7d8e9f0a1b2c", label: "Billing", path: "/billing-admin", sortOrder: 7 },
@@ -77,6 +77,20 @@ async function main() {
       },
     });
   }
+
+  // Billing admin menus are Admin-only; grant them so the sidebar works after seed.
+  const adminBillingMenuIds = [
+    "c8f2a1b0-3d4e-4f5a-9b6c-7d8e9f0a1b2c", // /billing-admin
+    "d9e3b2c1-4e5f-4a6b-8c7d-9e0f1a2b3c4d", // /billing-admin/organizations
+    "b3710de3-d222-45c7-9d1d-85acba65a0ef", // /billing-admin/plans
+  ] as const;
+  await prisma.menuAccess.createMany({
+    data: adminBillingMenuIds.map((menuItemId) => ({
+      menuItemId,
+      roleId: adminRole.id,
+    })),
+    skipDuplicates: true,
+  });
 
   await prisma.$transaction(async (tx) => {
     const user = await tx.user.upsert({

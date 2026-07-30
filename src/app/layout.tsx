@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import localFont from "next/font/local";
 import { AppShell } from "@/components/app-shell";
 import { AppToaster } from "@/components/app-toaster";
@@ -75,7 +76,9 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitializer }} />
       </head>
       <body className={`${poppins.variable} font-sans antialiased`}>
-        <AppShell>{children}</AppShell>
+        <Suspense fallback={null}>
+          <AppShell>{children}</AppShell>
+        </Suspense>
         <AppToaster />
       </body>
     </html>
