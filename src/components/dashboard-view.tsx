@@ -112,26 +112,26 @@ export function DashboardView({ data }: { data: DashboardData }) {
         </section>
       ) : (
         <>
-          <section className="relative overflow-hidden rounded-[1.65rem] border border-white/10 bg-[linear-gradient(125deg,#09101f_0%,#111a30_52%,#233b5b_100%)] px-5 py-6 text-white shadow-[var(--shadow-lg)] lg:px-7 lg:py-7">
-            <div className="pointer-events-none absolute -right-24 -top-28 size-72 rounded-full bg-indigo-500/25 blur-3xl" aria-hidden />
-            <div className="pointer-events-none absolute -bottom-28 left-1/3 size-64 rounded-full bg-sky-400/10 blur-3xl" aria-hidden />
+          <section className="relative overflow-hidden rounded-[1.65rem] border border-white/10 bg-[linear-gradient(125deg,#0c0c0c_0%,#161616_52%,#222222_100%)] px-5 py-6 text-white shadow-[var(--shadow-lg)] lg:px-7 lg:py-7">
+            <div className="pointer-events-none absolute -right-24 -top-28 size-72 rounded-full bg-white/10 blur-3xl" aria-hidden />
+            <div className="pointer-events-none absolute -bottom-28 left-1/3 size-64 rounded-full bg-white/5 blur-3xl" aria-hidden />
 
             <div className="relative grid items-end gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(24rem,0.72fr)]">
               <div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-indigo-300">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
                     {data.heroEyebrow}
                   </p>
-                  <span className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${hasActivity ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200" : "border-white/10 bg-white/[0.06] text-slate-300"}`}>
-                    <span className={`size-1.5 rounded-full ${hasActivity ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-slate-400"}`} aria-hidden />
+                  <span className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${hasActivity ? "border-white/20 bg-white/10 text-neutral-100" : "border-white/10 bg-white/[0.06] text-neutral-400"}`}>
+                    <span className={`size-1.5 rounded-full ${hasActivity ? "bg-white" : "bg-neutral-500"}`} aria-hidden />
                     {hasActivity ? "Workspace active" : "Ready for setup"}
                   </span>
                 </div>
                 <h1 className="mt-3 max-w-3xl text-2xl font-semibold tracking-[-0.025em] text-white lg:text-[2rem] lg:leading-tight">
                   {data.heroTitle}
-                  {data.heroTitleAccent ? <span className="text-indigo-300"> {data.heroTitleAccent}</span> : null}
+                  {data.heroTitleAccent ? <span className="text-neutral-400"> {data.heroTitleAccent}</span> : null}
                 </h1>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-400">
                   {data.heroDescription}
                 </p>
               </div>
@@ -139,13 +139,13 @@ export function DashboardView({ data }: { data: DashboardData }) {
               <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-2">
                 {data.headlineStats.slice(0, 4).map((stat) => (
                   <div key={stat.label} className="rounded-xl border border-white/10 bg-white/[0.06] px-3.5 py-3 backdrop-blur-sm">
-                    <p className="truncate text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400">{stat.label}</p>
+                    <p className="truncate text-[9px] font-semibold uppercase tracking-[0.16em] text-neutral-500">{stat.label}</p>
                     <p className="mt-1.5 text-xl font-semibold tabular-nums text-white">{stat.value}</p>
                   </div>
                 ))}
                 {data.headlineStats.length === 0 ? (
                   <div className="rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 sm:col-span-3 xl:col-span-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Accessible modules</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">Accessible modules</p>
                     <p className="mt-1.5 text-xl font-semibold text-white">{data.sections.length}</p>
                   </div>
                 ) : null}

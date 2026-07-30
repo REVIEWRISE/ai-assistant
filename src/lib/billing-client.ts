@@ -1,5 +1,7 @@
 import "server-only";
 
+import { prisma } from "@/lib/prisma";
+
 const DEFAULT_BILLING_API_URL = "http://localhost:4001/api/v1";
 const DEFAULT_PRODUCT_NAME = "agents";
 
@@ -87,7 +89,7 @@ export async function billingFetch(
         detail?: string;
         title?: string;
       };
-      const message = `Billing API error ${res.status}: ${error.detail ?? error.title ?? "Unknown"}`;
+      const message = `Billing API error ${res.status} on ${options.method ?? "GET"} ${normalizedPath}: ${error.detail ?? error.title ?? "Unknown"}`;
       if ((res.status === 429 || res.status >= 500) && attempt < 4) {
         lastError = new Error(message);
         await new Promise((resolve) => setTimeout(resolve, attempt * 650));
@@ -496,4 +498,228 @@ export async function detachBillingModuleFromPlan(
     `/billing/admin/plans/${encodeURIComponent(planId)}/modules/${encodeURIComponent(moduleId)}`,
     { method: "DELETE" },
   );
+}
+
+export type BillingCheckoutCreateInput = {
+  customerId: string;
+  planId: string;
+  successUrl: string;
+  cancelUrl: string;
+  customerEmail?: string | null;
+  couponId?: string | null;
+};
+
+export type BillingCheckoutCreateResult = {
+  checkoutUrl: string;
+  sessionId: string | null;
+  subscriptionId: string | null;
+};
+
+export type BillingCustomer = {
+  id: string;
+  name: string | null;
+  primaryEmail: string | null;
+};
+
+function parseBillingCustomer(body: unknown): BillingCustomer | null {
+  const root = asRecord(body);
+  if (!root) return null;
+  // Documented shape: { customer: { id, name, primaryEmail, ... } }
+  const nested = asRecord(root.customer) ?? asRecord(root.data) ?? root;
+  const id = asString(nested.id);
+  if (!id) return null;
+  return {
+    id,
+    name: asString(nested.name),
+    primaryEmail: asString(nested.primaryEmail) ?? asString(nested.email),
+  };
+}
+
+export async function createBillingCustomer(input: {
+  name: string;
+  primaryEmail: string;
+}): Promise<BillingCustomer> {
+  const res = await billingFetch("/billing/admin/customers", {
+    method: "POST",
+    body: JSON.stringify({
+      name: input.name.trim(),
+      primaryEmail: input.primaryEmail.trim(),
+    }),
+  });
+
+  const customer = parseBillingCustomer(await res.json());
+  if (!customer) {
+    throw new Error("Billing did not return a customer id.");
+  }
+  return customer;
+}
+
+export async function findBillingCustomerIdByEmail(email: string): Promise<string | null> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return null;
+
+  const res = await billingFetch(
+    `/billing/admin/customers?search=${encodeURIComponent(normalized)}&limit=20`,
+  );
+  const body = (await res.json()) as { data?: unknown };
+  const rows = Array.isArray(body.data) ? body.data : [];
+
+  for (const row of rows) {
+    const record = asRecord(row);
+    if (!record) continue;
+    const id = asString(record.id);
+    const primaryEmail = (asString(record.primaryEmail) ?? asString(record.email) ?? "").toLowerCase();
+    if (id && primaryEmail === normalized) return id;
+  }
+  return null;
+}
+
+export async function getOrganizationBillingCustomerId(
+  organizationId: string,
+): Promise<string | null> {
+  const rows = await prisma.$queryRaw<Array<{ billing_customer_id: string | null }>>`
+    SELECT billing_customer_id
+    FROM organizations
+    WHERE id = ${organizationId}::uuid
+    LIMIT 1
+  `;
+  return rows[0]?.billing_customer_id?.trim() || null;
+}
+
+async function storeOrganizationBillingCustomerId(
+  organizationId: string,
+  billingCustomerId: string,
+): Promise<void> {
+  await prisma.$executeRaw`
+    UPDATE organizations
+    SET billing_customer_id = ${billingCustomerId}
+    WHERE id = ${organizationId}::uuid
+  `;
+}
+
+/**
+ * Steps 2–3 of platform onboarding:
+ * reuse an existing Billing customer when possible, otherwise create one,
+ * then store billingCustomerId locally.
+ */
+export async function ensureBillingCustomerForOrganization(input: {
+  organizationId: string;
+  organizationName: string;
+  primaryEmail: string;
+}): Promise<string> {
+  // 1) Already linked on this workspace?
+  const existingId = await getOrganizationBillingCustomerId(input.organizationId);
+  if (existingId) return existingId;
+
+  const email = input.primaryEmail.trim();
+  if (!email) {
+    throw new Error("A billing email is required before registering with Billing.");
+  }
+
+  // 2) Already exists in Billing for this email? Reuse — don't create again.
+  let customerId = await findBillingCustomerIdByEmail(email);
+
+  // 3) Create only when Billing has no customer yet.
+  if (!customerId) {
+    const created = await createBillingCustomer({
+      name: input.organizationName.trim() || "Workspace",
+      primaryEmail: email,
+    });
+    customerId = created.id;
+  }
+
+  await storeOrganizationBillingCustomerId(input.organizationId, customerId);
+  return customerId;
+}
+
+export type BillingCustomerEntitlements = {
+  customerId: string;
+  moduleKeys: string[];
+  featureKeys: string[];
+  raw: Record<string, unknown>;
+};
+
+/**
+ * Step 6: load entitlements for a Billing customer.
+ * GET /billing/admin/entitlements?customerId=...
+ */
+export async function getBillingCustomerEntitlements(
+  customerId: string,
+): Promise<BillingCustomerEntitlements> {
+  const res = await billingFetch(
+    `/billing/admin/entitlements?customerId=${encodeURIComponent(customerId)}`,
+  );
+  const body = (await res.json()) as unknown;
+  const root = asRecord(body) ?? {};
+  const payload = asRecord(root.data) ?? asRecord(root.entitlements) ?? root;
+
+  const moduleKeys = new Set<string>();
+  const featureKeys = new Set<string>();
+
+  const collectKey = (value: unknown) => {
+    const record = asRecord(value);
+    const key =
+      asString(record?.key) ??
+      asString(record?.moduleKey) ??
+      asString(record?.featureKey) ??
+      asString(record?.name) ??
+      (typeof value === "string" ? value.trim() : null);
+    if (!key) return;
+    const normalized = key.trim().toLowerCase().replace(/[\s-]+/g, "_");
+    if (record?.featureKey || record?.limitValue != null || /feature/.test(key)) {
+      featureKeys.add(normalized);
+    } else {
+      moduleKeys.add(normalized);
+    }
+    featureKeys.add(normalized);
+  };
+
+  for (const listKey of ["modules", "features", "entitlements", "items", "data"] as const) {
+    const list = payload[listKey];
+    if (Array.isArray(list)) list.forEach(collectKey);
+  }
+  if (Array.isArray(body)) body.forEach(collectKey);
+
+  return {
+    customerId,
+    moduleKeys: [...moduleKeys],
+    featureKeys: [...featureKeys],
+    raw: root,
+  };
+}
+
+export async function createBillingCheckout(
+  input: BillingCheckoutCreateInput,
+): Promise<BillingCheckoutCreateResult> {
+  const res = await billingFetch("/billing/checkout/create", {
+    method: "POST",
+    body: JSON.stringify({
+      customerId: input.customerId,
+      planId: input.planId,
+      successUrl: input.successUrl,
+      cancelUrl: input.cancelUrl,
+      ...(input.customerEmail ? { customerEmail: input.customerEmail } : {}),
+      ...(input.couponId ? { couponId: input.couponId } : {}),
+    }),
+  });
+
+  const body = (await res.json()) as {
+    checkoutUrl?: unknown;
+    sessionId?: unknown;
+    subscriptionId?: unknown;
+  };
+
+  const checkoutUrl =
+    typeof body.checkoutUrl === "string" && body.checkoutUrl.trim()
+      ? body.checkoutUrl.trim()
+      : null;
+  if (!checkoutUrl) {
+    throw new Error("Billing checkout did not return a checkout URL.");
+  }
+
+  return {
+    checkoutUrl,
+    sessionId: typeof body.sessionId === "string" ? body.sessionId : null,
+    subscriptionId: typeof body.subscriptionId === "string" ? body.subscriptionId : null,
+  };
 }

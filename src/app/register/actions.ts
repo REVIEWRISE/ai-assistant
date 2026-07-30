@@ -3,6 +3,10 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
+import {
+  ensureBillingCustomerForOrganization,
+  isBillingConfigured,
+} from "@/lib/billing-client";
 import { prisma } from "@/lib/prisma";
 
 export async function registerUser(formData: FormData) {
@@ -23,6 +27,7 @@ export async function registerUser(formData: FormData) {
 
   let userId: string;
   let organizationId: string | null = null;
+  let organizationName: string | null = null;
   try {
     const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -59,11 +64,16 @@ export async function registerUser(formData: FormData) {
         });
       }
 
-      return { userId: user.id, organizationId: organization.id };
+      return {
+        userId: user.id,
+        organizationId: organization.id,
+        organizationName: organization.name,
+      };
     });
 
     userId = result.userId;
     organizationId = result.organizationId;
+    organizationName = result.organizationName;
   } catch (error) {
     if (typeof error === "object" && error && "code" in error) {
       const code = (error as { code?: string }).code;
@@ -72,6 +82,25 @@ export async function registerUser(formData: FormData) {
       }
     }
     redirect("/register?error=unknown");
+  }
+
+  // Step 2–3: register Billing customer as soon as the account/workspace exists.
+  if (!organizationId || !organizationName) {
+    redirect("/register?error=unknown");
+  }
+  if (!isBillingConfigured()) {
+    console.warn("[billing] BILLING_API_KEY missing — skipped customer create on signup");
+  } else {
+    try {
+      await ensureBillingCustomerForOrganization({
+        organizationId,
+        organizationName,
+        primaryEmail: email,
+      });
+    } catch (error) {
+      console.error("[billing] failed to register customer on signup", error);
+      // Account exists locally; customer can still be created later at plan select / checkout.
+    }
   }
 
   const sessionToken = crypto.randomUUID();

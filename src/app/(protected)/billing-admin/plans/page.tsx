@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
-import { BillingAdminNav } from "@/components/billing-admin-nav";
 import { BillingPlansManager } from "@/components/billing-plans-manager";
 import { BillingPlansToasts } from "@/components/billing-plans-toasts";
 import { requireAdminSession } from "@/lib/auth-session";
@@ -74,8 +73,6 @@ export default async function BillingPlansPage() {
           },
         ]}
       />
-
-      <BillingAdminNav />
 
       <Suspense fallback={null}>
         <BillingPlansManager

@@ -288,23 +288,12 @@ function toLandingPlan(plan: CatalogPlanView): LandingPlan {
   const monthly =
     plan.monthlyPriceCents ??
     (plan.billingInterval.toLowerCase().includes("year") ? 0 : plan.priceAmount);
-  const yearlyRaw =
+  // Yearly plan `priceAmount` from Billing is the annual total — do not multiply monthly×12.
+  const yearlyTotalCents =
     plan.yearlyPriceCents ??
-    (plan.billingInterval.toLowerCase().includes("year") ? plan.priceAmount : 0);
-
-  // Yearly `priceAmount` may be either the prepaid annual total or the per-month
-  // amount when billed yearly. Treat values ~8×+ monthly as annual totals.
-  const yearlyIsAnnualTotal = monthly > 0 && yearlyRaw >= monthly * 8;
-  const yearlyMonthlyCents = yearlyRaw
-    ? yearlyIsAnnualTotal
-      ? Math.round(yearlyRaw / 12)
-      : yearlyRaw
-    : monthly || plan.priceAmount;
-  const yearlyTotalCents = yearlyRaw
-    ? yearlyIsAnnualTotal
-      ? yearlyRaw
-      : yearlyRaw * 12
-    : (monthly || plan.priceAmount) * 12;
+    (plan.billingInterval.toLowerCase().includes("year") ? plan.priceAmount : null);
+  const yearlyMonthlyCents =
+    yearlyTotalCents != null ? Math.round(yearlyTotalCents / 12) : monthly || plan.priceAmount;
 
   return {
     slug: plan.slug,
@@ -312,7 +301,7 @@ function toLandingPlan(plan: CatalogPlanView): LandingPlan {
     description: plan.description,
     price: formatUsd(monthly || plan.priceAmount),
     period: "/mo",
-    yearlyPrice: formatUsd(yearlyTotalCents),
+    yearlyPrice: formatUsd(yearlyTotalCents ?? (monthly || plan.priceAmount) * 12),
     yearlyMonthlyPrice: formatUsd(yearlyMonthlyCents),
     trialDays: plan.trialPeriodDays || BILLING_RULES.trialDays,
     includedLocations: plan.includedLocations,

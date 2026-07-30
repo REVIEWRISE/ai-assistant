@@ -5,7 +5,7 @@ import { PRODUCT_NAME } from "@/lib/brand";
 
 const ACTIVITY = [
   ["Review response", "Draft ready", "text-emerald-300 bg-emerald-400/10"],
-  ["New appointment", "Booked", "text-indigo-300 bg-indigo-400/10"],
+  ["New appointment", "Booked", "text-sky-300 bg-sky-400/10"],
   ["Lead follow-up", "Assigned", "text-amber-300 bg-amber-400/10"],
 ] as const;
 
@@ -25,10 +25,10 @@ export function AuthShell({
 
       <div className="relative mx-auto flex min-h-[100dvh] max-w-7xl items-center px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <div className="grid w-full overflow-hidden rounded-[2rem] border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[0_30px_90px_-50px_rgba(15,23,42,0.55)] lg:min-h-[min(780px,calc(100dvh-4rem))] lg:grid-cols-[0.92fr_1.08fr]">
-          <aside className="landing-dark relative hidden overflow-hidden bg-[linear-gradient(145deg,#080d18,#111a31_55%,#252f6a)] p-10 text-white lg:flex lg:flex-col xl:p-12">
+          <aside className="relative hidden overflow-hidden bg-[linear-gradient(145deg,#0c0c0c_0%,#141414_52%,#1c1c1c_100%)] p-10 text-white lg:flex lg:flex-col xl:p-12">
             <div className="landing-grid pointer-events-none absolute inset-0 opacity-[0.1]" aria-hidden />
-            <div className="pointer-events-none absolute -left-24 -top-24 size-72 rounded-full bg-indigo-500/25 blur-3xl" aria-hidden />
-            <div className="pointer-events-none absolute -bottom-32 -right-20 size-80 rounded-full bg-sky-400/15 blur-3xl" aria-hidden />
+            <div className="pointer-events-none absolute -left-24 -top-24 size-72 rounded-full bg-white/[0.06] blur-3xl" aria-hidden />
+            <div className="pointer-events-none absolute -bottom-32 -right-20 size-80 rounded-full bg-white/[0.04] blur-3xl" aria-hidden />
 
             <div className="relative flex h-full flex-col">
               <BrandLogo
@@ -36,19 +36,19 @@ export function AuthShell({
                 size="sm"
                 primary={PRODUCT_NAME}
                 secondary="AI operations"
-                className="text-white [&_p:first-child]:text-[10px] [&_p:first-child]:font-semibold [&_p:first-child]:uppercase [&_p:first-child]:tracking-[0.2em] [&_p:first-child]:text-indigo-300 [&_p:last-child]:text-sm [&_p:last-child]:font-medium [&_p:last-child]:text-slate-300"
+                className="text-white [&_p:first-child]:text-[10px] [&_p:first-child]:font-semibold [&_p:first-child]:uppercase [&_p:first-child]:tracking-[0.2em] [&_p:first-child]:text-neutral-500 [&_p:last-child]:text-sm [&_p:last-child]:font-medium [&_p:last-child]:text-neutral-300"
               />
 
               <div className="my-auto py-10">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-300">Your operations workspace</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">Your operations workspace</p>
                 <h1 className="mt-5 max-w-md text-4xl font-semibold leading-[1.08] tracking-[-0.04em] text-white xl:text-5xl">
                   {sideTitle}
                 </h1>
-                <p className="mt-5 max-w-md text-sm leading-7 text-slate-300 xl:text-base">
+                <p className="mt-5 max-w-md text-sm leading-7 text-neutral-400 xl:text-base">
                   {sideDescription}
                 </p>
 
-                <div className="mt-9 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/35 backdrop-blur">
+                <div className="mt-9 overflow-hidden rounded-2xl border border-white/10 bg-black/40 backdrop-blur">
                   <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
                     <span className="text-xs font-semibold text-white">Today&rsquo;s activity</span>
                     <span className="rounded-full bg-emerald-400/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-emerald-300">Live</span>
@@ -56,7 +56,7 @@ export function AuthShell({
                   <div className="space-y-2 p-3">
                     {ACTIVITY.map(([label, status, color]) => (
                       <div key={label} className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.05] px-3.5 py-3">
-                        <span className="text-sm font-medium text-slate-200">{label}</span>
+                        <span className="text-sm font-medium text-neutral-200">{label}</span>
                         <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${color}`}>{status}</span>
                       </div>
                     ))}
@@ -64,7 +64,7 @@ export function AuthShell({
                 </div>
               </div>
 
-              <div className="relative flex items-center gap-5 border-t border-white/10 pt-5 text-xs text-slate-400">
+              <div className="relative flex items-center gap-5 border-t border-white/10 pt-5 text-xs text-neutral-500">
                 <span>Reviews</span>
                 <span>Bookings</span>
                 <span>Leads</span>

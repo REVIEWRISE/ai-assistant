@@ -51,34 +51,42 @@
 .dark,
 [data-theme="dark"] {
   color-scheme: dark;
-  --color-bg:              #0b101a;
-  --color-surface:         #151b2b;
-  --color-raised:          #1e2538;
+  /* Charcoal monochrome — black & white without crushing depth */
+  --color-bg:              #0c0c0c;
+  --color-surface:         #161616;
+  --color-raised:          #1f1f1f;
 
-  --color-border:          #1e2538;
-  --color-border-muted:    #151b2b;
-  --color-border-hover:    #2d3755;
-  --color-skeleton:        #2d3755;
+  --color-border:          #2e2e2e;
+  --color-border-muted:    #1f1f1f;
+  --color-border-hover:    #454545;
+  --color-skeleton:        #2e2e2e;
 
-  --color-text:            #ffffff;
-  --color-text-muted:      #8a96a8;
-  --color-text-subtle:     #5a6478;
+  --color-text:            #f4f4f4;
+  --color-text-muted:      #b0b0b0;
+  --color-text-subtle:     #8a8a8a;
 
-  --color-primary:         #6366f1;
-  --color-primary-h:       #818cf8;
-  --color-primary-fg:      #ffffff;
-  --color-primary-soft:    #1e1b4b;
+  --color-primary:         #f4f4f4;
+  --color-primary-h:       #ffffff;
+  --color-primary-fg:      #0c0c0c;
+  --color-primary-soft:    #242424;
 
-  --color-success:         #34d399;
-  --color-success-soft:    #062c23;
-  --color-danger:          #f87171;
-  --color-danger-soft:     #321519;
-  --color-warning:         #fbbf24;
-  --color-warning-soft:    #33240b;
+  --color-grad-start:      #e8e8e8;
+  --color-grad-end:        #8a8a8a;
 
-  --shadow-sm:             0 1px 2px 0 rgb(0 0 0 / 0.3);
-  --shadow-md:             0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
-  --shadow-lg:             0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+  --color-success:         #d6d6d6;
+  --color-success-soft:    #1a1a1a;
+  --color-danger:          #f4f4f4;
+  --color-danger-soft:     #1a1a1a;
+  --color-warning:         #b0b0b0;
+  --color-warning-soft:    #1a1a1a;
+
+  --color-data-green:      #e8e8e8;
+  --color-data-purple:     #b0b0b0;
+  --color-data-cyan:       #d6d6d6;
+
+  --shadow-sm:             0 1px 2px 0 rgb(0 0 0 / 0.35);
+  --shadow-md:             0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.35);
+  --shadow-lg:             0 10px 15px -3px rgb(0 0 0 / 0.45), 0 4px 6px -4px rgb(0 0 0 / 0.35);
 }
 
 @media (prefers-contrast: high) {

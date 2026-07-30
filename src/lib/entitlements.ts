@@ -3,6 +3,11 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { getValidSession } from "@/lib/auth-session";
 import { userHasAdminRole } from "@/lib/admin-view-only";
+import {
+  getBillingCustomerEntitlements,
+  getOrganizationBillingCustomerId,
+  isBillingConfigured,
+} from "@/lib/billing-client";
 import { prisma } from "@/lib/prisma";
 import {
   BILLING_RULES,
@@ -209,12 +214,42 @@ export function orgHasFeatureFromBilling(
   return entitlementIsEnabled(getPlanEntitlement(billing.planSlug, key));
 }
 
+async function orgHasRemoteEntitlement(
+  organizationId: string,
+  key: PlanFeatureKey,
+): Promise<boolean | null> {
+  if (!isBillingConfigured()) return null;
+  const customerId = await getOrganizationBillingCustomerId(organizationId);
+  if (!customerId) return null;
+
+  try {
+    const entitlements = await getBillingCustomerEntitlements(customerId);
+    const needle = key.toLowerCase();
+    const keys = new Set(
+      [...entitlements.featureKeys, ...entitlements.moduleKeys].map((value) =>
+        value.toLowerCase(),
+      ),
+    );
+    if (keys.size === 0) return null;
+    return keys.has(needle);
+  } catch {
+    return null;
+  }
+}
+
 export async function orgHasFeature(
   organizationId: string,
   key: PlanFeatureKey,
 ): Promise<boolean> {
   const billing = await getOrgBilling(organizationId);
   if (!billing) return false;
+
+  // Paid workspaces: prefer Billing entitlements (step 6). Fall back to local plan matrix.
+  if (billing.billingStatus === "active") {
+    const remote = await orgHasRemoteEntitlement(organizationId, key);
+    if (remote != null) return remote;
+  }
+
   return orgHasFeatureFromBilling(billing, key);
 }
 
@@ -234,7 +269,7 @@ export async function assertOrgFeatureAccess(
   if (billing.billingStatus === "expired" || !isBillingAccessAllowed(billing.billingStatus)) {
     return { ok: false, status: 403, error: "subscription_required" };
   }
-  if (!orgHasFeatureFromBilling(billing, key)) {
+  if (!(await orgHasFeature(organizationId, key))) {
     return { ok: false, status: 403, error: "feature_not_entitled" };
   }
   return { ok: true };
@@ -275,7 +310,7 @@ export async function requireOrgFeature(
   if (billing.billingStatus === "expired") {
     redirect("/billing/expired");
   }
-  if (!orgHasFeatureFromBilling(billing, key)) {
+  if (!(await orgHasFeature(organizationId, key))) {
     redirect(options?.redirectTo ?? `/billing?error=upgrade_required&feature=${key}`);
   }
   return billing;

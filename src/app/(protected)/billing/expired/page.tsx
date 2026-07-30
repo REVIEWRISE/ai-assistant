@@ -10,7 +10,6 @@ import { listCheckoutPlanOptions } from "@/lib/billing-checkout";
 import { getOrgBilling, isBillingAccessAllowed } from "@/lib/entitlements";
 import { BRAND_NAME, PRODUCT_NAME } from "@/lib/brand";
 import { BILLING_RULES, getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
-import { getStripePublishableKey, isStripeConfigured } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -53,11 +52,9 @@ export default async function BillingTrialExpiredPage() {
       })
     : null;
 
-  const [{ plans }, stripeConfigured, billingConfigured, publishableKey] = await Promise.all([
+  const [{ plans }, billingConfigured] = await Promise.all([
     listCheckoutPlanOptions(),
-    Promise.resolve(isStripeConfigured()),
     Promise.resolve(isBillingConfigured()),
-    Promise.resolve(getStripePublishableKey()),
   ]);
 
   return (
@@ -147,8 +144,6 @@ export default async function BillingTrialExpiredPage() {
               plans={plans}
               initialPlanSlug={(billing.planSlug as PlanSlug | null) ?? null}
               initialInterval={billing.billingInterval === "monthly" ? "monthly" : "yearly"}
-              publishableKey={publishableKey}
-              stripeConfigured={stripeConfigured}
               billingConfigured={billingConfigured}
             />
           </div>

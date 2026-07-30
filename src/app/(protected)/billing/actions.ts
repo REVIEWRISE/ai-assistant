@@ -1,14 +1,19 @@
 "use server";
 
 import { requireSession } from "@/lib/auth-session";
+import {
+  createBillingCheckout,
+  ensureBillingCustomerForOrganization,
+  isBillingConfigured,
+} from "@/lib/billing-client";
 import { resolveCheckoutPlan } from "@/lib/billing-checkout";
 import { getOrgBilling, type BillingInterval } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { PLAN_SLUGS, type PlanSlug } from "@/lib/pricing-plans";
-import { getAppUrl, getStripe, isStripeConfigured } from "@/lib/stripe";
+import { getAppUrl } from "@/lib/stripe";
 
 export type CreateCheckoutSessionResult =
-  | { ok: true; clientSecret: string }
+  | { ok: true; checkoutUrl: string; sessionId: string | null }
   | { ok: false; error: string };
 
 function asPlanSlug(value: string): PlanSlug | null {
@@ -19,14 +24,14 @@ function asInterval(value: string): BillingInterval {
   return value === "yearly" ? "yearly" : "monthly";
 }
 
-export async function createEmbeddedCheckoutSession(input: {
+export async function createBillingCheckoutSession(input: {
   planSlug: string;
   billingInterval: string;
 }): Promise<CreateCheckoutSessionResult> {
-  if (!isStripeConfigured()) {
+  if (!isBillingConfigured()) {
     return {
       ok: false,
-      error: "Stripe is not configured yet. Ask a platform admin to enable checkout.",
+      error: "Billing is not configured yet. Ask a platform admin to set BILLING_API_KEY.",
     };
   }
 
@@ -51,52 +56,65 @@ export async function createEmbeddedCheckoutSession(input: {
   if (!resolved) {
     return {
       ok: false,
-      error:
-        "This plan is not available for checkout yet (missing Stripe price). Contact support.",
+      error: "This plan is not available for checkout yet. Contact support.",
     };
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: { email: true },
-  });
+  const [org, user] = await Promise.all([
+    prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true, name: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { email: true },
+    }),
+  ]);
+
+  if (!org) {
+    return { ok: false, error: "Workspace could not be loaded." };
+  }
+
+  const customerEmail = user?.email?.trim() || null;
+  if (!customerEmail) {
+    return { ok: false, error: "Add an email to your account before starting checkout." };
+  }
+
+  const appUrl = getAppUrl();
 
   try {
-    const stripe = getStripe();
-    const checkoutSession = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      ui_mode: "embedded_page",
-      payment_method_types: ["card"],
-      ...(user?.email ? { customer_email: user.email } : {}),
-      line_items: [{ price: resolved.stripePriceId, quantity: 1 }],
-      return_url: `${getAppUrl()}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      client_reference_id: organizationId,
-      metadata: {
-        organizationId,
-        productId: resolved.productId,
-        planId: resolved.planId,
-        planSlug: resolved.planSlug,
-        billingInterval: resolved.billingInterval,
-      },
-      subscription_data: {
-        metadata: {
-          organizationId,
-          productId: resolved.productId,
-          planId: resolved.planId,
-          planSlug: resolved.planSlug,
-          billingInterval: resolved.billingInterval,
-        },
-      },
+    const customerId = await ensureBillingCustomerForOrganization({
+      organizationId: org.id,
+      organizationName: org.name,
+      primaryEmail: customerEmail,
     });
 
-    if (!checkoutSession.client_secret) {
-      return { ok: false, error: "Checkout session was created without a client secret." };
-    }
+    const checkout = await createBillingCheckout({
+      customerId,
+      planId: resolved.planId,
+      successUrl: `${appUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${appUrl}/billing/canceled`,
+      customerEmail,
+    });
 
-    return { ok: true, clientSecret: checkoutSession.client_secret };
+    return {
+      ok: true,
+      checkoutUrl: checkout.checkoutUrl,
+      sessionId: checkout.sessionId,
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Checkout failed.";
-    return { ok: false, error: message };
+    const unknownField = message.match(/Unknown field `[^`]+`[^\n]*/)?.[0];
+    const billingApi = message.match(/Billing API error[^\n]*/)?.[0];
+    const short =
+      unknownField ??
+      billingApi ??
+      message
+        .split("\n")
+        .map((line) => line.trim())
+        .find(Boolean) ??
+      message;
+    return { ok: false, error: short };
   }
 }
 

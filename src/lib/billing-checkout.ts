@@ -25,15 +25,6 @@ export function mapCatalogNameToPlanSlug(nameOrSlug: string): PlanSlug | null {
   return null;
 }
 
-function yearlyPriceAsAnnualTotal(
-  monthly: number | null,
-  yearly: number | null,
-): number | null {
-  if (yearly == null) return null;
-  if (monthly != null && monthly > 0 && yearly >= monthly * 8) return yearly;
-  return yearly * 12;
-}
-
 function toCheckoutOption(plan: CatalogPlanView): CheckoutPlanOption | null {
   const slug = mapCatalogNameToPlanSlug(plan.slug) ?? mapCatalogNameToPlanSlug(plan.name);
   if (!slug) return null;
@@ -43,7 +34,8 @@ function toCheckoutOption(plan: CatalogPlanView): CheckoutPlanOption | null {
     name: plan.name,
     description: plan.description,
     monthlyPriceCents: plan.monthlyPriceCents,
-    yearlyPriceCents: yearlyPriceAsAnnualTotal(plan.monthlyPriceCents, plan.yearlyPriceCents),
+    // Use the yearly plan's priceAmount from Billing as-is (annual total), never monthly×12.
+    yearlyPriceCents: plan.yearlyPriceCents,
     currencyCode: plan.currencyCode,
     monthlyPlanId: plan.monthlyPlanId,
     yearlyPlanId: plan.yearlyPlanId,
@@ -110,12 +102,12 @@ export async function resolveCheckoutPlan(input: {
   const stripePriceId = yearly ? option.yearlyStripePriceId : option.monthlyStripePriceId;
   const priceAmount = yearly ? option.yearlyPriceCents : option.monthlyPriceCents;
 
-  if (!planId || !stripePriceId || priceAmount == null) {
+  if (!planId) {
     const altPlanId = yearly ? option.monthlyPlanId : option.yearlyPlanId;
     const altStripe = yearly ? option.monthlyStripePriceId : option.yearlyStripePriceId;
     const altPrice = yearly ? option.monthlyPriceCents : option.yearlyPriceCents;
     const altInterval: BillingInterval = yearly ? "monthly" : "yearly";
-    if (!altPlanId || !altStripe || altPrice == null) return null;
+    if (!altPlanId) return null;
     return {
       productId,
       planId: altPlanId,

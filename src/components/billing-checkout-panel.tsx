@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { loadStripe } from "@stripe/stripe-js";
-import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
-import { createEmbeddedCheckoutSession } from "@/app/(protected)/billing/actions";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { createBillingCheckoutSession } from "@/app/(protected)/billing/actions";
 import type { CheckoutPlanOption } from "@/lib/billing-checkout-types";
 import { formatUsd, type PlanSlug } from "@/lib/pricing-plans";
 import { toast } from "@/lib/toast";
@@ -12,8 +10,6 @@ type BillingCheckoutPanelProps = {
   plans: CheckoutPlanOption[];
   initialPlanSlug: PlanSlug | null;
   initialInterval: "monthly" | "yearly";
-  publishableKey: string | null;
-  stripeConfigured: boolean;
   billingConfigured: boolean;
 };
 
@@ -21,8 +17,6 @@ export function BillingCheckoutPanel({
   plans,
   initialPlanSlug,
   initialInterval,
-  publishableKey,
-  stripeConfigured,
   billingConfigured,
 }: BillingCheckoutPanelProps) {
   const defaultSlug =
@@ -34,57 +28,39 @@ export function BillingCheckoutPanel({
 
   const [planSlug, setPlanSlug] = useState<PlanSlug | null>(defaultSlug);
   const [interval, setInterval] = useState<"monthly" | "yearly">(initialInterval);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const configToastShown = useRef(false);
 
   useEffect(() => {
-    if (stripeConfigured && billingConfigured) return;
+    if (billingConfigured) return;
     if (configToastShown.current) return;
     configToastShown.current = true;
 
-    const missing = [
-      !billingConfigured ? "Billing API" : null,
-      !stripeConfigured ? "Stripe keys" : null,
-    ].filter(Boolean);
-
-    toast.warning("Self-serve checkout is not fully configured yet", {
-      description: `${missing.join(" and ")} missing. Complete billing setup before customers can subscribe.`,
+    toast.warning("Self-serve checkout is not configured yet", {
+      description: "Billing API is missing. Complete billing setup before customers can subscribe.",
     });
-  }, [stripeConfigured, billingConfigured]);
+  }, [billingConfigured]);
 
   const selected = plans.find((plan) => plan.slug === planSlug) ?? null;
   const priceCents =
     interval === "yearly" ? selected?.yearlyPriceCents : selected?.monthlyPriceCents;
-  const canCheckout =
-    stripeConfigured &&
-    billingConfigured &&
-    Boolean(publishableKey) &&
-    Boolean(selected) &&
-    Boolean(
-      interval === "yearly" ? selected?.yearlyStripePriceId : selected?.monthlyStripePriceId,
-    );
-
-  const stripePromise = useMemo(
-    () => (publishableKey ? loadStripe(publishableKey) : null),
-    [publishableKey],
+  const hasPlanId = Boolean(
+    selected && (interval === "yearly" ? selected.yearlyPlanId : selected.monthlyPlanId),
   );
+  const canCheckout = billingConfigured && Boolean(selected) && hasPlanId;
 
   function startCheckout() {
     if (!planSlug) return;
-    setError(null);
     startTransition(async () => {
-      const result = await createEmbeddedCheckoutSession({
+      const result = await createBillingCheckoutSession({
         planSlug,
         billingInterval: interval,
       });
       if (!result.ok) {
-        setClientSecret(null);
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
-      setClientSecret(result.clientSecret);
+      window.location.assign(result.checkoutUrl);
     });
   }
 
@@ -97,43 +73,13 @@ export function BillingCheckoutPanel({
     );
   }
 
-  if (clientSecret && stripePromise) {
-    return (
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-[var(--color-text)]">Complete payment</p>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              {selected?.name} · {interval === "yearly" ? "Yearly" : "Monthly"}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setClientSecret(null);
-              setError(null);
-            }}
-            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
-          >
-            Change plan
-          </button>
-        </div>
-        <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white p-2">
-          <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
-            <EmbeddedCheckout />
-          </EmbeddedCheckoutProvider>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-[var(--color-text)]">Subscribe to restore access</p>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            Pay here without leaving your workspace. Card details are handled by Stripe.
+            You’ll be redirected to a secure Stripe checkout page hosted by Billing.
           </p>
         </div>
         <div className="inline-flex rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1">
@@ -159,8 +105,9 @@ export function BillingCheckoutPanel({
           const selectedPlan = plan.slug === planSlug;
           const amount =
             interval === "yearly" ? plan.yearlyPriceCents : plan.monthlyPriceCents;
-          const hasStripe =
-            interval === "yearly" ? plan.yearlyStripePriceId : plan.monthlyStripePriceId;
+          const planAvailable = Boolean(
+            interval === "yearly" ? plan.yearlyPlanId : plan.monthlyPlanId,
+          );
           return (
             <button
               key={plan.slug}
@@ -189,19 +136,13 @@ export function BillingCheckoutPanel({
               <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--color-text-muted)]">
                 {plan.description}
               </p>
-              {!hasStripe ? (
-                <p className="mt-3 text-[11px] font-medium text-amber-700">Stripe price not linked</p>
+              {!planAvailable ? (
+                <p className="mt-3 text-[11px] font-medium text-amber-700">Not available for checkout</p>
               ) : null}
             </button>
           );
         })}
       </div>
-
-      {error ? (
-        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
-      ) : null}
 
       <div className="flex justify-end">
         <button
@@ -211,7 +152,7 @@ export function BillingCheckoutPanel({
           className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending
-            ? "Starting checkout…"
+            ? "Redirecting…"
             : priceCents != null
               ? `Subscribe · ${formatUsd(priceCents)}`
               : "Subscribe"}

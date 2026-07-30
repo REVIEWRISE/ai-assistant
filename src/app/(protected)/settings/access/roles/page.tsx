@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { RolesToasts } from "@/components/roles-toasts";
 import { RolesManager } from "@/components/roles-manager";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
-import { AccessControlNav } from "@/components/access-control-nav";
 import { createRole, deleteRole, updateRole } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -81,8 +80,6 @@ export default async function AccessRolesPage() {
           },
         ]}
       />
-
-      <AccessControlNav />
 
       <RolesManager
         roles={roles.map((role) => ({

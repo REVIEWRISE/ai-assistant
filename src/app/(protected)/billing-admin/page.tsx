@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
-import { BillingAdminNav } from "@/components/billing-admin-nav";
 import { requireAdminSession } from "@/lib/auth-session";
 import { getBillingCatalogPlans } from "@/lib/billing-plan-repository";
 import { prisma } from "@/lib/prisma";
@@ -53,8 +52,6 @@ export default async function BillingAdminPage() {
           },
         ]}
       />
-
-      <BillingAdminNav />
 
       <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
         <div className="border-b border-[var(--color-border)] px-4 py-4 lg:px-5">

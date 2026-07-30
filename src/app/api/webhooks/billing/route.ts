@@ -11,6 +11,7 @@ type BillingEvent = {
   id: string;
   eventType: string;
   organizationId: string | null;
+  customerId: string | null;
   productId: string | null;
   data: Record<string, unknown>;
 };
@@ -47,13 +48,37 @@ function asPlanSlug(value: string | null | undefined): PlanSlug | null {
   return (PLAN_SLUGS as readonly string[]).includes(value) ? (value as PlanSlug) : null;
 }
 
+async function resolveOrganizationId(event: BillingEvent): Promise<string | null> {
+  if (event.organizationId) {
+    const byId = await prisma.organization.findUnique({
+      where: { id: event.organizationId },
+      select: { id: true },
+    });
+    if (byId) return byId.id;
+  }
+
+  const customerIds = [
+    event.customerId,
+    asString(event.data.customerId),
+    asString(event.data.customer_id),
+  ].filter((value): value is string => Boolean(value));
+
+  for (const customerId of customerIds) {
+    const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id
+      FROM organizations
+      WHERE billing_customer_id = ${customerId}
+      LIMIT 1
+    `;
+    if (rows[0]?.id) return rows[0].id;
+  }
+
+  return null;
+}
+
 async function grantAccess(event: BillingEvent): Promise<void> {
-  if (!event.organizationId) return;
-  const org = await prisma.organization.findUnique({
-    where: { id: event.organizationId },
-    select: { id: true },
-  });
-  if (!org) return;
+  const organizationId = await resolveOrganizationId(event);
+  if (!organizationId) return;
 
   const planId =
     asString(event.data.planId) ??
@@ -77,7 +102,7 @@ async function grantAccess(event: BillingEvent): Promise<void> {
   const currentPeriodEndsAt = periodEndRaw ? new Date(periodEndRaw) : undefined;
 
   await markOrgPaid({
-    organizationId: event.organizationId,
+    organizationId,
     ...(planSlug ? { planSlug } : {}),
     ...(billingInterval ? { billingInterval } : {}),
     ...(currentPeriodEndsAt && !Number.isNaN(currentPeriodEndsAt.getTime())
@@ -86,20 +111,18 @@ async function grantAccess(event: BillingEvent): Promise<void> {
   });
 }
 
-async function revokeAccess(organizationId: string | null): Promise<void> {
+async function revokeAccess(event: BillingEvent): Promise<void> {
+  const organizationId = await resolveOrganizationId(event);
   if (!organizationId) return;
-  const org = await prisma.organization.findUnique({
-    where: { id: organizationId },
-    select: { id: true },
-  });
-  if (!org) return;
   await markOrgUnpaid(organizationId);
 }
 
 async function markRenewal(event: BillingEvent): Promise<void> {
-  if (!event.organizationId) return;
+  const organizationId = await resolveOrganizationId(event);
+  if (!organizationId) return;
+
   const org = await prisma.organization.findUnique({
-    where: { id: event.organizationId },
+    where: { id: organizationId },
     select: { id: true, planSlug: true, billingInterval: true },
   });
   if (!org) return;
@@ -109,7 +132,7 @@ async function markRenewal(event: BillingEvent): Promise<void> {
   const planSlug = asPlanSlug(org.planSlug);
 
   await markOrgPaid({
-    organizationId: event.organizationId,
+    organizationId,
     ...(planSlug ? { planSlug } : {}),
     ...(org.billingInterval === "yearly" || org.billingInterval === "monthly"
       ? { billingInterval: org.billingInterval }
@@ -141,6 +164,7 @@ export async function POST(req: NextRequest) {
       id: parsed.id,
       eventType: parsed.eventType,
       organizationId: parsed.organizationId ?? null,
+      customerId: asString(parsed.customerId),
       productId: parsed.productId ?? null,
       data: asRecord(parsed.data) ?? {},
     };
@@ -168,7 +192,7 @@ export async function POST(req: NextRequest) {
         break;
       case "subscription.canceled":
       case "subscription.paused":
-        await revokeAccess(event.organizationId);
+        await revokeAccess(event);
         break;
       case "invoice.paid":
         await markRenewal(event);
