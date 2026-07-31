@@ -117,7 +117,7 @@ export default async function BillingCanceledPage() {
               </div>
 
               <p className="text-center text-[11px] leading-5 text-[var(--color-text-subtle)]">
-                Changed your mind mid-checkout? That's fine — nothing was billed.
+                Changed your mind mid-checkout? That&apos;s fine — nothing was billed.
               </p>
             </div>
           </section>
