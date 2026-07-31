@@ -51,14 +51,14 @@ export async function selectPlanAction(formData: FormData) {
       }),
       prisma.user.findUnique({
         where: { id: session.userId },
-        select: { email: true },
+        select: { email: true, fullName: true },
       }),
     ]);
     if (org && user?.email) {
       try {
         await ensureBillingCustomerForOrganization({
           organizationId: org.id,
-          organizationName: org.name,
+          customerName: user.fullName?.trim() || user.email,
           primaryEmail: user.email,
         });
       } catch (error) {

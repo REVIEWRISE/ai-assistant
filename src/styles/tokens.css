@@ -75,12 +75,12 @@
   --color-grad-end:        #8a8a8a;
 
   --color-success:         #d6d6d6;
-  --color-success-soft:    #1a1a1a;
+  --color-success-soft:    #242424;
   --color-danger:          #ef4444;
   --color-danger-fg:       #ffffff;
   --color-danger-soft:     #2a1515;
-  --color-warning:         #b0b0b0;
-  --color-warning-soft:    #1a1a1a;
+  --color-warning:         #c4c4c4;
+  --color-warning-soft:    #242424;
 
   --color-data-green:      #e8e8e8;
   --color-data-purple:     #b0b0b0;

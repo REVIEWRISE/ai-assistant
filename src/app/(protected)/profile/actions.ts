@@ -163,13 +163,13 @@ export async function createOrganization(formData: FormData) {
   if (isBillingConfigured()) {
     const user = await prisma.user.findUnique({
       where: { id: session.userId },
-      select: { email: true },
+      select: { email: true, fullName: true },
     });
     if (user?.email) {
       try {
         await ensureBillingCustomerForOrganization({
           organizationId: organization.id,
-          organizationName: organization.name,
+          customerName: user.fullName?.trim() || user.email,
           primaryEmail: user.email,
         });
       } catch (error) {

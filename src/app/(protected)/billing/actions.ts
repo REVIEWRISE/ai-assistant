@@ -2,9 +2,11 @@
 
 import { requireSession } from "@/lib/auth-session";
 import {
+  clearCheckoutPendingSubscriptions,
   createBillingCheckout,
   ensureBillingCustomerForOrganization,
   isBillingConfigured,
+  resolveBillingProduct,
 } from "@/lib/billing-client";
 import { resolveCheckoutPlan } from "@/lib/billing-checkout";
 import { getOrgBilling, type BillingInterval } from "@/lib/entitlements";
@@ -22,6 +24,10 @@ function asPlanSlug(value: string): PlanSlug | null {
 
 function asInterval(value: string): BillingInterval {
   return value === "yearly" ? "yearly" : "monthly";
+}
+
+function isCheckoutPendingConflict(message: string): boolean {
+  return /409/i.test(message) && /checkout_pending/i.test(message);
 }
 
 export async function createBillingCheckoutSession(input: {
@@ -67,7 +73,7 @@ export async function createBillingCheckoutSession(input: {
     }),
     prisma.user.findUnique({
       where: { id: session.userId },
-      select: { email: true },
+      select: { email: true, fullName: true },
     }),
   ]);
 
@@ -85,29 +91,69 @@ export async function createBillingCheckoutSession(input: {
   try {
     const customerId = await ensureBillingCustomerForOrganization({
       organizationId: org.id,
-      organizationName: org.name,
+      customerName: user?.fullName?.trim() || customerEmail,
       primaryEmail: customerEmail,
     });
 
-    const checkout = await createBillingCheckout({
+    const checkoutInput = {
       customerId,
       planId: resolved.planId,
       successUrl: `${appUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${appUrl}/billing/canceled`,
       customerEmail,
-    });
-
-    return {
-      ok: true,
-      checkoutUrl: checkout.checkoutUrl,
-      sessionId: checkout.sessionId,
     };
+
+    try {
+      const checkout = await createBillingCheckout(checkoutInput);
+      return {
+        ok: true,
+        checkoutUrl: checkout.checkoutUrl,
+        sessionId: checkout.sessionId,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (!isCheckoutPendingConflict(message)) throw error;
+
+      // Abandoned Stripe checkout left a checkout_pending sub — clear it and retry once.
+      const product = await resolveBillingProduct().catch(() => null);
+      const cleared = await clearCheckoutPendingSubscriptions({
+        customerId,
+        productId: product?.id ?? null,
+      });
+      if (process.env.NODE_ENV !== "production") {
+        console.info("[billing/checkout] cleared checkout_pending subscriptions", {
+          customerId,
+          cleared,
+        });
+      }
+      if (cleared === 0) {
+        return {
+          ok: false,
+          error:
+            "A previous checkout is still open for this workspace. Finish or cancel it in Stripe, then try again.",
+        };
+      }
+
+      const checkout = await createBillingCheckout(checkoutInput);
+      return {
+        ok: true,
+        checkoutUrl: checkout.checkoutUrl,
+        sessionId: checkout.sessionId,
+      };
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Checkout failed.";
     if (process.env.NODE_ENV !== "production") {
       console.error("[billing/checkout]", message);
     }
 
+    if (isCheckoutPendingConflict(message)) {
+      return {
+        ok: false,
+        error:
+          "A previous checkout is still open for this workspace. Finish or cancel it, then try again.",
+      };
+    }
     if (/not configured|BILLING_API_KEY/i.test(message)) {
       return {
         ok: false,
