@@ -104,7 +104,7 @@ export function BillingSuccessClient({
       ? `${workspaceName ? `${workspaceName} is` : "Your workspace is"} unlocked. Redirecting to the dashboard…`
       : status === "timeout"
         ? "Checkout completed, but activation is still catching up. You can continue to the dashboard or wait a moment and refresh."
-        : "We’re confirming your payment and turning your plan on. This usually takes a few seconds.";
+        : "We're confirming your payment and turning your plan on. This usually takes a few seconds.";
 
   return (
     <section className="landing-animate-up mx-auto w-full max-w-lg overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_30px_80px_-48px_rgba(15,23,42,0.45)] sm:rounded-[1.75rem]">
@@ -131,7 +131,9 @@ export function BillingSuccessClient({
         <ol className="space-y-2.5 sm:space-y-3" aria-label="Activation progress">
           {STEPS.map((step, index) => {
             const done = status === "active" || index < activeStep;
-            const current = status === "waiting" && index === activeStep;
+            const current =
+              (status === "waiting" && index === activeStep) ||
+              (status === "timeout" && index === activeStep);
             return (
               <li key={step} className="flex items-center gap-2.5 sm:gap-3">
                 <span
@@ -148,6 +150,11 @@ export function BillingSuccessClient({
                     <svg viewBox="0 0 24 24" className="size-3 sm:size-3.5" fill="none" stroke="currentColor" strokeWidth="3">
                       <path strokeLinecap="round" strokeLinejoin="round" d="m5 13 4 4L19 7" />
                     </svg>
+                  ) : current && status === "timeout" ? (
+                    <svg viewBox="0 0 24 24" className="size-3 sm:size-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="9" />
+                      <path strokeLinecap="round" d="M12 7v5l3 2" />
+                    </svg>
                   ) : (
                     index + 1
                   )}
@@ -161,7 +168,7 @@ export function BillingSuccessClient({
                 </span>
                 {current ? (
                   <span className="hidden shrink-0 text-[11px] font-medium text-[var(--color-text-muted)] sm:inline">
-                    In progress…
+                    {status === "timeout" ? "Still syncing…" : "In progress…"}
                   </span>
                 ) : null}
               </li>

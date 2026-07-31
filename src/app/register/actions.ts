@@ -94,7 +94,7 @@ export async function registerUser(formData: FormData) {
     try {
       await ensureBillingCustomerForOrganization({
         organizationId,
-        organizationName,
+        customerName: fullName,
         primaryEmail: email,
       });
     } catch (error) {

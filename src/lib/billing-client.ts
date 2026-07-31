@@ -578,6 +578,132 @@ export type BillingCheckoutCreateResult = {
   subscriptionId: string | null;
 };
 
+export type BillingSubscriptionSummary = {
+  id: string;
+  status: string;
+  customerId: string | null;
+  productId: string | null;
+  planId: string | null;
+};
+
+function parseBillingSubscription(raw: unknown): BillingSubscriptionSummary | null {
+  const row = asRecord(raw);
+  if (!row) return null;
+  const id = asString(row.id);
+  const status = asString(row.status);
+  if (!id || !status) return null;
+  return {
+    id,
+    status: status.toLowerCase(),
+    customerId:
+      asString(row.customerId) ??
+      asString(asRecord(row.customer)?.id) ??
+      asString(row.billingCustomerId) ??
+      null,
+    productId:
+      asString(row.productId) ??
+      asString(asRecord(row.product)?.id) ??
+      null,
+    planId:
+      asString(row.planId) ??
+      asString(asRecord(row.plan)?.id) ??
+      null,
+  };
+}
+
+/**
+ * List admin subscriptions. Prefer filtering by status when clearing stuck checkouts.
+ */
+export async function listBillingSubscriptions(options?: {
+  status?: string | string[];
+  customerId?: string;
+  limit?: number;
+}): Promise<BillingSubscriptionSummary[]> {
+  const params = new URLSearchParams();
+  params.set("page", "1");
+  params.set("limit", String(Math.min(50, Math.max(1, options?.limit ?? 50))));
+  if (options?.customerId?.trim()) {
+    params.set("customerId", options.customerId.trim());
+  }
+  const statuses = Array.isArray(options?.status)
+    ? options.status
+    : options?.status
+      ? [options.status]
+      : [];
+  for (const status of statuses) {
+    if (status.trim()) params.append("status", status.trim());
+  }
+
+  const res = await billingFetch(`/billing/admin/subscriptions?${params.toString()}`);
+  const body = (await res.json()) as { data?: unknown };
+  const rows = Array.isArray(body.data) ? body.data : Array.isArray(body) ? (body as unknown[]) : [];
+  return rows
+    .map(parseBillingSubscription)
+    .filter((item): item is BillingSubscriptionSummary => Boolean(item));
+}
+
+export async function cancelBillingSubscription(
+  subscriptionId: string,
+  mode: "now" | "period_end" = "now",
+): Promise<void> {
+  await billingFetch(`/billing/admin/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, {
+    method: "PATCH",
+    body: JSON.stringify({ mode }),
+  });
+}
+
+/**
+ * Cancel stuck checkout_pending subscriptions for a Billing customer so a new
+ * checkout/create can proceed (Billing returns 409 while one is open).
+ */
+export async function clearCheckoutPendingSubscriptions(input: {
+  customerId: string;
+  productId?: string | null;
+}): Promise<number> {
+  let pending = await listBillingSubscriptions({
+    status: "checkout_pending",
+    customerId: input.customerId,
+    limit: 50,
+  });
+
+  // Some Billing versions ignore customerId on list — fall back to status filter.
+  if (pending.length === 0) {
+    pending = await listBillingSubscriptions({
+      status: "checkout_pending",
+      limit: 50,
+    });
+  }
+
+  const targets = pending.filter((sub) => {
+    if (sub.customerId && sub.customerId !== input.customerId) return false;
+    // Without a customerId on the row, only cancel when the list was customer-scoped
+    // (first request) or when we cannot distinguish — require matching customerId.
+    if (!sub.customerId) return false;
+    if (input.productId && sub.productId && sub.productId !== input.productId) {
+      return false;
+    }
+    return true;
+  });
+
+  let canceled = 0;
+  for (const sub of targets) {
+    try {
+      await cancelBillingSubscription(sub.id, "now");
+      canceled += 1;
+      billingLog("[billing] canceled checkout_pending subscription", {
+        subscriptionId: sub.id,
+        customerId: input.customerId,
+      });
+    } catch (error) {
+      billingLogError("[billing] failed to cancel checkout_pending subscription", {
+        subscriptionId: sub.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return canceled;
+}
+
 export type BillingCustomer = {
   id: string;
   name: string | null;
@@ -667,7 +793,7 @@ async function storeOrganizationBillingCustomerId(
  */
 export async function ensureBillingCustomerForOrganization(input: {
   organizationId: string;
-  organizationName: string;
+  customerName: string;
   primaryEmail: string;
 }): Promise<string> {
   // 1) Already linked on this workspace?
@@ -685,7 +811,7 @@ export async function ensureBillingCustomerForOrganization(input: {
   // 3) Create only when Billing has no customer yet.
   if (!customerId) {
     const created = await createBillingCustomer({
-      name: input.organizationName.trim() || "Workspace",
+      name: input.customerName.trim() || email,
       primaryEmail: email,
     });
     customerId = created.id;

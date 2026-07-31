@@ -255,3 +255,43 @@
 .vr-toast-info {
   border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
 }
+
+.dark .vr-toast,
+[data-theme="dark"] .vr-toast {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  box-shadow:
+    0 22px 44px -24px rgb(0 0 0 / 0.9),
+    0 10px 22px -16px rgb(0 0 0 / 0.65),
+    inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
+
+.dark .vr-toast-success,
+[data-theme="dark"] .vr-toast-success {
+  border-color: color-mix(in srgb, var(--color-success) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-success-soft) 85%, var(--color-surface));
+}
+
+.dark .vr-toast-error,
+[data-theme="dark"] .vr-toast-error {
+  border-color: color-mix(in srgb, var(--color-danger) 42%, var(--color-border));
+  background: color-mix(in srgb, var(--color-danger-soft) 75%, var(--color-surface));
+}
+
+.dark .vr-toast-warning,
+[data-theme="dark"] .vr-toast-warning {
+  border-color: color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-warning-soft) 85%, var(--color-surface));
+}
+
+.dark .vr-toast-info,
+[data-theme="dark"] .vr-toast-info {
+  border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary-soft) 70%, var(--color-surface));
+}
+
+.dark .vr-toast-close:hover,
+[data-theme="dark"] .vr-toast-close:hover {
+  border-color: var(--color-border-hover);
+  background: var(--color-raised);
+}
