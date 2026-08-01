@@ -485,7 +485,7 @@ export function UsersManager({
 
       {modal && modal.type !== "delete"
         ? createPortal(
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_42%,transparent)] px-4 backdrop-blur-sm">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-overlay)] px-4 backdrop-blur-sm">
               <div
                 role="dialog"
                 aria-modal="true"

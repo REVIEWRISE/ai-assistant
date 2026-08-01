@@ -203,7 +203,7 @@ export function OrganizationsManager({
 
       {modal && modal.type !== "delete"
         ? createPortal(
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] px-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-overlay)] px-4">
               <div className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5 shadow-[var(--shadow-lg)]">
                 <div className="flex items-start justify-between gap-3">
                   <div>

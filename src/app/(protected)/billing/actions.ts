@@ -5,17 +5,27 @@ import {
   clearCheckoutPendingSubscriptions,
   createBillingCheckout,
   ensureBillingCustomerForOrganization,
+  getOrganizationBillingCustomerId,
   isBillingConfigured,
+  listBillingSubscriptions,
   resolveBillingProduct,
 } from "@/lib/billing-client";
-import { resolveCheckoutPlan } from "@/lib/billing-checkout";
-import { getOrgBilling, type BillingInterval } from "@/lib/entitlements";
+import {
+  resolveCheckoutPlan,
+  resolvePlanSlugFromBillingPlanId,
+} from "@/lib/billing-checkout";
+import {
+  getOrgBilling,
+  markOrgPaid,
+  type BillingInterval,
+} from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { PLAN_SLUGS, type PlanSlug } from "@/lib/pricing-plans";
 import { getAppUrl } from "@/lib/stripe";
 
 export type CreateCheckoutSessionResult =
-  | { ok: true; checkoutUrl: string; sessionId: string | null }
+  | { ok: true; alreadyActive: true }
+  | { ok: true; alreadyActive?: false; checkoutUrl: string; sessionId: string | null }
   | { ok: false; error: string };
 
 function asPlanSlug(value: string): PlanSlug | null {
@@ -28,6 +38,57 @@ function asInterval(value: string): BillingInterval {
 
 function isCheckoutPendingConflict(message: string): boolean {
   return /409/i.test(message) && /checkout_pending/i.test(message);
+}
+
+function isActiveSubscriptionConflict(message: string): boolean {
+  return /409/i.test(message) && /\b(active|trialing)\b/i.test(message);
+}
+
+/**
+ * If Billing already has an active/trialing sub for this customer, mirror that
+ * onto the local workspace so checkout/expired walls unlock.
+ */
+async function syncOrgFromActiveBillingSubscription(input: {
+  organizationId: string;
+  customerId: string;
+  preferredPlanSlug?: PlanSlug;
+  preferredInterval?: BillingInterval;
+}): Promise<boolean> {
+  const product = await resolveBillingProduct().catch(() => null);
+
+  let subs = await listBillingSubscriptions({
+    status: ["active", "trialing"],
+    customerId: input.customerId,
+    limit: 50,
+  });
+  if (subs.length === 0) {
+    subs = (await listBillingSubscriptions({ status: ["active", "trialing"], limit: 50 })).filter(
+      (sub) => sub.customerId === input.customerId,
+    );
+  }
+
+  const match =
+    subs.find(
+      (sub) => !product?.id || !sub.productId || sub.productId === product.id,
+    ) ?? null;
+  if (!match) return false;
+
+  let planSlug = input.preferredPlanSlug;
+  let billingInterval = input.preferredInterval;
+  if (match.planId) {
+    const resolved = await resolvePlanSlugFromBillingPlanId(match.planId);
+    if (resolved) {
+      planSlug = resolved.planSlug;
+      billingInterval = resolved.billingInterval;
+    }
+  }
+
+  await markOrgPaid({
+    organizationId: input.organizationId,
+    ...(planSlug ? { planSlug } : {}),
+    ...(billingInterval ? { billingInterval } : {}),
+  });
+  return true;
 }
 
 export async function createBillingCheckoutSession(input: {
@@ -95,6 +156,17 @@ export async function createBillingCheckoutSession(input: {
       primaryEmail: customerEmail,
     });
 
+    // Billing already paid but local DB lagged (missed webhook) — unlock and stop checkout.
+    const alreadySynced = await syncOrgFromActiveBillingSubscription({
+      organizationId: org.id,
+      customerId,
+      preferredPlanSlug: planSlug,
+      preferredInterval: billingInterval,
+    });
+    if (alreadySynced) {
+      return { ok: true, alreadyActive: true };
+    }
+
     const checkoutInput = {
       customerId,
       planId: resolved.planId,
@@ -112,6 +184,22 @@ export async function createBillingCheckoutSession(input: {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
+
+      if (isActiveSubscriptionConflict(message)) {
+        const synced = await syncOrgFromActiveBillingSubscription({
+          organizationId: org.id,
+          customerId,
+          preferredPlanSlug: planSlug,
+          preferredInterval: billingInterval,
+        });
+        if (synced) return { ok: true, alreadyActive: true };
+        return {
+          ok: false,
+          error:
+            "This workspace is already subscribed in Billing. Refresh or open the dashboard — access should unlock shortly.",
+        };
+      }
+
       if (!isCheckoutPendingConflict(message)) throw error;
 
       // Abandoned Stripe checkout left a checkout_pending sub — clear it and retry once.
@@ -147,6 +235,13 @@ export async function createBillingCheckoutSession(input: {
       console.error("[billing/checkout]", message);
     }
 
+    if (isActiveSubscriptionConflict(message)) {
+      return {
+        ok: false,
+        error:
+          "This workspace is already subscribed in Billing. Refresh or open the dashboard — access should unlock shortly.",
+      };
+    }
     if (isCheckoutPendingConflict(message)) {
       return {
         ok: false,
@@ -201,7 +296,27 @@ export async function getBillingStatusForActiveOrg(): Promise<{
   if (!organizationId) {
     return { billingStatus: null, paidAt: null };
   }
-  const billing = await getOrgBilling(organizationId);
+
+  let billing = await getOrgBilling(organizationId);
+
+  // Success-page poll: if webhook lagged, pull active status from Billing and unlock locally.
+  if (
+    isBillingConfigured() &&
+    billing &&
+    billing.billingStatus !== "active"
+  ) {
+    const customerId = await getOrganizationBillingCustomerId(organizationId);
+    if (customerId) {
+      const synced = await syncOrgFromActiveBillingSubscription({
+        organizationId,
+        customerId,
+      });
+      if (synced) {
+        billing = await getOrgBilling(organizationId);
+      }
+    }
+  }
+
   return {
     billingStatus: billing?.billingStatus ?? null,
     paidAt: billing?.paidAt?.toISOString() ?? null,

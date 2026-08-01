@@ -71,6 +71,11 @@ export function BillingExpiredPlanPicker({
         toast.error(result.error);
         return;
       }
+      if (result.alreadyActive) {
+        toast.success("Subscription is already active.");
+        window.location.assign("/dashboard?success=subscription_active");
+        return;
+      }
       window.location.assign(result.checkoutUrl);
     });
   }

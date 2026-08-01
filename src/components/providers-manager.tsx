@@ -488,7 +488,7 @@ export function ProvidersManager({
 
       {modal && modal.type !== "delete"
         ? createPortal(
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] px-4 backdrop-blur-sm">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-overlay)] px-4 backdrop-blur-sm">
               <div className="max-h-[calc(100vh-3rem)] w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-2xl">
                 <div className="flex items-start justify-between gap-3 border-b border-[var(--color-border)] px-6 py-5">
                   <div>
@@ -706,7 +706,7 @@ export function ProvidersManager({
                                   createConnectionFieldEntry(),
                                 ])
                               }
-                              className="rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--color-primary-h)]"
+                              className="rounded-lg border border-[var(--color-primary)] vr-btn-primary px-3 py-1.5 text-xs font-semibold transition hover:bg-[var(--color-primary-h)]"
                             >
                               + Add required field
                             </button>

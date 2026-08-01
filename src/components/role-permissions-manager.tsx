@@ -273,7 +273,7 @@ export function RolePermissionsManager({
 
       {modal?.type === "create"
         ? createPortal(
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] px-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-overlay)] px-4">
               <div className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5 shadow-2xl">
                 <div className="flex items-start justify-between gap-3">
                   <div>

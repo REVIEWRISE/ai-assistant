@@ -160,7 +160,7 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
             type="button"
             aria-label="Close navigation"
             onClick={() => setOpen(false)}
-            className="fixed inset-0 top-16 bg-[color-mix(in_srgb,var(--color-text)_28%,transparent)] backdrop-blur-[2px] lg:hidden"
+            className="fixed inset-0 top-16 bg-[var(--color-overlay)] backdrop-blur-[2px] lg:hidden"
           />
           <div className="absolute inset-x-0 top-full px-4 pt-3 lg:hidden">
             <nav
