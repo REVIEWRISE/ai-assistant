@@ -513,7 +513,7 @@ export function ReviewsTabs({
 
       {typeof document !== "undefined" && selectedReview
         ? createPortal(
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] p-4">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--color-overlay)] p-4">
               <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]">
                 <div className="vr-app-table-header flex items-start justify-between gap-3 px-5 py-4">
                   <div>

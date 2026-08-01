@@ -54,7 +54,7 @@ export function ChatbotCrmIntegrationModal({
   );
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] px-4 py-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-overlay)] px-4 py-6">
       <div className="max-h-[92vh] w-full max-w-[min(96vw,42rem)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]">
         <div className="max-h-[92vh] overflow-y-auto p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3">

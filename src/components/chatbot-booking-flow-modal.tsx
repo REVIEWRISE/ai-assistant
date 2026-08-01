@@ -263,7 +263,7 @@ export function ChatbotBookingFlowModal({
     "mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]";
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] px-4 py-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-overlay)] px-4 py-6">
       <div className="flex max-h-[92vh] w-full max-w-[min(96vw,90rem)] flex-col overflow-hidden rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]">
         <div className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 sm:px-6">
           <div className="flex items-start justify-between gap-4">

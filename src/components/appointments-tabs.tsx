@@ -1138,7 +1138,7 @@ function BookedAppointmentsPanel({
       {openDateKey && typeof document !== "undefined"
         ? createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-overlay)] p-4"
           onClick={() => setOpenDateKey(null)}
           role="presentation"
         >

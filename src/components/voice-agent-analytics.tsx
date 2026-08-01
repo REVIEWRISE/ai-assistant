@@ -252,7 +252,7 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
       {/* Call Details Modal */}
       {typeof document !== "undefined" && selectedCall
         ? createPortal(
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] p-4">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--color-overlay)] p-4">
               <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)] flex flex-col max-h-[85vh]">
                 {/* Modal Header */}
                 <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">

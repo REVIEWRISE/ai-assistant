@@ -544,7 +544,7 @@ function PlanEditSheet({
     <div
       className={`fixed inset-0 z-50 flex justify-end transition-colors duration-200 ${
         entered
-          ? "bg-[color-mix(in_srgb,var(--color-text)_36%,transparent)]"
+          ? "bg-[var(--color-overlay)]"
           : "bg-transparent"
       }`}
     >
@@ -558,7 +558,7 @@ function PlanEditSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="plan-edit-title"
-        className={`relative flex h-full w-full max-w-md flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-border)_60%,transparent),_-24px_0_64px_color-mix(in_srgb,var(--color-text)_12%,transparent)] transition-transform duration-300 ease-out sm:max-w-lg ${
+        className={`relative flex h-full w-full max-w-md flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)] transition-transform duration-300 ease-out sm:max-w-lg ${
           entered ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -905,7 +905,7 @@ function PlanModulesPanel({
     <div
       className={`fixed inset-0 z-50 flex justify-end transition-colors duration-200 ${
         entered
-          ? "bg-[color-mix(in_srgb,var(--color-text)_36%,transparent)]"
+          ? "bg-[var(--color-overlay)]"
           : "bg-transparent"
       } ${dimmed ? "opacity-90" : ""}`}
     >
@@ -920,7 +920,7 @@ function PlanModulesPanel({
         role="dialog"
         aria-modal="true"
         aria-labelledby="plan-modules-title"
-        className={`relative flex h-full w-full max-w-md flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-border)_60%,transparent),_-24px_0_64px_color-mix(in_srgb,var(--color-text)_12%,transparent)] transition-transform duration-300 ease-out sm:max-w-lg ${
+        className={`relative flex h-full w-full max-w-md flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)] transition-transform duration-300 ease-out sm:max-w-lg ${
           entered ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -1180,7 +1180,7 @@ function ModuleFormModal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[color-mix(in_srgb,var(--color-text)_42%,transparent)] px-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[var(--color-overlay)] px-4 backdrop-blur-sm">
       <div
         role="dialog"
         aria-modal="true"

@@ -188,7 +188,7 @@ function OrganizationBillingSheet({
     <div
       className={`fixed inset-0 z-50 flex justify-end transition-colors duration-200 ${
         entered
-          ? "bg-[color-mix(in_srgb,var(--color-text)_36%,transparent)]"
+          ? "bg-[var(--color-overlay)]"
           : "bg-transparent"
       }`}
     >
@@ -202,7 +202,7 @@ function OrganizationBillingSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="org-billing-title"
-        className={`relative flex h-full w-full max-w-md flex-col border-l border-[var(--color-border)] bg-[var(--color-bg)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-border)_60%,transparent),_-24px_0_64px_color-mix(in_srgb,var(--color-text)_12%,transparent)] transition-transform duration-300 ease-out sm:max-w-lg ${
+        className={`relative flex h-full w-full max-w-md flex-col border-l border-[var(--color-border)] bg-[var(--color-bg)] transition-transform duration-300 ease-out sm:max-w-lg ${
           entered ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -325,16 +325,6 @@ function OrganizationBillingSheet({
               />
             </div>
           </section>
-        </div>
-
-        <div className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
-          >
-            Close
-          </button>
         </div>
       </aside>
     </div>
