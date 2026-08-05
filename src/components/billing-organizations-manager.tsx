@@ -215,13 +215,6 @@ function OrganizationBillingSheet({
   }, []);
 
   useEffect(() => {
-    setPlanSlug(initialPlan);
-    setBillingInterval(initialInterval);
-    setBillingStatus(status);
-    setResetPeriod(false);
-  }, [organization.id, initialPlan, initialInterval, status]);
-
-  useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
     }
@@ -680,6 +673,7 @@ export function BillingOrganizationsManager({
       {viewOrg
         ? createPortal(
             <OrganizationBillingSheet
+              key={viewOrg.id}
               organization={viewOrg}
               onClose={() => setViewOrgId(null)}
             />,
