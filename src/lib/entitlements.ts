@@ -423,6 +423,23 @@ export async function markOrgPaid(input: {
   currentPeriodEndsAt?: Date | null;
 }): Promise<void> {
   const now = new Date();
+
+  let periodEndsAt = input.currentPeriodEndsAt;
+  if (periodEndsAt === undefined) {
+    let billingInterval = input.billingInterval ?? null;
+    if (!billingInterval) {
+      const existing = await prisma.organization.findUnique({
+        where: { id: input.organizationId },
+        select: { billingInterval: true },
+      });
+      billingInterval =
+        existing?.billingInterval === "yearly" || existing?.billingInterval === "monthly"
+          ? existing.billingInterval
+          : "monthly";
+    }
+    periodEndsAt = addBillingPeriod(now, billingInterval);
+  }
+
   await prisma.organization.update({
     where: { id: input.organizationId },
     data: {
@@ -430,12 +447,20 @@ export async function markOrgPaid(input: {
       ...(input.billingInterval ? { billingInterval: input.billingInterval } : {}),
       billingStatus: "active",
       paidAt: now,
-      currentPeriodEndsAt:
-        input.currentPeriodEndsAt === undefined
-          ? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-          : input.currentPeriodEndsAt,
+      currentPeriodEndsAt: periodEndsAt,
     },
   });
+}
+
+/** Advance by one billing period using calendar months/years (not a fixed day count). */
+export function addBillingPeriod(from: Date, interval: BillingInterval): Date {
+  const next = new Date(from.getTime());
+  if (interval === "yearly") {
+    next.setUTCFullYear(next.getUTCFullYear() + 1);
+  } else {
+    next.setUTCMonth(next.getUTCMonth() + 1);
+  }
+  return next;
 }
 
 export async function markOrgUnpaid(organizationId: string): Promise<void> {

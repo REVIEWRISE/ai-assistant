@@ -30,7 +30,6 @@ import {
   parseVoiceAgentPhoneForm,
   resolveVoiceAgentSettings,
 } from "@/lib/retell-voice-agent";
-import { userHasAdminRole } from "@/lib/admin-view-only";
 import { requireOrgFeature } from "@/lib/entitlements";
 
 const VOICE_AGENT_ROUTE = "/voice-agent";
@@ -58,9 +57,6 @@ async function requireVoiceAgentOrgSession(organizationId: string) {
   });
   if (!membership) {
     redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
-  }
-  if (await userHasAdminRole(session.userId)) {
-    redirect(`${VOICE_AGENT_ROUTE}?error=voice_agent_read_only`);
   }
 
   await requireOrgFeature(organizationId, "ai_voice_agent");

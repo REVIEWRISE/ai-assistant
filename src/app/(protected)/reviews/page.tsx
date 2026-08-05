@@ -156,11 +156,6 @@ export default async function ReviewsPage() {
       activeOrganizationId: true,
       user: {
         select: {
-          userRoles: {
-            select: {
-              role: { select: { name: true } },
-            },
-          },
           organizationMembers: {
             select: { organizationId: true },
             orderBy: { createdAt: "asc" },
@@ -171,7 +166,6 @@ export default async function ReviewsPage() {
     },
   });
   if (!session) redirect("/login");
-  const isAdmin = session.user.userRoles.some((userRole) => userRole.role.name === "Admin");
   const organizationId =
     session.activeOrganizationId ?? session.user.organizationMembers[0]?.organizationId ?? null;
   if (!organizationId) redirect("/appointments/organization");
@@ -311,14 +305,12 @@ export default async function ReviewsPage() {
         eyebrow="Review Response"
         title="Reputation operations"
         description={
-          isAdmin
-            ? <>Review reputation activity, inbox status, and automation settings for {organization?.name ?? "your active organization"}. Response management is reserved for users.</>
-            : <>Review, approve, and publish consistent responses for {organization?.name ?? "your active organization"}.</>
+          <>Review, approve, and publish consistent responses for {organization?.name ?? "your active organization"}.</>
         }
-        status={isAdmin ? "Admin · View only" : connectedSources > 0 ? `${connectedSources} source${connectedSources === 1 ? "" : "s"} connected` : "Review source required"}
+        status={connectedSources > 0 ? `${connectedSources} source${connectedSources === 1 ? "" : "s"} connected` : "Review source required"}
         statusTone={connectedSources > 0 ? "success" : "warning"}
         actions={[
-          ...(!isAdmin && connectedSources > 0 ? [{ href: "/reviews?tab=workflow", label: totals.pending > 0 ? `Open inbox · ${totals.pending}` : "Open inbox", primary: true }] : []),
+          ...(connectedSources > 0 ? [{ href: "/reviews?tab=workflow", label: totals.pending > 0 ? `Open inbox · ${totals.pending}` : "Open inbox", primary: true }] : []),
         ]}
         metrics={[
           { label: "Total reviews", value: totals.total, hint: "all connected sources" },
@@ -329,7 +321,6 @@ export default async function ReviewsPage() {
       />
 
       <ReviewsTabs
-        readOnly={isAdmin}
         defaultTab={connectedSources > 0 ? "workflow" : "integrations"}
         organizationId={organizationId}
         routingRules={routingRules}
