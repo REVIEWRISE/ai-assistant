@@ -61,7 +61,7 @@ export default async function BillingAdminOrganizationsPage() {
         variant="command"
         eyebrow="Billing"
         title="Organizations"
-        description="View workspace subscriptions and billing status. Plan changes come from customer checkout, not admin overrides."
+        description="View workspace subscriptions and override plan, interval, or status when needed."
         status={`${organizations.length} workspaces`}
         statusTone={counts.expired > 0 ? "warning" : "success"}
         actions={[{ href: "/billing-admin", label: "Billing overview" }]}
