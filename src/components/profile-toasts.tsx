@@ -29,7 +29,6 @@ const errorMessages: Record<string, string> = {
   organization_last: "You cannot delete your last organization.",
   organization_has_members: "Remove other members before deleting this organization.",
   organization_not_empty: "This organization has data and cannot be deleted.",
-  organization_read_only: "Admins have view-only access to organizations.",
 };
 
 export function ProfileToasts() {

@@ -50,20 +50,6 @@ async function assertProfileMenuAccess(userId: string, organizationId?: string |
   }
 }
 
-async function assertOrganizationWriteAccess(userId: string, destination: string) {
-  const adminRole = await prisma.userRole.findFirst({
-    where: {
-      userId,
-      role: { name: "Admin" },
-    },
-    select: { id: true },
-  });
-
-  if (adminRole) {
-    redirect(`${destination}?error=organization_read_only`);
-  }
-}
-
 export async function updateProfile(formData: FormData) {
   const session = await requireSession();
   await assertProfileMenuAccess(session.userId, session.activeOrganizationId);
@@ -128,7 +114,6 @@ export async function updatePassword(formData: FormData) {
 export async function createOrganization(formData: FormData) {
   const session = await requireSession();
   const destination = resolveReturnTo(formData, "/profile");
-  await assertOrganizationWriteAccess(session.userId, destination);
   const organizationName = String(formData.get("organization_name") || "").trim();
 
   if (!organizationName) {
@@ -184,7 +169,6 @@ export async function createOrganization(formData: FormData) {
 export async function switchOrganization(formData: FormData) {
   const session = await requireSession();
   const destination = resolveReturnTo(formData, "/profile");
-  await assertOrganizationWriteAccess(session.userId, destination);
   const organizationId = String(formData.get("organization_id") || "").trim();
 
   if (!organizationId) {
@@ -216,7 +200,6 @@ export async function switchOrganization(formData: FormData) {
 export async function updateOrganizationName(formData: FormData) {
   const session = await requireSession();
   const destination = resolveReturnTo(formData, "/profile");
-  await assertOrganizationWriteAccess(session.userId, destination);
   const organizationId = String(formData.get("organization_id") || "").trim();
   const organizationName = String(formData.get("organization_name") || "").trim();
 
@@ -259,7 +242,6 @@ export async function updateOrganizationName(formData: FormData) {
 export async function deleteOrganization(formData: FormData) {
   const session = await requireSession();
   const destination = resolveReturnTo(formData, "/profile");
-  await assertOrganizationWriteAccess(session.userId, destination);
   const organizationId = String(formData.get("organization_id") || "").trim();
 
   if (!organizationId) {

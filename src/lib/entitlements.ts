@@ -424,19 +424,23 @@ export async function markOrgPaid(input: {
 }): Promise<void> {
   const now = new Date();
 
+  let billingInterval = input.billingInterval ?? null;
+  if (!billingInterval) {
+    const existing = await prisma.organization.findUnique({
+      where: { id: input.organizationId },
+      select: { billingInterval: true },
+    });
+    billingInterval =
+      existing?.billingInterval === "yearly" || existing?.billingInterval === "monthly"
+        ? existing.billingInterval
+        : "monthly";
+  }
+
   let periodEndsAt = input.currentPeriodEndsAt;
-  if (periodEndsAt === undefined) {
-    let billingInterval = input.billingInterval ?? null;
-    if (!billingInterval) {
-      const existing = await prisma.organization.findUnique({
-        where: { id: input.organizationId },
-        select: { billingInterval: true },
-      });
-      billingInterval =
-        existing?.billingInterval === "yearly" || existing?.billingInterval === "monthly"
-          ? existing.billingInterval
-          : "monthly";
-    }
+  if (periodEndsAt === undefined || periodEndsAt === null) {
+    periodEndsAt = addBillingPeriod(now, billingInterval);
+  } else if (isPeriodEndTooShortForInterval(now, periodEndsAt, billingInterval)) {
+    // Ignore webhook/fallback dates that don't match the plan interval (e.g. +30d on yearly).
     periodEndsAt = addBillingPeriod(now, billingInterval);
   }
 
@@ -444,7 +448,9 @@ export async function markOrgPaid(input: {
     where: { id: input.organizationId },
     data: {
       ...(input.planSlug ? { planSlug: input.planSlug } : {}),
-      ...(input.billingInterval ? { billingInterval: input.billingInterval } : {}),
+      ...(input.billingInterval || billingInterval
+        ? { billingInterval: input.billingInterval ?? billingInterval }
+        : {}),
       billingStatus: "active",
       paidAt: now,
       currentPeriodEndsAt: periodEndsAt,
@@ -461,6 +467,54 @@ export function addBillingPeriod(from: Date, interval: BillingInterval): Date {
     next.setUTCMonth(next.getUTCMonth() + 1);
   }
   return next;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** True when a stored/provided period end is far shorter than the billing interval implies. */
+export function isPeriodEndTooShortForInterval(
+  from: Date,
+  periodEndsAt: Date,
+  interval: BillingInterval,
+): boolean {
+  const days = (periodEndsAt.getTime() - from.getTime()) / DAY_MS;
+  if (interval === "yearly") return days < 180;
+  // Monthly should be roughly 28–35 days; anything under ~20d is clearly wrong.
+  return days < 20;
+}
+
+/**
+ * Fix active yearly subscriptions that still have the old ~30-day period end.
+ * Safe to call repeatedly.
+ */
+export async function repairShortYearlyBillingPeriods(): Promise<number> {
+  const rows = await prisma.organization.findMany({
+    where: {
+      billingInterval: "yearly",
+      billingStatus: "active",
+      paidAt: { not: null },
+    },
+    select: {
+      id: true,
+      paidAt: true,
+      currentPeriodEndsAt: true,
+    },
+  });
+
+  let fixed = 0;
+  for (const row of rows) {
+    if (!row.paidAt) continue;
+    const periodEndsAt = row.currentPeriodEndsAt;
+    if (periodEndsAt && !isPeriodEndTooShortForInterval(row.paidAt, periodEndsAt, "yearly")) {
+      continue;
+    }
+    await prisma.organization.update({
+      where: { id: row.id },
+      data: { currentPeriodEndsAt: addBillingPeriod(row.paidAt, "yearly") },
+    });
+    fixed += 1;
+  }
+  return fixed;
 }
 
 export async function markOrgUnpaid(organizationId: string): Promise<void> {
