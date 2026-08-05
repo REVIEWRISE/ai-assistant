@@ -1,12 +1,16 @@
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { BillingOrganizationsManager } from "@/components/billing-organizations-manager";
 import { requireAdminSession } from "@/lib/auth-session";
+import { repairShortYearlyBillingPeriods } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function BillingAdminOrganizationsPage() {
   await requireAdminSession();
+
+  // Repair yearly orgs still stuck on the old +30-day period-end fallback.
+  await repairShortYearlyBillingPeriods();
 
   const organizations = await prisma.organization.findMany({
     orderBy: { createdAt: "desc" },
