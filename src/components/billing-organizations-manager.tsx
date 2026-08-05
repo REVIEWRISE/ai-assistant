@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { DataTablePagination } from "@/components/data-table";
+import { CustomSelect } from "@/components/custom-select";
+import { adminUpdateOrganizationPlan } from "@/app/(protected)/billing-admin/organizations/actions";
+import { toast } from "@/lib/toast";
 import { PLAN_SLUGS, getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
 
 export type BillingOrganizationRow = {
@@ -19,10 +23,28 @@ export type BillingOrganizationRow = {
 };
 
 type StatusFilter = "all" | "needs_plan" | "trialing" | "active" | "expired";
+type IntervalOption = "monthly" | "yearly";
 
 type BillingOrganizationsManagerProps = {
   organizations: BillingOrganizationRow[];
 };
+
+const PLAN_OPTIONS = PLAN_SLUGS.map((slug) => ({
+  value: slug,
+  label: getPlanBySlug(slug).name,
+}));
+
+const INTERVAL_OPTIONS: Array<{ value: IntervalOption; label: string }> = [
+  { value: "monthly", label: "Monthly" },
+  { value: "yearly", label: "Yearly" },
+];
+
+const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
+  { value: "active", label: "Active" },
+  { value: "trialing", label: "Trialing" },
+  { value: "needs_plan", label: "Needs plan" },
+  { value: "expired", label: "Expired" },
+];
 
 function normalizeStatus(status: string | null): StatusFilter {
   const value = (status || "needs_plan").toLowerCase();
@@ -153,6 +175,8 @@ function OrganizationBillingSheet({
   organization: BillingOrganizationRow;
   onClose: () => void;
 }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
   const [entered, setEntered] = useState(false);
   const status = normalizeStatus(organization.billingStatus);
   const tone = statusTone(status);
@@ -167,10 +191,35 @@ function OrganizationBillingSheet({
     ? organization.billingInterval.charAt(0).toUpperCase() + organization.billingInterval.slice(1)
     : "—";
 
+  const initialPlan =
+    organization.planSlug && (PLAN_SLUGS as readonly string[]).includes(organization.planSlug)
+      ? (organization.planSlug as PlanSlug)
+      : "starter";
+  const initialInterval: IntervalOption =
+    organization.billingInterval === "yearly" ? "yearly" : "monthly";
+
+  const [planSlug, setPlanSlug] = useState<PlanSlug>(initialPlan);
+  const [billingInterval, setBillingInterval] = useState<IntervalOption>(initialInterval);
+  const [billingStatus, setBillingStatus] = useState<StatusFilter>(status);
+  const [resetPeriod, setResetPeriod] = useState(false);
+
+  const dirty =
+    planSlug !== initialPlan ||
+    billingInterval !== initialInterval ||
+    billingStatus !== status ||
+    resetPeriod;
+
   useEffect(() => {
     const frame = requestAnimationFrame(() => setEntered(true));
     return () => cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => {
+    setPlanSlug(initialPlan);
+    setBillingInterval(initialInterval);
+    setBillingStatus(status);
+    setResetPeriod(false);
+  }, [organization.id, initialPlan, initialInterval, status]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -184,6 +233,24 @@ function OrganizationBillingSheet({
       document.body.style.overflow = previous;
     };
   }, [onClose]);
+
+  function savePlan() {
+    startTransition(async () => {
+      const result = await adminUpdateOrganizationPlan({
+        organizationId: organization.id,
+        planSlug,
+        billingInterval,
+        billingStatus,
+        resetPeriod: resetPeriod || billingInterval !== initialInterval,
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Workspace plan updated.");
+      router.refresh();
+    });
+  }
 
   return (
     <div
@@ -291,6 +358,75 @@ function OrganizationBillingSheet({
 
           <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+              Change plan
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+              Updates this workspace&apos;s entitlements in the app. Stripe/Billing invoices are not changed.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Plan</span>
+                <CustomSelect
+                  value={planSlug}
+                  onChange={setPlanSlug}
+                  options={PLAN_OPTIONS}
+                  aria-label="Select plan"
+                  className="mt-1.5"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Interval</span>
+                <CustomSelect
+                  value={billingInterval}
+                  onChange={setBillingInterval}
+                  options={INTERVAL_OPTIONS}
+                  aria-label="Select billing interval"
+                  className="mt-1.5"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Status</span>
+                <CustomSelect
+                  value={billingStatus}
+                  onChange={setBillingStatus}
+                  options={STATUS_OPTIONS}
+                  aria-label="Select billing status"
+                  className="mt-1.5"
+                />
+              </label>
+
+              <label className="flex items-start gap-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  checked={resetPeriod || billingInterval !== initialInterval}
+                  disabled={billingInterval !== initialInterval}
+                  onChange={(event) => setResetPeriod(event.target.checked)}
+                  className="mt-0.5"
+                />
+                <span className="text-xs leading-5 text-[var(--color-text-muted)]">
+                  Reset period end from paid date using the selected interval
+                  {billingInterval !== initialInterval
+                    ? " (required when interval changes)."
+                    : "."}
+                </span>
+              </label>
+            </div>
+
+            <button
+              type="button"
+              disabled={!dirty || pending}
+              onClick={savePlan}
+              className="mt-4 w-full rounded-xl vr-btn-primary px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {pending ? "Saving…" : "Save plan changes"}
+            </button>
+          </section>
+
+          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
               Timeline
             </p>
             <p
@@ -393,8 +529,8 @@ export function BillingOrganizationsManager({
             </span>
           </div>
           <p className="mt-1 max-w-2xl text-sm text-[var(--color-text-muted)]">
-            Filter by billing status and open a workspace to review plan, trial, and payment timeline. Plan changes
-            come from customer checkout.
+            Filter by billing status and open a workspace to review or change plan, trial, and payment
+            timeline.
           </p>
         </div>
 

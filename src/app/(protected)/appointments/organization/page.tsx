@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { ProfileToasts } from "@/components/profile-toasts";
 import { OrganizationsManager } from "@/components/organizations-manager";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
+import { userHasAdminRole } from "@/lib/admin-view-only";
 import {
   createOrganization,
   deleteOrganization,
@@ -25,8 +26,9 @@ export default async function AppointmentOrganizationPage() {
       expiresAt: { gt: new Date() },
     },
     select: {
+      userId: true,
       activeOrganization: {
-        select: { name: true, logoUrl: true, timezone: true, createdAt: true },
+        select: { id: true, name: true, logoUrl: true, timezone: true, createdAt: true },
       },
       activeOrganizationId: true,
       user: {
@@ -46,9 +48,19 @@ export default async function AppointmentOrganizationPage() {
     redirect("/login");
   }
 
-  const organizations = session.user.organizationMembers.map((member) => member.organization);
+  const isAdmin = await userHasAdminRole(session.userId);
+  // Match the header workspace selector: admins see every workspace, not only memberships.
+  const organizations = isAdmin
+    ? await prisma.organization.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, logoUrl: true, createdAt: true },
+      })
+    : session.user.organizationMembers.map((member) => member.organization);
+
   const totalOrganizations = organizations.length;
-  const newestOrganization = organizations[organizations.length - 1];
+  const newestOrganization = organizations
+    .slice()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
   const newestLabel = newestOrganization
     ? new Date(newestOrganization.createdAt).toLocaleDateString()
     : "—";
