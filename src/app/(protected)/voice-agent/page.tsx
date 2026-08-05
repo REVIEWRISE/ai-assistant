@@ -45,11 +45,6 @@ export default async function VoiceAgentPage() {
       user: {
         select: {
           id: true,
-          userRoles: {
-            select: {
-              role: { select: { name: true } },
-            },
-          },
         },
       },
       activeOrganization: {
@@ -80,7 +75,6 @@ export default async function VoiceAgentPage() {
   if (!session.activeOrganization) redirect("/appointments/organization");
 
   const org = session.activeOrganization;
-  const isAdmin = session.user.userRoles.some((userRole) => userRole.role.name === "Admin");
   const retellApiConfigured = isRetellApiConfigured();
   const retellVoices = retellApiConfigured ? await fetchRetellVoiceCatalog() : [];
   const localSettings = resolveVoiceAgentSettings(org.voiceAgentSettings, retellVoices);
@@ -110,7 +104,7 @@ export default async function VoiceAgentPage() {
     phoneConfig = await resolveVoiceAgentPhoneFromRetell(phoneConfig);
   }
 
-  if (!isAdmin && retellApiConfigured && localSettings.retell.retellAgentId.trim()) {
+  if (retellApiConfigured && localSettings.retell.retellAgentId.trim()) {
     await ensureLegacyPrimaryPhoneImported({
       organizationId: org.id,
       legacyPhoneNumber: phoneConfig.twilioPhoneNumber,
@@ -182,14 +176,10 @@ export default async function VoiceAgentPage() {
         variant="command"
         eyebrow="Voice Support"
         title="Voice operations"
-        description={
-          isAdmin
-            ? <>Review the AI phone agent, line health, and call activity for {org.name}. Configuration is reserved for users.</>
-            : <>Configure and monitor the AI phone agent serving {org.name}.</>
-        }
-        status={isAdmin ? "Admin · View only" : voiceStatus}
+        description={<>Configure and monitor the AI phone agent serving {org.name}.</>}
+        status={voiceStatus}
         statusTone={voiceStatusTone}
-        actions={isAdmin ? [] : [
+        actions={[
           { href: "/voice-agent?tab=agent", label: "Configure agent" },
           { href: "/voice-agent?tab=phone", label: phones.length > 0 ? "Manage phone lines" : "Set up phone line", primary: true },
         ]}
@@ -210,7 +200,6 @@ export default async function VoiceAgentPage() {
       <VoiceAgentTabs
         organizationId={org.id}
         organizationName={org.name}
-        readOnly={isAdmin}
         canManageAgent
         canManagePhone
         retellApiConfigured={retellApiConfigured}

@@ -7,7 +7,6 @@ import {
 } from "@/lib/google-oauth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { userHasAdminRole } from "@/lib/admin-view-only";
 
 export async function GET(
   _request: Request,
@@ -28,9 +27,6 @@ export async function GET(
 
   if (!session) {
     redirect("/login");
-  }
-  if (await userHasAdminRole(session.userId)) {
-    redirect("/reviews?error=review_read_only");
   }
 
   if (!session.activeOrganizationId) {
