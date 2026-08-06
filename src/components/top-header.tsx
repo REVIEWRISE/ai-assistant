@@ -48,6 +48,10 @@ const headerByRoute: Record<string, HeaderCopy> = {
     eyebrow: "Voice Support",
     title: "Voice agent",
   },
+  "/subscription": {
+    eyebrow: "Billing",
+    title: "Subscription",
+  },
   "/profile": {
     eyebrow: "Account Settings",
     title: "Your profile",
@@ -148,6 +152,9 @@ function getHeaderCopy(pathname: string): HeaderCopy {
   }
   if (pathname.startsWith("/profile")) {
     return headerByRoute["/profile"];
+  }
+  if (pathname.startsWith("/subscription")) {
+    return headerByRoute["/subscription"];
   }
   if (pathname.startsWith("/voice-agent")) {
     return headerByRoute["/voice-agent"];

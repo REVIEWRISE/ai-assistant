@@ -11,6 +11,7 @@ type BillingCheckoutPanelProps = {
   initialPlanSlug: PlanSlug | null;
   initialInterval: "monthly" | "yearly";
   billingConfigured: boolean;
+  mode?: "upgrade" | "subscribe";
 };
 
 export function BillingCheckoutPanel({
@@ -18,6 +19,7 @@ export function BillingCheckoutPanel({
   initialPlanSlug,
   initialInterval,
   billingConfigured,
+  mode = "subscribe",
 }: BillingCheckoutPanelProps) {
   const defaultSlug =
     (initialPlanSlug && plans.some((plan) => plan.slug === initialPlanSlug)
@@ -79,12 +81,14 @@ export function BillingCheckoutPanel({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-[var(--color-text)]">Subscribe to restore access</p>
+          <p className="text-sm font-semibold text-[var(--color-text)]">
+            {mode === "upgrade" ? "Select your next plan" : "Select a plan to continue"}
+          </p>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            You’ll be redirected to a secure Stripe checkout page hosted by Billing.
+            Billing is handled securely through Stripe checkout.
           </p>
         </div>
         <div className="inline-flex rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1">
@@ -113,6 +117,7 @@ export function BillingCheckoutPanel({
           const planAvailable = Boolean(
             interval === "yearly" ? plan.yearlyPlanId : plan.monthlyPlanId,
           );
+          const isCurrent = plan.slug === initialPlanSlug;
           return (
             <button
               key={plan.slug}
@@ -120,47 +125,67 @@ export function BillingCheckoutPanel({
               onClick={() => setPlanSlug(plan.slug)}
               className={`rounded-2xl border px-4 py-4 text-left transition ${
                 selectedPlan
-                  ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5 shadow-[var(--shadow-sm)]"
-                  : "border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[var(--color-primary)]/40"
+                  ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] ring-1 ring-[var(--color-primary)] shadow-[var(--shadow-sm)]"
+                  : "border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-raised)]"
               }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-[var(--color-text)]">{plan.name}</p>
-                {plan.featured ? (
-                  <span className="rounded-full bg-[var(--color-primary)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-primary)]">
-                    Popular
-                  </span>
-                ) : null}
+                <div className="flex flex-wrap justify-end gap-1">
+                  {isCurrent ? (
+                    <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-text-muted)]">
+                      Current
+                    </span>
+                  ) : null}
+                  {plan.featured ? (
+                    <span className="rounded-full bg-[var(--color-primary)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-primary-h)]">
+                      Popular
+                    </span>
+                  ) : null}
+                </div>
               </div>
-              <p className="mt-2 text-2xl font-semibold tracking-tight text-[var(--color-text)]">
+              <p className="mt-3 text-2xl font-semibold tracking-tight text-[var(--color-text)]">
                 {amount != null ? formatUsd(amount) : "Custom"}
                 <span className="ml-1 text-xs font-medium text-[var(--color-text-muted)]">
                   {interval === "yearly" ? "/yr" : "/mo"}
                 </span>
               </p>
-              <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--color-text-muted)]">
+              <p className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">
                 {plan.description}
               </p>
               {!planAvailable ? (
-                <p className="mt-3 text-[11px] font-medium text-amber-700">Not available for checkout</p>
+                <p className="mt-3 text-[11px] font-medium text-amber-700 [[data-theme=dark]_&]:text-amber-300">
+                  Not available for checkout
+                </p>
               ) : null}
             </button>
           );
         })}
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border)] pt-4">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-[var(--color-text)]">
+            {selected?.name ?? "Select a plan"}
+          </p>
+          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+            {interval === "yearly" ? "Billed annually" : "Billed monthly"}
+            {priceCents != null ? ` · ${formatUsd(priceCents)}` : ""}
+          </p>
+        </div>
         <button
           type="button"
           disabled={!canCheckout || pending}
           onClick={startCheckout}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-11 items-center justify-center rounded-xl vr-btn-primary px-5 text-sm font-semibold shadow-[0_10px_24px_-14px_color-mix(in_srgb,var(--color-primary)_85%,transparent)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending
-            ? "Redirecting…"
+            ? "Redirecting"
             : priceCents != null
-              ? `Subscribe · ${formatUsd(priceCents)}`
-              : "Subscribe"}
+              ? `${mode === "upgrade" ? "Upgrade" : "Subscribe"} · ${formatUsd(priceCents)}`
+              : mode === "upgrade"
+                ? "Upgrade"
+                : "Subscribe"}
         </button>
       </div>
     </div>

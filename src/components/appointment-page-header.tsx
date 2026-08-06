@@ -127,10 +127,14 @@ export function AppointmentPageHeader({
               <p className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${command ? "text-slate-400" : "text-[var(--color-text-muted)]"}`}>
                 {metric.label}
               </p>
-              <div className="mt-1 flex items-baseline gap-2">
-                <p className={`truncate text-lg font-semibold tabular-nums ${command ? "text-white" : "text-[var(--color-text)]"}`}>{metric.value}</p>
+              <div className="mt-1 min-w-0">
+                <p className={`text-lg font-semibold tabular-nums ${command ? "text-white" : "text-[var(--color-text)]"}`}>
+                  {metric.value}
+                </p>
                 {metric.hint ? (
-                  <p className={`truncate text-[10px] ${command ? "text-slate-400" : "text-[var(--color-text-muted)]"}`}>{metric.hint}</p>
+                  <p className={`mt-0.5 text-[10px] leading-4 ${command ? "text-slate-400" : "text-[var(--color-text-muted)]"}`}>
+                    {metric.hint}
+                  </p>
                 ) : null}
               </div>
             </div>
