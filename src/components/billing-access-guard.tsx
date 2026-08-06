@@ -15,6 +15,8 @@ function isBypassPath(pathname: string): boolean {
     pathname.startsWith("/onboarding/plan/") ||
     pathname === "/billing" ||
     pathname.startsWith("/billing/") ||
+    pathname === "/subscription" ||
+    pathname.startsWith("/subscription/") ||
     pathname === "/logout" ||
     pathname.startsWith("/logout/") ||
     pathname === "/profile" ||

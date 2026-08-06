@@ -53,6 +53,7 @@ const ALWAYS_ALLOWED_PREFIXES = [
   "/billing-admin",
   "/onboarding",
   "/billing",
+  "/subscription",
   "/logout",
 ];
 
@@ -61,6 +62,7 @@ const BILLING_LOCKOUT_PATHS = [
   "/billing",
   "/billing/expired",
   "/onboarding/plan",
+  "/subscription",
   "/profile",
   "/logout",
 ];
@@ -374,6 +376,8 @@ export function isBillingBypassPath(pathname: string): boolean {
     path.startsWith("/onboarding/plan/") ||
     path === "/billing" ||
     path.startsWith("/billing/") || // includes /billing/success for post-checkout sync
+    path === "/subscription" ||
+    path.startsWith("/subscription/") ||
     path === "/logout" ||
     path.startsWith("/logout/") ||
     path === "/profile" ||

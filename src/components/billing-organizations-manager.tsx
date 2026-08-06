@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { DataTablePagination } from "@/components/data-table";
 import { CustomSelect } from "@/components/custom-select";
-import { adminUpdateOrganizationPlan } from "@/app/(protected)/billing-admin/organizations/actions";
+import { adminUpdateOrganizationPlan, adminCancelOrganizationSubscription } from "@/app/(protected)/billing-admin/organizations/actions";
 import { toast } from "@/lib/toast";
 import { PLAN_SLUGS, getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
 
@@ -202,12 +202,16 @@ function OrganizationBillingSheet({
   const [billingInterval, setBillingInterval] = useState<IntervalOption>(initialInterval);
   const [billingStatus, setBillingStatus] = useState<StatusFilter>(status);
   const [resetPeriod, setResetPeriod] = useState(false);
+  const [cancelMode, setCancelMode] = useState<"period_end" | "now">("period_end");
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   const dirty =
     planSlug !== initialPlan ||
     billingInterval !== initialInterval ||
     billingStatus !== status ||
     resetPeriod;
+
+  const canCancel = status === "active" || status === "trialing";
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setEntered(true));
@@ -241,6 +245,26 @@ function OrganizationBillingSheet({
         return;
       }
       toast.success("Workspace plan updated.");
+      router.refresh();
+    });
+  }
+
+  function cancelSubscription() {
+    startTransition(async () => {
+      const result = await adminCancelOrganizationSubscription({
+        organizationId: organization.id,
+        mode: cancelMode,
+      });
+      setConfirmCancel(false);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(
+        result.mode === "now"
+          ? "Subscription canceled. Access revoked."
+          : "Subscription set to cancel at period end.",
+      );
       router.refresh();
     });
   }
@@ -417,6 +441,74 @@ function OrganizationBillingSheet({
               {pending ? "Saving…" : "Save plan changes"}
             </button>
           </section>
+
+          {canCancel ? (
+            <section className="rounded-2xl border border-red-200 bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-red-500/30">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-red-700 [[data-theme=dark]_&]:text-red-300">
+                Cancel subscription
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+                Calls Billing{" "}
+                <span className="font-mono text-[11px]">PATCH /billing/admin/subscriptions/:id/cancel</span>.
+                Local access is revoked immediately only when you choose cancel now.
+              </p>
+
+              <div className="mt-4 space-y-3">
+                <label className="block">
+                  <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">
+                    Cancel mode
+                  </span>
+                  <CustomSelect
+                    value={cancelMode}
+                    onChange={setCancelMode}
+                    options={[
+                      { value: "period_end", label: "At period end (keep access until then)" },
+                      { value: "now", label: "Cancel now (revoke access immediately)" },
+                    ]}
+                    aria-label="Cancel mode"
+                    className="mt-1.5"
+                  />
+                </label>
+
+                {!confirmCancel ? (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => setConfirmCancel(true)}
+                    className="w-full rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800 transition hover:bg-red-100 disabled:opacity-50 [[data-theme=dark]_&]:border-red-500/40 [[data-theme=dark]_&]:bg-red-500/10 [[data-theme=dark]_&]:text-red-200 [[data-theme=dark]_&]:hover:bg-red-500/20"
+                  >
+                    Cancel subscription…
+                  </button>
+                ) : (
+                  <div className="space-y-2 rounded-xl border border-red-200 bg-red-50/80 p-3 [[data-theme=dark]_&]:border-red-500/30 [[data-theme=dark]_&]:bg-red-500/10">
+                    <p className="text-xs font-medium text-red-800 [[data-theme=dark]_&]:text-red-200">
+                      {cancelMode === "now"
+                        ? "Cancel now and revoke access for this workspace?"
+                        : "Schedule cancel at period end? Access stays until the current period ends."}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => setConfirmCancel(false)}
+                        className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-text)]"
+                      >
+                        Keep
+                      </button>
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={cancelSubscription}
+                        className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {pending ? "Canceling…" : "Confirm cancel"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          ) : null}
 
           <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">

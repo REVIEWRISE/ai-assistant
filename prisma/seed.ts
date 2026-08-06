@@ -12,10 +12,11 @@ const MENU_ITEMS = [
   { id: "9555f0bd-d829-44e9-a31f-5cb230a10478", label: "Appointment Agent", path: "/appointments", sortOrder: 2 },
   { id: "a6efd6f9-fc80-4555-a3f6-11889a625b0f", label: "Review Response", path: "/reviews", sortOrder: 3 },
   { id: "fa2b6751-f080-414e-b901-8f8cb86a8e60", label: "Voice Agent", path: "/voice-agent", sortOrder: 4 },
-  { id: "33c86cd0-a6b0-48f9-a04b-684dd8671ef7", label: "Access Control", path: "/settings/access", sortOrder: 5 },
-  { id: "18d185ec-9cb2-46d9-bd27-e65d1341b66c", label: "Platform Settings", path: "/platform", sortOrder: 6 },
-  { id: "c8f2a1b0-3d4e-4f5a-9b6c-7d8e9f0a1b2c", label: "Billing", path: "/billing-admin", sortOrder: 7 },
-  { id: "7604c907-bca0-4927-adff-4dc0febc2868", label: "Profile", path: "/profile", sortOrder: 8 },
+  { id: "a1b2c3d4-e5f6-4789-a012-3456789abcde", label: "Subscription", path: "/subscription", sortOrder: 5 },
+  { id: "33c86cd0-a6b0-48f9-a04b-684dd8671ef7", label: "Access Control", path: "/settings/access", sortOrder: 6 },
+  { id: "18d185ec-9cb2-46d9-bd27-e65d1341b66c", label: "Platform Settings", path: "/platform", sortOrder: 7 },
+  { id: "c8f2a1b0-3d4e-4f5a-9b6c-7d8e9f0a1b2c", label: "Billing", path: "/billing-admin", sortOrder: 8 },
+  { id: "7604c907-bca0-4927-adff-4dc0febc2868", label: "Profile", path: "/profile", sortOrder: 9 },
   { id: "48be418c-69cf-4c35-93b0-b572519677e3", label: "Overview", path: "/appointments/overview", sortOrder: 0, parentId: "9555f0bd-d829-44e9-a31f-5cb230a10478" },
   { id: "487de9f5-1954-4bfc-a0f1-06a3f5798250", label: "Organization", path: "/appointments/organization", sortOrder: 1, parentId: "9555f0bd-d829-44e9-a31f-5cb230a10478" },
   { id: "f9ea5923-c5a5-4a4a-81f4-76d09447d7e8", label: "Knowledge Base", path: "/appointments/knowledge-base", sortOrder: 2, parentId: "9555f0bd-d829-44e9-a31f-5cb230a10478" },
@@ -51,7 +52,7 @@ async function main() {
     update: {},
   });
 
-  await prisma.role.upsert({
+  const userRole = await prisma.role.upsert({
     where: { name: "User" },
     create: { name: "User" },
     update: {},
@@ -89,6 +90,16 @@ async function main() {
       menuItemId,
       roleId: adminRole.id,
     })),
+    skipDuplicates: true,
+  });
+
+  // Subscription tracking is available to Admin and User roles.
+  const subscriptionMenuId = "a1b2c3d4-e5f6-4789-a012-3456789abcde";
+  await prisma.menuAccess.createMany({
+    data: [
+      { menuItemId: subscriptionMenuId, roleId: adminRole.id },
+      { menuItemId: subscriptionMenuId, roleId: userRole.id },
+    ],
     skipDuplicates: true,
   });
 

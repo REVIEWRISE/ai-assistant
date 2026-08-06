@@ -8,6 +8,7 @@ import type { NavItem } from "@/lib/nav-config";
 const GROUPS = [
   { label: "Overview", paths: ["/dashboard"] },
   { label: "Customer operations", paths: ["/appointments", "/reviews", "/voice-agent"] },
+  { label: "Billing", paths: ["/subscription"] },
   { label: "Administration", paths: ["/users", "/settings/access", "/billing-admin", "/platform"], admin: true },
   { label: "Account", paths: ["/profile"] },
 ] as const;

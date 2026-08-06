@@ -115,3 +115,33 @@ export async function adminUpdateOrganizationPlan(input: {
   revalidatePath("/billing-admin");
   return { ok: true };
 }
+
+export type AdminCancelOrganizationSubscriptionResult =
+  | { ok: true; mode: "now" | "period_end" }
+  | { ok: false; error: string };
+
+/**
+ * Cancel the Billing subscription for a workspace via
+ * PATCH /billing/admin/subscriptions/:id/cancel.
+ */
+export async function adminCancelOrganizationSubscription(input: {
+  organizationId: string;
+  mode?: "now" | "period_end";
+}): Promise<AdminCancelOrganizationSubscriptionResult> {
+  await requireAdminSession();
+
+  const { cancelOrganizationBillingSubscription } = await import(
+    "@/lib/billing-subscription-cancel"
+  );
+  const result = await cancelOrganizationBillingSubscription({
+    organizationId: input.organizationId,
+    mode: input.mode,
+  });
+
+  if (!result.ok) return result;
+
+  revalidatePath(ADMIN_ORGS_PATH);
+  revalidatePath("/billing-admin");
+  revalidatePath("/subscription");
+  return { ok: true, mode: result.mode };
+}
