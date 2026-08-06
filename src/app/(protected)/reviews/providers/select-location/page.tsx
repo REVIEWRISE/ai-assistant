@@ -10,7 +10,6 @@ import {
 } from "@/lib/google-oauth";
 import { AppPageHero } from "@/components/app-page-hero";
 import { completeReviewProviderLocation } from "../../actions";
-import { userHasAdminRole } from "@/lib/admin-view-only";
 
 export default async function SelectReviewProviderLocationPage({
   searchParams,
@@ -30,7 +29,6 @@ export default async function SelectReviewProviderLocationPage({
     select: { userId: true, activeOrganizationId: true },
   });
   if (!session) redirect("/login");
-  if (await userHasAdminRole(session.userId)) redirect("/reviews?error=review_read_only");
   if (!session.activeOrganizationId) redirect("/reviews?error=organization_required");
 
   const provider = await prisma.provider.findFirst({

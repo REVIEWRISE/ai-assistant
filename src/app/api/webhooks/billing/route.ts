@@ -43,6 +43,58 @@ function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function asDate(value: unknown): Date | null {
+  if (value == null) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    // Unix seconds vs milliseconds
+    const ms = value < 1_000_000_000_000 ? value * 1000 : value;
+    const date = new Date(ms);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const trimmed = value.trim();
+    if (/^\d+$/.test(trimmed)) {
+      return asDate(Number(trimmed));
+    }
+    const date = new Date(trimmed);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  return null;
+}
+
+function readPeriodEndFromPayload(data: Record<string, unknown>): Date | null {
+  const subscription = asRecord(data.subscription);
+  const itemsContainer = asRecord(subscription?.items);
+  const itemsList = Array.isArray(itemsContainer?.data)
+    ? (itemsContainer.data as unknown[])
+    : Array.isArray(subscription?.items)
+      ? (subscription.items as unknown[])
+      : [];
+  const firstItem = asRecord(itemsList[0]);
+
+  const candidates: unknown[] = [
+    data.periodEnd,
+    data.currentPeriodEndsAt,
+    data.current_period_end,
+    data.currentPeriodEnd,
+    subscription?.periodEnd,
+    subscription?.currentPeriodEndsAt,
+    subscription?.current_period_end,
+    subscription?.currentPeriodEnd,
+    firstItem?.current_period_end,
+    firstItem?.currentPeriodEnd,
+  ];
+
+  for (const candidate of candidates) {
+    const date = asDate(candidate);
+    if (date) return date;
+  }
+  return null;
+}
+
 function asPlanSlug(value: string | null | undefined): PlanSlug | null {
   if (!value) return null;
   return (PLAN_SLUGS as readonly string[]).includes(value) ? (value as PlanSlug) : null;
@@ -95,19 +147,13 @@ async function grantAccess(event: BillingEvent): Promise<void> {
     }
   }
 
-  const periodEndRaw =
-    asString(event.data.periodEnd) ??
-    asString(event.data.currentPeriodEndsAt) ??
-    asString(event.data.current_period_end);
-  const currentPeriodEndsAt = periodEndRaw ? new Date(periodEndRaw) : undefined;
+  const currentPeriodEndsAt = readPeriodEndFromPayload(event.data);
 
   await markOrgPaid({
     organizationId,
     ...(planSlug ? { planSlug } : {}),
     ...(billingInterval ? { billingInterval } : {}),
-    ...(currentPeriodEndsAt && !Number.isNaN(currentPeriodEndsAt.getTime())
-      ? { currentPeriodEndsAt }
-      : {}),
+    ...(currentPeriodEndsAt ? { currentPeriodEndsAt } : {}),
   });
 }
 
@@ -127,8 +173,7 @@ async function markRenewal(event: BillingEvent): Promise<void> {
   });
   if (!org) return;
 
-  const periodEndRaw = asString(event.data.periodEnd);
-  const currentPeriodEndsAt = periodEndRaw ? new Date(periodEndRaw) : null;
+  const currentPeriodEndsAt = readPeriodEndFromPayload(event.data);
   const planSlug = asPlanSlug(org.planSlug);
 
   await markOrgPaid({
@@ -137,9 +182,7 @@ async function markRenewal(event: BillingEvent): Promise<void> {
     ...(org.billingInterval === "yearly" || org.billingInterval === "monthly"
       ? { billingInterval: org.billingInterval }
       : {}),
-    ...(currentPeriodEndsAt && !Number.isNaN(currentPeriodEndsAt.getTime())
-      ? { currentPeriodEndsAt }
-      : {}),
+    ...(currentPeriodEndsAt ? { currentPeriodEndsAt } : {}),
   });
 }
 

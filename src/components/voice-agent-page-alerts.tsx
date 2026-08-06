@@ -21,7 +21,6 @@ const messages: Record<string, { title: string; variant: "success" | "error" }> 
   knowledge_saved_synced: { title: "Knowledge settings saved and synced.", variant: "success" },
   knowledge_created: { title: "Voice agent created with your knowledge settings.", variant: "success" },
   organization_required: { title: "Select an organization to configure the voice agent.", variant: "error" },
-  voice_agent_read_only: { title: "Admins have view-only access to voice operations.", variant: "error" },
   phone_required_for_agent: {
     title: "Add and save a support phone number before configuring the agent.",
     variant: "error",

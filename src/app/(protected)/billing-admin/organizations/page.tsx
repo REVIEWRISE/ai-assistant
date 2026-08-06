@@ -1,12 +1,16 @@
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { BillingOrganizationsManager } from "@/components/billing-organizations-manager";
 import { requireAdminSession } from "@/lib/auth-session";
+import { repairShortYearlyBillingPeriods } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function BillingAdminOrganizationsPage() {
   await requireAdminSession();
+
+  // Repair yearly orgs still stuck on the old +30-day period-end fallback.
+  await repairShortYearlyBillingPeriods();
 
   const organizations = await prisma.organization.findMany({
     orderBy: { createdAt: "desc" },
@@ -57,7 +61,7 @@ export default async function BillingAdminOrganizationsPage() {
         variant="command"
         eyebrow="Billing"
         title="Organizations"
-        description="View workspace subscriptions and billing status. Plan changes come from customer checkout, not admin overrides."
+        description="View workspace subscriptions and override plan, interval, or status when needed."
         status={`${organizations.length} workspaces`}
         statusTone={counts.expired > 0 ? "warning" : "success"}
         actions={[{ href: "/billing-admin", label: "Billing overview" }]}

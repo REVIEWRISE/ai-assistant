@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { saveOrganizationLogo } from "@/lib/organization-logo";
 import { getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
 import { isHrefAllowedForNav, redirectPathWhenMenuForbidden } from "@/lib/nav-access";
+import { userHasAdminRole } from "@/lib/admin-view-only";
 import {
   ensureBillingCustomerForOrganization,
   isBillingConfigured,
@@ -47,20 +48,6 @@ async function assertProfileMenuAccess(userId: string, organizationId?: string |
   const allowed = await getAllowedMenuPathsForUser(userId, organizationId);
   if (!isHrefAllowedForNav("/profile", allowed)) {
     redirect(redirectPathWhenMenuForbidden(allowed));
-  }
-}
-
-async function assertOrganizationWriteAccess(userId: string, destination: string) {
-  const adminRole = await prisma.userRole.findFirst({
-    where: {
-      userId,
-      role: { name: "Admin" },
-    },
-    select: { id: true },
-  });
-
-  if (adminRole) {
-    redirect(`${destination}?error=organization_read_only`);
   }
 }
 
@@ -128,7 +115,6 @@ export async function updatePassword(formData: FormData) {
 export async function createOrganization(formData: FormData) {
   const session = await requireSession();
   const destination = resolveReturnTo(formData, "/profile");
-  await assertOrganizationWriteAccess(session.userId, destination);
   const organizationName = String(formData.get("organization_name") || "").trim();
 
   if (!organizationName) {
@@ -184,23 +170,33 @@ export async function createOrganization(formData: FormData) {
 export async function switchOrganization(formData: FormData) {
   const session = await requireSession();
   const destination = resolveReturnTo(formData, "/profile");
-  await assertOrganizationWriteAccess(session.userId, destination);
   const organizationId = String(formData.get("organization_id") || "").trim();
 
   if (!organizationId) {
     redirect(`${destination}?error=organization_select`);
   }
 
-  const membership = await prisma.organizationMember.findFirst({
-    where: {
-      userId: session.userId,
-      organizationId,
-    },
-    select: { id: true },
-  });
+  const isAdmin = await userHasAdminRole(session.userId);
+  if (isAdmin) {
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true },
+    });
+    if (!organization) {
+      redirect(`${destination}?error=organization_invalid`);
+    }
+  } else {
+    const membership = await prisma.organizationMember.findFirst({
+      where: {
+        userId: session.userId,
+        organizationId,
+      },
+      select: { id: true },
+    });
 
-  if (!membership) {
-    redirect(`${destination}?error=organization_invalid`);
+    if (!membership) {
+      redirect(`${destination}?error=organization_invalid`);
+    }
   }
 
   await prisma.session.update({
@@ -216,7 +212,6 @@ export async function switchOrganization(formData: FormData) {
 export async function updateOrganizationName(formData: FormData) {
   const session = await requireSession();
   const destination = resolveReturnTo(formData, "/profile");
-  await assertOrganizationWriteAccess(session.userId, destination);
   const organizationId = String(formData.get("organization_id") || "").trim();
   const organizationName = String(formData.get("organization_name") || "").trim();
 
@@ -224,20 +219,31 @@ export async function updateOrganizationName(formData: FormData) {
     redirect(`${destination}?error=organization_name_missing`);
   }
 
-  const membership = await prisma.organizationMember.findFirst({
-    where: {
-      userId: session.userId,
-      organizationId,
-    },
-    select: { role: true },
-  });
+  const isAdmin = await userHasAdminRole(session.userId);
+  if (!isAdmin) {
+    const membership = await prisma.organizationMember.findFirst({
+      where: {
+        userId: session.userId,
+        organizationId,
+      },
+      select: { role: true },
+    });
 
-  if (!membership) {
-    redirect(`${destination}?error=organization_invalid`);
-  }
+    if (!membership) {
+      redirect(`${destination}?error=organization_invalid`);
+    }
 
-  if (membership.role !== "owner") {
-    redirect(`${destination}?error=organization_owner_required`);
+    if (membership.role !== "owner") {
+      redirect(`${destination}?error=organization_owner_required`);
+    }
+  } else {
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true },
+    });
+    if (!organization) {
+      redirect(`${destination}?error=organization_invalid`);
+    }
   }
 
   const logoFile = formData.get("logo");
@@ -259,37 +265,39 @@ export async function updateOrganizationName(formData: FormData) {
 export async function deleteOrganization(formData: FormData) {
   const session = await requireSession();
   const destination = resolveReturnTo(formData, "/profile");
-  await assertOrganizationWriteAccess(session.userId, destination);
   const organizationId = String(formData.get("organization_id") || "").trim();
 
   if (!organizationId) {
     redirect(`${destination}?error=organization_select`);
   }
 
-  const membership = await prisma.organizationMember.findFirst({
-    where: {
-      userId: session.userId,
-      organizationId,
-    },
-    select: { role: true },
-  });
+  const isAdmin = await userHasAdminRole(session.userId);
+  if (!isAdmin) {
+    const membership = await prisma.organizationMember.findFirst({
+      where: {
+        userId: session.userId,
+        organizationId,
+      },
+      select: { role: true },
+    });
 
-  if (!membership) {
-    redirect(`${destination}?error=organization_invalid`);
-  }
+    if (!membership) {
+      redirect(`${destination}?error=organization_invalid`);
+    }
 
-  if (membership.role !== "owner") {
-    redirect(`${destination}?error=organization_owner_required`);
-  }
+    if (membership.role !== "owner") {
+      redirect(`${destination}?error=organization_owner_required`);
+    }
 
-  const userMemberships = await prisma.organizationMember.findMany({
-    where: { userId: session.userId },
-    select: { organizationId: true },
-    orderBy: { createdAt: "asc" },
-  });
+    const userMemberships = await prisma.organizationMember.findMany({
+      where: { userId: session.userId },
+      select: { organizationId: true },
+      orderBy: { createdAt: "asc" },
+    });
 
-  if (userMemberships.length <= 1) {
-    redirect(`${destination}?error=organization_last`);
+    if (userMemberships.length <= 1) {
+      redirect(`${destination}?error=organization_last`);
+    }
   }
 
   const organization = await prisma.organization.findUnique({
@@ -327,9 +335,28 @@ export async function deleteOrganization(formData: FormData) {
     redirect(`${destination}?error=organization_not_empty`);
   }
 
-  const fallbackOrganizationId =
-    userMemberships.find((item) => item.organizationId !== organizationId)
-      ?.organizationId ?? null;
+  let fallbackOrganizationId: string | null = null;
+  if (session.activeOrganizationId === organizationId) {
+    if (isAdmin) {
+      const other = await prisma.organization.findFirst({
+        where: { id: { not: organizationId } },
+        orderBy: { name: "asc" },
+        select: { id: true },
+      });
+      fallbackOrganizationId = other?.id ?? null;
+    } else {
+      const userMemberships = await prisma.organizationMember.findMany({
+        where: { userId: session.userId },
+        select: { organizationId: true },
+        orderBy: { createdAt: "asc" },
+      });
+      fallbackOrganizationId =
+        userMemberships.find((item) => item.organizationId !== organizationId)?.organizationId ??
+        null;
+    }
+  } else {
+    fallbackOrganizationId = session.activeOrganizationId;
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.session.update({
