@@ -1,5 +1,6 @@
 import "server-only";
 
+import { prisma } from "@/lib/prisma";
 import {
   cancelBillingSubscription,
   getOrganizationBillingCustomerId,
@@ -7,7 +8,7 @@ import {
   listBillingSubscriptions,
   resolveBillingProduct,
 } from "@/lib/billing-client";
-import { markOrgUnpaid } from "@/lib/entitlements";
+import { asBillingStatus, isBillingAccessAllowed, markOrgUnpaid } from "@/lib/entitlements";
 
 export type CancelSubscriptionMode = "now" | "period_end";
 
@@ -15,14 +16,57 @@ export type CancelOrganizationSubscriptionResult =
   | {
       ok: true;
       mode: CancelSubscriptionMode;
-      subscriptionId: string;
+      subscriptionId: string | null;
       canceledCount: number;
+      localOnly: boolean;
     }
   | { ok: false; error: string };
 
 /**
+ * End paid/local entitlement immediately and clear the saved plan so cancel
+ * does not leave the workspace "trialing" on the previous tier (e.g. pro_voice).
+ */
+async function revokeLocalWorkspaceAccess(organizationId: string): Promise<void> {
+  await markOrgUnpaid(organizationId);
+}
+
+async function cancelLocalOnly(input: {
+  organizationId: string;
+  mode: CancelSubscriptionMode;
+  currentPeriodEndsAt: Date | null;
+}): Promise<CancelOrganizationSubscriptionResult> {
+  const { organizationId, mode, currentPeriodEndsAt } = input;
+  const periodStillOpen =
+    Boolean(currentPeriodEndsAt) && currentPeriodEndsAt!.getTime() > Date.now();
+
+  if (mode === "period_end" && periodStillOpen) {
+    // Keep active until currentPeriodEndsAt; getOrgBilling expires it afterward.
+    return {
+      ok: true,
+      mode: "period_end",
+      subscriptionId: null,
+      canceledCount: 0,
+      localOnly: true,
+    };
+  }
+
+  await revokeLocalWorkspaceAccess(organizationId);
+  return {
+    ok: true,
+    mode: "now",
+    subscriptionId: null,
+    canceledCount: 0,
+    localOnly: true,
+  };
+}
+
+/**
  * Cancel the Billing subscription(s) for a workspace, then optionally revoke local access.
  * Uses PATCH /billing/admin/subscriptions/:id/cancel.
+ *
+ * If Billing has no matching subscription but the workspace is still locally
+ * entitled (admin override, missed webhook, etc.), revoke or schedule local access
+ * so sidebar entitlements stay in sync.
  */
 export async function cancelOrganizationBillingSubscription(input: {
   organizationId: string;
@@ -38,32 +82,66 @@ export async function cancelOrganizationBillingSubscription(input: {
     return { ok: false, error: "Billing is not configured." };
   }
 
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: {
+      billingStatus: true,
+      paidAt: true,
+      currentPeriodEndsAt: true,
+    },
+  });
+  if (!org) {
+    return { ok: false, error: "Workspace not found." };
+  }
+
+  const localStatus = asBillingStatus(org.billingStatus);
+  const locallyEntitled = isBillingAccessAllowed(localStatus) || Boolean(org.paidAt);
+
   const customerId = await getOrganizationBillingCustomerId(organizationId);
   if (!customerId) {
-    return {
-      ok: false,
-      error: "This workspace has no Billing customer yet, so there is nothing to cancel.",
-    };
+    if (!locallyEntitled) {
+      return {
+        ok: false,
+        error: "This workspace has no Billing customer yet, so there is nothing to cancel.",
+      };
+    }
+    return cancelLocalOnly({
+      organizationId,
+      mode,
+      currentPeriodEndsAt: org.currentPeriodEndsAt,
+    });
   }
 
   const product = await resolveBillingProduct().catch(() => null);
 
   let subs = await listBillingSubscriptions({
-    status: ["active", "trialing"],
+    status: ["active", "trialing", "past_due"],
     customerId,
     limit: 50,
   });
   if (subs.length === 0) {
-    subs = (await listBillingSubscriptions({ status: ["active", "trialing"], limit: 50 })).filter(
-      (sub) => sub.customerId === customerId,
-    );
+    subs = (
+      await listBillingSubscriptions({
+        status: ["active", "trialing", "past_due"],
+        limit: 50,
+      })
+    ).filter((sub) => sub.customerId === customerId);
   }
 
-  const matches = subs.filter(
+  const productMatches = subs.filter(
     (sub) => !product?.id || !sub.productId || sub.productId === product.id,
   );
+  const matches = productMatches.length > 0 ? productMatches : subs;
+
   if (matches.length === 0) {
-    return { ok: false, error: "No active subscription found for this workspace." };
+    if (!locallyEntitled) {
+      return { ok: false, error: "No active subscription found for this workspace." };
+    }
+    return cancelLocalOnly({
+      organizationId,
+      mode,
+      currentPeriodEndsAt: org.currentPeriodEndsAt,
+    });
   }
 
   const errors: string[] = [];
@@ -88,10 +166,8 @@ export async function cancelOrganizationBillingSubscription(input: {
     };
   }
 
-  // Immediate cancel: revoke local entitlements now.
-  // Period-end: keep access until Billing sends subscription.canceled / period ends.
   if (mode === "now") {
-    await markOrgUnpaid(organizationId);
+    await revokeLocalWorkspaceAccess(organizationId);
   }
 
   return {
@@ -99,5 +175,6 @@ export async function cancelOrganizationBillingSubscription(input: {
     mode,
     subscriptionId: firstId,
     canceledCount,
+    localOnly: false,
   };
 }

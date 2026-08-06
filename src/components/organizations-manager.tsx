@@ -37,6 +37,13 @@ type ModalState =
   | { type: "delete"; organization: OrganizationRow }
   | null;
 
+function organizationInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]!.charAt(0)}${parts[1]!.charAt(0)}`.toUpperCase();
+}
+
 export function OrganizationsManager({
   organizations,
   activeOrganizationId,
@@ -48,6 +55,7 @@ export function OrganizationsManager({
   onDeleteOrganization,
 }: OrganizationsManagerProps) {
   const [modal, setModal] = useState<ModalState>(null);
+  const [draftName, setDraftName] = useState("");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(5);
 
@@ -62,6 +70,21 @@ export function OrganizationsManager({
     const start = (currentPage - 1) * perPage;
     return sortedOrganizations.slice(start, start + perPage);
   }, [sortedOrganizations, currentPage, perPage]);
+
+  function openCreate() {
+    setDraftName("");
+    setModal({ type: "create" });
+  }
+
+  function openEdit(organization: OrganizationRow) {
+    setDraftName(organization.name);
+    setModal({ type: "edit", organization });
+  }
+
+  function closeModal() {
+    setModal(null);
+    setDraftName("");
+  }
 
   return (
     <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-md)]">
@@ -80,7 +103,7 @@ export function OrganizationsManager({
         ) : (
           <button
             type="button"
-            onClick={() => setModal({ type: "create" })}
+            onClick={openCreate}
             className="rounded-xl vr-btn-primary px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_-14px_color-mix(in_srgb,var(--color-primary)_85%,transparent)]"
           >
             Add organization
@@ -100,11 +123,13 @@ export function OrganizationsManager({
             <DataTableEmptyState
               title="No organizations yet"
               description="Create an organization to start configuring booking operations."
-              action={!readOnly ? (
-                <button type="button" onClick={() => setModal({ type: "create" })} className="rounded-xl vr-btn-primary px-4 py-2 text-xs font-semibold">
-                  Add organization
-                </button>
-              ) : undefined}
+              action={
+                !readOnly ? (
+                  <button type="button" onClick={openCreate} className="rounded-xl vr-btn-primary px-4 py-2 text-xs font-semibold">
+                    Add organization
+                  </button>
+                ) : undefined
+              }
             />
           ) : null}
           {pagedOrganizations.map((organization, index) => {
@@ -124,7 +149,7 @@ export function OrganizationsManager({
                     {organization.logoUrl ? (
                       <Image src={organization.logoUrl} alt="" width={40} height={40} unoptimized className="size-full object-contain p-1.5" />
                     ) : (
-                      organization.name.slice(0, 2).toUpperCase()
+                      organizationInitials(organization.name)
                     )}
                   </span>
                   <div className="min-w-0">
@@ -158,30 +183,34 @@ export function OrganizationsManager({
                       </button>
                     </form>
                   )}
-                  {!readOnly ? <button
-                    type="button"
-                    onClick={() => setModal({ type: "edit", organization })}
-                    className="inline-flex size-9 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] transition hover:border-[var(--color-border-hover)] hover:bg-[var(--color-raised)]"
-                    aria-label={`Edit ${organization.name}`}
-                  >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 20h9" />
-                      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                    </svg>
-                  </button> : null}
-                  {!readOnly ? <button
-                    type="button"
-                    onClick={() => setModal({ type: "delete", organization })}
-                    className="inline-flex size-9 items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)] text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
-                    aria-label={`Delete ${organization.name}`}
-                    disabled={organizations.length <= 1}
-                  >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 6h18" />
-                      <path d="M8 6V4h8v2" />
-                      <path d="M19 6l-1 14H6L5 6" />
-                    </svg>
-                  </button> : null}
+                  {!readOnly ? (
+                    <button
+                      type="button"
+                      onClick={() => openEdit(organization)}
+                      className="inline-flex size-9 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] transition hover:border-[var(--color-border-hover)] hover:bg-[var(--color-raised)]"
+                      aria-label={`Edit ${organization.name}`}
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                      </svg>
+                    </button>
+                  ) : null}
+                  {!readOnly ? (
+                    <button
+                      type="button"
+                      onClick={() => setModal({ type: "delete", organization })}
+                      className="inline-flex size-9 items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)] text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={`Delete ${organization.name}`}
+                      disabled={organizations.length <= 1}
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4h8v2" />
+                        <path d="M19 6l-1 14H6L5 6" />
+                      </svg>
+                    </button>
+                  ) : null}
                 </div>
               </DataTableRow>
             );
@@ -203,86 +232,143 @@ export function OrganizationsManager({
 
       {modal && modal.type !== "delete"
         ? createPortal(
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-overlay)] px-4">
-              <div className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-5 shadow-[var(--shadow-lg)]">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
-                      Appointment Agent
-                    </p>
-                    <h2 className="mt-2 text-lg font-semibold text-[var(--color-text)]">
-                      {modal.type === "create" ? "Add Organization" : "Edit Organization"}
-                    </h2>
-                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                      {modal.type === "create"
-                        ? "Create a workspace organization for appointment operations."
-                        : "Update organization name and company logo for emails."}
-                    </p>
+            <div
+              className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-6"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="organization-modal-title"
+            >
+              <button
+                type="button"
+                className="absolute inset-0 bg-[color-mix(in_srgb,#0a0a0a_48%,transparent)] backdrop-blur-[3px]"
+                aria-label="Close"
+                onClick={closeModal}
+              />
+              <div className="onboarding-panel-in relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]">
+                <div className="relative overflow-hidden border-b border-[var(--color-border)] px-5 pb-5 pt-5 sm:px-6 sm:pt-6">
+                  <div
+                    className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-[var(--color-primary-soft)] blur-2xl"
+                    aria-hidden
+                  />
+                  <div className="relative flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3.5">
+                      <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-primary)] text-sm font-bold text-white shadow-[var(--shadow-sm)]">
+                        {organizationInitials(draftName || (modal.type === "edit" ? modal.organization.name : "New"))}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+                          Workspace
+                        </p>
+                        <h2
+                          id="organization-modal-title"
+                          className="mt-1 text-xl font-semibold tracking-tight text-[var(--color-text)]"
+                        >
+                          {modal.type === "create" ? "Add organization" : "Edit organization"}
+                        </h2>
+                        <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-muted)]">
+                          {modal.type === "create"
+                            ? "Create a new business workspace. You’ll pick a plan next."
+                            : "Update the name and logo used across booking emails."}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      className="flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
+                      aria-label="Close"
+                    >
+                      <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                        <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+                      </svg>
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setModal(null)}
-                    className="rounded-lg p-1 text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface)]"
-                    aria-label="Close"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M6 6l12 12M6 18L18 6" />
-                    </svg>
-                  </button>
                 </div>
 
                 <form
                   action={modal.type === "create" ? onCreateOrganization : onUpdateOrganization}
-                  className="mt-4 space-y-4"
+                  className="space-y-5 px-5 py-5 sm:px-6"
                 >
                   {modal.type === "edit" ? (
                     <input type="hidden" name="organization_id" value={modal.organization.id} />
                   ) : null}
                   <input type="hidden" name="return_to" value={returnTo} />
-                  {modal.type === "edit" ? (
-                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                      <p className="text-sm font-semibold text-[var(--color-text)]">Company logo</p>
-                      <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                        Shown in booking confirmation emails. PNG, JPG, or SVG recommended.
-                      </p>
-                      {modal.organization.logoUrl ? (
-                        <Image
-                          src={modal.organization.logoUrl}
-                          alt=""
-                          width={56}
-                          height={56}
-                          unoptimized
-                          className="mt-3 h-14 w-14 rounded-xl border border-[var(--color-border)] bg-white object-contain p-1"
-                        />
-                      ) : null}
-                      <input
-                        type="file"
-                        name="logo"
-                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                        className="mt-3 block w-full text-xs text-[var(--color-text-muted)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary-soft)] file:px-3 file:py-2 file:text-xs file:font-semibold file:text-[var(--color-primary-h)]"
-                      />
-                    </div>
-                  ) : null}
-                  <label className="block text-sm text-[var(--color-text)]">
-                    Organization name
+
+                  <label className="block">
+                    <span className="text-xs font-semibold text-[var(--color-text)]">Organization name</span>
                     <input
                       type="text"
                       name="organization_name"
+                      required
+                      autoFocus
                       placeholder="e.g. Northline Home Services"
-                      defaultValue={modal.type === "edit" ? modal.organization.name : ""}
-                      className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:bg-[var(--color-bg)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
+                      value={draftName}
+                      onChange={(event) => setDraftName(event.target.value)}
+                      className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
                     />
                   </label>
-                  <div className="flex flex-wrap items-center justify-end gap-2">
+
+                  {modal.type === "edit" ? (
+                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+                      <div className="flex items-start gap-3">
+                        {modal.organization.logoUrl ? (
+                          <Image
+                            src={modal.organization.logoUrl}
+                            alt=""
+                            width={56}
+                            height={56}
+                            unoptimized
+                            className="size-14 shrink-0 rounded-xl border border-[var(--color-border)] bg-white object-contain p-1"
+                          />
+                        ) : (
+                          <span className="flex size-14 shrink-0 items-center justify-center rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-bold text-[var(--color-text-muted)]">
+                            {organizationInitials(draftName || modal.organization.name)}
+                          </span>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-[var(--color-text)]">Company logo</p>
+                          <p className="mt-0.5 text-xs leading-relaxed text-[var(--color-text-muted)]">
+                            Shown in booking confirmation emails. PNG, JPG, or SVG.
+                          </p>
+                          <input
+                            type="file"
+                            name="logo"
+                            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                            className="mt-3 block w-full text-xs text-[var(--color-text-muted)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary-soft)] file:px-3 file:py-2 file:text-xs file:font-semibold file:text-[var(--color-primary-h)]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3.5">
+                      <p className="text-xs font-semibold text-[var(--color-text)]">What happens next</p>
+                      <ol className="mt-2 space-y-1.5 text-xs leading-relaxed text-[var(--color-text-muted)]">
+                        <li className="flex gap-2">
+                          <span className="font-semibold text-[var(--color-primary-h)]">1.</span>
+                          Workspace is created and set as active
+                        </li>
+                        <li className="flex gap-2">
+                          <span className="font-semibold text-[var(--color-primary-h)]">2.</span>
+                          Choose a plan to unlock booking and reviews
+                        </li>
+                      </ol>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2 border-t border-[var(--color-border)] pt-4">
                     <button
                       type="button"
-                      onClick={() => setModal(null)}
-                      className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
+                      onClick={closeModal}
+                      className="rounded-xl px-3.5 py-2.5 text-sm font-semibold text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
                     >
                       Cancel
                     </button>
-                    <button type="submit" className="rounded-xl vr-btn-primary px-4 py-2 text-sm font-semibold">
-                      {modal.type === "create" ? "Create Organization" : "Save Changes"}
+                    <button
+                      type="submit"
+                      disabled={!draftName.trim()}
+                      className="rounded-xl vr-btn-primary px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      {modal.type === "create" ? "Create organization" : "Save changes"}
                     </button>
                   </div>
                 </form>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cancelActiveWorkspaceSubscription } from "@/app/(protected)/subscription/actions";
 import { toast } from "@/lib/toast";
@@ -103,7 +102,6 @@ function TimelineItem({
 }
 
 export function SubscriptionPanel({ subscription }: { subscription: SubscriptionViewModel }) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [cancelMode, setCancelMode] = useState<"period_end" | "now">("period_end");
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -122,10 +120,15 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
       }
       toast.success(
         result.mode === "now"
-          ? "Subscription canceled. Access will update shortly."
+          ? "Subscription canceled. Access has been revoked."
           : "Subscription will end after the current period.",
       );
-      router.refresh();
+      // Full navigation refresh so sidebar /api/me entitlements reload.
+      if (result.mode === "now") {
+        window.location.assign("/onboarding/plan?success=subscription_canceled");
+        return;
+      }
+      window.location.assign("/subscription?success=cancel_scheduled");
     });
   }
 

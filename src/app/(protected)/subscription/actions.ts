@@ -42,5 +42,6 @@ export async function cancelActiveWorkspaceSubscription(input: {
   revalidatePath("/subscription");
   revalidatePath("/billing-admin/organizations");
   revalidatePath("/dashboard");
+  revalidatePath("/billing/expired");
   return { ok: true, mode: result.mode };
 }

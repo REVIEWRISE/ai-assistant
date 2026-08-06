@@ -94,6 +94,8 @@ function asBillingStatus(value: string | null | undefined): BillingStatus {
   return "needs_plan";
 }
 
+export { asBillingStatus };
+
 function asBillingInterval(value: string | null | undefined): BillingInterval | null {
   if (value === "monthly" || value === "yearly") return value;
   return null;
@@ -171,6 +173,36 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
   const planSlug = isPlanSlug(org.planSlug) ? org.planSlug : null;
   let billingStatus = asBillingStatus(org.billingStatus);
   const isPaid = Boolean(org.paidAt) && billingStatus === "active";
+
+  // Paid period ended (e.g. local period-end cancel with no Billing webhook).
+  if (
+    isPaid &&
+    org.currentPeriodEndsAt &&
+    org.currentPeriodEndsAt.getTime() <= Date.now()
+  ) {
+    await markOrgUnpaid(organizationId);
+    const refreshed = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        planSlug: true,
+        billingStatus: true,
+        billingInterval: true,
+        paidAt: true,
+        currentPeriodEndsAt: true,
+      },
+    });
+    if (!refreshed) return null;
+    return {
+      organizationId: org.id,
+      planSlug: isPlanSlug(refreshed.planSlug) ? refreshed.planSlug : null,
+      billingStatus: asBillingStatus(refreshed.billingStatus),
+      billingInterval: asBillingInterval(refreshed.billingInterval),
+      trialStartsAt,
+      trialEndsAt,
+      paidAt: refreshed.paidAt,
+      currentPeriodEndsAt: refreshed.currentPeriodEndsAt,
+    };
+  }
 
   // Unpaid access is only valid during the active account createdAt → +14d trial window.
   if (!isPaid && billingStatus !== "needs_plan") {
@@ -524,13 +556,17 @@ export async function repairShortYearlyBillingPeriods(): Promise<number> {
 export async function markOrgUnpaid(organizationId: string): Promise<void> {
   const trialStartsAt = await getTrialAnchorForOrganization(organizationId);
   const trialEndsAt = trialEndsAtFrom(trialStartsAt);
+  // Without a plan slug, unpaid workspaces must re-pick a plan (needs_plan)
+  // or are fully locked out (expired) — never keep the previous paid tier.
   const billingStatus: BillingStatus = isTrialExpiredByCreatedAt(trialStartsAt)
     ? "expired"
-    : "trialing";
+    : "needs_plan";
 
   await prisma.organization.update({
     where: { id: organizationId },
     data: {
+      planSlug: null,
+      billingInterval: null,
       billingStatus,
       paidAt: null,
       currentPeriodEndsAt: null,
