@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { mergeOAuthTokenData } from "@/lib/calendar-oauth-connection";
+import { encryptTokenData, decryptTokenData } from "@/lib/token-encryption";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -103,7 +104,7 @@ export async function GET(request: Request) {
     select: { tokenData: true },
   });
 
-  const tokenData = mergeOAuthTokenData(existing?.tokenData, incoming);
+  const tokenData = mergeOAuthTokenData(decryptTokenData(existing?.tokenData), incoming);
 
   await prisma.providerConnection.upsert({
     where: {
@@ -116,11 +117,11 @@ export async function GET(request: Request) {
       userId: statePayload.userId,
       providerId: provider.id,
       connected: true,
-      tokenData: tokenData as unknown as Prisma.InputJsonValue,
+      tokenData: encryptTokenData(tokenData) as unknown as Prisma.InputJsonValue,
     },
     update: {
       connected: true,
-      tokenData: tokenData as unknown as Prisma.InputJsonValue,
+      tokenData: encryptTokenData(tokenData) as unknown as Prisma.InputJsonValue,
       updatedAt: new Date(),
     },
   });

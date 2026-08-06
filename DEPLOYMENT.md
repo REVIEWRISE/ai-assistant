@@ -48,6 +48,13 @@ Use **either**:
 
 See `.env.production.example` in the repo for a complete template.
 
+#### Required security secrets (SOC 2 CC6.1 / CC6.6)
+
+| Secret | Description |
+| :--- | :--- |
+| `TOKEN_ENCRYPTION_KEY` | 32-byte hex key encrypting OAuth tokens at rest. **The app refuses to start in production without it.** Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `HEALTH_CHECK_TOKEN` | Shared secret required for `/api/health` to return internal DB/schema details; without a matching `X-Health-Token` header, external callers only get `{"status": "healthy"}`. Generate: `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"` |
+
 #### Organization logo in booking emails
 
 Upload a **company logo** per organization under **Appointments → Organization → Edit organization**. The logo is stored at `organizations.logo_url` and shown in the email header (absolute URL from `NEXT_PUBLIC_APP_URL`). If no org logo is set, the app may fall back to the connected calendar provider’s logo.
@@ -141,6 +148,10 @@ SEED_ADMIN_EMAIL=admin@example.com
 SEED_ADMIN_PASSWORD=secure_password
 SEED_ADMIN_NAME=Admin
 
+# Required — see "Required security secrets" above
+TOKEN_ENCRYPTION_KEY=...64-char-hex...
+HEALTH_CHECK_TOKEN=...random-hex...
+
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=you@gmail.com
@@ -195,8 +206,10 @@ Destructive schema changes require setting `PRISMA_DB_PUSH_ACCEPT_DATA_LOSS=1` o
 ### Verify after deploy
 
 ```bash
-curl -s http://localhost:3015/api/health | jq
+curl -s -H "X-Health-Token: $HEALTH_CHECK_TOKEN" http://localhost:3015/api/health | jq
 ```
+
+Without the `X-Health-Token` header, `/api/health` only returns `{"status": "healthy"}` — internal schema/DB details are withheld from external callers (SOC 2 CC6.6).
 
 Expect:
 
@@ -275,6 +288,50 @@ The pipeline is defined in `.github/workflows/pipeline.yml`:
 - **Deploy**: `./scripts/deploy.sh /var/www/ai-assistant "$(cat .env.production)"`
 - **Rollback**: `./scripts/rollback.sh /var/www/ai-assistant`
 - **Logs**: `docker compose -f docker-compose.prod.yml logs -f`
+
+### Database backups (SOC 2 A1.2)
+
+Postgres data lives only in the `postgres_data` Docker volume on the VPS — there is no managed/offsite backup by default. Set up nightly dumps:
+
+```bash
+chmod +x scripts/backup-db.sh
+crontab -e
+# Add:
+0 2 * * * /var/www/ai-assistant/scripts/backup-db.sh /var/www/ai-assistant >> /var/log/db-backup.log 2>&1
+```
+
+This writes timestamped, gzip-compressed dumps to `<APP_DIR>/backups/` and prunes anything older than 14 days. Copy that directory offsite periodically (e.g. `rsync`/`scp` to another host or object storage) — a backup that only lives on the same VPS doesn't protect against VPS loss.
+
+**Restore:**
+
+```bash
+cd /var/www/ai-assistant
+gunzip -c backups/ai_assistant_20260101_020000.sql.gz | \
+  docker compose -f docker-compose.prod.yml exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+```
+
+### Content-Security-Policy
+
+`next.config.ts` ships a baseline CSP in `Content-Security-Policy-Report-Only` mode (SOC 2 CC6.6). It does not block anything yet — browsers log would-be violations to the devtools console instead. Before enforcing it:
+
+1. Deploy and click through the main flows (login, dashboard, appointments, reviews, the `/embed/chatbot` widget embedded in a real iframe) with devtools open.
+2. Fix any logged CSP violations (e.g. an external script/style/image domain not in the allowlist) by extending `CSP_REPORT_ONLY` / `CSP_REPORT_ONLY_EMBED` in `next.config.ts`.
+3. Once a full pass shows no violations, rename the header key from `Content-Security-Policy-Report-Only` to `Content-Security-Policy` in `next.config.ts` to start enforcing it.
+
+### Scaling beyond one app instance
+
+`src/lib/rate-limit.ts` (login/register/chatbot brute-force protection) is an **in-process, single-instance** in-memory store — it resets on every restart and is not shared across replicas. It is correct for the current single-`app`-container deployment (`docker-compose.prod.yml`). Before running more than one app replica (e.g. behind a load balancer), replace it with a shared store (Redis/Upstash) using the same `checkRateLimit` interface — otherwise brute-force protection silently only covers whichever instance a given request happens to hit.
+
+### TLS configuration
+
+`deploy/nginx.site.example.conf` terminates TLS via certbot's nginx plugin (`sudo certbot --nginx -d YOUR_DOMAIN`), which manages the certificate renewal and configures modern TLS protocol/cipher settings (via its bundled `options-ssl-nginx.conf`) automatically — no manual cipher/protocol hardening is needed in the nginx template itself. `Strict-Transport-Security` is set at the application layer (see Content-Security-Policy section below) so it applies regardless of proxy config.
+
+### Future work: MFA and self-service password reset (deferred)
+
+Not yet implemented. Intended design, documented here for SOC 2 audit purposes:
+
+- **Password reset**: a `PasswordResetToken` record (random token, short expiry, single-use) created on request and emailed to the account's address via the existing SMTP/nodemailer setup (`src/lib/booking-email.ts` already wires SMTP — reuse that transport). The reset link consumes the token, rotates `passwordHash`, and invalidates all existing `Session` rows for that user.
+- **MFA**: TOTP-based (e.g. `otplib`), rolled out to Admin-role accounts (`requireAdminSession` gate) first, then optionally exposed to all users. Requires a `mfaSecret` column on `User` and a challenge step inserted into `loginUser` (`src/app/login/actions.ts`) after password verification, before session creation.
 
 ## Optimization & Security
 

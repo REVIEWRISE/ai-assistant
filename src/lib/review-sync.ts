@@ -18,6 +18,7 @@ import {
   getValidOAuthAccessToken,
   isOAuthProviderConfig,
 } from "@/lib/google-oauth";
+import { encryptTokenData, decryptTokenData } from "@/lib/token-encryption";
 
 type RequiredFieldRule = { key: string; required: boolean };
 type ConnectionTokenData = Record<string, unknown>;
@@ -342,14 +343,14 @@ export async function syncSingleConnectedReviewProvider(args: {
   });
   if (!connection?.connected) return { status: "provider_not_connected", inserted: 0, fetched: 0 };
 
-  const tokenData = asRecord(connection.tokenData);
+  const tokenData = decryptTokenData(connection.tokenData);
   const fetchResult = await fetchReviewsByIntegration({
     provider,
     tokenData,
     persistTokenData: async (next) => {
       await prisma.providerConnection.update({
         where: { userId_providerId: { userId: args.userId, providerId: provider.id } },
-        data: { tokenData: next as object, updatedAt: new Date() },
+        data: { tokenData: encryptTokenData(next) as object, updatedAt: new Date() },
       });
     },
   });

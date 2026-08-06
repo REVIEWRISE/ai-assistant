@@ -11,6 +11,7 @@ import {
 } from "@/lib/review-routing";
 import { detectReviewIntegration, repliedPlatformLabel } from "@/lib/review-provider-integration";
 import { publishYelpReviewReply, yelpPartnerRepliesEnabled } from "@/lib/yelp-fusion";
+import { encryptTokenData, decryptTokenData } from "@/lib/token-encryption";
 
 function readString(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
@@ -51,7 +52,7 @@ async function findConnectedReviewProvider(args: {
       select: { connected: true, tokenData: true },
     });
     if (connection?.connected) {
-      return { provider, userId, tokenData: asRecord(connection.tokenData) };
+      return { provider, userId, tokenData: decryptTokenData(connection.tokenData) };
     }
   }
 
@@ -158,7 +159,7 @@ export async function publishReviewReply(args: {
               providerId: connectionInfo.provider.id,
             },
           },
-          data: { tokenData: next as object, updatedAt: new Date() },
+          data: { tokenData: encryptTokenData(next) as object, updatedAt: new Date() },
         });
       },
     });

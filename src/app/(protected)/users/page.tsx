@@ -3,11 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { UsersManager } from "@/components/users-manager";
 import { UsersToasts } from "@/components/users-toasts";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
+import { requireAdminSession } from "@/lib/auth-session";
 import { createUser, deleteUser, updateUser } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function UserManagementPage() {
+  await requireAdminSession();
+
   const [users, roles] = await Promise.all([
     prisma.user.findMany({
       orderBy: { createdAt: "asc" },

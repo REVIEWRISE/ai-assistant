@@ -1,9 +1,10 @@
 # dependencies
 node_modules
 
-# env
-.env.local
-.env*.local
+# env — ignore everything, then explicitly allow committed templates
+.env*
+!.env.example
+!.env.production.example
 
 # next.js
 .next/

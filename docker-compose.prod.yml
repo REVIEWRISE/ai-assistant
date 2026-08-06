@@ -12,13 +12,13 @@ services:
       - .env.production
     command: sh -c "sh scripts/db-sync.sh && node server.js"
     ports:
-      - "3015:3000"
+      - "127.0.0.1:3015:3000"
     volumes:
       - ./data/uploads:/app/public/uploads
     networks:
       - default
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD-SHELL", "curl -f -H \"X-Health-Token: $${HEALTH_CHECK_TOKEN}\" http://localhost:3000/api/health"]
       interval: 15s
       timeout: 10s
       retries: 5

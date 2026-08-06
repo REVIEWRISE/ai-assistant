@@ -7,6 +7,7 @@ import {
   type OAuthProviderConfig,
   type TokenData,
 } from "@/lib/google-oauth";
+import { encryptTokenData, decryptTokenData } from "@/lib/token-encryption";
 
 export type CalendarConnectionDisplay = {
   status: "Connected" | "Reconnect required" | "Not connected";
@@ -15,7 +16,10 @@ export type CalendarConnectionDisplay = {
 };
 
 function asTokenData(raw: unknown): TokenData {
-  return raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as TokenData) : {};
+  const decrypted = decryptTokenData(raw);
+  return decrypted && typeof decrypted === "object" && !Array.isArray(decrypted)
+    ? (decrypted as TokenData)
+    : {};
 }
 
 export function readAccessTokenExpiresAtMs(tokenData: unknown): number | null {
@@ -119,7 +123,7 @@ export async function ensureCalendarConnectionTokenFresh(args: {
       },
     },
     data: {
-      tokenData: next as Prisma.InputJsonValue,
+      tokenData: encryptTokenData(next) as Prisma.InputJsonValue,
       connected: true,
       updatedAt: new Date(),
     },

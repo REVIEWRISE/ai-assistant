@@ -48,7 +48,9 @@ function RegisterPageContent() {
     const messages: Record<string, string> = {
       missing: "Please fill in all required fields.",
       nomatch: "Passwords do not match.",
+      weak_password: "Password must be at least 12 characters.",
       exists: "An account with this email already exists.",
+      rate_limited: "Too many registration attempts. Please try again later.",
     };
     toast.error(messages[error] ?? "Unable to create account. Please try again.");
   }, [error]);
@@ -81,7 +83,7 @@ function RegisterPageContent() {
         <label className="block">
           <span className="mb-2 block text-sm font-semibold text-[var(--color-text)]">Password</span>
           <span className="relative block">
-            <input id="password" name="password" type={showPassword ? "text" : "password"} required placeholder="Create a secure password" autoComplete="new-password" className={`${INPUT_CLASS} pr-11`} />
+            <input id="password" name="password" type={showPassword ? "text" : "password"} required minLength={12} placeholder="Create a secure password (min. 12 characters)" autoComplete="new-password" className={`${INPUT_CLASS} pr-11`} />
             <PasswordToggle show={showPassword} onToggle={() => setShowPassword((current) => !current)} label={showPassword ? "Hide password" : "Show password"} />
           </span>
         </label>

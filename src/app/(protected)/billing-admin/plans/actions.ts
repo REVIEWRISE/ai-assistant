@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import { requireAdminSession } from "@/lib/auth-session";
+import { prisma } from "@/lib/prisma";
 import {
   createBillingModule,
   createBillingPlan,
@@ -14,6 +16,19 @@ import {
 } from "@/lib/billing-client";
 
 const ADMIN_PATH = "/billing-admin/plans";
+
+// Billing catalog admin actions aren't scoped to a single organization —
+// audit events still require an organizationId, so use the same null-org
+// sentinel already established in src/app/login/actions.ts.
+const PLATFORM_AUDIT_ORG_ID = "00000000-0000-0000-0000-000000000000";
+
+async function logAdminAudit(actorId: string, action: string, metadata: Prisma.InputJsonObject) {
+  await prisma.auditEvent
+    .create({
+      data: { organizationId: PLATFORM_AUDIT_ORG_ID, actorId, action, metadata },
+    })
+    .catch(() => {/* non-blocking */});
+}
 
 function text(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
@@ -43,7 +58,7 @@ function redirectResult(_formData: FormData, params: Record<string, string>) {
 }
 
 export async function createModuleAction(formData: FormData) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   if (!isBillingConfigured()) redirectResult(formData, { error: "not_configured" });
 
   const key = text(formData, "key").toLowerCase().replace(/\s+/g, "_");
@@ -74,12 +89,13 @@ export async function createModuleAction(formData: FormData) {
     redirectResult(formData, { error: "create_failed" });
   }
 
+  await logAdminAudit(session.userId, "billing_admin.module_created", { key, displayName });
   refresh();
   redirectResult(formData, { success: "created" });
 }
 
 export async function updateModuleAction(formData: FormData) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   if (!isBillingConfigured()) redirectResult(formData, { error: "not_configured" });
 
   const id = text(formData, "id");
@@ -99,12 +115,13 @@ export async function updateModuleAction(formData: FormData) {
     redirectResult(formData, { error: "update_failed" });
   }
 
+  await logAdminAudit(session.userId, "billing_admin.module_updated", { id, displayName, isActive });
   refresh();
   redirectResult(formData, { success: "updated" });
 }
 
 export async function deleteModuleAction(formData: FormData) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   if (!isBillingConfigured()) redirectResult(formData, { error: "not_configured" });
 
   const id = text(formData, "id");
@@ -116,12 +133,13 @@ export async function deleteModuleAction(formData: FormData) {
     redirectResult(formData, { error: "delete_failed" });
   }
 
+  await logAdminAudit(session.userId, "billing_admin.module_deleted", { id });
   refresh();
   redirectResult(formData, { success: "deleted" });
 }
 
 export async function updatePlanAction(formData: FormData) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   if (!isBillingConfigured()) redirectResult(formData, { error: "not_configured" });
 
   const monthlyPlanId = text(formData, "monthly_plan_id");
@@ -172,6 +190,11 @@ export async function updatePlanAction(formData: FormData) {
     redirectResult(formData, { error: "plan_update_failed" });
   }
 
+  await logAdminAudit(session.userId, "billing_admin.plan_updated", {
+    monthlyPlanId: monthlyPlanId || null,
+    yearlyPlanId: yearlyPlanId || null,
+    name,
+  });
   refresh();
   // Stay on plans list after save (clear edit sheet).
   const qs = new URLSearchParams({ success: "plan_updated" });
@@ -179,7 +202,7 @@ export async function updatePlanAction(formData: FormData) {
 }
 
 export async function createPlanAction(formData: FormData) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   if (!isBillingConfigured()) redirectResult(formData, { error: "not_configured" });
 
   const name = text(formData, "name");
@@ -230,6 +253,7 @@ export async function createPlanAction(formData: FormData) {
     redirect(`${ADMIN_PATH}?error=plan_create_failed`);
   }
 
+  await logAdminAudit(session.userId, "billing_admin.plan_created", { name, createYearly });
   refresh();
   redirect(`${ADMIN_PATH}?success=plan_created`);
 }

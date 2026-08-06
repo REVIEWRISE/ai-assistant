@@ -17,6 +17,7 @@ import { detectReviewIntegration } from "@/lib/review-provider-integration";
 import { verifyYelpConnection, cleanYelpBaseUrl } from "@/lib/yelp-fusion";
 import { userHasAdminRole } from "@/lib/admin-view-only";
 import { assertWithinLimit, requireOrgFeature } from "@/lib/entitlements";
+import { encryptTokenData, decryptTokenData } from "@/lib/token-encryption";
 
 const REVIEWS_ROUTE = "/reviews";
 
@@ -105,7 +106,7 @@ export async function completeReviewProviderLocation(formData: FormData) {
   if (!connection) redirect(`${REVIEWS_ROUTE}?error=provider_not_connected`);
 
   const mergedTokenData = {
-    ...readTokenRecord(connection.tokenData),
+    ...decryptTokenData(connection.tokenData),
     account_id: accountId,
     location_id: locationId,
     location_name: locationName,
@@ -116,7 +117,7 @@ export async function completeReviewProviderLocation(formData: FormData) {
     where: { userId_providerId: { userId: session.userId, providerId: provider.id } },
     data: {
       connected: true,
-      tokenData: mergedTokenData as unknown as Prisma.InputJsonValue,
+      tokenData: encryptTokenData(mergedTokenData) as unknown as Prisma.InputJsonValue,
       updatedAt: new Date(),
     },
   });
@@ -234,11 +235,11 @@ export async function connectReviewProvider(formData: FormData) {
       userId: session.userId,
       providerId: provider.id,
       connected: true,
-      tokenData: details as unknown as Prisma.InputJsonValue,
+      tokenData: encryptTokenData(details) as unknown as Prisma.InputJsonValue,
     },
     update: {
       connected: true,
-      tokenData: details as unknown as Prisma.InputJsonValue,
+      tokenData: encryptTokenData(details) as unknown as Prisma.InputJsonValue,
       updatedAt: new Date(),
     },
   });

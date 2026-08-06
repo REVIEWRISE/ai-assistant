@@ -41,8 +41,11 @@ MAX_RETRIES=30
 RETRY_COUNT=0
 UNTIL_HEALTHY=0
 
+# /api/health only returns schema details to callers presenting HEALTH_CHECK_TOKEN (SOC 2 CC6.6)
+HEALTH_CHECK_TOKEN=$(grep -E '^HEALTH_CHECK_TOKEN=' .env.production 2>/dev/null | cut -d '=' -f2-)
+
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    HTTP_RESPONSE=$(curl -s -o /tmp/health_body -w "%{http_code}" http://localhost:3015/api/health || echo "000")
+    HTTP_RESPONSE=$(curl -s -o /tmp/health_body -w "%{http_code}" -H "X-Health-Token: ${HEALTH_CHECK_TOKEN}" http://localhost:3015/api/health || echo "000")
     BODY=$(cat /tmp/health_body 2>/dev/null || echo "")
     echo "Attempt $RETRY_COUNT/$MAX_RETRIES — HTTP $HTTP_RESPONSE — $BODY"
     if echo "$BODY" | grep -q '"status":"healthy"' \

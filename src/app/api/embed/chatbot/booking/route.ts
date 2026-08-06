@@ -33,8 +33,16 @@ import {
   syncAppointmentToExternalCalendar,
 } from "@/lib/sync-appointment-calendar-event";
 import { assertOrgFeatureAccess } from "@/lib/entitlements";
+import { checkChatbotRateLimit } from "@/lib/rate-limit";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function getClientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0].trim();
+  const realIp = request.headers.get("x-real-ip");
+  return realIp?.trim() ?? "unknown";
+}
 
 function toParsedRecord(raw: unknown): ParsedBookingUtterance | null {
   if (!raw || typeof raw !== "object") return null;
@@ -101,6 +109,16 @@ function summarizeBookingFlowQa(
 }
 
 export async function POST(request: Request) {
+  // Rate limit: 60 requests/min per IP (SOC 2 CC6.6)
+  const ip = getClientIp(request);
+  const rl = checkChatbotRateLimit(ip);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment and try again." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();

@@ -5,6 +5,7 @@ import {
   asOAuthProviderConfig,
   exchangeAuthorizationCode,
 } from "@/lib/google-oauth";
+import { encryptTokenData } from "@/lib/token-encryption";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { userHasAdminRole } from "@/lib/admin-view-only";
@@ -87,11 +88,11 @@ export async function GET(request: Request) {
         userId: statePayload.userId,
         providerId: provider.id,
         connected: false,
-        tokenData: tokenData as Prisma.InputJsonValue,
+        tokenData: encryptTokenData(tokenData) as Prisma.InputJsonValue,
       },
       update: {
         connected: false,
-        tokenData: tokenData as Prisma.InputJsonValue,
+        tokenData: encryptTokenData(tokenData) as Prisma.InputJsonValue,
         updatedAt: new Date(),
       },
     });
@@ -128,11 +129,11 @@ export async function GET(request: Request) {
         userId: statePayload.userId,
         providerId: provider.id,
         connected: true,
-        tokenData: mergedTokenData as Prisma.InputJsonValue,
+        tokenData: encryptTokenData(mergedTokenData) as Prisma.InputJsonValue,
       },
       update: {
         connected: true,
-        tokenData: mergedTokenData as Prisma.InputJsonValue,
+        tokenData: encryptTokenData(mergedTokenData) as Prisma.InputJsonValue,
         updatedAt: new Date(),
       },
     });
@@ -167,11 +168,11 @@ export async function GET(request: Request) {
       userId: statePayload.userId,
       providerId: provider.id,
       connected: false,
-      tokenData: tokenData as Prisma.InputJsonValue,
+      tokenData: encryptTokenData(tokenData) as Prisma.InputJsonValue,
     },
     update: {
       connected: false,
-      tokenData: tokenData as Prisma.InputJsonValue,
+      tokenData: encryptTokenData(tokenData) as Prisma.InputJsonValue,
       updatedAt: new Date(),
     },
   });

@@ -8,8 +8,19 @@ import {
   isBillingConfigured,
 } from "@/lib/billing-client";
 import { prisma } from "@/lib/prisma";
+import { checkRegisterRateLimit } from "@/lib/rate-limit";
+import { getRequestIp } from "@/lib/request-ip";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("register");
 
 export async function registerUser(formData: FormData) {
+  const ip = await getRequestIp();
+  const rl = checkRegisterRateLimit(ip);
+  if (!rl.allowed) {
+    redirect("/register?error=rate_limited");
+  }
+
   const fullName = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
@@ -17,6 +28,10 @@ export async function registerUser(formData: FormData) {
 
   if (!fullName || !email || !password) {
     redirect("/register?error=missing");
+  }
+
+  if (password.length < 12) {
+    redirect("/register?error=weak_password");
   }
 
   if (password !== confirm) {
@@ -89,7 +104,7 @@ export async function registerUser(formData: FormData) {
     redirect("/register?error=unknown");
   }
   if (!isBillingConfigured()) {
-    console.warn("[billing] BILLING_API_KEY missing — skipped customer create on signup");
+    log.warn("BILLING_API_KEY missing — skipped customer create on signup");
   } else {
     try {
       await ensureBillingCustomerForOrganization({
@@ -98,7 +113,9 @@ export async function registerUser(formData: FormData) {
         primaryEmail: email,
       });
     } catch (error) {
-      console.error("[billing] failed to register customer on signup", error);
+      log.error("failed to register billing customer on signup", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       // Account exists locally; customer can still be created later at plan select / checkout.
     }
   }
@@ -116,9 +133,21 @@ export async function registerUser(formData: FormData) {
   const cookieStore = await cookies();
   cookieStore.set("ai_session", sessionToken, {
     path: "/",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 24 * 7,
     sameSite: "lax",
   });
+
+  // Audit registration event
+  await prisma.auditEvent.create({
+    data: {
+      organizationId,
+      actorId: userId,
+      action: "auth.register",
+      metadata: {},
+    },
+  }).catch(() => {/* non-blocking */});
 
   const planHint = String(formData.get("plan") || "").trim();
   const intervalHint = String(formData.get("interval") || "").trim();

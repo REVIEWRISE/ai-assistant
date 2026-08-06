@@ -9,6 +9,7 @@
  */
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { encryptTokenData, decryptTokenData } from "@/lib/token-encryption";
 
 type TokenData = Record<string, unknown> & {
   access_token?: string;
@@ -310,13 +311,13 @@ async function checkProviderCalendarAvailability(
   }
 
   const config = asProviderConfig(provider.config);
-  const tokenResult = await getValidAccessToken(config, connection.tokenData, async (next) => {
+  const tokenResult = await getValidAccessToken(config, decryptTokenData(connection.tokenData), async (next) => {
     await prisma.providerConnection.update({
       where: {
         userId_providerId: { userId: connectionUserId, providerId },
       },
       data: {
-        tokenData: next as Prisma.InputJsonValue,
+        tokenData: encryptTokenData(next) as Prisma.InputJsonValue,
         updatedAt: new Date(),
       },
     });
@@ -394,13 +395,13 @@ export async function syncAppointmentToExternalCalendar(
     };
   }
   const config = asProviderConfig(provider.config);
-  const tokenResult = await getValidAccessToken(config, connection.tokenData, async (next) => {
+  const tokenResult = await getValidAccessToken(config, decryptTokenData(connection.tokenData), async (next) => {
     await prisma.providerConnection.update({
       where: {
         userId_providerId: { userId: connectionUserId, providerId },
       },
       data: {
-        tokenData: next as Prisma.InputJsonValue,
+        tokenData: encryptTokenData(next) as Prisma.InputJsonValue,
         updatedAt: new Date(),
       },
     });

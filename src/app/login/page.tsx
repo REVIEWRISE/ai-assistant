@@ -30,7 +30,15 @@ function LoginPageContent() {
 
   useEffect(() => {
     if (!error) return;
-    toast.error(error === "missing" ? "Please provide both email and password." : "Invalid email or password.");
+    if (error === "rate_limited") {
+      const retry = searchParams?.get("retry");
+      const msg = retry
+        ? `Too many login attempts. Please wait ${retry} minute(s) and try again.`
+        : "Too many login attempts. Please wait a moment and try again.";
+      toast.error(msg);
+    } else {
+      toast.error(error === "missing" ? "Please provide both email and password." : "Invalid email or password.");
+    }
   }, [error]);
 
   return (
