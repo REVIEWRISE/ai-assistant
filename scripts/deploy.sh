@@ -10,6 +10,10 @@ fi
 
 cd "$APP_DIR"
 
+# SCP deploy does not delete removed repo files. Drop superseded logout page/action
+# so Next.js does not see both /logout/page and /logout/route.
+rm -f "$APP_DIR/src/app/logout/page.tsx" "$APP_DIR/src/app/logout/actions.ts"
+
 # Persist provider logos and other uploads across container rebuilds
 mkdir -p "$APP_DIR/data/uploads/providers" "$APP_DIR/data/uploads/organizations"
 chmod -R 775 "$APP_DIR/data/uploads" 2>/dev/null || true
