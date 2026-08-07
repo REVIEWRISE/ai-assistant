@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { AuthSuccessToasts } from "@/components/auth-success-toasts";
 import { DashboardView } from "@/components/dashboard-view";
 import { getDashboardData } from "@/lib/dashboard-data";
@@ -9,7 +10,9 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <AuthSuccessToasts />
+      <Suspense fallback={null}>
+        <AuthSuccessToasts />
+      </Suspense>
       <DashboardView data={data} />
     </>
   );

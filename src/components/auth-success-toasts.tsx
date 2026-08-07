@@ -7,6 +7,8 @@ import { toast } from "@/lib/toast";
 const successMessages: Record<string, string> = {
   login: "Welcome back.",
   register: "Account created successfully.",
+  trial_started: "Trial started — let's finish setup.",
+  subscription_active: "Subscription is active.",
 };
 
 export function AuthSuccessToasts() {

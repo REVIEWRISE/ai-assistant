@@ -4,6 +4,8 @@ import { getVoiceAnalytics } from "@/lib/voice-analytics";
 import { getOrgRetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import { displayRoleFromUserRoles, getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
 import { isHrefAllowedForNav } from "@/lib/nav-access";
+import { calendarConnectionIsUsable } from "@/lib/calendar-oauth-connection";
+import { resolveBookingFlowConfig } from "@/lib/chatbot-config";
 import {
   formatReviewRoutingSummary,
   isAutoReadyPendingReview,
@@ -68,8 +70,17 @@ export type DashboardQuickLink = {
   description: string;
 };
 
+export type DashboardSetupStep = {
+  id: string;
+  label: string;
+  description: string;
+  href: string;
+  complete: boolean;
+};
+
 export type DashboardData = {
   roleName: string;
+  organizationId: string | null;
   organizationName: string | null;
   heroEyebrow: string;
   heroTitle: string;
@@ -79,6 +90,7 @@ export type DashboardData = {
   overviewStats: DashboardOverviewStat[];
   sections: DashboardSection[];
   quickLinks: DashboardQuickLink[];
+  setupSteps: DashboardSetupStep[];
   emptyMessage: string | null;
 };
 
@@ -146,6 +158,12 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           select: {
             id: true,
             name: true,
+            logoUrl: true,
+            timezone: true,
+            knowledgeBase: { select: { status: true, rawText: true } },
+            chatbotSettings: {
+              select: { id: true, welcomeMessage: true, bookingFlow: true },
+            },
           },
         })
       : Promise.resolve(null),
@@ -645,14 +663,107 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
 
   const uniqueHeadline = headlineStats.slice(0, 4);
 
+  const setupSteps: DashboardSetupStep[] = [];
+  if (orgId && activeOrganization) {
+    const nowMs = Date.now();
+    const [calendarConnection, reviewConnection] = await Promise.all([
+      canAccess(allowed, "/appointments")
+        ? prisma.providerConnection.findFirst({
+            where: {
+              userId,
+              connected: true,
+              provider: { type: "calendar", status: "enabled" },
+            },
+            select: { connected: true, tokenData: true },
+          })
+        : Promise.resolve(null),
+      // Match /reviews: connected = ProviderConnection on a review provider (not review_services rows).
+      canAccess(allowed, "/reviews")
+        ? prisma.providerConnection.findFirst({
+            where: {
+              userId,
+              connected: true,
+              provider: { type: "review", status: "enabled" },
+            },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    const calendarConnected = Boolean(
+      calendarConnection && calendarConnectionIsUsable(calendarConnection.tokenData, nowMs),
+    );
+    const reviewConnected = Boolean(reviewConnection);
+    const chatbot = activeOrganization.chatbotSettings;
+    const bookingFlowSteps = chatbot
+      ? resolveBookingFlowConfig(chatbot.bookingFlow).steps.length
+      : 0;
+    const chatbotConfigured = Boolean(
+      chatbot &&
+        (chatbot.welcomeMessage.trim().length > 0 || bookingFlowSteps > 0),
+    );
+    const knowledgeApproved =
+      activeOrganization.knowledgeBase?.status === "approved" &&
+      Boolean(activeOrganization.knowledgeBase.rawText?.trim());
+
+    // Active named workspace counts as set up (logo is optional polish, not a gate).
+    if (canAccess(allowed, "/appointments/organization")) {
+      setupSteps.push({
+        id: "organization",
+        label: "Set up your organization",
+        description: "Create or select the workspace this agent should run for.",
+        href: "/appointments/organization",
+        complete: Boolean(activeOrganization.name?.trim()),
+      });
+    }
+    if (canAccess(allowed, "/appointments/knowledge-base")) {
+      setupSteps.push({
+        id: "knowledge",
+        label: "Add business knowledge",
+        description: "Import and approve context so the assistant answers accurately.",
+        href: "/appointments/knowledge-base",
+        complete: knowledgeApproved,
+      });
+    }
+    if (canAccess(allowed, "/appointments/overview")) {
+      setupSteps.push({
+        id: "calendar",
+        label: "Connect a calendar",
+        description: "Link Google or Outlook so availability and bookings stay in sync.",
+        href: "/appointments/overview",
+        complete: calendarConnected,
+      });
+    }
+    if (canAccess(allowed, "/appointments/chatbot")) {
+      setupSteps.push({
+        id: "chatbot",
+        label: "Configure the booking chatbot",
+        description: "Set a welcome message or guided booking questions.",
+        href: "/appointments/chatbot",
+        complete: chatbotConfigured,
+      });
+    }
+    if (canAccess(allowed, "/reviews")) {
+      setupSteps.push({
+        id: "reviews",
+        label: "Connect review inboxes",
+        description: "Pull Google reviews and start drafting replies.",
+        href: "/reviews",
+        complete: reviewConnected,
+      });
+    }
+  }
+
   return {
     roleName,
+    organizationId: orgId,
     organizationName: orgName,
     ...hero,
     headlineStats: uniqueHeadline,
     overviewStats,
     sections,
     quickLinks: quickLinks.slice(0, 6),
+    setupSteps,
     emptyMessage: sections.length === 0 ? "No modules are assigned to your role yet." : null,
   };
 }

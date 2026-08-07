@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import {
   DashboardChartGrid,
   DashboardOverviewGrid,
@@ -6,6 +7,7 @@ import {
   DashboardStatFallback,
   type DashboardSection,
 } from "@/components/dashboard-charts";
+import { GettingStartedStepper } from "@/components/getting-started-stepper";
 import type { DashboardData } from "@/lib/dashboard-data";
 
 function DashboardSectionCard({ section }: { section: DashboardSection }) {
@@ -105,6 +107,13 @@ export function DashboardView({ data }: { data: DashboardData }) {
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
+      <Suspense fallback={null}>
+        <GettingStartedStepper
+          organizationId={data.organizationId}
+          organizationName={data.organizationName}
+          steps={data.setupSteps}
+        />
+      </Suspense>
       {data.emptyMessage ? (
         <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
           <h2 className="text-lg font-semibold text-[var(--color-text)]">No modules assigned</h2>
