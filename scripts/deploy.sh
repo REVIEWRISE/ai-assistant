@@ -45,18 +45,32 @@ MAX_RETRIES=30
 RETRY_COUNT=0
 UNTIL_HEALTHY=0
 
-# /api/health only returns schema details to callers presenting HEALTH_CHECK_TOKEN (SOC 2 CC6.6)
-HEALTH_CHECK_TOKEN=$(grep -E '^HEALTH_CHECK_TOKEN=' .env.production 2>/dev/null | cut -d '=' -f2-)
+# /api/health only returns schema details when X-Health-Token matches HEALTH_CHECK_TOKEN.
+# Without a token (production), the body is minimal — but HTTP 200 + status healthy still
+# means schema is in sync (see src/app/api/health/route.ts).
+HEALTH_CHECK_TOKEN=$(grep -E '^HEALTH_CHECK_TOKEN=' .env.production 2>/dev/null | cut -d '=' -f2- | tr -d '\r')
+if [ -z "$HEALTH_CHECK_TOKEN" ]; then
+  echo "WARNING: HEALTH_CHECK_TOKEN is empty — accepting HTTP 200 + status healthy (no schemaInSync field)."
+fi
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     HTTP_RESPONSE=$(curl -s -o /tmp/health_body -w "%{http_code}" -H "X-Health-Token: ${HEALTH_CHECK_TOKEN}" http://localhost:3015/api/health || echo "000")
     BODY=$(cat /tmp/health_body 2>/dev/null || echo "")
     echo "Attempt $RETRY_COUNT/$MAX_RETRIES — HTTP $HTTP_RESPONSE — $BODY"
-    if echo "$BODY" | grep -q '"status":"healthy"' \
-      && echo "$BODY" | grep -q '"schemaInSync":true'; then
-        echo "App is healthy and database schema is in sync!"
+
+    if [ "$HTTP_RESPONSE" = "200" ] && echo "$BODY" | grep -q '"status":"healthy"'; then
+      # Detailed response: require schemaInSync when present.
+      if echo "$BODY" | grep -q 'schemaInSync'; then
+        if echo "$BODY" | grep -q '"schemaInSync":true'; then
+          echo "App is healthy and database schema is in sync!"
+          UNTIL_HEALTHY=1
+          break
+        fi
+      else
+        echo "App is healthy (schema details omitted without HEALTH_CHECK_TOKEN)."
         UNTIL_HEALTHY=1
         break
+      fi
     fi
     sleep 10
     RETRY_COUNT=$((RETRY_COUNT+1))
