@@ -37,6 +37,20 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    # scp-action only uploads/overwrites — it does not delete files removed from the repo.
+    # Wipe synced trees first so App Router conflicts (e.g. leftover logout/page.tsx) cannot linger.
+    - name: Clean remote synced directories
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT }}
+        script: |
+          cd ${{ secrets.APP_DIR }}
+          rm -rf src scripts deploy
+          mkdir -p src scripts deploy
+
     - name: Copy files to server
       uses: appleboy/scp-action@v0.1.7
       with:
