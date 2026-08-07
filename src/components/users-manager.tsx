@@ -563,6 +563,7 @@ export function UsersManager({
                           name="password"
                           placeholder="Create a secure password"
                           autoComplete="new-password"
+                          minLength={12}
                           required
                           className={`${fieldClass} pr-16`}
                         />
@@ -575,6 +576,9 @@ export function UsersManager({
                           {showPassword ? "Hide" : "Show"}
                         </button>
                       </div>
+                      <span className="mt-1.5 block font-normal text-[var(--color-text-muted)]">
+                        At least 12 characters, with an uppercase letter, a lowercase letter, a number, and a symbol.
+                      </span>
                     </label>
                   ) : null}
 

@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { requireAdminSession } from "@/lib/auth-session";
+import { validatePasswordStrength } from "@/lib/password-policy";
 
 // Platform-level admin actions aren't scoped to a single organization —
 // audit events still require an organizationId, so use the same null-org
@@ -21,6 +22,11 @@ export async function createUser(formData: FormData) {
 
   if (!fullName || !email || !password) {
     redirect("/users?error=missing");
+  }
+
+  const passwordViolation = validatePasswordStrength(password, { email, fullName });
+  if (passwordViolation) {
+    redirect(`/users?error=${passwordViolation}`);
   }
 
   const passwordHash = await bcrypt.hash(password, 10);

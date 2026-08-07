@@ -21,6 +21,9 @@ const errorMessages: Record<string, string> = {
   missing_password: "Please fill in all password fields.",
   nomatch_password: "Passwords do not match.",
   invalid_password: "Current password is incorrect.",
+  weak_password:
+    "Password must be at least 12 characters and include an uppercase letter, a lowercase letter, a number, and a symbol.",
+  weak_password_personal: "Password must not contain your name or email address.",
   organization_missing: "Please enter an organization name.",
   organization_name_missing: "Please provide an organization name.",
   organization_select: "Please select an organization.",

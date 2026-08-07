@@ -15,6 +15,9 @@ const errorMessages: Record<string, string> = {
   exists: "That email is already in use.",
   delete_failed: "Unable to delete that user.",
   unknown: "Something went wrong. Try again.",
+  weak_password:
+    "Password must be at least 12 characters and include an uppercase letter, a lowercase letter, a number, and a symbol.",
+  weak_password_personal: "Password must not contain the user's name or email address.",
 };
 
 export function UsersToasts() {

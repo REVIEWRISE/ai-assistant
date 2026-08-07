@@ -12,6 +12,7 @@ import {
   ensureBillingCustomerForOrganization,
   isBillingConfigured,
 } from "@/lib/billing-client";
+import { validatePasswordStrength } from "@/lib/password-policy";
 
 function resolveReturnTo(formData: FormData, fallback: string): string {
   const returnTo = String(formData.get("return_to") || "").trim();
@@ -91,7 +92,7 @@ export async function updatePassword(formData: FormData) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { passwordHash: true },
+    select: { passwordHash: true, email: true, fullName: true },
   });
 
   if (!user) {
@@ -101,6 +102,14 @@ export async function updatePassword(formData: FormData) {
   const valid = await bcrypt.compare(currentPassword, user.passwordHash);
   if (!valid) {
     redirect("/profile?error=invalid_password");
+  }
+
+  const passwordViolation = validatePasswordStrength(newPassword, {
+    email: user.email,
+    fullName: user.fullName,
+  });
+  if (passwordViolation) {
+    redirect(`/profile?error=${passwordViolation}`);
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 10);

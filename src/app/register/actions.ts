@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { checkRegisterRateLimit } from "@/lib/rate-limit";
 import { getRequestIp } from "@/lib/request-ip";
 import { createLogger } from "@/lib/logger";
+import { validatePasswordStrength } from "@/lib/password-policy";
 
 const log = createLogger("register");
 
@@ -30,8 +31,9 @@ export async function registerUser(formData: FormData) {
     redirect("/register?error=missing");
   }
 
-  if (password.length < 12) {
-    redirect("/register?error=weak_password");
+  const passwordViolation = validatePasswordStrength(password, { email, fullName });
+  if (passwordViolation) {
+    redirect(`/register?error=${passwordViolation}`);
   }
 
   if (password !== confirm) {

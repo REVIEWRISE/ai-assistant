@@ -48,7 +48,9 @@ function RegisterPageContent() {
     const messages: Record<string, string> = {
       missing: "Please fill in all required fields.",
       nomatch: "Passwords do not match.",
-      weak_password: "Password must be at least 12 characters.",
+      weak_password:
+        "Password must be at least 12 characters and include an uppercase letter, a lowercase letter, a number, and a symbol.",
+      weak_password_personal: "Password must not contain your name or email address.",
       exists: "An account with this email already exists.",
       rate_limited: "Too many registration attempts. Please try again later.",
     };
@@ -83,8 +85,11 @@ function RegisterPageContent() {
         <label className="block">
           <span className="mb-2 block text-sm font-semibold text-[var(--color-text)]">Password</span>
           <span className="relative block">
-            <input id="password" name="password" type={showPassword ? "text" : "password"} required minLength={12} placeholder="Create a secure password (min. 12 characters)" autoComplete="new-password" className={`${INPUT_CLASS} pr-11`} />
+            <input id="password" name="password" type={showPassword ? "text" : "password"} required minLength={12} placeholder="Create a secure password" autoComplete="new-password" className={`${INPUT_CLASS} pr-11`} />
             <PasswordToggle show={showPassword} onToggle={() => setShowPassword((current) => !current)} label={showPassword ? "Hide password" : "Show password"} />
+          </span>
+          <span className="mt-1.5 block text-xs text-[var(--color-text-muted)]">
+            At least 12 characters, with an uppercase letter, a lowercase letter, a number, and a symbol.
           </span>
         </label>
         <label className="block">

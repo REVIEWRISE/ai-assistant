@@ -258,6 +258,7 @@ export function ProfileTabs({
                       name="new_password"
                       placeholder="Enter new password"
                       autoComplete="new-password"
+                      minLength={12}
                       required
                       className={`${fieldClass} pr-16`}
                     />
@@ -270,6 +271,9 @@ export function ProfileTabs({
                       {showNew ? "Hide" : "Show"}
                     </button>
                   </div>
+                  <span className="mt-1.5 block font-normal text-[var(--color-text-muted)]">
+                    At least 12 characters, with an uppercase letter, a lowercase letter, a number, and a symbol.
+                  </span>
                 </label>
                 <label className="text-xs font-semibold text-[var(--color-text)]">
                   Confirm new password

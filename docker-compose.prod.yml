@@ -12,7 +12,7 @@ services:
       - .env.production
     command: sh -c "sh scripts/db-sync.sh && node server.js"
     ports:
-      - "127.0.0.1:3015:3000"
+      - "3015:3000"
     volumes:
       - ./data/uploads:/app/public/uploads
     networks:
