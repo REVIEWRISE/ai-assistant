@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import type { DashboardSetupStep } from "@/lib/dashboard-data";
 
 const OPEN_TRIGGERS = new Set(["login", "trial_started", "register", "subscription_active"]);
+const DISMISS_EVENT = "getting-started-dismissed";
 
 function storageKey(organizationId: string | null) {
   return `getting-started-dismissed:${organizationId ?? "none"}`;
@@ -15,8 +16,7 @@ function sessionOpenedKey(organizationId: string | null, success: string) {
   return `getting-started-opened:${organizationId ?? "none"}:${success}`;
 }
 
-function isDismissed(organizationId: string | null) {
-  if (typeof window === "undefined") return true;
+function readDismissed(organizationId: string | null) {
   try {
     return window.localStorage.getItem(storageKey(organizationId)) === "1";
   } catch {
@@ -30,6 +30,7 @@ function markDismissed(organizationId: string | null) {
   } catch {
     // ignore quota / private mode
   }
+  window.dispatchEvent(new Event(DISMISS_EVENT));
 }
 
 function clearDismissed(organizationId: string | null) {
@@ -38,6 +39,47 @@ function clearDismissed(organizationId: string | null) {
   } catch {
     // ignore
   }
+  window.dispatchEvent(new Event(DISMISS_EVENT));
+}
+
+function markSessionOpened(organizationId: string | null, success: string) {
+  try {
+    window.sessionStorage.setItem(sessionOpenedKey(organizationId, success), "1");
+  } catch {
+    // ignore
+  }
+}
+
+function subscribeDismissed(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(DISMISS_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(DISMISS_EVENT, onStoreChange);
+  };
+}
+
+function useDismissed(organizationId: string | null) {
+  return useSyncExternalStore(
+    subscribeDismissed,
+    () => readDismissed(organizationId),
+    () => true,
+  );
+}
+
+function useSessionAlreadyOpened(organizationId: string | null, success: string | null) {
+  return useSyncExternalStore(
+    () => () => {},
+    () => {
+      if (!success) return true;
+      try {
+        return window.sessionStorage.getItem(sessionOpenedKey(organizationId, success)) === "1";
+      } catch {
+        return false;
+      }
+    },
+    () => true,
+  );
 }
 
 export function GettingStartedStepper({
@@ -50,65 +92,68 @@ export function GettingStartedStepper({
   steps: DashboardSetupStep[];
 }) {
   const searchParams = useSearchParams();
-  const [open, setOpen] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
-  const [bannerVisible, setBannerVisible] = useState(false);
+  const successParam = searchParams.get("success");
+  const autoOpenSuccess =
+    successParam && OPEN_TRIGGERS.has(successParam) ? successParam : null;
+
+  const dismissed = useDismissed(organizationId);
+  const sessionAlreadyOpened = useSessionAlreadyOpened(organizationId, autoOpenSuccess);
+
+  const [closedByUser, setClosedByUser] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
 
   const remaining = useMemo(() => steps.filter((step) => !step.complete), [steps]);
   const done = useMemo(() => steps.filter((step) => step.complete), [steps]);
   const nextStep = remaining[0] ?? null;
   const incompleteCount = remaining.length;
 
-  useEffect(() => {
-    setHydrated(true);
-    setBannerVisible(incompleteCount > 0 && !isDismissed(organizationId));
-    if (!steps.length || incompleteCount === 0) return;
+  const autoOpen =
+    Boolean(autoOpenSuccess) &&
+    steps.length > 0 &&
+    incompleteCount > 0 &&
+    !dismissed &&
+    !sessionAlreadyOpened &&
+    !closedByUser;
 
-    const success = searchParams.get("success");
-    if (!success || !OPEN_TRIGGERS.has(success)) return;
-    if (isDismissed(organizationId)) return;
-
-    try {
-      const openedKey = sessionOpenedKey(organizationId, success);
-      if (window.sessionStorage.getItem(openedKey) === "1") return;
-      window.sessionStorage.setItem(openedKey, "1");
-    } catch {
-      // still open once if sessionStorage is unavailable
-    }
-
-    setOpen(true);
-  }, [incompleteCount, organizationId, searchParams, steps.length]);
+  const open = manualOpen || autoOpen;
+  const bannerVisible = incompleteCount > 0 && !dismissed;
 
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Escape") return;
+      if (autoOpenSuccess) markSessionOpened(organizationId, autoOpenSuccess);
+      setManualOpen(false);
+      setClosedByUser(true);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open]);
+  }, [open, autoOpenSuccess, organizationId]);
 
   if (!steps.length) return null;
 
   function closeForNow() {
-    setOpen(false);
+    if (autoOpenSuccess) markSessionOpened(organizationId, autoOpenSuccess);
+    setManualOpen(false);
+    setClosedByUser(true);
   }
 
   function dismissForever() {
+    if (autoOpenSuccess) markSessionOpened(organizationId, autoOpenSuccess);
     markDismissed(organizationId);
-    setBannerVisible(false);
-    setOpen(false);
+    setManualOpen(false);
+    setClosedByUser(true);
   }
 
   function reopen() {
     clearDismissed(organizationId);
-    setBannerVisible(true);
-    setOpen(true);
+    setClosedByUser(false);
+    setManualOpen(true);
   }
 
   return (
     <>
-      {hydrated && bannerVisible ? (
+      {bannerVisible ? (
         <button
           type="button"
           onClick={reopen}

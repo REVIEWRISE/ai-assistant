@@ -26,12 +26,12 @@ function PasswordIcon({ hidden }: { hidden: boolean }) {
 function LoginPageContent() {
   const searchParams = useSearchParams();
   const error = searchParams?.get("error") ?? undefined;
+  const retry = searchParams?.get("retry") ?? undefined;
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!error) return;
     if (error === "rate_limited") {
-      const retry = searchParams?.get("retry");
       const msg = retry
         ? `Too many login attempts. Please wait ${retry} minute(s) and try again.`
         : "Too many login attempts. Please wait a moment and try again.";
@@ -39,7 +39,7 @@ function LoginPageContent() {
     } else {
       toast.error(error === "missing" ? "Please provide both email and password." : "Invalid email or password.");
     }
-  }, [error]);
+  }, [error, retry]);
 
   return (
     <AuthShell
