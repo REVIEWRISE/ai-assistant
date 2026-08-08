@@ -21,7 +21,6 @@ import {
   pullRetellVoiceAgentSettings,
   saveRetellVoiceAgentSettings,
   buyRetellPhoneNumberAction,
-  linkRetellPhoneNumberAction,
   assignRetellPhoneNumberAction,
   setPrimaryRetellPhoneNumberAction,
   refreshRetellPhoneNumbersAction,
@@ -221,7 +220,6 @@ export default async function VoiceAgentPage() {
         calls={calls}
         onSaveRetell={saveRetellVoiceAgentSettings}
         onBuyPhone={buyRetellPhoneNumberAction}
-        onLinkPhone={linkRetellPhoneNumberAction}
         onAssignPhone={assignRetellPhoneNumberAction}
         onSetPrimaryPhone={setPrimaryRetellPhoneNumberAction}
         onRefreshPhones={refreshRetellPhoneNumbersAction}

@@ -149,7 +149,7 @@ function SectionCard({
   return (
     <section
       id={`voice-agent-section-${sectionKey}`}
-      className="scroll-mt-28 overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]"
+      className="scroll-mt-28 rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]"
     >
       <div className="border-b border-[var(--color-border)] px-5 py-5 lg:px-6">
         <div className="flex items-start gap-3.5">
