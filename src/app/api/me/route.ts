@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { getAllowedMenuPathsForUser, displayRoleFromUserRoles, userHasAdminRole } from "@/lib/allowed-menu-paths";
+import { ensureSessionHasActiveOrganization } from "@/lib/auth-session";
+import {
+  getAllowedMenuPathsForUser,
+  displayRoleFromUserRoles,
+  userHasAdminRole,
+} from "@/lib/allowed-menu-paths";
 import { getOrgBilling } from "@/lib/entitlements";
 
 export async function GET() {
@@ -12,7 +17,7 @@ export async function GET() {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const session = await prisma.session.findUnique({
+  const rawSession = await prisma.session.findUnique({
     where: { token },
     include: {
       user: {
@@ -30,13 +35,15 @@ export async function GET() {
     },
   });
 
-  if (!session || session.expiresAt < new Date()) {
+  if (!rawSession || rawSession.expiresAt < new Date()) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const session = await ensureSessionHasActiveOrganization(rawSession);
+
   const roles = session.user.userRoles.map((ur) => ur.role);
   const isAdmin = userHasAdminRole(roles);
-  const organizationId = session.activeOrganization?.id ?? null;
+  const organizationId = session.activeOrganization?.id ?? session.activeOrganizationId ?? null;
   const [allowedPaths, billing, organizations] = await Promise.all([
     getAllowedMenuPathsForUser(session.userId, organizationId),
     organizationId ? getOrgBilling(organizationId) : Promise.resolve(null),

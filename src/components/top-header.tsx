@@ -205,10 +205,10 @@ export function TopHeader({
   const organizationSelect =
     hasOrganizations ? (
       <CustomSelect
-        value={activeOrganizationId ?? organizations[0]?.id ?? ""}
+        value={activeOrganizationId ?? ""}
         onChange={(organizationId) => onSwitchOrganization?.(organizationId)}
         options={organizations.map((org) => ({ value: org.id, label: org.name }))}
-        placeholder="Select organization"
+        placeholder="Select workspace"
         disabled={switchingOrganization}
         aria-label="Switch organization"
         className="mt-0 w-full"
