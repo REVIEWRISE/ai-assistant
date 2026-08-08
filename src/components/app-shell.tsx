@@ -36,7 +36,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [allowedNavPaths, setAllowedNavPaths] = useState<string[] | null>(null);
   const [billingStatus, setBillingStatus] = useState<string | null>(null);
 
-  const authRoute = pathname === "/login" || pathname === "/register" || pathname === "/logout";
+  const authRoute =
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/logout" ||
+    pathname === "/verify-email" ||
+    pathname.startsWith("/verify-email/");
   const isPublicLanding = pathname === "/";
   const isEmbedRoute = pathname.startsWith("/embed");
   const isOnboardingPlan =

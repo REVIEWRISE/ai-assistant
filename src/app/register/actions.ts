@@ -7,37 +7,74 @@ import {
   ensureBillingCustomerForOrganization,
   isBillingConfigured,
 } from "@/lib/billing-client";
+import { sendEmailVerification } from "@/lib/email-verification";
 import { prisma } from "@/lib/prisma";
 import { checkRegisterRateLimit } from "@/lib/rate-limit";
 import { getRequestIp } from "@/lib/request-ip";
 import { createLogger } from "@/lib/logger";
 import { validatePasswordStrength } from "@/lib/password-policy";
+import { isSmtpConfigured } from "@/lib/smtp-mail";
 
 const log = createLogger("register");
 
-export async function registerUser(formData: FormData) {
-  const ip = await getRequestIp();
-  const rl = checkRegisterRateLimit(ip);
-  if (!rl.allowed) {
-    redirect("/register?error=rate_limited");
+function redirectRegisterError(
+  error: string,
+  values: {
+    name?: string;
+    email?: string;
+    organizationName?: string;
+    plan?: string;
+    interval?: string;
+  },
+): never {
+  const qs = new URLSearchParams({ error });
+  if (values.name) qs.set("name", values.name);
+  if (values.email) qs.set("email", values.email);
+  if (values.organizationName) qs.set("organization_name", values.organizationName);
+  if (values.plan) qs.set("plan", values.plan);
+  if (values.interval === "monthly" || values.interval === "yearly") {
+    qs.set("interval", values.interval);
   }
+  redirect(`/register?${qs.toString()}`);
+}
 
+export async function registerUser(formData: FormData) {
   const fullName = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
   const confirm = String(formData.get("confirm_password") || "");
+  const organizationNameInput = String(formData.get("organization_name") || "").trim();
+  const planHint = String(formData.get("plan") || "").trim();
+  const intervalHint = String(formData.get("interval") || "").trim();
+  const preserved = {
+    name: fullName,
+    email,
+    organizationName: organizationNameInput,
+    plan: planHint,
+    interval: intervalHint,
+  };
 
-  if (!fullName || !email || !password) {
-    redirect("/register?error=missing");
+  const ip = await getRequestIp();
+  const rl = checkRegisterRateLimit(ip);
+  if (!rl.allowed) {
+    redirectRegisterError("rate_limited", preserved);
+  }
+
+  if (!fullName || !email || !password || !organizationNameInput) {
+    redirectRegisterError("missing", preserved);
+  }
+
+  if (organizationNameInput.length > 100) {
+    redirectRegisterError("organization_name", preserved);
   }
 
   const passwordViolation = validatePasswordStrength(password, { email, fullName });
   if (passwordViolation) {
-    redirect(`/register?error=${passwordViolation}`);
+    redirectRegisterError(passwordViolation, preserved);
   }
 
   if (password !== confirm) {
-    redirect("/register?error=nomatch");
+    redirectRegisterError("nomatch", preserved);
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -52,12 +89,13 @@ export async function registerUser(formData: FormData) {
           fullName,
           email,
           passwordHash,
+          emailVerified: false,
         },
       });
 
       const organization = await tx.organization.create({
         data: {
-          name: `${fullName.split(" ")[0] || "New"} Workspace`,
+          name: organizationNameInput,
           billingStatus: "needs_plan",
           planSlug: null,
         },
@@ -95,10 +133,10 @@ export async function registerUser(formData: FormData) {
     if (typeof error === "object" && error && "code" in error) {
       const code = (error as { code?: string }).code;
       if (code === "P2002") {
-        redirect("/register?error=exists");
+        redirectRegisterError("exists", preserved);
       }
     }
-    redirect("/register?error=unknown");
+    redirectRegisterError("unknown", preserved);
   }
 
   // Step 2–3: register Billing customer as soon as the account/workspace exists.
@@ -122,6 +160,34 @@ export async function registerUser(formData: FormData) {
     }
   }
 
+  const onboardingQs = new URLSearchParams({ success: "register" });
+  if (planHint) onboardingQs.set("plan", planHint);
+  if (intervalHint === "monthly" || intervalHint === "yearly") {
+    onboardingQs.set("interval", intervalHint);
+  } else {
+    onboardingQs.set("interval", "yearly");
+  }
+  const postVerifyPath = `/onboarding/plan?${onboardingQs.toString()}`;
+
+  let emailVerified = false;
+  if (!isSmtpConfigured() && process.env.NODE_ENV !== "production") {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { emailVerified: true },
+    });
+    emailVerified = true;
+    log.warn("SMTP missing in development — auto-verified new account", { userId });
+  } else {
+    const sendResult = await sendEmailVerification({ userId, email, fullName });
+    if (!sendResult.sent && process.env.NODE_ENV !== "production" && sendResult.skipped) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { emailVerified: true },
+      });
+      emailVerified = true;
+    }
+  }
+
   const sessionToken = crypto.randomUUID();
   await prisma.session.create({
     data: {
@@ -140,6 +206,13 @@ export async function registerUser(formData: FormData) {
     maxAge: 60 * 60 * 24 * 7,
     sameSite: "lax",
   });
+  cookieStore.set("post_verify_next", postVerifyPath, {
+    path: "/",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24,
+    sameSite: "lax",
+  });
 
   // Audit registration event
   await prisma.auditEvent.create({
@@ -147,18 +220,14 @@ export async function registerUser(formData: FormData) {
       organizationId,
       actorId: userId,
       action: "auth.register",
-      metadata: {},
+      metadata: { emailVerified },
     },
   }).catch(() => {/* non-blocking */});
 
-  const planHint = String(formData.get("plan") || "").trim();
-  const intervalHint = String(formData.get("interval") || "").trim();
-  const onboardingQs = new URLSearchParams({ success: "register" });
-  if (planHint) onboardingQs.set("plan", planHint);
-  if (intervalHint === "monthly" || intervalHint === "yearly") {
-    onboardingQs.set("interval", intervalHint);
-  } else {
-    onboardingQs.set("interval", "yearly");
+  if (emailVerified) {
+    redirect(postVerifyPath);
   }
-  redirect(`/onboarding/plan?${onboardingQs.toString()}`);
+
+  const pendingQs = new URLSearchParams({ email });
+  redirect(`/verify-email/pending?${pendingQs.toString()}`);
 }

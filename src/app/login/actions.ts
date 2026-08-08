@@ -56,6 +56,12 @@ export async function loginUser(formData: FormData) {
     redirect("/login?error=invalid");
   }
 
+  if (!user.emailVerified) {
+    redirect(
+      `/verify-email/pending?email=${encodeURIComponent(user.email)}&error=unverified`,
+    );
+  }
+
   const membership = await prisma.organizationMember.findFirst({
     where: { userId: user.id },
     select: { organizationId: true },
