@@ -313,6 +313,7 @@ export async function deleteOrganization(formData: FormData) {
     where: { id: organizationId },
     select: {
       id: true,
+      name: true,
       _count: {
         select: {
           members: true,
@@ -321,6 +322,8 @@ export async function deleteOrganization(formData: FormData) {
           leads: true,
           reviewServices: true,
           auditEvents: true,
+          retellCalls: true,
+          retellPhoneNumbers: true,
         },
       },
     },
@@ -330,18 +333,29 @@ export async function deleteOrganization(formData: FormData) {
     redirect(`${destination}?error=organization_invalid`);
   }
 
-  if (organization._count.members > 1) {
-    redirect(`${destination}?error=organization_has_members`);
-  }
+  // Non-admins can only delete empty workspaces they own.
+  // Admins may force-delete and cascade all workspace data.
+  if (!isAdmin) {
+    if (organization._count.members > 1) {
+      redirect(`${destination}?error=organization_has_members`);
+    }
 
-  if (
-    organization._count.reviews > 0 ||
-    organization._count.appointments > 0 ||
-    organization._count.leads > 0 ||
-    organization._count.reviewServices > 0 ||
-    organization._count.auditEvents > 0
-  ) {
-    redirect(`${destination}?error=organization_not_empty`);
+    if (
+      organization._count.reviews > 0 ||
+      organization._count.appointments > 0 ||
+      organization._count.leads > 0 ||
+      organization._count.reviewServices > 0 ||
+      organization._count.auditEvents > 0 ||
+      organization._count.retellCalls > 0 ||
+      organization._count.retellPhoneNumbers > 0
+    ) {
+      redirect(`${destination}?error=organization_not_empty`);
+    }
+  } else {
+    const totalOrgs = await prisma.organization.count();
+    if (totalOrgs <= 1) {
+      redirect(`${destination}?error=organization_last`);
+    }
   }
 
   let fallbackOrganizationId: string | null = null;
@@ -368,6 +382,12 @@ export async function deleteOrganization(formData: FormData) {
   }
 
   await prisma.$transaction(async (tx) => {
+    // Clear this workspace from any active sessions (FK is onDelete: SetNull, but be explicit).
+    await tx.session.updateMany({
+      where: { activeOrganizationId: organizationId },
+      data: { activeOrganizationId: null },
+    });
+
     await tx.session.update({
       where: { id: session.id },
       data: {
@@ -375,6 +395,12 @@ export async function deleteOrganization(formData: FormData) {
       },
     });
 
+    // No FK relation on this table — clean up manually.
+    await tx.billingWebhookEvent.deleteMany({
+      where: { organizationId },
+    });
+
+    // Cascades members, reviews, appointments, KB, chatbot, voice, calls, etc.
     await tx.organization.delete({
       where: { id: organizationId },
     });

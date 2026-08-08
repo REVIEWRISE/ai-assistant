@@ -7,9 +7,12 @@ export const dynamic = "force-dynamic";
 
 export default async function PlatformSettingsPage() {
   await requireAdminSession();
-  const providers = await prisma.provider.findMany({
-    select: { type: true, status: true, config: true },
-  });
+  const [providers, auditCount] = await Promise.all([
+    prisma.provider.findMany({
+      select: { type: true, status: true, config: true },
+    }),
+    prisma.auditEvent.count(),
+  ]);
   const enabledProviders = providers.filter(
     (provider) => provider.status === "enabled",
   ).length;
@@ -24,6 +27,15 @@ export default async function PlatformSettingsPage() {
         "Configure external services, connection requirements, and API behavior.",
       count: providers.length,
       label: providers.length === 1 ? "provider" : "providers",
+    },
+    {
+      href: "/platform/audit",
+      eyebrow: "Security",
+      title: "Audit Log",
+      description:
+        "Review authentication, admin, and system events across every workspace.",
+      count: auditCount,
+      label: auditCount === 1 ? "event" : "events",
     },
   ];
 
