@@ -12,6 +12,7 @@ export function VoiceAgentPhoneSettings({
   phoneStats,
   onBuy,
   onAssign,
+  onLink,
   onSetPrimary,
   onRefresh,
 }: {
@@ -22,6 +23,7 @@ export function VoiceAgentPhoneSettings({
   phoneStats: RetellPhoneNumberStats[];
   onBuy: (formData: FormData) => void | Promise<void>;
   onAssign: (formData: FormData) => void | Promise<void>;
+  onLink: (formData: FormData) => void | Promise<void>;
   onSetPrimary: (formData: FormData) => void | Promise<void>;
   onRefresh: (formData: FormData) => void | Promise<void>;
 }) {
@@ -35,6 +37,7 @@ export function VoiceAgentPhoneSettings({
         phoneStats={phoneStats}
         onBuy={onBuy}
         onAssign={onAssign}
+        onLink={onLink}
         onSetPrimary={onSetPrimary}
         onRefresh={onRefresh}
       />
