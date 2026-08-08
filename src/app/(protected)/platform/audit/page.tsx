@@ -46,7 +46,7 @@ export default async function PlatformAuditPage() {
         variant="command"
         eyebrow="Platform Settings"
         title="Audit log"
-        description="Inspect authentication, administration, and system events across every organization."
+        description="Review sign-ins, admin changes, and system events across every organization."
         status={recentDayCount > 0 ? `${recentDayCount} in last 24h` : "Quiet last 24h"}
         statusTone={recentDayCount > 0 ? "success" : "warning"}
         actions={[{ href: "/platform", label: "Platform overview" }]}
@@ -56,23 +56,23 @@ export default async function PlatformAuditPage() {
             value: totalInDatabase,
             hint:
               totalInDatabase > RECENT_EVENT_LIMIT
-                ? `viewing latest ${RECENT_EVENT_LIMIT}`
-                : "full history loaded",
+                ? `showing latest ${RECENT_EVENT_LIMIT}`
+                : "complete history loaded",
           },
           {
             label: "Last 24 hours",
             value: recentDayCount,
-            hint: "recent activity",
+            hint: "new events today",
           },
           {
             label: "Action types",
             value: uniqueActions,
-            hint: "in loaded window",
+            hint: "in this view",
           },
           {
             label: "Actors",
             value: uniqueActors,
-            hint: "users in loaded window",
+            hint: "people in this view",
           },
         ]}
       />
