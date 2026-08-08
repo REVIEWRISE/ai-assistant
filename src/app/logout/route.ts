@@ -1,6 +1,20 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { getAppOrigin } from "@/lib/app-origin";
 import { prisma } from "@/lib/prisma";
+
+function loginRedirectTarget(request: Request, appOrigin: string): URL {
+  if (appOrigin) {
+    return new URL("/login", `${appOrigin}/`);
+  }
+
+  const url = new URL("/login", request.url);
+  // Dev servers often bind 0.0.0.0; browsers cannot navigate there.
+  if (url.hostname === "0.0.0.0" || url.hostname === "[::]" || url.hostname === "::") {
+    url.hostname = "localhost";
+  }
+  return url;
+}
 
 /**
  * Logout via GET /logout — clears the httpOnly session cookie and redirects.
@@ -46,5 +60,6 @@ export async function GET(request: Request) {
     });
   }
 
-  return NextResponse.redirect(new URL("/login", request.url));
+  const origin = await getAppOrigin();
+  return NextResponse.redirect(loginRedirectTarget(request, origin));
 }
