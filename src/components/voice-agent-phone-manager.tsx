@@ -1,8 +1,9 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import type { RetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import type { OrgRetellPhoneNumber } from "@/lib/retell-phone-numbers";
+import { toast } from "@/lib/toast";
 
 function formatLineLabel(phone: OrgRetellPhoneNumber | RetellPhoneNumberStats): string {
   if (phone.nickname?.trim()) return phone.nickname.trim();
@@ -44,6 +45,7 @@ export function VoiceAgentPhoneManager({
   retellApiConfigured,
   phones,
   phoneStats,
+  onBuy,
   onAssign,
   onSetPrimary,
   onRefresh,
@@ -64,16 +66,18 @@ export function VoiceAgentPhoneManager({
   const bookings = phoneStats.reduce((sum, stat) => sum + stat.bookingsCount, 0);
   const linkedLines = phones.filter((phone) => phone.retellAgentId === retellAgentId).length;
 
+  useEffect(() => {
+    if (retellApiConfigured && !agentReady) {
+      toast.warning("Save your voice agent first — phone numbers must be linked to an agent for inbound calls.");
+    }
+  }, [retellApiConfigured, agentReady]);
+
   return (
     <section className="space-y-4">
       {!retellApiConfigured ? (
         <div className="vr-app-alert vr-app-alert-warning">
           Phone service is not configured yet. Contact your administrator to enable buying and managing support
           numbers.
-        </div>
-      ) : !agentReady ? (
-        <div className="vr-app-alert vr-app-alert-warning">
-          Save your voice agent first — phone numbers must be linked to an agent for inbound calls.
         </div>
       ) : null}
 
