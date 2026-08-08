@@ -28,6 +28,7 @@ const MENU_ITEMS = [
   { id: "f1a2b3c4-d5e6-4789-a012-3456789abcdf", label: "Audit Log", path: "/platform/audit", sortOrder: 1, parentId: "18d185ec-9cb2-46d9-bd27-e65d1341b66c" },
   { id: "d9e3b2c1-4e5f-4a6b-8c7d-9e0f1a2b3c4d", label: "Organizations", path: "/billing-admin/organizations", sortOrder: 0, parentId: "c8f2a1b0-3d4e-4f5a-9b6c-7d8e9f0a1b2c" },
   { id: "b3710de3-d222-45c7-9d1d-85acba65a0ef", label: "Plans", path: "/billing-admin/plans", sortOrder: 1, parentId: "c8f2a1b0-3d4e-4f5a-9b6c-7d8e9f0a1b2c" },
+  { id: "e9f0a1b2-3d4e-4f5a-9b6c-7d8e9f0a1b2d", label: "Refunds", path: "/billing-admin/refunds", sortOrder: 2, parentId: "c8f2a1b0-3d4e-4f5a-9b6c-7d8e9f0a1b2c" },
 ] as const;
 
 async function main() {
@@ -85,6 +86,7 @@ async function main() {
     "c8f2a1b0-3d4e-4f5a-9b6c-7d8e9f0a1b2c", // /billing-admin
     "d9e3b2c1-4e5f-4a6b-8c7d-9e0f1a2b3c4d", // /billing-admin/organizations
     "b3710de3-d222-45c7-9d1d-85acba65a0ef", // /billing-admin/plans
+    "e9f0a1b2-3d4e-4f5a-9b6c-7d8e9f0a1b2d", // /billing-admin/refunds
     "18d185ec-9cb2-46d9-bd27-e65d1341b66c", // /platform
     "8391fd57-8c49-46e1-8356-424d12f4d1d2", // /platform/providers
     "f1a2b3c4-d5e6-4789-a012-3456789abcdf", // /platform/audit
