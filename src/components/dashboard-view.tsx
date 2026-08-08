@@ -108,11 +108,13 @@ export function DashboardView({ data }: { data: DashboardData }) {
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
       <Suspense fallback={null}>
-        <GettingStartedStepper
-          organizationId={data.organizationId}
-          organizationName={data.organizationName}
-          steps={data.setupSteps}
-        />
+        {data.roleName !== "Admin" ? (
+          <GettingStartedStepper
+            organizationId={data.organizationId}
+            organizationName={data.organizationName}
+            steps={data.setupSteps}
+          />
+        ) : null}
       </Suspense>
       {data.emptyMessage ? (
         <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
