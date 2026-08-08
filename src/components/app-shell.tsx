@@ -83,6 +83,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           user?: {
             fullName?: string;
             email?: string;
+            emailVerified?: boolean;
             role?: string;
             organization?: string;
             organizationId?: string | null;
@@ -92,6 +93,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           billing?: { billingStatus?: string } | null;
         };
         if (!isMounted || !data.user) return;
+
+        if (data.user.emailVerified === false) {
+          const email = data.user.email?.trim() ?? "";
+          const pendingQs = email ? `?email=${encodeURIComponent(email)}` : "";
+          window.location.replace(`/verify-email/pending${pendingQs}`);
+          return;
+        }
+
         if (data.user.fullName) setProfileName(data.user.fullName);
         if (data.user.email) setProfileEmail(data.user.email);
         if (data.user.role) setProfileRole(data.user.role);

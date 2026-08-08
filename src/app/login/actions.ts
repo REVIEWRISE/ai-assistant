@@ -56,12 +56,6 @@ export async function loginUser(formData: FormData) {
     redirect("/login?error=invalid");
   }
 
-  if (!user.emailVerified) {
-    redirect(
-      `/verify-email/pending?email=${encodeURIComponent(user.email)}&error=unverified`,
-    );
-  }
-
   const membership = await prisma.organizationMember.findFirst({
     where: { userId: user.id },
     select: { organizationId: true },
@@ -90,7 +84,7 @@ export async function loginUser(formData: FormData) {
         organizationId: activeOrganizationId,
         actorId: user.id,
         action: "auth.login_success",
-        metadata: {},
+        metadata: { emailVerified: user.emailVerified },
       },
     }).catch(() => {/* non-blocking */});
   }
@@ -106,6 +100,12 @@ export async function loginUser(formData: FormData) {
     maxAge: 60 * 60 * 24 * 7,
     sameSite: "lax",
   });
+
+  if (!user.emailVerified) {
+    redirect(
+      `/verify-email/pending?email=${encodeURIComponent(user.email)}&error=unverified`,
+    );
+  }
 
   redirect("/dashboard?success=login");
 }
