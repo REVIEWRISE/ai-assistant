@@ -49,26 +49,44 @@ export default async function VoiceAgentPage() {
           fullName: true,
         },
       },
+      activeOrganizationId: true,
     },
   });
 
   if (!session) redirect("/login");
 
-  const org = await prisma.organization.findFirst({
-    where: {
-      members: {
-        some: { userId: session.user.id },
+  let org = null;
+  if (session.activeOrganizationId) {
+    org = await prisma.organization.findFirst({
+      where: { id: session.activeOrganizationId },
+      include: {
+        knowledgeBase: {
+          select: { status: true, rawText: true, sourceUrl: true, lastImportedAt: true },
+        },
+        voiceAgentSettings: {
+          select: { retellConfig: true, phoneConfig: true, knowledgeConfig: true },
+        },
       },
-    },
-    include: {
-      knowledgeBase: {
-        select: { status: true, rawText: true, sourceUrl: true, lastImportedAt: true },
+    });
+  }
+
+  if (!org) {
+    org = await prisma.organization.findFirst({
+      where: {
+        members: {
+          some: { userId: session.user.id },
+        },
       },
-      voiceAgentSettings: {
-        select: { retellConfig: true, phoneConfig: true, knowledgeConfig: true },
+      include: {
+        knowledgeBase: {
+          select: { status: true, rawText: true, sourceUrl: true, lastImportedAt: true },
+        },
+        voiceAgentSettings: {
+          select: { retellConfig: true, phoneConfig: true, knowledgeConfig: true },
+        },
       },
-    },
-  });
+    });
+  }
 
   if (!org) redirect("/appointments/organization");
 
