@@ -41,6 +41,13 @@ function LoginPageContent() {
     }
   }, [error, retry]);
 
+  useEffect(() => {
+    const success = searchParams?.get("success");
+    if (success === "already_verified") {
+      toast.success("Your email is already verified. You can sign in.");
+    }
+  }, [searchParams]);
+
   return (
     <AuthShell
       sideTitle="Pick up every customer conversation where you left off."

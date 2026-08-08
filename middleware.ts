@@ -4,6 +4,14 @@ import { NextResponse } from "next/server";
 const AUTH_COOKIE = "ai_session";
 const AUTH_ROUTES = new Set(["/login", "/register", "/logout"]);
 
+function isPublicAuthFlowPath(pathname: string): boolean {
+  return (
+    AUTH_ROUTES.has(pathname) ||
+    pathname === "/verify-email" ||
+    pathname.startsWith("/verify-email/")
+  );
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -17,7 +25,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const isAuthRoute = AUTH_ROUTES.has(pathname);
+  const isAuthRoute = isPublicAuthFlowPath(pathname);
   const isAuthed = Boolean(request.cookies.get(AUTH_COOKIE)?.value);
   const isPublicLanding = pathname === "/";
 

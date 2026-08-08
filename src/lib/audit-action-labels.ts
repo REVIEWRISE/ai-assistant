@@ -4,6 +4,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   "auth.login_failed": "Sign-in failed",
   "auth.logout": "Signed out",
   "auth.register": "Created an account",
+  "auth.email_verified": "Verified email address",
 
   "admin.user_created": "Created a user",
   "admin.user_updated": "Updated a user",
