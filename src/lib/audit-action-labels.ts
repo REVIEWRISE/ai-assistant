@@ -15,6 +15,9 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   "billing_admin.module_deleted": "Deleted a billing module",
   "billing_admin.plan_created": "Created a billing plan",
   "billing_admin.plan_updated": "Updated a billing plan",
+  "billing.refund_requested": "Requested a refund",
+  "billing.refund_approved": "Approved a refund request",
+  "billing.refund_rejected": "Rejected a refund request",
 
   organization_calendar_provider_connected: "Connected a calendar provider",
   organization_review_provider_connected: "Connected a review provider",

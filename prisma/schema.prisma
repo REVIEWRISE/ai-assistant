@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -25,6 +26,8 @@ model User {
   providerConnections ProviderConnection[]
   routedChatbotAppointments Appointment[] @relation("AppointmentRoutedUser")
   emailVerificationTokens EmailVerificationToken[]
+  refundRequestsRequested RefundRequest[] @relation("RefundRequestRequester")
+  refundRequestsReviewed  RefundRequest[] @relation("RefundRequestReviewer")
 
   @@map("users")
 }
@@ -86,8 +89,33 @@ model Organization {
   voiceAgentSettings OrganizationVoiceAgentSettings?
   retellCalls    RetellCall[]
   retellPhoneNumbers RetellPhoneNumber[]
+  refundRequests RefundRequest[]
 
   @@map("organizations")
+}
+
+model RefundRequest {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  requestedByUserId String    @map("requested_by_user_id") @db.Uuid
+  status            String    @default("pending")
+  reason            String
+  notes             String    @default("")
+  amountCents       Int?      @map("amount_cents")
+  currency          String?
+  adminNote         String?   @map("admin_note")
+  reviewedByUserId  String?   @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt        DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requestedBy  User         @relation("RefundRequestRequester", fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  reviewedBy   User?        @relation("RefundRequestReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([status, createdAt])
+  @@map("refund_requests")
 }
 
 model OrganizationReviewSettings {

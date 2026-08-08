@@ -16,7 +16,7 @@ export default async function SubscriptionPage() {
     redirect("/appointments/organization");
   }
 
-  const [billing, membership, organization, isAdmin] = await Promise.all([
+  const [billing, membership, organization, isAdmin, latestRefund] = await Promise.all([
     getOrgBilling(organizationId),
     prisma.organizationMember.findFirst({
       where: { userId: session.userId, organizationId },
@@ -24,9 +24,22 @@ export default async function SubscriptionPage() {
     }),
     prisma.organization.findUnique({
       where: { id: organizationId },
-      select: { name: true },
+      select: { name: true, paidAt: true },
     }),
     userHasAdminRole(session.userId),
+    prisma.refundRequest.findFirst({
+      where: { organizationId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        reason: true,
+        notes: true,
+        adminNote: true,
+        createdAt: true,
+        reviewedAt: true,
+      },
+    }),
   ]);
 
   if (!billing || !organization) {
@@ -36,6 +49,9 @@ export default async function SubscriptionPage() {
   const isOwner = isAdmin || membership?.role === "owner";
   const canCancel =
     billing.billingStatus === "active" || billing.billingStatus === "trialing";
+  const canRequestRefund =
+    Boolean(organization.paidAt ?? billing.paidAt) &&
+    (billing.billingStatus === "active" || billing.billingStatus === "trialing");
 
   const plan = billing.planSlug ? getPlanBySlug(billing.planSlug as PlanSlug) : null;
   const planName = plan?.name ?? "No plan";
@@ -69,24 +85,47 @@ export default async function SubscriptionPage() {
           {
             label: "Status",
             value: statusLabel,
-            hint: billing.paidAt ? "payment on file" : "not paid",
+            hint: billing.paidAt ? "payment on file" : "free trial · not paid",
           },
           {
-            label: "Interval",
+            label: billing.billingStatus === "trialing" ? "Bills as" : "Interval",
             value: billing.billingInterval ?? "—",
-            hint: billing.billingInterval === "yearly" ? "billed annually" : "billed monthly",
+            hint:
+              billing.billingStatus === "trialing"
+                ? billing.billingInterval === "yearly"
+                  ? "yearly after you subscribe"
+                  : "monthly after you subscribe"
+                : billing.billingInterval === "yearly"
+                  ? "billed annually"
+                  : "billed monthly",
           },
           {
-            label: "Period ends",
-            value: billing.currentPeriodEndsAt
-              ? billing.currentPeriodEndsAt.toLocaleDateString(undefined, {
+            label:
+              billing.billingStatus === "trialing"
+                ? "Trial ends"
+                : billing.currentPeriodEndsAt
+                  ? "Period ends"
+                  : "Next date",
+            value: (
+              billing.billingStatus === "trialing"
+                ? billing.trialEndsAt
+                : billing.currentPeriodEndsAt
+            )
+              ? (
+                  billing.billingStatus === "trialing"
+                    ? billing.trialEndsAt!
+                    : billing.currentPeriodEndsAt!
+                ).toLocaleDateString(undefined, {
                   month: "short",
                   day: "numeric",
                   year: "numeric",
                   timeZone: "UTC",
                 })
               : "—",
-            hint: "renewal or cutoff",
+            hint:
+              billing.billingStatus === "trialing"
+                ? "14-day trial window"
+                : "renewal or cutoff",
           },
         ]}
       />
@@ -103,6 +142,20 @@ export default async function SubscriptionPage() {
           currentPeriodEndsAt: billing.currentPeriodEndsAt?.toISOString() ?? null,
           canCancel,
           isOwner: Boolean(isOwner),
+          refund: {
+            canRequest: canRequestRefund,
+            latest: latestRefund
+              ? {
+                  id: latestRefund.id,
+                  status: latestRefund.status,
+                  reason: latestRefund.reason,
+                  notes: latestRefund.notes,
+                  adminNote: latestRefund.adminNote,
+                  createdAt: latestRefund.createdAt.toISOString(),
+                  reviewedAt: latestRefund.reviewedAt?.toISOString() ?? null,
+                }
+              : null,
+          },
         }}
       />
     </div>
