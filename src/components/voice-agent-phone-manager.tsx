@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormStatus } from "react-dom";
 import { type ReactNode, useEffect, useState } from "react";
 import type { RetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import type { OrgRetellPhoneNumber } from "@/lib/retell-phone-numbers";
@@ -45,7 +46,6 @@ export function VoiceAgentPhoneManager({
   retellApiConfigured,
   phones,
   phoneStats,
-  onBuy,
   onAssign,
   onLink,
   onSetPrimary,
@@ -308,7 +308,7 @@ export function VoiceAgentPhoneManager({
                     {
                       step: "1",
                       title: "Enter number details",
-                      body: "Provide the Twilio/Retell phone number you already own.",
+                      body: "Provide the phone number you already own.",
                     },
                     {
                       step: "2",
@@ -358,17 +358,12 @@ export function VoiceAgentPhoneManager({
                 </div>
 
                 <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-                  Make sure this number is configured in your Twilio/Retell account to route correctly.
+                  Make sure this number is configured in your phone provider account to route correctly.
                 </p>
 
                 <div className="mt-auto flex flex-col gap-3 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-xs text-[var(--color-text-muted)]">This will set this number as primary.</p>
-                  <button
-                    type="submit"
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
-                  >
-                    Link phone number
-                  </button>
+                  <LinkPhoneSubmitButton />
                 </div>
               </div>
             </form>
@@ -376,6 +371,30 @@ export function VoiceAgentPhoneManager({
         </section>
       ) : null}
     </section>
+  );
+}
+
+function LinkPhoneSubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {pending ? (
+        <>
+          <svg className="size-4 animate-spin text-current" fill="none" viewBox="0 0 24 24" aria-hidden>
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          Linking...
+        </>
+      ) : (
+        "Link phone number"
+      )}
+    </button>
   );
 }
 
