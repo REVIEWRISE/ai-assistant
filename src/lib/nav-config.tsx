@@ -131,6 +131,7 @@ export const APP_NAV_ITEMS: NavItem[] = [
     ),
     children: [
       { href: "/platform/providers", label: "Providers", requiresAdmin: true },
+      { href: "/platform/audit", label: "Audit Log", requiresAdmin: true },
     ],
   },
   {

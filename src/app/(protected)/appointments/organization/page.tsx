@@ -83,6 +83,7 @@ export default async function AppointmentOrganizationPage() {
       <OrganizationsManager
         organizations={organizations}
         activeOrganizationId={session.activeOrganizationId ?? ""}
+        canForceDelete={isAdmin}
         returnTo="/appointments/organization"
         onCreateOrganization={createOrganization}
         onUpdateOrganization={updateOrganizationName}

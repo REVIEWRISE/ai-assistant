@@ -25,6 +25,7 @@ const MENU_ITEMS = [
   { id: "e1f3ffe1-2158-4e4a-8b10-c6a2476dadb3", label: "Menus", path: "/settings/access/menus", sortOrder: 1, parentId: "33c86cd0-a6b0-48f9-a04b-684dd8671ef7" },
   { id: "b4b7c925-5791-4108-aafd-941d31a610c6", label: "Permissions", path: "/settings/access/permissions", sortOrder: 2, parentId: "33c86cd0-a6b0-48f9-a04b-684dd8671ef7" },
   { id: "8391fd57-8c49-46e1-8356-424d12f4d1d2", label: "Providers", path: "/platform/providers", sortOrder: 0, parentId: "18d185ec-9cb2-46d9-bd27-e65d1341b66c" },
+  { id: "f1a2b3c4-d5e6-4789-a012-3456789abcdf", label: "Audit Log", path: "/platform/audit", sortOrder: 1, parentId: "18d185ec-9cb2-46d9-bd27-e65d1341b66c" },
   { id: "d9e3b2c1-4e5f-4a6b-8c7d-9e0f1a2b3c4d", label: "Organizations", path: "/billing-admin/organizations", sortOrder: 0, parentId: "c8f2a1b0-3d4e-4f5a-9b6c-7d8e9f0a1b2c" },
   { id: "b3710de3-d222-45c7-9d1d-85acba65a0ef", label: "Plans", path: "/billing-admin/plans", sortOrder: 1, parentId: "c8f2a1b0-3d4e-4f5a-9b6c-7d8e9f0a1b2c" },
 ] as const;
@@ -79,14 +80,17 @@ async function main() {
     });
   }
 
-  // Billing admin menus are Admin-only; grant them so the sidebar works after seed.
-  const adminBillingMenuIds = [
+  // Billing + platform admin menus are Admin-only; grant them so the sidebar works after seed.
+  const adminOnlyMenuIds = [
     "c8f2a1b0-3d4e-4f5a-9b6c-7d8e9f0a1b2c", // /billing-admin
     "d9e3b2c1-4e5f-4a6b-8c7d-9e0f1a2b3c4d", // /billing-admin/organizations
     "b3710de3-d222-45c7-9d1d-85acba65a0ef", // /billing-admin/plans
+    "18d185ec-9cb2-46d9-bd27-e65d1341b66c", // /platform
+    "8391fd57-8c49-46e1-8356-424d12f4d1d2", // /platform/providers
+    "f1a2b3c4-d5e6-4789-a012-3456789abcdf", // /platform/audit
   ] as const;
   await prisma.menuAccess.createMany({
-    data: adminBillingMenuIds.map((menuItemId) => ({
+    data: adminOnlyMenuIds.map((menuItemId) => ({
       menuItemId,
       roleId: adminRole.id,
     })),

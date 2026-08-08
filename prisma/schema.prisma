@@ -284,6 +284,9 @@ model AuditEvent {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   actor         User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
+  @@index([createdAt(sort: Desc)], map: "audit_events_created_at_idx")
+  @@index([organizationId, createdAt(sort: Desc)], map: "audit_events_org_created_at_idx")
+  @@index([action], map: "audit_events_action_idx")
   @@map("audit_events")
 }
 

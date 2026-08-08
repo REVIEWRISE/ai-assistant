@@ -80,6 +80,10 @@ const headerByRoute: Record<string, HeaderCopy> = {
     eyebrow: "Platform Settings",
     title: "Provider connections",
   },
+  "/platform/audit": {
+    eyebrow: "Platform Settings",
+    title: "Audit log",
+  },
   "/billing-admin": {
     eyebrow: "Billing",
     title: "Billing administration",
@@ -143,6 +147,9 @@ function getHeaderCopy(pathname: string): HeaderCopy {
   }
   if (pathname.startsWith("/platform/providers")) {
     return headerByRoute["/platform/providers"];
+  }
+  if (pathname.startsWith("/platform/audit")) {
+    return headerByRoute["/platform/audit"];
   }
   if (pathname.startsWith("/platform")) {
     return headerByRoute["/platform"];

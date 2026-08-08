@@ -165,6 +165,9 @@ CREATE INDEX IF NOT EXISTS idx_org_member_menu_access_org_user ON organization_m
 CREATE INDEX IF NOT EXISTS idx_providers_type ON providers (type);
 CREATE INDEX IF NOT EXISTS idx_providers_api_url ON providers (api_url);
 CREATE INDEX IF NOT EXISTS idx_providers_status ON providers (status);
+CREATE INDEX IF NOT EXISTS audit_events_created_at_idx ON audit_events (created_at DESC);
+CREATE INDEX IF NOT EXISTS audit_events_org_created_at_idx ON audit_events (organization_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS audit_events_action_idx ON audit_events (action);
 
 CREATE TABLE IF NOT EXISTS provider_connections (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
