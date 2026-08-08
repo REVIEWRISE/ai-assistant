@@ -5,11 +5,6 @@ import type { ReactNode } from "react";
 import { CustomSelect } from "@/components/custom-select";
 import { ThemeSwitch } from "@/components/theme-switch";
 
-type MobileNavItem = {
-  href: string;
-  shortLabel: string;
-};
-
 type HeaderCopy = {
   eyebrow: string;
   title: string;
@@ -102,14 +97,6 @@ const headerByRoute: Record<string, HeaderCopy> = {
   },
 };
 
-function isActive(pathname: string, href: string): boolean {
-  if (href === "/dashboard") {
-    return pathname === "/" || pathname === "/dashboard";
-  }
-
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
 function getHeaderCopy(pathname: string): HeaderCopy {
   if (pathname === "/") {
     return headerByRoute["/dashboard"];
@@ -178,9 +165,9 @@ function getHeaderCopy(pathname: string): HeaderCopy {
 
 type TopHeaderProps = {
   pathname: string;
-  navItems: MobileNavItem[];
   /** When false, hides the sidebar-style /profile deep link only; Log out stays available. */
   showProfilePageLink?: boolean;
+  onOpenMobileNav?: () => void;
   profileOpen: boolean;
   onToggleProfile: () => void;
   onCloseProfile: () => void;
@@ -197,8 +184,8 @@ type TopHeaderProps = {
 
 export function TopHeader({
   pathname,
-  navItems,
   showProfilePageLink = false,
+  onOpenMobileNav,
   profileOpen,
   onToggleProfile,
   onCloseProfile,
@@ -213,11 +200,38 @@ export function TopHeader({
   switchingOrganization = false,
 }: TopHeaderProps) {
   const copy = getHeaderCopy(pathname);
+  const hasOrganizations = organizations.length > 0;
+
+  const organizationSelect =
+    hasOrganizations ? (
+      <CustomSelect
+        value={activeOrganizationId ?? organizations[0]?.id ?? ""}
+        onChange={(organizationId) => onSwitchOrganization?.(organizationId)}
+        options={organizations.map((org) => ({ value: org.id, label: org.name }))}
+        placeholder="Select organization"
+        disabled={switchingOrganization}
+        aria-label="Switch organization"
+        className="mt-0 w-full"
+        triggerClassName="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] py-2 text-xs shadow-[var(--shadow-sm)] hover:bg-[var(--color-raised)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
+        menuClassName="min-w-[220px]"
+      />
+    ) : null;
 
   return (
     <header className="sticky top-0 z-20 shrink-0 border-b border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] backdrop-blur-xl">
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5 lg:px-5">
-        <div className="min-w-0 shrink">
+      <div className="flex items-center gap-2 px-3 py-2.5 lg:gap-3 lg:px-5">
+        <button
+          type="button"
+          onClick={onOpenMobileNav}
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--color-raised)] lg:hidden"
+          aria-label="Open navigation menu"
+        >
+          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        </button>
+
+        <div className="min-w-0 flex-1">
           <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-h)]">
             {copy.eyebrow}
           </p>
@@ -226,29 +240,20 @@ export function TopHeader({
           </h2>
         </div>
 
-        <div className="flex min-w-0 shrink-0 items-center gap-1.5">
-          {organizations.length > 0 ? (
-            <CustomSelect
-              value={activeOrganizationId ?? organizations[0]?.id ?? ""}
-              onChange={(organizationId) => onSwitchOrganization?.(organizationId)}
-              options={organizations.map((org) => ({ value: org.id, label: org.name }))}
-              placeholder="Select organization"
-              disabled={switchingOrganization}
-              aria-label="Switch organization"
-              className="mt-0 w-[min(100%,10.5rem)] sm:w-[12rem]"
-              triggerClassName="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] py-1.5 text-xs shadow-[var(--shadow-sm)] hover:bg-[var(--color-raised)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
-              menuClassName="min-w-[220px]"
-            />
-          ) : null}
+        <div className="hidden min-w-0 shrink-0 lg:block lg:w-[12rem]">
+          {organizationSelect}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1.5">
           <ThemeSwitch />
-          <div className="relative min-w-0">
+          <div className="relative">
             <button
               type="button"
               onClick={onToggleProfile}
               aria-expanded={profileOpen}
               aria-haspopup="menu"
               aria-label={`Profile menu for ${profileName}`}
-              className={`flex max-w-[min(100vw-8rem,12.5rem)] items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-sm font-medium text-[var(--color-text)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--color-raised)] sm:max-w-[13.5rem] ${
+              className={`flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1.5 text-sm font-medium text-[var(--color-text)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--color-raised)] sm:max-w-[13.5rem] sm:px-2 sm:py-1.5 ${
                 profileOpen
                   ? "bg-[var(--color-raised)] ring-2 ring-[color-mix(in_srgb,var(--color-primary)_18%,transparent)]"
                   : ""
@@ -272,7 +277,7 @@ export function TopHeader({
               </span>
               <svg
                 viewBox="0 0 24 24"
-                className={`h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)] transition ${
+                className={`hidden h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)] transition sm:block ${
                   profileOpen ? "rotate-180" : ""
                 }`}
                 fill="none"
@@ -286,7 +291,7 @@ export function TopHeader({
             {profileOpen ? (
               <div
                 role="menu"
-                className="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]"
+                className="absolute right-0 z-30 mt-2 w-[min(calc(100vw-1.5rem),16rem)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]"
               >
                 <div className="border-b border-[var(--color-border)] bg-[linear-gradient(125deg,#0c0c0c_0%,#161616_52%,#222222_100%)] px-4 py-3.5 text-white">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
@@ -330,27 +335,11 @@ export function TopHeader({
         </div>
       </div>
 
-      <nav
-        className="flex gap-1.5 overflow-x-auto border-t border-[var(--color-border)] px-4 py-2 lg:hidden"
-        aria-label="Mobile navigation"
-      >
-        {navItems.map((item) => {
-          const active = isActive(pathname, item.href);
-          return (
-            <Link
-              key={`${item.href}-mobile`}
-              href={item.href}
-              className={`rounded-xl px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
-                active
-                  ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] shadow-[var(--shadow-sm)]"
-                  : "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)] hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
-              }`}
-            >
-              {item.shortLabel}
-            </Link>
-          );
-        })}
-      </nav>
+      {hasOrganizations ? (
+        <div className="border-t border-[var(--color-border)] px-3 py-2 lg:hidden">
+          {organizationSelect}
+        </div>
+      ) : null}
     </header>
   );
 }

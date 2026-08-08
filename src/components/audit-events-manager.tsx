@@ -38,9 +38,17 @@ type AuditEventsManagerProps = {
   totalInDatabase: number;
 };
 
-function formatWhen(value: string | Date) {
+function formatWhen(value: string | Date, compact = false) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
+  if (compact) {
+    return date.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
   return date.toLocaleString(undefined, {
     year: "numeric",
     month: "short",
@@ -505,29 +513,53 @@ export function AuditEventsManager({
           {paged.map((event) => {
             const orgName = organizationLabel(event.organizationId, event.organizationName);
             const actorLabel = event.actorName || event.actorEmail || "System";
+            const actionLabel = formatAuditAction(event.action);
             return (
               <DataTableRow
                 key={event.id}
-                className="group items-start lg:grid-cols-[minmax(160px,1fr)_minmax(180px,1.2fr)_minmax(160px,1fr)_minmax(140px,0.9fr)_88px] lg:px-5"
+                className="gap-0 p-0 hover:bg-transparent lg:grid-cols-[minmax(160px,1fr)_minmax(180px,1.2fr)_minmax(160px,1fr)_minmax(140px,0.9fr)_88px] lg:items-center lg:gap-3 lg:px-5 lg:py-3.5 lg:hover:bg-[var(--color-surface)]"
               >
-                <div className="text-xs font-semibold text-[var(--color-text-muted)] lg:text-sm">
-                  <span className="lg:hidden text-[10px] uppercase tracking-[0.14em]">When · </span>
+                {/* Mobile row */}
+                <button
+                  type="button"
+                  onClick={() => setSelected(event)}
+                  className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition hover:bg-[var(--color-raised)] active:bg-[var(--color-raised)] lg:hidden"
+                  aria-label={`View ${actionLabel}`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-[var(--color-text)]">{actionLabel}</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                      {formatWhen(event.createdAt, true)}
+                    </p>
+                    <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
+                      <span className="font-medium text-[var(--color-text)]">{actorLabel}</span>
+                      <span className="mx-1.5 text-[var(--color-text-subtle)]">·</span>
+                      <span>{orgName}</span>
+                    </p>
+                  </div>
+                  <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center text-[var(--color-text-muted)]">
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  </span>
+                </button>
+
+                {/* Desktop row */}
+                <div className="hidden text-sm font-semibold text-[var(--color-text-muted)] lg:block">
                   {formatWhen(event.createdAt)}
                 </div>
-                <div className="min-w-0">
+                <div className="hidden min-w-0 lg:block">
                   <span
                     className={`inline-flex max-w-full rounded-full px-2.5 py-1 text-[11px] font-semibold ${actionTone(event.action)}`}
                   >
-                    <span className="truncate">{formatAuditAction(event.action)}</span>
+                    <span className="truncate">{actionLabel}</span>
                   </span>
                   <p className="mt-1 truncate text-[10px] text-[var(--color-text-muted)]" title={event.action}>
                     {event.action}
                   </p>
-                  <p className="mt-1.5 truncate text-[11px] text-[var(--color-text-muted)] lg:hidden">
-                    {metadataPreview(event.metadata)}
-                  </p>
                 </div>
-                <div className="min-w-0">
+                <div className="hidden min-w-0 lg:block">
                   <p className="truncate text-sm font-semibold text-[var(--color-text)]">{actorLabel}</p>
                   {event.actorEmail ? (
                     <p className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]">
@@ -537,15 +569,15 @@ export function AuditEventsManager({
                     <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">No actor</p>
                   )}
                 </div>
-                <div className="min-w-0">
+                <div className="hidden min-w-0 lg:block">
                   <p className="truncate text-sm font-semibold text-[var(--color-text)]">{orgName}</p>
                 </div>
-                <div className="flex items-center lg:justify-end">
+                <div className="hidden items-center justify-end lg:flex">
                   <button
                     type="button"
                     onClick={() => setSelected(event)}
                     className="inline-flex size-9 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
-                    aria-label={`View ${formatAuditAction(event.action)}`}
+                    aria-label={`View ${actionLabel}`}
                     title="View details"
                   >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>

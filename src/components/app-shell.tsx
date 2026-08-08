@@ -23,6 +23,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [menuStateReady, setMenuStateReady] = useState(false);
   const [submenuTick, setSubmenuTick] = useState(0);
   const [profileName, setProfileName] = useState("User");
@@ -155,6 +156,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    setMobileNavOpen(false);
+    setProfileOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
     if (!menuStateReady) return;
     let opened = false;
     for (const item of visibleNavItems) {
@@ -213,18 +219,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           submenuTick={submenuTick}
           onToggleSubmenu={setSubmenuOpen}
           onCloseSubmenus={closeAllSubmenus}
+          mobileOpen={mobileNavOpen}
+          onMobileClose={() => setMobileNavOpen(false)}
         />
 
         <div className="vr-app-surface min-w-0 flex h-dvh flex-1 flex-col overflow-hidden rounded-none border-0">
           <TopHeader
             pathname={pathname}
-            navItems={visibleNavItems.map((item) => ({
-              href: item.href,
-              shortLabel: item.shortLabel,
-            }))}
             showProfilePageLink={showProfilePageLink}
+            onOpenMobileNav={() => {
+              setProfileOpen(false);
+              setMobileNavOpen(true);
+            }}
             profileOpen={profileOpen}
-            onToggleProfile={() => setProfileOpen((prev) => !prev)}
+            onToggleProfile={() => {
+              setMobileNavOpen(false);
+              setProfileOpen((prev) => !prev);
+            }}
             onCloseProfile={() => setProfileOpen(false)}
             profileAvatar={
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-primary)] text-xs font-semibold text-[var(--color-primary-fg)]">
