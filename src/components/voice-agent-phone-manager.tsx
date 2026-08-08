@@ -124,7 +124,7 @@ export function VoiceAgentPhoneManager({
             <div>
             <span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-lg text-[var(--color-primary-h)]" aria-hidden>☎</span>
             <p className="mt-3 font-semibold text-[var(--color-text)]">No phone lines yet</p>
-            <p className="mx-auto mt-1 max-w-lg text-xs leading-relaxed">Buy a new US or Canada support number to start receiving calls.</p>
+            <p className="mx-auto mt-1 max-w-lg text-xs leading-relaxed">Buy a new US or Canada support number or link an existing one below to start receiving calls.</p>
             </div>
           </div>
         ) : (
