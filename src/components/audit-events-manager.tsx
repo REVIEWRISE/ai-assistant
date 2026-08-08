@@ -177,10 +177,6 @@ function AuditEventSheet({
   }, []);
 
   useEffect(() => {
-    setShowRawJson(false);
-  }, [event.id]);
-
-  useEffect(() => {
     function onKeyDown(keyboardEvent: KeyboardEvent) {
       if (keyboardEvent.key === "Escape") onClose();
     }
@@ -436,10 +432,6 @@ export function AuditEventsManager({
     return filtered.slice(start, start + perPage);
   }, [filtered, currentPage, perPage]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [query, actionFilter, organizationFilter, perPage]);
-
   return (
     <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-md)]">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--color-border)] px-5 py-5 lg:px-6">
@@ -466,7 +458,10 @@ export function AuditEventsManager({
           <input
             type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
             placeholder="Action, actor, workspace, or metadata"
             className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]"
           />
@@ -475,7 +470,10 @@ export function AuditEventsManager({
           <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Action</span>
           <CustomSelect
             value={actionFilter}
-            onChange={setActionFilter}
+            onChange={(value) => {
+              setActionFilter(value);
+              setPage(1);
+            }}
             options={actionOptions}
             aria-label="Filter by action"
           />
@@ -484,7 +482,10 @@ export function AuditEventsManager({
           <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Workspace</span>
           <CustomSelect
             value={organizationFilter}
-            onChange={setOrganizationFilter}
+            onChange={(value) => {
+              setOrganizationFilter(value);
+              setPage(1);
+            }}
             options={organizationOptions}
             aria-label="Filter by workspace"
           />
@@ -596,12 +597,21 @@ export function AuditEventsManager({
           totalPages={totalPages}
           perPage={perPage}
           onPageChange={setPage}
-          onPerPageChange={setPerPage}
+          onPerPageChange={(size) => {
+            setPerPage(size);
+            setPage(1);
+          }}
           itemLabel="events"
         />
       </DataTable>
 
-      {selected ? <AuditEventSheet event={selected} onClose={() => setSelected(null)} /> : null}
+      {selected ? (
+        <AuditEventSheet
+          key={selected.id}
+          event={selected}
+          onClose={() => setSelected(null)}
+        />
+      ) : null}
     </section>
   );
 }

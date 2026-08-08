@@ -10,6 +10,9 @@ const RECENT_EVENT_LIMIT = 500;
 export default async function PlatformAuditPage() {
   await requireAdminSession();
 
+  const since24HoursAgo = new Date();
+  since24HoursAgo.setUTCDate(since24HoursAgo.getUTCDate() - 1);
+
   const [events, organizations, totalInDatabase, recentDayCount] = await Promise.all([
     prisma.auditEvent.findMany({
       orderBy: { createdAt: "desc" },
@@ -27,7 +30,7 @@ export default async function PlatformAuditPage() {
     prisma.auditEvent.count(),
     prisma.auditEvent.count({
       where: {
-        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        createdAt: { gte: since24HoursAgo },
       },
     }),
   ]);

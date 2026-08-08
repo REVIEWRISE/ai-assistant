@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { BrandLogo } from "@/components/brand-logo";
 import { BRAND_NAME, PRODUCT_NAME } from "@/lib/brand";
@@ -230,6 +230,102 @@ function SidebarPanel({
   );
 }
 
+function MobileNavSheet({
+  pathname,
+  items,
+  ready,
+  hasNoMenuAccess,
+  menuStateReady,
+  submenuTick,
+  onToggleSubmenu,
+  onCloseSubmenus,
+  onClose,
+}: {
+  pathname: string;
+  items: NavItem[];
+  ready: boolean;
+  hasNoMenuAccess: boolean;
+  menuStateReady: boolean;
+  submenuTick: number;
+  onToggleSubmenu: (href: string, open: boolean) => void;
+  onCloseSubmenus: () => void;
+  onClose: () => void;
+}) {
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previous;
+    };
+  }, [onClose]);
+
+  const navProps = {
+    pathname,
+    items,
+    ready,
+    hasNoMenuAccess,
+    menuStateReady,
+    submenuTick,
+    onToggleSubmenu,
+  };
+
+  return createPortal(
+    <div
+      className={`fixed inset-0 z-[60] flex justify-start lg:hidden transition-colors duration-200 ${
+        entered ? "bg-[var(--color-overlay)]" : "bg-transparent"
+      }`}
+    >
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default"
+        aria-label="Close navigation"
+        onClick={onClose}
+      />
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="Workspace navigation"
+        className={`relative flex h-full w-[min(100%,17.5rem)] flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#0c0c0c_0%,#141414_48%,#0c0c0c_100%)] text-white shadow-[8px_0_30px_-20px_rgba(0,0,0,0.65)] transition-transform duration-300 ease-out ${
+          entered ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <SidebarPanel
+          {...navProps}
+          onNavigate={() => {
+            onCloseSubmenus();
+            onClose();
+          }}
+          className="relative flex h-full w-full flex-col overflow-hidden"
+          headerAccessory={
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg px-2 py-1 text-lg leading-none text-neutral-400 transition hover:bg-white/10 hover:text-white"
+              aria-label="Close navigation"
+            >
+              ×
+            </button>
+          }
+        />
+      </aside>
+    </div>,
+    document.body,
+  );
+}
+
 export function AppSidebar({
   pathname,
   items,
@@ -253,102 +349,41 @@ export function AppSidebar({
   mobileOpen?: boolean;
   onMobileClose?: () => void;
 }) {
-  const [entered, setEntered] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mobileOpen) {
-      setEntered(false);
-      return;
-    }
-    const frame = requestAnimationFrame(() => setEntered(true));
-    return () => cancelAnimationFrame(frame);
-  }, [mobileOpen]);
-
-  useEffect(() => {
-    if (!mobileOpen) return;
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onMobileClose?.();
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previous;
-    };
-  }, [mobileOpen, onMobileClose]);
-
-  const navProps = {
-    pathname,
-    items,
-    ready,
-    hasNoMenuAccess,
-    menuStateReady,
-    submenuTick,
-    onToggleSubmenu,
-  };
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   return (
     <>
       <aside className="relative hidden h-dvh w-[17rem] shrink-0 overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#0c0c0c_0%,#141414_48%,#0c0c0c_100%)] text-white shadow-[8px_0_30px_-20px_rgba(0,0,0,0.65)] lg:flex lg:flex-col">
         <SidebarPanel
-          {...navProps}
+          pathname={pathname}
+          items={items}
+          ready={ready}
+          hasNoMenuAccess={hasNoMenuAccess}
+          menuStateReady={menuStateReady}
+          submenuTick={submenuTick}
+          onToggleSubmenu={onToggleSubmenu}
           onNavigate={onCloseSubmenus}
           className="relative flex h-full w-full flex-col overflow-hidden"
         />
       </aside>
 
-      {mounted && mobileOpen
-        ? createPortal(
-            <div
-              className={`fixed inset-0 z-[60] flex justify-start lg:hidden transition-colors duration-200 ${
-                entered ? "bg-[var(--color-overlay)]" : "bg-transparent"
-              }`}
-            >
-              <button
-                type="button"
-                className="absolute inset-0 cursor-default"
-                aria-label="Close navigation"
-                onClick={onMobileClose}
-              />
-              <aside
-                role="dialog"
-                aria-modal="true"
-                aria-label="Workspace navigation"
-                className={`relative flex h-full w-[min(100%,17.5rem)] flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#0c0c0c_0%,#141414_48%,#0c0c0c_100%)] text-white shadow-[8px_0_30px_-20px_rgba(0,0,0,0.65)] transition-transform duration-300 ease-out ${
-                  entered ? "translate-x-0" : "-translate-x-full"
-                }`}
-              >
-                <SidebarPanel
-                  {...navProps}
-                  onNavigate={() => {
-                    onCloseSubmenus();
-                    onMobileClose?.();
-                  }}
-                  className="relative flex h-full w-full flex-col overflow-hidden"
-                  headerAccessory={
-                    <button
-                      type="button"
-                      onClick={onMobileClose}
-                      className="rounded-lg px-2 py-1 text-lg leading-none text-neutral-400 transition hover:bg-white/10 hover:text-white"
-                      aria-label="Close navigation"
-                    >
-                      ×
-                    </button>
-                  }
-                />
-              </aside>
-            </div>,
-            document.body,
-          )
-        : null}
+      {mounted && mobileOpen ? (
+        <MobileNavSheet
+          pathname={pathname}
+          items={items}
+          ready={ready}
+          hasNoMenuAccess={hasNoMenuAccess}
+          menuStateReady={menuStateReady}
+          submenuTick={submenuTick}
+          onToggleSubmenu={onToggleSubmenu}
+          onCloseSubmenus={onCloseSubmenus}
+          onClose={() => onMobileClose?.()}
+        />
+      ) : null}
     </>
   );
 }
