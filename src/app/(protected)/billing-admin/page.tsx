@@ -9,9 +9,10 @@ export const dynamic = "force-dynamic";
 export default async function BillingAdminPage() {
   await requireAdminSession();
 
-  const [orgCount, catalog] = await Promise.all([
+  const [orgCount, catalog, pendingRefunds] = await Promise.all([
     prisma.organization.count(),
     getBillingCatalogPlans(),
+    prisma.refundRequest.count({ where: { status: "pending" } }),
   ]);
   const planCount = catalog.plans.length;
 
@@ -32,6 +33,14 @@ export default async function BillingAdminPage() {
       count: planCount,
       label: planCount === 1 ? "plan" : "plans",
     },
+    {
+      href: "/billing-admin/refunds",
+      eyebrow: "Requests",
+      title: "Refunds",
+      description: "Review customer refund requests and approve or reject them.",
+      count: pendingRefunds,
+      label: pendingRefunds === 1 ? "pending" : "pending",
+    },
   ];
 
   return (
@@ -50,6 +59,7 @@ export default async function BillingAdminPage() {
             value: planCount,
             hint: catalog.error ? "billing unavailable" : "from Billing API",
           },
+          { label: "Refunds", value: pendingRefunds, hint: "awaiting review" },
         ]}
       />
 
@@ -60,7 +70,7 @@ export default async function BillingAdminPage() {
             Commercial controls for plans and customer workspaces.
           </p>
         </div>
-        <div className="grid gap-3 p-4 md:grid-cols-2 lg:p-5">
+        <div className="grid gap-3 p-4 md:grid-cols-2 lg:grid-cols-3 lg:p-5">
           {modules.map((module) => (
             <Link
               key={module.href}

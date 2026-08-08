@@ -14,5 +14,8 @@ out/
 .turbo
 *.tsbuildinfo
 
+# Prisma client (generated via postinstall / prisma generate)
+src/generated/prisma/
+
 # Production upload volume (bind-mounted in docker-compose.prod.yml)
 data/uploads/
