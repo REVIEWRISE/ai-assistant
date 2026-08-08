@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { ChatbotToasts } from "@/components/chatbot-toasts";
 import { ChatbotOrganizationsTable } from "@/components/chatbot-organizations-table";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { userHasAdminRole } from "@/lib/admin-view-only";
@@ -29,11 +30,7 @@ const organizationSelect = {
   },
 } as const;
 
-export default async function AppointmentChatbotPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ success?: string; error?: string }>;
-}) {
+export default async function AppointmentChatbotPage() {
   const session = await requireSession();
   const isAdmin = await userHasAdminRole(session.userId);
 
@@ -71,22 +68,12 @@ export default async function AppointmentChatbotPage({
       config,
     };
   });
-
-  const params = (await searchParams) ?? {};
   const embedBaseUrl = await getAppOrigin();
   const configuredAssistants = organizations.filter((organization) =>
     Boolean(organization.chatbotSettings),
   ).length;
   const voiceEnabled = rows.filter((row) => row.config.voiceBooking.enabled).length;
   const crmEnabled = rows.filter((row) => row.config.crmIntegration.enabled).length;
-
-  const errorMessages: Record<string, string> = {
-    chatbot_org_missing: "Missing organization for this save request.",
-    chatbot_org_denied: "You do not have access to configure chatbot for that organization.",
-    chatbot_generate_no_api_key: "Add OPENAI_API_KEY to generate the assistant from your knowledge base.",
-    chatbot_generate_no_kb: "Import a knowledge base first (substantial text). Then try generating again.",
-    chatbot_generate_failed: "Could not generate chatbot settings. Try again or edit manually.",
-  };
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
@@ -117,21 +104,7 @@ export default async function AppointmentChatbotPage({
         ]}
       />
 
-      {params.success === "saved" ? (
-        <div className="vr-app-alert vr-app-alert-success">Chatbot settings saved.</div>
-      ) : null}
-
-      {params.success === "crm_saved" ? (
-        <div className="vr-app-alert vr-app-alert-success">CRM integration saved.</div>
-      ) : null}
-
-      {params.success === "voice_saved" ? (
-        <div className="vr-app-alert vr-app-alert-success">Voice booking settings saved.</div>
-      ) : null}
-
-      {params.error && errorMessages[params.error] ? (
-        <div className="vr-app-alert vr-app-alert-danger">{errorMessages[params.error]}</div>
-      ) : null}
+      <ChatbotToasts />
 
       <ChatbotOrganizationsTable
         embedBaseUrl={embedBaseUrl}

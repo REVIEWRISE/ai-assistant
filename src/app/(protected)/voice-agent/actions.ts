@@ -100,12 +100,6 @@ export async function saveRetellVoiceAgentSettings(formData: FormData) {
   await requireVoiceAgentOrgSession(organizationId);
 
   const { settings: stored, voices } = await loadVoiceAgentSettings(organizationId);
-  const hasPhone =
-    (await prisma.retellPhoneNumber.count({ where: { organizationId } })) > 0 ||
-    Boolean(stored.phone.twilioPhoneNumber.trim());
-  if (!hasPhone) {
-    redirect(`${VOICE_AGENT_ROUTE}?tab=phone&error=phone_required_for_agent`);
-  }
   const phone = stored.phone;
   const knowledgeConfig = parseVoiceAgentKnowledgeForm(formEntries(formData));
   let retellConfig = parseRetellVoiceAgentForm(formEntries(formData), voices);

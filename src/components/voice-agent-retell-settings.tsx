@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useMemo, useState, useTransition } from "react";
+import { useFormStatus } from "react-dom";
+import { type ReactNode, useEffect, useMemo, useState, useTransition } from "react";
 import type { VoiceAgentAiResult } from "@/lib/voice-agent-ai";
 import { CustomSelect } from "@/components/custom-select";
 import { VoiceAgentPhoneGateOverlay } from "@/components/voice-agent-phone-gate-overlay";
@@ -203,6 +204,72 @@ function CollapsibleBlock({
   );
 }
 
+function SettingsActionButtons({
+  retellApiConfigured,
+  hasAgent,
+  remoteAgentMissing,
+  linkExistingAgent,
+  retellAgentId,
+  onReset,
+}: {
+  retellApiConfigured: boolean;
+  hasAgent: boolean;
+  remoteAgentMissing: boolean;
+  linkExistingAgent: boolean;
+  retellAgentId: string;
+  onReset: () => void;
+}) {
+  const { pending } = useFormStatus();
+
+  return (
+    <div className="flex flex-wrap justify-end gap-2">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={onReset}
+        className="rounded-xl border border-[var(--color-border)] px-4 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Reset defaults
+      </button>
+      {retellApiConfigured && hasAgent && !remoteAgentMissing ? (
+        <button
+          type="submit"
+          form="pull-retell-voice-agent-form"
+          disabled={pending || !retellAgentId.trim()}
+          className="rounded-xl border border-[var(--color-border)] px-4 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Import settings
+        </button>
+      ) : null}
+      <button
+        type="submit"
+        disabled={pending}
+        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {pending ? (
+          <>
+            <svg className="size-4 animate-spin text-current" fill="none" viewBox="0 0 24 24" aria-hidden>
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            Saving...
+          </>
+        ) : !retellApiConfigured ? (
+          "Save settings"
+        ) : remoteAgentMissing ? (
+          "Save & recreate"
+        ) : hasAgent ? (
+          "Save & sync"
+        ) : linkExistingAgent && retellAgentId.trim() ? (
+          "Save & sync"
+        ) : (
+          "Create agent"
+        )}
+      </button>
+    </div>
+  );
+}
+
 export function VoiceAgentRetellSettings({
   organizationId,
   organizationName,
@@ -212,7 +279,6 @@ export function VoiceAgentRetellSettings({
   voiceCatalog,
   initialConfig,
   initialKnowledgeConfig,
-  phoneConfig,
   onGoToPhoneTab,
   knowledge,
   onSave,
@@ -244,8 +310,13 @@ export function VoiceAgentRetellSettings({
   const [isGeneratingOpening, startGenerateOpening] = useTransition();
   const [isGeneratingPrompt, startGeneratePrompt] = useTransition();
   const hasAgent = Boolean(config.retellAgentId.trim());
-  const phoneConfigured = Boolean(phoneConfig.twilioPhoneNumber.trim());
-  const agentConfigLocked = !phoneConfigured;
+  const agentConfigLocked = false;
+
+  useEffect(() => {
+    if (retellApiConfigured && !hasAgent) {
+      toast.warning(`No agent for ${organizationName} yet. Finish setup below, then save to create one.`);
+    }
+  }, [retellApiConfigured, hasAgent, organizationName]);
 
   function buildGenerateFormData(): FormData {
     const fd = new FormData();
@@ -333,7 +404,7 @@ export function VoiceAgentRetellSettings({
               : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
           }`}
         >
-          {remoteAgentMissing ? "Retell agent missing" : hasAgent ? "Retell connected" : "Retell not linked"}
+          {remoteAgentMissing ? "Agent missing" : hasAgent ? "Agent connected" : "Agent not linked"}
         </span>
         <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${statusTone(knowledge.status)}`}>
           KB: {statusLabel(knowledge.status)}
@@ -409,12 +480,6 @@ export function VoiceAgentRetellSettings({
           title="Setup"
           description="Link and configure the voice agent for this organization."
         >
-          {retellApiConfigured && !hasAgent ? (
-            <div className="rounded-xl border vr-app-alert vr-app-alert-warning border-0 p-4 text-sm text-inherit">
-              No agent for <span className="font-semibold text-[var(--color-text)]">{organizationName}</span> yet.
-              Finish setup below, then save to create one.
-            </div>
-          ) : null}
           <div className="grid gap-4 lg:grid-cols-2">
             <label className="block space-y-1.5">
               <span className="text-xs font-semibold text-[var(--color-text)]">Display name</span>
@@ -760,47 +825,22 @@ export function VoiceAgentRetellSettings({
                   : "Save creates your voice agent with these settings."
                 : "Settings are saved locally until voice service is connected."}
             </p>
-            <div className="flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setConfig((prev) => ({
-                    ...defaultRetellVoiceAgentConfig(),
-                    retellAgentId: prev.retellAgentId,
-                    enabled: prev.enabled,
-                    agentName: prev.agentName,
-                  }));
-                  setKnowledgeConfig(defaultVoiceAgentKnowledgeConfig());
-                }}
-                className="rounded-xl border border-[var(--color-border)] px-4 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
-              >
-                Reset defaults
-              </button>
-              {retellApiConfigured && hasAgent && !remoteAgentMissing ? (
-                <button
-                  type="submit"
-                  form="pull-retell-voice-agent-form"
-                  disabled={!config.retellAgentId.trim()}
-                  className="rounded-xl border border-[var(--color-border)] px-4 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Import settings
-                </button>
-              ) : null}
-              <button
-                type="submit"
-                className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
-              >
-                {!retellApiConfigured
-                  ? "Save settings"
-                  : remoteAgentMissing
-                    ? "Save & recreate"
-                  : hasAgent
-                    ? "Save & sync"
-                    : linkExistingAgent && config.retellAgentId.trim()
-                      ? "Save & sync"
-                      : "Create agent"}
-              </button>
-            </div>
+            <SettingsActionButtons
+              retellApiConfigured={retellApiConfigured}
+              hasAgent={hasAgent}
+              remoteAgentMissing={remoteAgentMissing}
+              linkExistingAgent={linkExistingAgent}
+              retellAgentId={config.retellAgentId}
+              onReset={() => {
+                setConfig((prev) => ({
+                  ...defaultRetellVoiceAgentConfig(),
+                  retellAgentId: prev.retellAgentId,
+                  enabled: prev.enabled,
+                  agentName: prev.agentName,
+                }));
+                setKnowledgeConfig(defaultVoiceAgentKnowledgeConfig());
+              }}
+            />
           </div>
         </div>
       </form>

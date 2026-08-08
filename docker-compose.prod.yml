@@ -45,7 +45,7 @@ services:
         condition: service_healthy
     env_file:
       - .env.production
-    command: npx tsx scripts/retell-custom-llm-server.ts
+    command: node dist/retell-custom-llm-server.js
     ports:
       - "3017:3001"
     networks:

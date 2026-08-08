@@ -254,7 +254,7 @@ NEXT_PUBLIC_APP_URL=https://your-domain.com
 ```bash
 cd /var/www/ai-assistant
 docker compose -f docker-compose.prod.yml --profile retell-custom-llm \
-  run --rm retell-llm npx tsx scripts/migrate-retell-to-custom-llm.ts
+  run --rm retell-llm node dist/migrate-retell-to-custom-llm.js
 ```
 
 Or re-save each voice agent in the admin UI (same sync effect).
