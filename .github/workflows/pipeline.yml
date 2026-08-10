@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, production ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, production ]
 
 jobs:
   build-and-test:
@@ -30,123 +30,23 @@ jobs:
         NEXT_TELEMETRY_DISABLED: 1
         DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
 
-  deploy:
-    runs-on: ubuntu-latest
+  # main -> the existing VPS, kept as staging.
+  deploy-staging:
     needs: build-and-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-    - uses: actions/checkout@v4
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: staging
+      image-tag: staging
+    secrets: inherit
 
-    # scp-action only uploads/overwrites — it does not delete files removed from the repo.
-    # Wipe synced trees first so App Router conflicts (e.g. leftover logout/page.tsx) cannot linger.
-    - name: Clean remote synced directories
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        port: ${{ secrets.SERVER_PORT }}
-        script: |
-          cd ${{ secrets.APP_DIR }}
-          rm -rf src scripts deploy
-          mkdir -p src scripts deploy
-
-    - name: Copy files to server
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        port: ${{ secrets.SERVER_PORT }}
-        source: "scripts/*,deploy/*,docker-compose.prod.yml,Dockerfile.prod,next.config.ts,package*.json,prisma/*,src/*,public/*,tsconfig.json,postcss.config.mjs,eslint.config.mjs"
-        target: ${{ secrets.APP_DIR }}
-
-    - name: Deploy to VPS
-      uses: appleboy/ssh-action@v1.0.3
-      env:
-        ENV_FILE_CONTENTS: ${{ secrets.ENV_FILE_CONTENTS }}
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        SEED_ADMIN_EMAIL: ${{ secrets.SEED_ADMIN_EMAIL }}
-        SEED_ADMIN_NAME: ${{ secrets.SEED_ADMIN_NAME }}
-        SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
-        POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
-        POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-        POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-        NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
-        SMTP_HOST: ${{ secrets.SMTP_HOST }}
-        SMTP_PORT: ${{ secrets.SMTP_PORT }}
-        SMTP_USER: ${{ secrets.SMTP_USER }}
-        SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-        BOOKING_EMAIL_FROM: ${{ secrets.BOOKING_EMAIL_FROM }}
-        BOOKING_NOTIFY_EMAIL: ${{ secrets.BOOKING_NOTIFY_EMAIL }}
-        RETELL_API_KEY: ${{ secrets.RETELL_API_KEY }}
-        RETELL_USE_CUSTOM_LLM: ${{ secrets.RETELL_USE_CUSTOM_LLM }}
-        OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
-        RETELL_CUSTOM_LLM_WS_URL: ${{ secrets.RETELL_CUSTOM_LLM_WS_URL }}
-        BILLING_API_URL: ${{ secrets.BILLING_API_URL }}
-        BILLING_API_KEY: ${{ secrets.BILLING_API_KEY }}
-        BILLING_PRODUCT_NAME: ${{ secrets.BILLING_PRODUCT_NAME }}
-        BILLING_ADMIN_URL: ${{ secrets.BILLING_ADMIN_URL }}
-        TOKEN_ENCRYPTION_KEY: ${{ secrets.TOKEN_ENCRYPTION_KEY }}
-        HEALTH_CHECK_TOKEN: ${{ secrets.HEALTH_CHECK_TOKEN }}
-        VYNTRISE_WEBHOOK_SECRET: ${{ secrets.VYNTRISE_WEBHOOK_SECRET }}
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        port: ${{ secrets.SERVER_PORT }}
-        envs: ENV_FILE_CONTENTS,DATABASE_URL,OPENAI_API_KEY,SEED_ADMIN_EMAIL,SEED_ADMIN_NAME,SEED_ADMIN_PASSWORD,POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,NEXT_PUBLIC_APP_URL,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASSWORD,BOOKING_EMAIL_FROM,BOOKING_NOTIFY_EMAIL,RETELL_API_KEY,RETELL_USE_CUSTOM_LLM,OPENAI_MODEL,RETELL_CUSTOM_LLM_WS_URL,BILLING_API_URL,BILLING_API_KEY,BILLING_PRODUCT_NAME,BILLING_ADMIN_URL,TOKEN_ENCRYPTION_KEY,HEALTH_CHECK_TOKEN,VYNTRISE_WEBHOOK_SECRET
-        script: |
-          cd ${{ secrets.APP_DIR }}
-          chmod +x scripts/*.sh
-          if [ -n "$ENV_FILE_CONTENTS" ]; then
-            printf '%s\n' "$ENV_FILE_CONTENTS" > .env.production
-          else
-            printf '%s\n' \
-              "DATABASE_URL=${DATABASE_URL}" \
-              "OPENAI_API_KEY=${OPENAI_API_KEY}" \
-              "SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL}" \
-              "SEED_ADMIN_NAME=${SEED_ADMIN_NAME}" \
-              "SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD}" \
-              "POSTGRES_USER=${POSTGRES_USER}" \
-              "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
-              "POSTGRES_DB=${POSTGRES_DB}" \
-              "NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}" \
-              "SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}" \
-              "SMTP_PORT=${SMTP_PORT:-587}" \
-              "SMTP_USER=${SMTP_USER}" \
-              "SMTP_PASSWORD=${SMTP_PASSWORD}" \
-              "BOOKING_EMAIL_FROM=${BOOKING_EMAIL_FROM}" \
-              "BOOKING_NOTIFY_EMAIL=${BOOKING_NOTIFY_EMAIL}" \
-              "RETELL_API_KEY=${RETELL_API_KEY}" \
-              "RETELL_USE_CUSTOM_LLM=${RETELL_USE_CUSTOM_LLM}" \
-              "OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}" \
-              "BILLING_API_URL=${BILLING_API_URL:-https://billing.vyntrise.com/api/v1}" \
-              "BILLING_API_KEY=${BILLING_API_KEY}" \
-              "BILLING_PRODUCT_NAME=${BILLING_PRODUCT_NAME:-agents}" \
-              "BILLING_ADMIN_URL=${BILLING_ADMIN_URL:-https://billing.vyntrise.com}" \
-              > .env.production
-          fi
-          merge_env_var() {
-            local key="$1"
-            local val="$2"
-            if [ -z "$val" ]; then return 0; fi
-            if grep -q "^${key}=" .env.production 2>/dev/null; then
-              sed -i "s|^${key}=.*|${key}=${val}|" .env.production
-            else
-              printf '%s\n' "${key}=${val}" >> .env.production
-            fi
-          }
-          merge_env_var RETELL_API_KEY "$RETELL_API_KEY"
-          merge_env_var RETELL_USE_CUSTOM_LLM "$RETELL_USE_CUSTOM_LLM"
-          merge_env_var OPENAI_MODEL "$OPENAI_MODEL"
-          merge_env_var RETELL_CUSTOM_LLM_WS_URL "$RETELL_CUSTOM_LLM_WS_URL"
-          merge_env_var BILLING_API_URL "$BILLING_API_URL"
-          merge_env_var BILLING_API_KEY "$BILLING_API_KEY"
-          merge_env_var BILLING_PRODUCT_NAME "$BILLING_PRODUCT_NAME"
-          merge_env_var BILLING_ADMIN_URL "$BILLING_ADMIN_URL"
-          merge_env_var TOKEN_ENCRYPTION_KEY "$TOKEN_ENCRYPTION_KEY"
-          merge_env_var HEALTH_CHECK_TOKEN "$HEALTH_CHECK_TOKEN"
-          merge_env_var VYNTRISE_WEBHOOK_SECRET "$VYNTRISE_WEBHOOK_SECRET"
-          ./scripts/deploy.sh "${{ secrets.APP_DIR }}"
+  # production branch -> the new VPS. Promote by merging main into production
+  # once a change has been verified on staging.
+  deploy-production:
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/production'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
+      image-tag: latest
+    secrets: inherit

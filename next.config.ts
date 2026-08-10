@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 // Baseline CSP shipped in report-only mode first (SOC 2 CC6.6) — 'unsafe-inline' for
 // script/style is required today by the inline theme-initializer script (src/app/layout.tsx)
@@ -52,4 +53,13 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// SENTRY_AUTH_TOKEN is optional — without it, source-map upload is skipped
+// gracefully (no build failure). SENTRY_DSN itself lives in the SDK init
+// calls (src/instrumentation.ts, src/instrumentation-client.ts), not here.
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: true,
+  widenClientFileUpload: true,
+});

@@ -3,10 +3,16 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 /**
- * Logout via GET /logout — clears the httpOnly session cookie and redirects.
+ * Logout via POST /logout — clears the httpOnly session cookie and redirects.
  * Must be a Route Handler (not a page) so cookies can be modified.
+ *
+ * POST-only, not GET: logging out deletes the session (a state change), and a
+ * plain GET has none of the CSRF protection Next.js gives Server Actions —
+ * a third party could force a visitor's session to end via e.g. an <img>
+ * pointed at this URL. GET below is a harmless redirect only, in case
+ * anything still links here with an anchor tag.
  */
-export async function GET(request: Request) {
+export async function POST(request: Request) {
   const cookieStore = await cookies();
   const token = cookieStore.get("ai_session")?.value;
 
@@ -46,5 +52,11 @@ export async function GET(request: Request) {
     });
   }
 
+  // 303: browser follows up with a GET on the redirect target instead of re-POSTing.
+  return NextResponse.redirect(new URL("/login", request.url), { status: 303 });
+}
+
+/** Inert — does not touch the session. Only POST actually logs out. */
+export async function GET(request: Request) {
   return NextResponse.redirect(new URL("/login", request.url));
 }

@@ -22,9 +22,27 @@ This repository is equipped with a production-grade CI/CD pipeline using GitHub 
     mkdir -p /var/www/ai-assistant
     ```
 
+## Two environments: staging and production
+
+There are two VPSs, two GitHub Environments, and two branches:
+
+| | Branch | GitHub Environment | Domain |
+| :--- | :--- | :--- | :--- |
+| Staging | `main` | `staging` | `https://staging.agent.vyntrise.com` |
+| Production | `production` | `production` | `https://agent.vyntrise.com` |
+
+**Workflow:** land feature work on `main` (auto-deploys to staging) → verify it there → open a PR from `main` into `production` → merging it deploys to the production VPS. `.github/workflows/pipeline.yml` runs `build-and-test` on both branches, then calls the reusable `.github/workflows/deploy.yml` once per environment, gated by which branch was pushed.
+
+**How secrets resolve:** GitHub Environment secrets fall back to repo-level secrets of the same name when the environment doesn't have its own override (Settings → Environments → *environment name* → Add secret). Practically:
+
+- **`staging`** needs almost no new secrets — it's the same VPS that's been running all along. Only add environment-scoped overrides for what should actually differ from what's already set at the repo level: `NEXT_PUBLIC_APP_URL` → `https://staging.agent.vyntrise.com`, and sandbox/test versions of `OPENAI_API_KEY` / `RETELL_API_KEY` / billing keys wherever the provider supports a sandbox — otherwise staging traffic shows up as real usage/cost, or worse, triggers a real billing webhook.
+- **`production`** needs a full, fresh set of environment-scoped secrets — new VPS, new everything: `SERVER_HOST`/`SERVER_USER`/`SERVER_PORT`/`SERVER_SSH_KEY`/`APP_DIR` pointed at the new box, its own `TOKEN_ENCRYPTION_KEY`/`HEALTH_CHECK_TOKEN`/`POSTGRES_*`/`SEED_ADMIN_*` (don't reuse staging's), `NEXT_PUBLIC_APP_URL` → `https://agent.vyntrise.com`, and whatever your real production-grade third-party keys are. `GHCR_USER`/`GHCR_PAT` can be shared across both if you'd rather not manage two PATs — it's a read-only package token either way.
+
+**nginx, one domain per box:** the old (staging) VPS needs a new server block for `staging.agent.vyntrise.com` alongside/replacing its current one for `agent.vyntrise.com`; the new (production) VPS gets a server block for `agent.vyntrise.com` (see `deploy/nginx.site.example.conf`, `sudo certbot --nginx -d <domain>` for each). Point `agent.vyntrise.com`'s DNS record at the new VPS only after it's verified working, to avoid a window where the domain resolves to a box that isn't ready yet; add `staging.agent.vyntrise.com` pointing at the old VPS's existing IP.
+
 ## GitHub Secrets Configuration
 
-Add the following secrets to your GitHub repository (Settings > Secrets and variables > Actions):
+The table below applies to the `staging` environment (and to the repo level, as the fallback both environments share). Add the following secrets to your GitHub repository (Settings > Secrets and variables > Actions):
 
 | Secret Name | Description | Example |
 | :--- | :--- | :--- |
@@ -38,6 +56,21 @@ Add the following secrets to your GitHub repository (Settings > Secrets and vari
 | `BILLING_API_KEY` | Billing service API key | `vbk_live_…` |
 | `BILLING_PRODUCT_NAME` | Billing product slug | `agents` |
 | `BILLING_ADMIN_URL` | Billing Admin portal URL | `https://billing.vyntrise.com` |
+| `GHCR_USER` | GitHub username the server uses to pull the built image | `your-github-username` |
+| `GHCR_PAT` | Personal access token, scoped to `read:packages` only | `ghp_…` |
+| `SENTRY_DSN` | Optional. Error tracking — safe to omit, the SDK no-ops without it. See "Error tracking (Sentry)" below | `https://…@…ingest.sentry.io/…` |
+
+#### Container registry (ghcr.io)
+
+The app image is built once in GitHub Actions and pushed to `ghcr.io/reviewrise/ai-assistant-app` — the production VPS only pulls and runs it (`docker compose pull && up -d`), it never runs `next build` itself. This removes the biggest memory-pressure moment from every deploy.
+
+The package is kept **private** (it contains server-side business logic, not just the client bundle already shipped to browsers), so the server needs its own credentials to pull:
+
+1. On GitHub: **Settings → Developer settings → Personal access tokens → Fine-grained tokens** (or classic, if your org requires it).
+2. Scope it to **this repository only**, permission **Contents: read** is not needed — just **Packages: read**.
+3. Add the token as the `GHCR_PAT` secret, and your GitHub username as `GHCR_USER`.
+
+The CI job itself pushes using the automatic `GITHUB_TOKEN` (no extra secret needed for that direction) — `GHCR_PAT` is only for the server's *pull*, since the CI runner's token expires when the job ends.
 
 ### Environment variables
 
@@ -270,16 +303,15 @@ Local dev without nginx: run `npm run retell:llm`, expose with `ngrok http 3001`
 
 ## CI/CD Pipeline
 
-The pipeline is defined in `.github/workflows/pipeline.yml`:
+The pipeline is defined in `.github/workflows/pipeline.yml`, which calls the reusable `.github/workflows/deploy.yml` once per environment:
 
 1.  **CI (Continuous Integration)**:
-    - Triggered on push and pull requests to `main`.
+    - Triggered on push and pull requests to `main` or `production`.
     - Runs linting, typechecking, and production build.
-2.  **CD (Continuous Deployment)**:
-    - Triggered only on push to `main` after CI passes.
-    - Connects to the VPS via SSH.
-    - Pulls the latest code.
-    - Builds and starts Docker containers using `docker-compose.prod.yml`.
+2.  **CD (Continuous Deployment)** — `deploy-staging` on push to `main`, `deploy-production` on push to `production`, both after CI passes, each calling `deploy.yml` with its own `environment:` (which is what resolves that environment's GitHub secrets — see "Two environments" above):
+    - Builds the Docker image and pushes it to `ghcr.io/reviewrise/ai-assistant-app` (tagged `staging`/`latest` and `<tag>-<sha>`) — this is the only place `next build` ever runs; neither VPS builds it.
+    - Connects to that environment's VPS via SSH, syncs `docker-compose.prod.yml` and the `scripts/`/`deploy/` directories (the app image itself carries everything else now).
+    - Pulls the new image and starts containers using `docker-compose.prod.yml`.
     - Performs a health check on `http://localhost:3000/api/health`.
     - **Automatic Rollback**: If the health check fails after 10 retries, it automatically rolls back to the previous stable version.
 
@@ -310,6 +342,17 @@ gunzip -c backups/ai_assistant_20260101_020000.sql.gz | \
   docker compose -f docker-compose.prod.yml exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 ```
 
+### Error tracking (Sentry)
+
+Wired but inert by default — the SDK no-ops safely with no DSN configured. To turn it on:
+
+1. Sign up at [sentry.io](https://sentry.io), create a Next.js project, copy the DSN.
+2. Add it as the **`SENTRY_DSN` GitHub secret**.
+
+**Important:** it must be set as a GitHub secret, not just added to `.env.production` on the server. The browser-side DSN (`instrumentation-client.ts`) gets baked into the client JS bundle *at build time* — and the build now happens in CI (see Container registry section), before `.env.production` on the server is even relevant. Setting it only on the server would fix server-side error capture but leave the browser silently uninstrumented. The next push to `main` after adding the secret will produce a build with it correctly included.
+
+Source-map upload to Sentry is not wired up yet (`SENTRY_AUTH_TOKEN`/`SENTRY_ORG`/`SENTRY_PROJECT` in `next.config.ts` are read but nothing currently passes them into the CI build) — errors will report with the built/minified stack until that's added, following the same build-arg pattern as `NEXT_PUBLIC_SENTRY_DSN` above.
+
 ### Content-Security-Policy
 
 `next.config.ts` ships a baseline CSP in `Content-Security-Policy-Report-Only` mode (SOC 2 CC6.6). It does not block anything yet — browsers log would-be violations to the devtools console instead. Before enforcing it:
@@ -336,7 +379,25 @@ Not yet implemented. Intended design, documented here for SOC 2 audit purposes:
 ## Optimization & Security
 
 - **Multi-stage Docker Build**: Reduces image size and hides source code in the final image.
+- **CI-Built Images**: The image is built once in GitHub Actions and pulled from `ghcr.io` — the production VPS never runs `next build` itself (see Container registry section above).
 - **Standalone Output**: Next.js is configured to output only necessary files for production.
-- **Resource Limits**: Docker Compose limits CPU and Memory usage for stability.
+- **Resource Limits**: Docker Compose limits CPU and Memory usage for stability (`app`/`retell-llm`: 1.5 CPU / 1GB, `postgres`: 1.5 CPU / 2GB — sized for ~25–100 active orgs with public chatbot-widget and voice traffic; revisit if usage grows well past that).
 - **Healthchecks**: Integrated into both Docker and the deployment script.
 - **Firewall**: UFW is configured during bootstrap to allow only essential traffic.
+- **fail2ban**: Bans repeated failed SSH login attempts — the VPS has root SSH reachable from the internet, so this matters.
+- **SSH hardening**: Password authentication is disabled during bootstrap; deploys already authenticate via `SERVER_SSH_KEY`.
+- **Swap file**: A 2GB swap file is created during bootstrap as insurance against memory pressure, independent of how much RAM is provisioned.
+- **Docker log rotation**: `json-file` logs are capped (10MB × 3 files per container) during bootstrap so container logs can't fill the disk unbounded over months of real traffic.
+
+### Recommended server spec
+
+Sized for the expected first 6 months (25–100 active orgs, public chatbot widget live on customer sites, voice/Retell actively used):
+
+| Resource | Spec |
+| :--- | :--- |
+| vCPU | 4 |
+| RAM | 8 GB |
+| Disk | 100 GB SSD |
+| Bandwidth | 4–5 TB/mo (most "business" VPS tiers already include this) |
+
+`next build` no longer runs on this box (see CI-Built Images above), which removes the single biggest memory spike that would otherwise factor into this sizing.
