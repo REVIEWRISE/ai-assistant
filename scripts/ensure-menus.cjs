@@ -43,6 +43,20 @@ async function ensureMenuItem({
   const menuItemId = existingById?.id ?? existingByPath?.id ?? null;
 
   if (!menuItemId) {
+    // On a brand-new database the base menu tree (seeded by prisma/seed.ts)
+    // may not exist yet -- skip rather than violate the parent FK constraint;
+    // a later `prisma db seed` run will create the full tree including this.
+    if (parentId) {
+      const parentExists = await prisma.menuItem.findUnique({
+        where: { id: parentId },
+        select: { id: true },
+      });
+      if (!parentExists) {
+        console.warn(`[ensure-menus] Parent menu item ${parentId} not found — skipped ${label}.`);
+        return null;
+      }
+    }
+
     await prisma.menuItem.create({
       data: {
         id,
@@ -98,7 +112,9 @@ async function main() {
     label: "Subscription",
     sortOrder: 5,
   });
-  await ensureRoleGrants(subscriptionId, ["Admin", "User"], "Subscription");
+  if (subscriptionId) {
+    await ensureRoleGrants(subscriptionId, ["Admin", "User"], "Subscription");
+  }
 
   const auditId = await ensureMenuItem({
     id: AUDIT_MENU_ID,
@@ -107,7 +123,9 @@ async function main() {
     sortOrder: 1,
     parentId: PLATFORM_PARENT_ID,
   });
-  await ensureRoleGrants(auditId, ["Admin"], "Audit Log");
+  if (auditId) {
+    await ensureRoleGrants(auditId, ["Admin"], "Audit Log");
+  }
 }
 
 main()

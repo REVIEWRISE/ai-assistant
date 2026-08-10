@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+echo "[db-sync] Ensuring database exists..."
+npx tsx scripts/db-create.ts
+
 echo "[db-sync] Pushing Prisma schema (prisma/schema.prisma)..."
 if [ "${PRISMA_DB_PUSH_ACCEPT_DATA_LOSS:-}" = "1" ]; then
   npx prisma db push --skip-generate --accept-data-loss

@@ -53,8 +53,10 @@ Add output to `.env.production` and as a GitHub Actions secret named `TOKEN_ENCR
 ```bash
 docker-compose up          # starts app + postgres (no retell LLM)
 npm run dev                # Next.js dev server
+npm run db:create          # create the database (safe to re-run — skips if exists)
 npm run db:migrate         # prisma db push + generate
 npm run db:seed            # seed admin user + roles
+npm run db:setup           # db:create + db:migrate + db:seed (full fresh setup)
 ```
 
 ## Production deploy

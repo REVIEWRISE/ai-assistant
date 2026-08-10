@@ -10,10 +10,6 @@ fi
 
 cd "$APP_DIR"
 
-# SCP deploy does not delete removed repo files. Drop superseded logout page/action
-# so Next.js does not see both /logout/page and /logout/route.
-rm -f "$APP_DIR/src/app/logout/page.tsx" "$APP_DIR/src/app/logout/actions.ts"
-
 # Persist provider logos and other uploads across container rebuilds
 mkdir -p "$APP_DIR/data/uploads/providers" "$APP_DIR/data/uploads/organizations"
 chmod -R 775 "$APP_DIR/data/uploads" 2>/dev/null || true
@@ -23,17 +19,23 @@ chmod -R 775 "$APP_DIR/data/uploads" 2>/dev/null || true
 # Backup current state for rollback
 echo $(date +%s) > .last_version
 
-# Build and restart containers
-echo "Building and starting containers..."
+# The image is built once in CI and pushed to ghcr.io (see .github/workflows/pipeline.yml) —
+# this box only pulls and runs it, never runs `next build` itself. Log in if credentials were
+# passed (CI always passes these; a manual rerun on an already-logged-in box can omit them).
+if [ -n "${GHCR_USER:-}" ] && [ -n "${GHCR_PAT:-}" ]; then
+  echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+fi
+
+echo "Pulling image and restarting containers..."
 COMPOSE_PROFILES=""
 if grep -qE '^RETELL_USE_CUSTOM_LLM=(true|1|on)' .env.production 2>/dev/null \
   || grep -qE '^RETELL_CUSTOM_LLM_WS_URL=.+' .env.production 2>/dev/null; then
   COMPOSE_PROFILES="--profile retell-custom-llm"
   echo "Custom LLM enabled — starting retell-llm service."
 fi
-docker compose -f docker-compose.prod.yml pull || true
+docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml down --remove-orphans
-docker compose -f docker-compose.prod.yml $COMPOSE_PROFILES up -d --build
+docker compose -f docker-compose.prod.yml $COMPOSE_PROFILES up -d
 
 # Give the app time to start and run db migrations before polling
 echo "Waiting 30s for app startup and DB migration..."
