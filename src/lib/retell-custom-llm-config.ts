@@ -1,3 +1,5 @@
+const PRODUCTION_CUSTOM_LLM_WS_URL = "wss://agentllm.vyntrise.com/llm-websocket";
+
 /** Explicit opt-in for Custom LLM (uses your OPENAI_API_KEY on live calls). */
 export function isRetellCustomLlmEnabled(): boolean {
   const flag = process.env.RETELL_USE_CUSTOM_LLM?.trim().toLowerCase();
@@ -9,6 +11,11 @@ export function isRetellCustomLlmEnabled(): boolean {
 /** Public WebSocket base URL Retell connects to (no trailing slash, no call_id suffix). */
 export function getRetellCustomLlmWebSocketUrl(): string {
   if (!isRetellCustomLlmEnabled()) return "";
+
+  // Never derive a localhost URL from a stale NEXT_PUBLIC_APP_URL in production.
+  if (process.env.NODE_ENV === "production") {
+    return PRODUCTION_CUSTOM_LLM_WS_URL;
+  }
 
   const explicit = process.env.RETELL_CUSTOM_LLM_WS_URL?.trim().replace(/\/$/, "");
   if (explicit && !explicit.includes("YOUR_PUBLIC_HOST")) return explicit;

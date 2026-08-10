@@ -265,12 +265,13 @@ If `smtpConfigured` is `false`, SMTP secrets are missing from `.env.production`.
 
 ### Retell Custom LLM (your OpenAI key on live calls)
 
-When `RETELL_USE_CUSTOM_LLM=true`, deploy starts an extra `retell-llm` container (WebSocket on host port **3017**). Retell connects to `wss://your-domain.com/llm-websocket` — same host as the app if you use the nginx example.
+When `RETELL_USE_CUSTOM_LLM=true`, deploy starts an extra `retell-llm` container (WebSocket on host port **3017**). Production is configured to connect Retell to `wss://agentllm.vyntrise.com/llm-websocket`; staging can provide its own `RETELL_CUSTOM_LLM_WS_URL` environment secret.
 
 1. Add to `.env.production` (or `ENV_FILE_CONTENTS`):
 
 ```env
 RETELL_USE_CUSTOM_LLM=true
+RETELL_CUSTOM_LLM_WS_URL=wss://agentllm.vyntrise.com/llm-websocket
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
 NEXT_PUBLIC_APP_URL=https://your-domain.com
