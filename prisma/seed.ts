@@ -6,6 +6,39 @@ loadEnvConfig(process.cwd());
 
 const prisma = new PrismaClient();
 
+const DEMO_USER_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "password123";
+
+const DEMO_USERS = [
+  {
+    email: "restaurant@example.com",
+    fullName: "Restaurant User",
+    organizationName: "Restaurant Workspace",
+    businessType: "Restaurant",
+    description: "A restaurant that accepts table reservations and helps guests with dining questions.",
+  },
+  {
+    email: "hotel@example.com",
+    fullName: "Hotel User",
+    organizationName: "Hotel Workspace",
+    businessType: "Hotel",
+    description: "A hospitality business that assists guests with stays, availability, and hotel services.",
+  },
+  {
+    email: "service-appointment@example.com",
+    fullName: "Service Appointment User",
+    organizationName: "Service Appointment Workspace",
+    businessType: "Service Appointment",
+    description: "A service business that schedules customer appointments and manages booking requests.",
+  },
+  {
+    email: "transportation@example.com",
+    fullName: "Transportation User",
+    organizationName: "Transportation Workspace",
+    businessType: "Transportation",
+    description: "A transportation provider that coordinates rides, availability, and customer trip requests.",
+  },
+] as const;
+
 const MENU_ITEMS = [
   { id: "5c9b931d-fd45-4efa-9ebf-aa18dd97a8dc", label: "Dashboard", path: "/dashboard", sortOrder: 0, description: "test description" },
   { id: "82e4d5db-f33c-4fca-a8be-a9d0631ac751", label: "User Management", path: "/users", sortOrder: 1 },
@@ -154,6 +187,77 @@ async function main() {
       });
     }
   });
+
+  const shouldSeedDemoUsers =
+    process.env.NODE_ENV !== "production" || process.env.SEED_DEMO_USERS === "true";
+
+  if (shouldSeedDemoUsers) {
+    const demoPasswordHash = await bcrypt.hash(DEMO_USER_PASSWORD, 10);
+
+    for (const demoUser of DEMO_USERS) {
+      await prisma.$transaction(async (tx) => {
+        const user = await tx.user.upsert({
+          where: { email: demoUser.email },
+          create: {
+            email: demoUser.email,
+            fullName: demoUser.fullName,
+            passwordHash: demoPasswordHash,
+            accountStatus: "active",
+            emailVerified: true,
+          },
+          update: {
+            fullName: demoUser.fullName,
+            passwordHash: demoPasswordHash,
+            accountStatus: "active",
+            emailVerified: true,
+          },
+        });
+
+        await tx.userRole.createMany({
+          data: [{ userId: user.id, roleId: userRole.id }],
+          skipDuplicates: true,
+        });
+
+        const existingWorkspace = await tx.organizationMember.findFirst({
+          where: {
+            userId: user.id,
+            organization: { name: demoUser.organizationName },
+          },
+          select: { organizationId: true },
+        });
+
+        if (existingWorkspace) {
+          await tx.organization.update({
+            where: { id: existingWorkspace.organizationId },
+            data: {
+              businessType: demoUser.businessType,
+              description: demoUser.description,
+            },
+          });
+        } else {
+          const organization = await tx.organization.create({
+            data: {
+              name: demoUser.organizationName,
+              businessType: demoUser.businessType,
+              description: demoUser.description,
+            },
+          });
+
+          await tx.organizationMember.create({
+            data: {
+              organizationId: organization.id,
+              userId: user.id,
+              role: "owner",
+            },
+          });
+        }
+      });
+    }
+
+    console.log(`[seed] Demo users ready: ${DEMO_USERS.map(({ email }) => email).join(", ")}`);
+  } else {
+    console.log("[seed] Demo users skipped in production; set SEED_DEMO_USERS=true to include them.");
+  }
 
   console.log(`[seed] Menu items ready: ${MENU_ITEMS.length}`);
   console.log(`[seed] Admin user ready: ${email}`);
