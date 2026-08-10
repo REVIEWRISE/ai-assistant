@@ -14,6 +14,8 @@ const errorMessages: Record<string, string> = {
   missing: "Please fill in all required fields.",
   exists: "That email is already in use.",
   delete_failed: "Unable to delete that user.",
+  organization_missing: "Enter an organization name before adding its details.",
+  organization_invalid: "Organization details exceed the allowed length.",
   unknown: "Something went wrong. Try again.",
   weak_password:
     "Password must be at least 12 characters and include an uppercase letter, a lowercase letter, a number, and a symbol.",

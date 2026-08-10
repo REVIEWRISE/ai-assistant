@@ -208,6 +208,17 @@ If `SMTP_USER` / `SMTP_PASSWORD` are unset, bookings still save; emails are skip
 
 The seed script creates required development data for local testing.
 
+It also creates these verified development accounts, each with password `password123` and its own workspace:
+
+| Service | Email |
+| :--- | :--- |
+| Restaurant | `restaurant@example.com` |
+| Hotel | `hotel@example.com` |
+| Service Appointment | `service-appointment@example.com` |
+| Transportation | `transportation@example.com` |
+
+Demo accounts are skipped when `NODE_ENV=production`. Set `SEED_DEMO_USERS=true` to create them there intentionally, and use `SEED_DEMO_PASSWORD` to override their shared password.
+
 You can customize seed behavior with environment variables (for example, admin identity and password) in your local `.env.local` file.
 
 ## Docker Commands

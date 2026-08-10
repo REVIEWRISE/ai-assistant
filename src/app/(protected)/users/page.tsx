@@ -19,6 +19,10 @@ export default async function UserManagementPage() {
           include: { role: true },
           take: 1,
         },
+        organizationMembers: {
+          orderBy: { createdAt: "asc" },
+          include: { organization: true },
+        },
       },
     }),
     prisma.role.findMany({
@@ -98,6 +102,14 @@ export default async function UserManagementPage() {
           roleName: user.userRoles[0]?.role?.name ?? "User",
           roleId: user.userRoles[0]?.role?.id ?? null,
           createdAt: user.createdAt,
+          organizations: user.organizationMembers.map((membership) => ({
+            id: membership.organization.id,
+            name: membership.organization.name,
+            businessType: membership.organization.businessType,
+            description: membership.organization.description,
+            memberRole: membership.role,
+            createdAt: membership.organization.createdAt,
+          })),
         }))}
         roles={roles}
         onCreateUser={createUser}

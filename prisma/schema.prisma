@@ -60,11 +60,13 @@ model Session {
 }
 
 model Organization {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String
-  logoUrl   String?  @map("logo_url")
-  timezone  String   @default("UTC")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  businessType String?  @map("business_type")
+  description  String?  @db.Text
+  logoUrl      String?  @map("logo_url")
+  timezone     String   @default("UTC")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   planSlug             String?   @map("plan_slug")
   billingStatus        String    @default("needs_plan") @map("billing_status")
