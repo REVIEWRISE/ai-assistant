@@ -56,21 +56,19 @@ The table below applies to the `staging` environment (and to the repo level, as 
 | `BILLING_API_KEY` | Billing service API key | `vbk_live_…` |
 | `BILLING_PRODUCT_NAME` | Billing product slug | `agents` |
 | `BILLING_ADMIN_URL` | Billing Admin portal URL | `https://billing.vyntrise.com` |
-| `GHCR_USER` | GitHub username the server uses to pull the built image | `your-github-username` |
-| `GHCR_PAT` | Personal access token, scoped to `read:packages` only | `ghp_…` |
+| `GHCR_USER` | GitHub username used to both push (CI) and pull (server) the built image | `your-github-username` |
+| `GHCR_PAT` | Personal access token, scoped to `read:packages` **and** `write:packages` | `ghp_…` |
 | `SENTRY_DSN` | Optional. Error tracking — safe to omit, the SDK no-ops without it. See "Error tracking (Sentry)" below | `https://…@…ingest.sentry.io/…` |
 
 #### Container registry (ghcr.io)
 
 The app image is built once in GitHub Actions and pushed to `ghcr.io/reviewrise/ai-assistant-app` — the production VPS only pulls and runs it (`docker compose pull && up -d`), it never runs `next build` itself. This removes the biggest memory-pressure moment from every deploy.
 
-The package is kept **private** (it contains server-side business logic, not just the client bundle already shipped to browsers), so the server needs its own credentials to pull:
+The package is kept **private** (it contains server-side business logic, not just the client bundle already shipped to browsers), so both the CI push and the server's pull need their own credentials — this repo's default Actions workflow permissions only grant the ambient `GITHUB_TOKEN` `packages: read`, not `write`, so it can't be used for the push:
 
 1. On GitHub: **Settings → Developer settings → Personal access tokens → Fine-grained tokens** (or classic, if your org requires it).
-2. Scope it to **this repository only**, permission **Contents: read** is not needed — just **Packages: read**.
-3. Add the token as the `GHCR_PAT` secret, and your GitHub username as `GHCR_USER`.
-
-The CI job itself pushes using the automatic `GITHUB_TOKEN` (no extra secret needed for that direction) — `GHCR_PAT` is only for the server's *pull*, since the CI runner's token expires when the job ends.
+2. Scope it to **this repository only**, permissions **Packages: read and write** (not just read — this same token pushes from CI *and* pulls on the server).
+3. Add the token as the `GHCR_PAT` secret, and your GitHub username as `GHCR_USER`. Both the build-and-push step and the server's pull use this one credential.
 
 ### Environment variables
 
