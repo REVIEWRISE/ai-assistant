@@ -1,4 +1,4 @@
-const PRODUCTION_CUSTOM_LLM_WS_URL = "wss://agentllm.vyntrise.com/llm-websocket";
+const SHARED_CUSTOM_LLM_WS_URL = "wss://agentllm.vyntrise.com/llm-websocket";
 
 /** Explicit opt-in for Custom LLM (uses your OPENAI_API_KEY on live calls). */
 export function isRetellCustomLlmEnabled(): boolean {
@@ -12,25 +12,8 @@ export function isRetellCustomLlmEnabled(): boolean {
 export function getRetellCustomLlmWebSocketUrl(): string {
   if (!isRetellCustomLlmEnabled()) return "";
 
-  // Never derive a localhost URL from a stale NEXT_PUBLIC_APP_URL in production.
-  if (process.env.NODE_ENV === "production") {
-    return PRODUCTION_CUSTOM_LLM_WS_URL;
-  }
-
-  const explicit = process.env.RETELL_CUSTOM_LLM_WS_URL?.trim().replace(/\/$/, "");
-  if (explicit && !explicit.includes("YOUR_PUBLIC_HOST")) return explicit;
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
-  if (!appUrl) return "";
-
-  if (appUrl.startsWith("https://")) {
-    return `wss://${appUrl.slice("https://".length)}/llm-websocket`;
-  }
-  if (appUrl.startsWith("http://")) {
-    return `ws://${appUrl.slice("http://".length)}/llm-websocket`;
-  }
-
-  return explicit?.includes("YOUR_PUBLIC_HOST") ? "" : explicit || "";
+  // Local, staging, and production agents all use the hosted LLM service.
+  return SHARED_CUSTOM_LLM_WS_URL;
 }
 
 export function getRetellCustomLlmListenPort(): number {

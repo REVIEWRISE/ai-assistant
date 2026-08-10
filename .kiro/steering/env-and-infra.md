@@ -16,7 +16,7 @@
 | `BILLING_ADMIN_URL` | Billing admin dashboard URL |
 | `RETELL_API_KEY` | Retell AI API key |
 | `RETELL_USE_CUSTOM_LLM` | `true` to enable custom LLM WebSocket server |
-| `RETELL_CUSTOM_LLM_WS_URL` | Custom LLM WebSocket URL (optional, defaults to `wss://DOMAIN/llm-websocket`) |
+| `RETELL_CUSTOM_LLM_WS_URL` | Hosted Custom LLM WebSocket URL (`wss://agentllm.vyntrise.com/llm-websocket`) |
 | `SMTP_HOST` | SMTP server (default: `smtp.gmail.com`) |
 | `SMTP_PORT` | SMTP port (default: `587`) |
 | `SMTP_USER` | SMTP username |

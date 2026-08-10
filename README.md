@@ -121,33 +121,12 @@ By default, live phone inference runs on Retell's hosted models. To bill OpenAI 
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
 RETELL_USE_CUSTOM_LLM=true
-RETELL_CUSTOM_LLM_PORT=3001
+RETELL_CUSTOM_LLM_WS_URL=wss://agentllm.vyntrise.com/llm-websocket
 ```
 
-For **local dev**, Retell cannot reach `localhost` — use ngrok:
+Local, staging, and production agents all connect to the hosted production WebSocket endpoint. A local WebSocket server or ngrok tunnel is not required.
 
-```bash
-npm run retell:llm          # terminal 1
-ngrok http 3001             # terminal 2
-```
-
-Set `RETELL_CUSTOM_LLM_WS_URL=wss://YOUR-NGROK-HOST/llm-websocket` (from ngrok output).
-
-For **production** on one domain, nginx proxies `/llm-websocket` → port 3017; set only `RETELL_USE_CUSTOM_LLM=true` and `NEXT_PUBLIC_APP_URL=https://your-domain.com` (see `deploy/nginx.site.example.conf`).
-
-2. Start the WebSocket server (separate terminal, unless using Docker profile below):
-
-```bash
-npm run retell:llm
-```
-
-Docker dev with custom LLM:
-
-```bash
-docker compose --profile retell-custom-llm up --build
-```
-
-3. **Migrate existing agents** to custom LLM:
+2. **Migrate existing agents** to custom LLM:
 
 ```bash
 npm run retell:migrate
@@ -155,9 +134,9 @@ npm run retell:migrate
 
 Or re-save the voice agent in the admin UI.
 
-4. Re-save your voice agent in the app if you changed prompts after migrating.
+3. Re-save your voice agent in the app if you changed prompts after migrating.
 
-If `RETELL_CUSTOM_LLM_WS_URL` is unset, the app keeps using Retell's managed `retell-llm` engine.
+If Custom LLM is not enabled, the app keeps using Retell's managed `retell-llm` engine.
 
 3. Run schema sync + seed:
 
