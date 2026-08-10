@@ -67,10 +67,12 @@ export async function POST(request: Request) {
   }
 
   // 303: browser follows up with a GET on the redirect target instead of re-POSTing.
-  return NextResponse.redirect(new URL("/login", request.url), { status: 303 });
+  const origin = await getAppOrigin();
+  return NextResponse.redirect(loginRedirectTarget(request, origin), { status: 303 });
 }
 
 /** Inert — does not touch the session. Only POST actually logs out. */
 export async function GET(request: Request) {
-  return NextResponse.redirect(new URL("/login", request.url));
+  const origin = await getAppOrigin();
+  return NextResponse.redirect(loginRedirectTarget(request, origin));
 }

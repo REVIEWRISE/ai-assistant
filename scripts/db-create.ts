@@ -118,7 +118,9 @@ async function main() {
     console.log(`[db:create] No --superuser-url provided.`);
     console.log(`[db:create] Verifying app user can connect to "${app.database}"...`);
 
-    const client = await connect(DATABASE_URL, "DATABASE_URL");
+    // Non-null: the module-level guard above already exits the process if unset,
+    // but that narrowing doesn't carry into this function's closure per TS's rules.
+    const client = await connect(DATABASE_URL!, "DATABASE_URL");
     await client.end();
     console.log(`[db:create] ✓ Connection successful — database "${app.database}" already exists and is accessible.`);
     console.log(`\n  Tip: if you need to CREATE the database from scratch, run:`);
@@ -129,7 +131,7 @@ async function main() {
   // ── MODE 2: Superuser URL provided — create user + DB if needed ──────────
   console.log(`[db:create] Superuser URL provided — running in create mode.`);
 
-  const su = parseUrl(SUPERUSER_URL, "SUPERUSER_URL");
+  parseUrl(SUPERUSER_URL, "SUPERUSER_URL"); // validates it's parseable; exits on failure
   const suClient = await connect(SUPERUSER_URL, "SUPERUSER_URL");
 
   try {
@@ -174,7 +176,7 @@ async function main() {
 
   // 4. Verify the app user can now connect
   console.log(`[db:create] Verifying app user can connect...`);
-  const verifyClient = await connect(DATABASE_URL, "DATABASE_URL (app user verify)");
+  const verifyClient = await connect(DATABASE_URL!, "DATABASE_URL (app user verify)");
   await verifyClient.end();
 
   console.log(`\n[db:create] ✓ All done! Next steps:`);
