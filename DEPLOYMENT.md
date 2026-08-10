@@ -203,15 +203,15 @@ APP_URL=https://your-domain.com
 **No**, for normal deploys:
 
 - Postgres data lives in the Docker volume `postgres_data`. Rebuilding the app container does **not** delete that volume.
-- Deploy only runs **`prisma db push`** (adds missing tables/columns). It does **not** run `prisma db seed` on production.
+- Deploy runs **`prisma db push`** during startup and **`prisma db seed`** after the application becomes healthy.
 - `db push` runs **without** `--accept-data-loss`, so incompatible schema changes **fail the deploy** instead of silently dropping columns or rows.
 
-Your appointments, users, organizations, and other rows stay in place. Only the schema is updated to match `prisma/schema.prisma`.
+Your appointments and other application rows stay in place. The idempotent seed refreshes required roles, menu grants, the admin account, and the four demo accounts on every deploy.
 
-**First-time setup only** (empty database): run seed once manually if you need the default admin and menu items:
+To rerun the production seed manually:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec app npx prisma db seed
+docker compose -f docker-compose.prod.yml exec app node dist/seed.js
 ```
 
 ### Database schema sync

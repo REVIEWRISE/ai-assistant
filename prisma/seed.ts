@@ -6,7 +6,7 @@ loadEnvConfig(process.cwd());
 
 const prisma = new PrismaClient();
 
-const DEMO_USER_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "password123";
+const DEMO_USER_PASSWORD = "password123";
 
 const DEMO_USERS = [
   {
@@ -132,13 +132,16 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // Subscription tracking is available to Admin and User roles.
+  // Subscription tracking belongs to regular workspace users, not platform admins.
   const subscriptionMenuId = "a1b2c3d4-e5f6-4789-a012-3456789abcde";
+  await prisma.menuAccess.deleteMany({
+    where: {
+      menuItemId: subscriptionMenuId,
+      roleId: adminRole.id,
+    },
+  });
   await prisma.menuAccess.createMany({
-    data: [
-      { menuItemId: subscriptionMenuId, roleId: adminRole.id },
-      { menuItemId: subscriptionMenuId, roleId: userRole.id },
-    ],
+    data: [{ menuItemId: subscriptionMenuId, roleId: userRole.id }],
     skipDuplicates: true,
   });
 
@@ -188,76 +191,69 @@ async function main() {
     }
   });
 
-  const shouldSeedDemoUsers =
-    process.env.NODE_ENV !== "production" || process.env.SEED_DEMO_USERS === "true";
+  const demoPasswordHash = await bcrypt.hash(DEMO_USER_PASSWORD, 10);
 
-  if (shouldSeedDemoUsers) {
-    const demoPasswordHash = await bcrypt.hash(DEMO_USER_PASSWORD, 10);
-
-    for (const demoUser of DEMO_USERS) {
-      await prisma.$transaction(async (tx) => {
-        const user = await tx.user.upsert({
-          where: { email: demoUser.email },
-          create: {
-            email: demoUser.email,
-            fullName: demoUser.fullName,
-            passwordHash: demoPasswordHash,
-            accountStatus: "active",
-            emailVerified: true,
-          },
-          update: {
-            fullName: demoUser.fullName,
-            passwordHash: demoPasswordHash,
-            accountStatus: "active",
-            emailVerified: true,
-          },
-        });
-
-        await tx.userRole.createMany({
-          data: [{ userId: user.id, roleId: userRole.id }],
-          skipDuplicates: true,
-        });
-
-        const existingWorkspace = await tx.organizationMember.findFirst({
-          where: {
-            userId: user.id,
-            organization: { name: demoUser.organizationName },
-          },
-          select: { organizationId: true },
-        });
-
-        if (existingWorkspace) {
-          await tx.organization.update({
-            where: { id: existingWorkspace.organizationId },
-            data: {
-              businessType: demoUser.businessType,
-              description: demoUser.description,
-            },
-          });
-        } else {
-          const organization = await tx.organization.create({
-            data: {
-              name: demoUser.organizationName,
-              businessType: demoUser.businessType,
-              description: demoUser.description,
-            },
-          });
-
-          await tx.organizationMember.create({
-            data: {
-              organizationId: organization.id,
-              userId: user.id,
-              role: "owner",
-            },
-          });
-        }
+  for (const demoUser of DEMO_USERS) {
+    await prisma.$transaction(async (tx) => {
+      const user = await tx.user.upsert({
+        where: { email: demoUser.email },
+        create: {
+          email: demoUser.email,
+          fullName: demoUser.fullName,
+          passwordHash: demoPasswordHash,
+          accountStatus: "active",
+          emailVerified: true,
+        },
+        update: {
+          fullName: demoUser.fullName,
+          passwordHash: demoPasswordHash,
+          accountStatus: "active",
+          emailVerified: true,
+        },
       });
-    }
 
-    console.log(`[seed] Demo users ready: ${DEMO_USERS.map(({ email }) => email).join(", ")}`);
-  } else {
-    console.log("[seed] Demo users skipped in production; set SEED_DEMO_USERS=true to include them.");
+      await tx.userRole.createMany({
+        data: [{ userId: user.id, roleId: userRole.id }],
+        skipDuplicates: true,
+      });
+
+      const existingWorkspace = await tx.organizationMember.findFirst({
+        where: {
+          userId: user.id,
+          organization: { name: demoUser.organizationName },
+        },
+        select: { organizationId: true },
+      });
+
+      if (existingWorkspace) {
+        await tx.organization.update({
+          where: { id: existingWorkspace.organizationId },
+          data: {
+            businessType: demoUser.businessType,
+            description: demoUser.description,
+          },
+        });
+      } else {
+        const organization = await tx.organization.create({
+          data: {
+            name: demoUser.organizationName,
+            businessType: demoUser.businessType,
+            description: demoUser.description,
+          },
+        });
+
+        await tx.organizationMember.create({
+          data: {
+            organizationId: organization.id,
+            userId: user.id,
+            role: "owner",
+          },
+        });
+      }
+    });
   }
+
+  console.log(`[seed] Demo users ready: ${DEMO_USERS.map(({ email }) => email).join(", ")}`);
 
   console.log(`[seed] Menu items ready: ${MENU_ITEMS.length}`);
   console.log(`[seed] Admin user ready: ${email}`);

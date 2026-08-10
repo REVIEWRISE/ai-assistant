@@ -24,6 +24,7 @@ RUN npm run build
 RUN npx esbuild scripts/retell-custom-llm-server.ts --bundle --platform=node --target=node20 --outfile=dist/retell-custom-llm-server.js --external:prisma --external:@prisma/client
 RUN npx esbuild scripts/migrate-retell-to-custom-llm.ts --bundle --platform=node --target=node20 --outfile=dist/migrate-retell-to-custom-llm.js --external:prisma --external:@prisma/client
 RUN npx esbuild scripts/review-sync-cron.ts --bundle --platform=node --target=node20 --outfile=dist/review-sync-cron.js --external:prisma --external:@prisma/client
+RUN npx esbuild prisma/seed.ts --bundle --platform=node --target=node20 --outfile=dist/seed.js --external:../src/generated/prisma
 
 # Stage 3: Production-only Dependencies
 FROM node:20-alpine AS prod-deps
@@ -70,4 +71,3 @@ ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
 CMD ["node", "server.js"]
-

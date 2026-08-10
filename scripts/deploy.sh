@@ -85,11 +85,13 @@ if [ $UNTIL_HEALTHY -eq 0 ]; then
     echo "=== Last 50 lines of postgres logs ==="
     docker compose -f docker-compose.prod.yml logs --tail=50 postgres
     echo "=== Container status ==="
-    docker compose -f docker-compose.prod.yml ps
     echo "Stopping containers for safety..."
     docker compose -f docker-compose.prod.yml down
     exit 1
 fi
+
+echo "Seeding database..."
+docker compose -f docker-compose.prod.yml exec -T app node dist/seed.js
 
 if [ -n "$COMPOSE_PROFILES" ]; then
   echo "Checking retell-llm WebSocket server..."
