@@ -265,12 +265,13 @@ If `smtpConfigured` is `false`, SMTP secrets are missing from `.env.production`.
 
 ### Retell Custom LLM (your OpenAI key on live calls)
 
-When `RETELL_USE_CUSTOM_LLM=true`, deploy starts an extra `retell-llm` container (WebSocket on host port **3017**). Retell connects to `wss://your-domain.com/llm-websocket` — same host as the app if you use the nginx example.
+When `RETELL_USE_CUSTOM_LLM=true`, deploy starts an extra `retell-llm` container (WebSocket on host port **3017**). Local, staging, and production agents all connect Retell to `wss://agentllm.vyntrise.com/llm-websocket`.
 
 1. Add to `.env.production` (or `ENV_FILE_CONTENTS`):
 
 ```env
 RETELL_USE_CUSTOM_LLM=true
+RETELL_CUSTOM_LLM_WS_URL=wss://agentllm.vyntrise.com/llm-websocket
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
 NEXT_PUBLIC_APP_URL=https://your-domain.com
@@ -297,7 +298,7 @@ curl -s http://localhost:3017/
 curl -s https://your-domain.com/api/health | jq
 ```
 
-Local dev without nginx: run `npm run retell:llm`, expose with `ngrok http 3001`, set `RETELL_CUSTOM_LLM_WS_URL` to the ngrok `wss://…/llm-websocket` URL.
+Local development uses the same hosted production WebSocket endpoint; no local WebSocket server or ngrok tunnel is required.
 
 ## CI/CD Pipeline
 

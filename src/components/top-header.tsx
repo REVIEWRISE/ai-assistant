@@ -324,7 +324,6 @@ export function TopHeader({
                     <button
                       type="submit"
                       role="menuitem"
-                      onClick={onCloseProfile}
                       className="block w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-[var(--color-danger)] transition hover:bg-[var(--color-danger-soft)]"
                     >
                       Log out

@@ -159,6 +159,10 @@ jobs:
               printf '%s\n' "${key}=${val}" >> .env.production
             fi
           }
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            RETELL_USE_CUSTOM_LLM=true
+            RETELL_CUSTOM_LLM_WS_URL=wss://agentllm.vyntrise.com/llm-websocket
+          fi
           merge_env_var RETELL_API_KEY "$RETELL_API_KEY"
           merge_env_var RETELL_USE_CUSTOM_LLM "$RETELL_USE_CUSTOM_LLM"
           merge_env_var OPENAI_MODEL "$OPENAI_MODEL"

@@ -109,6 +109,9 @@ if [ -n "$COMPOSE_PROFILES" ]; then
   if [ "$RETELL_HTTP" != "200" ]; then
     echo "WARNING: retell-llm did not respond on :3017. Check nginx and docker logs."
     docker compose -f docker-compose.prod.yml logs --tail=50 retell-llm || true
+  else
+    echo "Syncing Retell agents to the hosted Custom LLM endpoint..."
+    docker compose -f docker-compose.prod.yml exec -T app node dist/migrate-retell-to-custom-llm.js
   fi
 fi
 
