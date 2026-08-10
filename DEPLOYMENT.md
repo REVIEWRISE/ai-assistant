@@ -389,7 +389,11 @@ Not yet implemented. Intended design, documented here for SOC 2 audit purposes:
 
 ### Recommended server spec
 
-Sized for the expected first 6 months (25–100 active orgs, public chatbot widget live on customer sites, voice/Retell actively used):
+The original sizing pass below assumed 25–100 active orgs with a public chatbot widget and active voice traffic. The actual launch target is smaller — 10–50 users in the first 3 months — so the production VPS was provisioned at **4 vCPU / 4 GB RAM** instead, and the `docker-compose.prod.yml` resource limits were scaled down to match with real headroom (`app`: 1 GB, `retell-llm`: 512 MB, `postgres`: 1 GB — summing to 2.5 GB, leaving 1.5 GB for the OS/Docker daemon/nginx rather than none). `next build` no longer runs on this box (see CI-Built Images above), which removes the single biggest memory spike that would otherwise factor into this sizing.
+
+**Revisit this** (bump the box to 8 GB and raise the limits back up) once actual usage approaches the original assumption — sustained memory pressure, more than ~20 active orgs, or the chatbot widget/voice features seeing real concurrent traffic are the concrete signals to watch for, not just elapsed time.
+
+Original 6-month-scale sizing, for reference if growth gets there:
 
 | Resource | Spec |
 | :--- | :--- |
@@ -397,5 +401,3 @@ Sized for the expected first 6 months (25–100 active orgs, public chatbot widg
 | RAM | 8 GB |
 | Disk | 100 GB SSD |
 | Bandwidth | 4–5 TB/mo (most "business" VPS tiers already include this) |
-
-`next build` no longer runs on this box (see CI-Built Images above), which removes the single biggest memory spike that would otherwise factor into this sizing.
