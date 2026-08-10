@@ -14,4 +14,7 @@ fi
 echo "[db-sync] Regenerating Prisma client..."
 npx prisma generate
 
+echo "[db-sync] Ensuring menu seeds (subscription + role grants)..."
+node scripts/ensure-menus.cjs
+
 echo "[db-sync] Done."

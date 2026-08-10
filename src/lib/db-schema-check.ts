@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 export const EXPECTED_DB_TABLES = [
   "users",
   "sessions",
+  "email_verification_tokens",
   "organizations",
+  "refund_requests",
   "organization_members",
   "organization_chatbot_settings",
   "organization_knowledge_bases",

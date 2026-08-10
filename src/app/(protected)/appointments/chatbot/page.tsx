@@ -1,69 +1,63 @@
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { ChatbotToasts } from "@/components/chatbot-toasts";
 import { ChatbotOrganizationsTable } from "@/components/chatbot-organizations-table";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
+import { userHasAdminRole } from "@/lib/admin-view-only";
 import { getAppOrigin } from "@/lib/app-origin";
+import { requireSession } from "@/lib/auth-session";
 import { resolveChatbotConfigData } from "@/lib/chatbot-config";
 import { organizationChatbotSettingsSelect } from "@/lib/chatbot-settings-select";
-import { generateChatbotFromKnowledge, generateVoiceBookingGreeting, saveChatbotConfig, saveCrmIntegration, saveVoiceBooking } from "./actions";
+import {
+  generateChatbotFromKnowledge,
+  generateVoiceBookingGreeting,
+  saveChatbotConfig,
+  saveCrmIntegration,
+  saveVoiceBooking,
+} from "./actions";
 
-export default async function AppointmentChatbotPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ success?: string; error?: string }>;
-}) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
-
-  const session = await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
+const organizationSelect = {
+  id: true,
+  name: true,
+  createdAt: true,
+  chatbotSettings: {
+    select: organizationChatbotSettingsSelect,
+  },
+  knowledgeBase: {
     select: {
-      activeOrganizationId: true,
-      user: {
-        select: {
-          organizationMembers: {
-            orderBy: { createdAt: "asc" },
-            select: {
-              organization: {
-                select: {
-                  id: true,
-                  name: true,
-                  createdAt: true,
-                  chatbotSettings: {
-                    select: organizationChatbotSettingsSelect,
-                  },
-                  knowledgeBase: {
-                    select: {
-                      parsedData: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+      parsedData: true,
     },
-  });
+  },
+} as const;
 
-  if (!session) redirect("/login");
+export default async function AppointmentChatbotPage() {
+  const session = await requireSession();
+  const isAdmin = await userHasAdminRole(session.userId);
 
-  const memberships = session.user?.organizationMembers ?? [];
-  if (memberships.length === 0) {
-    redirect("/appointments");
+  const organizations = isAdmin
+    ? await prisma.organization.findMany({
+        orderBy: { name: "asc" },
+        select: organizationSelect,
+      })
+    : (
+        await prisma.organizationMember.findMany({
+          where: { userId: session.userId },
+          orderBy: { createdAt: "asc" },
+          select: { organization: { select: organizationSelect } },
+        })
+      ).map((member) => member.organization);
+
+  if (organizations.length === 0) {
+    redirect("/appointments/organization");
   }
 
   const activeId = session.activeOrganizationId;
-  const organizations = memberships.map((m) => m.organization);
   const totalOrganizations = organizations.length;
   const activeOrganization = activeId
-    ? organizations.find((o: { id: string }) => o.id === activeId)
+    ? organizations.find((organization) => organization.id === activeId) ?? null
     : null;
 
-  const rows = memberships.map((m) => {
-    const org = m.organization;
+  const rows = organizations.map((org) => {
     const config = resolveChatbotConfigData(org.chatbotSettings, org.knowledgeBase?.parsedData);
     return {
       id: org.id,
@@ -74,20 +68,12 @@ export default async function AppointmentChatbotPage({
       config,
     };
   });
-
-  const params = (await searchParams) ?? {};
   const embedBaseUrl = await getAppOrigin();
-  const configuredAssistants = organizations.filter((organization) => Boolean(organization.chatbotSettings)).length;
+  const configuredAssistants = organizations.filter((organization) =>
+    Boolean(organization.chatbotSettings),
+  ).length;
   const voiceEnabled = rows.filter((row) => row.config.voiceBooking.enabled).length;
   const crmEnabled = rows.filter((row) => row.config.crmIntegration.enabled).length;
-
-  const errorMessages: Record<string, string> = {
-    chatbot_org_missing: "Missing organization for this save request.",
-    chatbot_org_denied: "You do not have access to configure chatbot for that organization.",
-    chatbot_generate_no_api_key: "Add OPENAI_API_KEY to generate the assistant from your knowledge base.",
-    chatbot_generate_no_kb: "Import a knowledge base first (substantial text). Then try generating again.",
-    chatbot_generate_failed: "Could not generate chatbot settings. Try again or edit manually.",
-  };
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
@@ -100,7 +86,14 @@ export default async function AppointmentChatbotPage({
         actions={[
           { href: "/appointments/organization", label: "Manage organizations" },
           ...(activeOrganization
-            ? [{ href: `/embed/chatbot?org=${activeOrganization.id}`, label: "Test active assistant", primary: true, external: true }]
+            ? [
+                {
+                  href: `/embed/chatbot?org=${activeOrganization.id}`,
+                  label: "Test active assistant",
+                  primary: true,
+                  external: true,
+                },
+              ]
             : []),
         ]}
         metrics={[
@@ -111,21 +104,7 @@ export default async function AppointmentChatbotPage({
         ]}
       />
 
-      {params.success === "saved" ? (
-        <div className="vr-app-alert vr-app-alert-success">Chatbot settings saved.</div>
-      ) : null}
-
-      {params.success === "crm_saved" ? (
-        <div className="vr-app-alert vr-app-alert-success">CRM integration saved.</div>
-      ) : null}
-
-      {params.success === "voice_saved" ? (
-        <div className="vr-app-alert vr-app-alert-success">Voice booking settings saved.</div>
-      ) : null}
-
-      {params.error && errorMessages[params.error] ? (
-        <div className="vr-app-alert vr-app-alert-danger">{errorMessages[params.error]}</div>
-      ) : null}
+      <ChatbotToasts />
 
       <ChatbotOrganizationsTable
         embedBaseUrl={embedBaseUrl}

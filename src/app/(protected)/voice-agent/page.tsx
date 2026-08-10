@@ -21,8 +21,8 @@ import {
   pullRetellVoiceAgentSettings,
   saveRetellVoiceAgentSettings,
   buyRetellPhoneNumberAction,
-  linkRetellPhoneNumberAction,
   assignRetellPhoneNumberAction,
+  linkRetellPhoneNumberAction,
   setPrimaryRetellPhoneNumberAction,
   refreshRetellPhoneNumbersAction,
 } from "./actions";
@@ -45,36 +45,51 @@ export default async function VoiceAgentPage() {
       user: {
         select: {
           id: true,
+          email: true,
+          fullName: true,
         },
       },
-      activeOrganization: {
-        select: {
-          id: true,
-          name: true,
-          knowledgeBase: {
-            select: {
-              status: true,
-              sourceUrl: true,
-              rawText: true,
-              lastImportedAt: true,
-            },
-          },
-          voiceAgentSettings: {
-            select: {
-              retellConfig: true,
-              phoneConfig: true,
-              knowledgeConfig: true,
-            },
-          },
-        },
-      },
+      activeOrganizationId: true,
     },
   });
 
   if (!session) redirect("/login");
-  if (!session.activeOrganization) redirect("/appointments/organization");
 
-  const org = session.activeOrganization;
+  let org = null;
+  if (session.activeOrganizationId) {
+    org = await prisma.organization.findFirst({
+      where: { id: session.activeOrganizationId },
+      include: {
+        knowledgeBase: {
+          select: { status: true, rawText: true, sourceUrl: true, lastImportedAt: true },
+        },
+        voiceAgentSettings: {
+          select: { retellConfig: true, phoneConfig: true, knowledgeConfig: true },
+        },
+      },
+    });
+  }
+
+  if (!org) {
+    org = await prisma.organization.findFirst({
+      where: {
+        members: {
+          some: { userId: session.user.id },
+        },
+      },
+      include: {
+        knowledgeBase: {
+          select: { status: true, rawText: true, sourceUrl: true, lastImportedAt: true },
+        },
+        voiceAgentSettings: {
+          select: { retellConfig: true, phoneConfig: true, knowledgeConfig: true },
+        },
+      },
+    });
+  }
+
+  if (!org) redirect("/appointments/organization");
+
   const retellApiConfigured = isRetellApiConfigured();
   const retellVoices = retellApiConfigured ? await fetchRetellVoiceCatalog() : [];
   const localSettings = resolveVoiceAgentSettings(org.voiceAgentSettings, retellVoices);
@@ -221,8 +236,8 @@ export default async function VoiceAgentPage() {
         calls={calls}
         onSaveRetell={saveRetellVoiceAgentSettings}
         onBuyPhone={buyRetellPhoneNumberAction}
-        onLinkPhone={linkRetellPhoneNumberAction}
         onAssignPhone={assignRetellPhoneNumberAction}
+        onLinkPhone={linkRetellPhoneNumberAction}
         onSetPrimaryPhone={setPrimaryRetellPhoneNumberAction}
         onRefreshPhones={refreshRetellPhoneNumbersAction}
         onPullFromRetell={pullRetellVoiceAgentSettings}

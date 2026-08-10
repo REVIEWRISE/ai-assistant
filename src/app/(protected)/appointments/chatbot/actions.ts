@@ -23,6 +23,7 @@ import { isRetellApiConfigured } from "@/lib/retell-api";
 import { fetchRetellVoiceCatalog, syncVoiceAgentToRetell } from "@/lib/retell-voice-sync";
 import { resolveVoiceAgentSettings } from "@/lib/retell-voice-agent";
 import { requireOrgFeature, orgHasFeature } from "@/lib/entitlements";
+import { userHasAdminRole } from "@/lib/admin-view-only";
 
 const CHATBOT_ROUTE = "/appointments/chatbot";
 
@@ -94,6 +95,29 @@ async function requireChatbotOrganization(organizationId: string) {
   await requireOrgFeature(organizationId, "web_chatbot");
 }
 
+/** Admins can configure any workspace; others need membership. */
+async function assertChatbotOrgAccess(userId: string, organizationId: string): Promise<boolean> {
+  if (await userHasAdminRole(userId)) {
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true },
+    });
+    return Boolean(organization);
+  }
+
+  const membership = await prisma.organizationMember.findFirst({
+    where: { userId, organizationId },
+    select: { id: true },
+  });
+  return Boolean(membership);
+}
+
+async function requireChatbotOrgAccess(userId: string, organizationId: string) {
+  if (!(await assertChatbotOrgAccess(userId, organizationId))) {
+    redirect(`${CHATBOT_ROUTE}?error=chatbot_org_denied`);
+  }
+}
+
 export async function saveChatbotConfig(formData: FormData) {
   const session = await requireSessionForChatbot();
   const organizationId = String(formData.get("organization_id") || "").trim();
@@ -102,18 +126,7 @@ export async function saveChatbotConfig(formData: FormData) {
   }
 
   await requireChatbotOrganization(organizationId);
-
-  const membership = await prisma.organizationMember.findFirst({
-    where: {
-      userId: session.userId,
-      organizationId,
-    },
-    select: { id: true },
-  });
-
-  if (!membership) {
-    redirect(`${CHATBOT_ROUTE}?error=chatbot_org_denied`);
-  }
+  await requireChatbotOrgAccess(session.userId, organizationId);
 
   const welcomeMessage = String(formData.get("welcome_message") || "").trim();
   const themeColor = String(formData.get("theme_color") || "").trim();
@@ -201,18 +214,7 @@ export async function saveCrmIntegration(formData: FormData) {
   }
 
   await requireChatbotOrganization(organizationId);
-
-  const membership = await prisma.organizationMember.findFirst({
-    where: {
-      userId: session.userId,
-      organizationId,
-    },
-    select: { id: true },
-  });
-
-  if (!membership) {
-    redirect(`${CHATBOT_ROUTE}?error=chatbot_org_denied`);
-  }
+  await requireChatbotOrgAccess(session.userId, organizationId);
 
   const crm = parseCrmIntegrationForm({
     webhookUrl: formData.get("crm_webhook_url"),
@@ -280,15 +282,7 @@ export async function generateVoiceBookingGreeting(
     return { ok: false, error: "denied" };
   }
 
-  const membership = await prisma.organizationMember.findFirst({
-    where: {
-      userId: session.userId,
-      organizationId,
-    },
-    select: { id: true },
-  });
-
-  if (!membership) {
+  if (!(await assertChatbotOrgAccess(session.userId, organizationId))) {
     return { ok: false, error: "denied" };
   }
 
@@ -421,18 +415,7 @@ export async function saveVoiceBooking(formData: FormData) {
   }
 
   await requireChatbotOrganization(organizationId);
-
-  const membership = await prisma.organizationMember.findFirst({
-    where: {
-      userId: session.userId,
-      organizationId,
-    },
-    select: { id: true },
-  });
-
-  if (!membership) {
-    redirect(`${CHATBOT_ROUTE}?error=chatbot_org_denied`);
-  }
+  await requireChatbotOrgAccess(session.userId, organizationId);
 
   const voice = parseVoiceBookingForm({
     enabled: formData.get("voice_enabled"),
@@ -513,15 +496,7 @@ export async function generateChatbotFromKnowledge(
     return { ok: false, error: "denied" };
   }
 
-  const membership = await prisma.organizationMember.findFirst({
-    where: {
-      userId: session.userId,
-      organizationId,
-    },
-    select: { id: true },
-  });
-
-  if (!membership) {
+  if (!(await assertChatbotOrgAccess(session.userId, organizationId))) {
     return { ok: false, error: "denied" };
   }
 

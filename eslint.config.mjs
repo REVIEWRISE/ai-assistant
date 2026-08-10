@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "src/generated/**",
+    // CommonJS deploy helpers (run with plain `node` in Docker).
+    "scripts/**/*.cjs",
   ]),
 ]);
 

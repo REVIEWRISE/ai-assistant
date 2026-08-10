@@ -664,7 +664,18 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
   const uniqueHeadline = headlineStats.slice(0, 4);
 
   const setupSteps: DashboardSetupStep[] = [];
-  if (orgId && activeOrganization) {
+  if (!orgId || !activeOrganization) {
+    // Without an active workspace the modal still needs at least one step, or it never opens.
+    setupSteps.push({
+      id: "organization",
+      label: "Choose or create a workspace",
+      description: "Your dashboard and modules need an active organization before setup can continue.",
+      href: canAccess(allowed, "/appointments/organization")
+        ? "/appointments/organization"
+        : "/profile",
+      complete: false,
+    });
+  } else {
     const nowMs = Date.now();
     const [calendarConnection, reviewConnection] = await Promise.all([
       canAccess(allowed, "/appointments")

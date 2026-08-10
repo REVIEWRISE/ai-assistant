@@ -73,8 +73,8 @@ export function VoiceAgentTabs({
   calls,
   onSaveRetell,
   onBuyPhone,
-  onLinkPhone,
   onAssignPhone,
+  onLinkPhone,
   onSetPrimaryPhone,
   onRefreshPhones,
   onPullFromRetell,
@@ -99,8 +99,8 @@ export function VoiceAgentTabs({
   calls: CallItem[];
   onSaveRetell: (formData: FormData) => void | Promise<void>;
   onBuyPhone: (formData: FormData) => void | Promise<void>;
-  onLinkPhone: (formData: FormData) => void | Promise<void>;
   onAssignPhone: (formData: FormData) => void | Promise<void>;
+  onLinkPhone: (formData: FormData) => void | Promise<void>;
   onSetPrimaryPhone: (formData: FormData) => void | Promise<void>;
   onRefreshPhones: (formData: FormData) => void | Promise<void>;
   onPullFromRetell: (formData: FormData) => void | Promise<void>;
@@ -218,8 +218,8 @@ export function VoiceAgentTabs({
           phones={phones}
           phoneStats={phoneStats}
           onBuy={onBuyPhone}
-          onLink={onLinkPhone}
           onAssign={onAssignPhone}
+          onLink={onLinkPhone}
           onSetPrimary={onSetPrimaryPhone}
           onRefresh={onRefreshPhones}
         />

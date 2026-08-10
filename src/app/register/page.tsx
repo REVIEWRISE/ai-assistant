@@ -40,6 +40,9 @@ function RegisterPageContent() {
   const selectedPlan = PLAN_LABELS[selectedPlanSlug];
   const selectedInterval =
     searchParams?.get("interval") === "monthly" ? "monthly" : "yearly";
+  const preservedName = searchParams?.get("name") ?? "";
+  const preservedEmail = searchParams?.get("email") ?? "";
+  const preservedOrganization = searchParams?.get("organization_name") ?? "";
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -47,6 +50,7 @@ function RegisterPageContent() {
     if (!error) return;
     const messages: Record<string, string> = {
       missing: "Please fill in all required fields.",
+      organization_name: "Workspace name must be 100 characters or fewer.",
       nomatch: "Passwords do not match.",
       weak_password:
         "Password must be at least 12 characters and include an uppercase letter, a lowercase letter, a number, and a symbol.",
@@ -55,7 +59,13 @@ function RegisterPageContent() {
       rate_limited: "Too many registration attempts. Please try again later.",
     };
     toast.error(messages[error] ?? "Unable to create account. Please try again.");
-  }, [error]);
+
+    // Drop error from the URL so refresh / retry does not keep showing the same toast.
+    const next = new URLSearchParams(searchParams?.toString() ?? "");
+    next.delete("error");
+    const qs = next.toString();
+    window.history.replaceState(null, "", qs ? `/register?${qs}` : "/register");
+  }, [error, searchParams]);
 
   return (
     <AuthShell
@@ -76,11 +86,46 @@ function RegisterPageContent() {
         <input type="hidden" name="interval" value={selectedInterval} />
         <label className="block">
           <span className="mb-2 block text-sm font-semibold text-[var(--color-text)]">Full name</span>
-          <input id="name" name="name" type="text" required placeholder="Jane Doe" autoComplete="name" className={INPUT_CLASS} />
+          <input
+            id="name"
+            name="name"
+            type="text"
+            required
+            defaultValue={preservedName}
+            placeholder="Jane Doe"
+            autoComplete="name"
+            className={INPUT_CLASS}
+          />
         </label>
         <label className="block">
           <span className="mb-2 block text-sm font-semibold text-[var(--color-text)]">Work email</span>
-          <input id="email" name="email" type="email" required placeholder="you@company.com" autoComplete="email" className={INPUT_CLASS} />
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            defaultValue={preservedEmail}
+            placeholder="you@company.com"
+            autoComplete="email"
+            className={INPUT_CLASS}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-2 block text-sm font-semibold text-[var(--color-text)]">Workspace name</span>
+          <input
+            id="organization_name"
+            name="organization_name"
+            type="text"
+            required
+            maxLength={100}
+            defaultValue={preservedOrganization}
+            placeholder="Acme Dental"
+            autoComplete="organization"
+            className={INPUT_CLASS}
+          />
+          <span className="mt-1.5 block text-xs text-[var(--color-text-muted)]">
+            This is your organization or business name. You can create more workspaces later.
+          </span>
         </label>
         <label className="block">
           <span className="mb-2 block text-sm font-semibold text-[var(--color-text)]">Password</span>

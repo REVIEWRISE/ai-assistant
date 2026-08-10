@@ -20,7 +20,20 @@ ARG NEXT_PUBLIC_SENTRY_DSN
 ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 RUN npm run build
 
-# Stage 3: Runner
+# Bundle TS scripts for production runtime
+RUN npx esbuild scripts/retell-custom-llm-server.ts --bundle --platform=node --target=node20 --outfile=dist/retell-custom-llm-server.js --external:prisma --external:@prisma/client
+RUN npx esbuild scripts/migrate-retell-to-custom-llm.ts --bundle --platform=node --target=node20 --outfile=dist/migrate-retell-to-custom-llm.js --external:prisma --external:@prisma/client
+RUN npx esbuild scripts/review-sync-cron.ts --bundle --platform=node --target=node20 --outfile=dist/review-sync-cron.js --external:prisma --external:@prisma/client
+
+# Stage 3: Production-only Dependencies
+FROM node:20-alpine AS prod-deps
+WORKDIR /app
+COPY package*.json ./
+COPY prisma ./prisma/
+RUN npm ci --omit=dev
+RUN npx prisma generate
+
+# Stage 4: Runner
 FROM node:20-alpine AS runner
 WORKDIR /app
 RUN apk add --no-cache curl
@@ -36,19 +49,17 @@ RUN mkdir -p /app/public/uploads/providers /app/public/uploads/organizations && 
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/scripts/db-sync.sh ./scripts/db-sync.sh
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/scripts/ensure-menus.cjs ./scripts/ensure-menus.cjs
+COPY --from=builder /app/dist ./dist
+
+# Copy production dependencies and generated Prisma client
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=prod-deps /app/src/generated/prisma ./src/generated/prisma
 RUN chmod +x ./scripts/db-sync.sh
 
 # Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Retell Custom LLM WebSocket server (runs via `npx tsx` in retell-llm service)
-COPY --from=builder /app/scripts/retell-custom-llm-server.ts ./scripts/retell-custom-llm-server.ts
-COPY --from=builder /app/scripts/migrate-retell-to-custom-llm.ts ./scripts/migrate-retell-to-custom-llm.ts
-COPY --from=builder /app/tsconfig.json ./tsconfig.json
-COPY --from=builder /app/src ./src
 
 # Fix ownership so nextjs user can read node_modules
 RUN chown -R nextjs:nodejs /app/node_modules
@@ -58,6 +69,5 @@ EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-# Run as root so prisma db push (via compose command) can write temp files;
-# then the server runs as nextjs via compose command
 CMD ["node", "server.js"]
+

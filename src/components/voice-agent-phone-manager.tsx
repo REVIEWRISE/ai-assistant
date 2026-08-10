@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useFormStatus } from "react-dom";
+import { type ReactNode, useEffect, useState } from "react";
 import type { RetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import type { OrgRetellPhoneNumber } from "@/lib/retell-phone-numbers";
+import { toast } from "@/lib/toast";
 
 function formatLineLabel(phone: OrgRetellPhoneNumber | RetellPhoneNumberStats): string {
   if (phone.nickname?.trim()) return phone.nickname.trim();
@@ -44,9 +46,8 @@ export function VoiceAgentPhoneManager({
   retellApiConfigured,
   phones,
   phoneStats,
-  onBuy,
-  onLink,
   onAssign,
+  onLink,
   onSetPrimary,
   onRefresh,
 }: {
@@ -56,21 +57,24 @@ export function VoiceAgentPhoneManager({
   phones: OrgRetellPhoneNumber[];
   phoneStats: RetellPhoneNumberStats[];
   onBuy: (formData: FormData) => void | Promise<void>;
-  onLink: (formData: FormData) => void | Promise<void>;
   onAssign: (formData: FormData) => void | Promise<void>;
+  onLink: (formData: FormData) => void | Promise<void>;
   onSetPrimary: (formData: FormData) => void | Promise<void>;
   onRefresh: (formData: FormData) => void | Promise<void>;
 }) {
-  const [areaCode, setAreaCode] = useState("");
-  const [buyNickname, setBuyNickname] = useState("");
-  const [linkNumber, setLinkNumber] = useState("");
-  const [linkNickname, setLinkNickname] = useState("");
-
   const statsByNumber = new Map(phoneStats.map((stat) => [stat.phoneNumber, stat]));
   const agentReady = Boolean(retellAgentId.trim());
   const callsReceived = phoneStats.reduce((sum, stat) => sum + stat.callsReceived, 0);
   const bookings = phoneStats.reduce((sum, stat) => sum + stat.bookingsCount, 0);
   const linkedLines = phones.filter((phone) => phone.retellAgentId === retellAgentId).length;
+
+  const [mode, setMode] = useState<"buy" | "link">("buy");
+
+  useEffect(() => {
+    if (retellApiConfigured && !agentReady) {
+      toast.warning("Save your voice agent first — phone numbers must be linked to an agent for inbound calls.");
+    }
+  }, [retellApiConfigured, agentReady]);
 
   return (
     <section className="space-y-4">
@@ -78,10 +82,6 @@ export function VoiceAgentPhoneManager({
         <div className="vr-app-alert vr-app-alert-warning">
           Phone service is not configured yet. Contact your administrator to enable buying and managing support
           numbers.
-        </div>
-      ) : !agentReady ? (
-        <div className="vr-app-alert vr-app-alert-warning">
-          Save your voice agent first — phone numbers must be linked to an agent for inbound calls.
         </div>
       ) : null}
 
@@ -101,9 +101,9 @@ export function VoiceAgentPhoneManager({
       </div>
 
       <PhonePanel
-        eyebrow="Line directory"
         title="Active phone lines"
         description="Each number routes inbound calls to a voice agent. Activity covers the last 30 days."
+        eyebrow="Line directory"
         action={
           retellApiConfigured && agentReady ? (
             <form action={onRefresh}>
@@ -124,7 +124,7 @@ export function VoiceAgentPhoneManager({
             <div>
             <span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-lg text-[var(--color-primary-h)]" aria-hidden>☎</span>
             <p className="mt-3 font-semibold text-[var(--color-text)]">No phone lines yet</p>
-            <p className="mx-auto mt-1 max-w-lg text-xs leading-relaxed">Buy a new US or Canada support number, or link one already available on your voice account.</p>
+            <p className="mx-auto mt-1 max-w-lg text-xs leading-relaxed">Buy a new US or Canada support number or link an existing one below to start receiving calls.</p>
             </div>
           </div>
         ) : (
@@ -188,93 +188,213 @@ export function VoiceAgentPhoneManager({
       </PhonePanel>
 
       {retellApiConfigured && agentReady ? (
-        <div className="grid items-start gap-5 lg:grid-cols-2">
-          <PhonePanel
-            eyebrow="New line"
-            title="Buy a phone number"
-            description="Get a new US or Canada support line and assign it automatically."
-          >
-            <form action={onBuy} className="space-y-4">
-              <input type="hidden" name="organization_id" value={organizationId} />
-              <input type="hidden" name="retell_agent_id" value={retellAgentId} />
-              <label className="block space-y-1">
-                <span className="text-xs font-semibold text-[var(--color-text)]">Preferred area code (optional)</span>
-                <input
-                  name="area_code"
-                  value={areaCode}
-                  onChange={(e) => setAreaCode(e.target.value.replace(/\D/g, "").slice(0, 3))}
-                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm"
-                  placeholder="415"
-                  inputMode="numeric"
-                  maxLength={3}
-                />
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  Enter 3 digits only (e.g. 415). Leave blank for any available number. Do not enter a full phone
-                  number here.
+        <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+          <div className="relative overflow-hidden border-b border-[var(--color-border)] bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 py-6 text-white lg:px-6">
+            <div className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-white/10 blur-3xl" aria-hidden />
+            <div className="pointer-events-none absolute -bottom-24 left-20 size-40 rounded-full bg-white/5 blur-3xl" aria-hidden />
+            <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+                  New line
                 </p>
-              </label>
-              <label className="block space-y-1">
-                <span className="text-xs font-semibold text-[var(--color-text)]">Nickname (optional)</span>
-                <input
-                  name="nickname"
-                  value={buyNickname}
-                  onChange={(e) => setBuyNickname(e.target.value)}
-                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm"
-                  placeholder="Front desk"
-                />
-              </label>
-              <div className="flex justify-end border-t border-[var(--color-border-muted)] pt-4">
-                <button
-                  type="submit"
-                  className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] hover:bg-[var(--color-primary-h)]"
-                >
-                  Buy phone number
-                </button>
+                <div className="mt-2 inline-flex rounded-xl bg-white/10 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setMode("buy")}
+                    className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "buy" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
+                  >
+                    Buy a number
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode("link")}
+                    className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "link" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
+                  >
+                    Link existing number
+                  </button>
+                </div>
               </div>
-            </form>
-          </PhonePanel>
+            </div>
+          </div>
 
-          <PhonePanel eyebrow="Existing line" title="Link a phone number" description="Connect a support number already available on your voice account.">
-            <form action={onLink} className="space-y-4">
-              <input type="hidden" name="organization_id" value={organizationId} />
-              <input type="hidden" name="retell_agent_id" value={retellAgentId} />
-              <label className="block space-y-1">
-                <span className="text-xs font-semibold text-[var(--color-text)]">Full phone number</span>
-                <input
-                  name="phone_number"
-                  value={linkNumber}
-                  onChange={(e) => setLinkNumber(e.target.value)}
-                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm"
-                  placeholder="+15551234567"
-                  type="tel"
-                />
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  Enter the complete number with country code (e.g. +15551234567). This is not an area code — use the
-                  form on the left only when buying a new number.
+          {mode === "buy" ? (
+            <div className="grid gap-0 lg:grid-cols-2">
+              <div className="space-y-4 border-b border-[var(--color-border)] p-5 lg:border-b-0 lg:border-r lg:p-6" aria-disabled="true">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                  What happens next
                 </p>
-              </label>
-              <label className="block space-y-1">
-                <span className="text-xs font-semibold text-[var(--color-text)]">Nickname (optional)</span>
-                <input
-                  name="nickname"
-                  value={linkNickname}
-                  onChange={(e) => setLinkNickname(e.target.value)}
-                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm"
-                  placeholder="Support line"
+                <ol className="space-y-3">
+                  {[
+                    {
+                      step: "1",
+                      title: "Number is reserved",
+                      body: "We pick the next available US or Canada support number.",
+                    },
+                    {
+                      step: "2",
+                      title: "Agent is linked",
+                      body: "Inbound calls route to your current voice agent right away.",
+                    },
+                    {
+                      step: "3",
+                      title: "Ready for callers",
+                      body: "The line appears in your directory and can be set as primary.",
+                    },
+                  ].map((item) => (
+                    <li key={item.step} className="flex gap-3">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-xs font-bold text-[var(--color-primary-h)]">
+                        {item.step}
+                      </span>
+                      <div className="min-w-0 pt-0.5">
+                        <p className="text-sm font-semibold text-[var(--color-text)]">{item.title}</p>
+                        <p className="mt-0.5 text-xs leading-relaxed text-[var(--color-text-muted)]">{item.body}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              <div className="relative flex flex-col gap-5 p-5 lg:p-6" aria-disabled="true">
+                <div
+                  className="pointer-events-none absolute inset-0 z-10 bg-[color-mix(in_srgb,var(--color-surface)_45%,transparent)]"
+                  aria-hidden
                 />
-              </label>
-              <div className="flex justify-end border-t border-[var(--color-border-muted)] pt-4">
-                <button
-                  type="submit"
-                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text)] hover:bg-[var(--color-raised)]"
-                >
-                  Link number
-                </button>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block space-y-1.5">
+                    <span className="text-xs font-semibold text-[var(--color-text)]">Area code</span>
+                    <input
+                      disabled
+                      className="w-full cursor-not-allowed rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 font-mono text-sm text-[var(--color-text-muted)] opacity-70"
+                      placeholder="Any"
+                    />
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-xs font-semibold text-[var(--color-text)]">Nickname</span>
+                    <input
+                      disabled
+                      className="w-full cursor-not-allowed rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 text-sm text-[var(--color-text-muted)] opacity-70"
+                      placeholder="e.g. Front desk"
+                    />
+                  </label>
+                </div>
+
+                <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
+                  Self-serve purchasing is not available yet. You can still manage existing lines above.
+                </p>
+
+                <div className="mt-auto flex flex-col gap-3 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-[var(--color-text-muted)]">We’ll notify you when buying goes live.</p>
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] opacity-50"
+                  >
+                    <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.81.36 1.6.7 2.35a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.75.34 1.54.57 2.35.7A2 2 0 0 1 22 16.92z" />
+                    </svg>
+                    Coming soon
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <form action={onLink} className="grid gap-0 lg:grid-cols-2">
+              <div className="space-y-4 border-b border-[var(--color-border)] p-5 lg:border-b-0 lg:border-r lg:p-6">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                  How linking works
+                </p>
+                <ol className="space-y-3">
+                  {[
+                    {
+                      step: "1",
+                      title: "Enter number details",
+                      body: "Provide the phone number you already own.",
+                    },
+                    {
+                      step: "2",
+                      title: "Agent is linked",
+                      body: "We set up the call routing to your current voice agent.",
+                    },
+                    {
+                      step: "3",
+                      title: "Ready to use",
+                      body: "The number will immediately appear in your active line directory.",
+                    },
+                  ].map((item) => (
+                    <li key={item.step} className="flex gap-3">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-xs font-bold text-[var(--color-primary-h)]">
+                        {item.step}
+                      </span>
+                      <div className="min-w-0 pt-0.5">
+                        <p className="text-sm font-semibold text-[var(--color-text)]">{item.title}</p>
+                        <p className="mt-0.5 text-xs leading-relaxed text-[var(--color-text-muted)]">{item.body}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              <div className="flex flex-col gap-5 p-5 lg:p-6">
+                <input type="hidden" name="organization_id" value={organizationId} />
+                <input type="hidden" name="retell_agent_id" value={retellAgentId} />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block space-y-1.5">
+                    <span className="text-xs font-semibold text-[var(--color-text)]">Phone number</span>
+                    <input
+                      name="phone_number"
+                      required
+                      className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 font-mono text-sm text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                      placeholder="+1234567890"
+                    />
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-xs font-semibold text-[var(--color-text)]">Nickname</span>
+                    <input
+                      name="nickname"
+                      className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 text-sm text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                      placeholder="e.g. Front desk"
+                    />
+                  </label>
+                </div>
+
+                <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
+                  Make sure this number is configured in your phone provider account to route correctly.
+                </p>
+
+                <div className="mt-auto flex flex-col gap-3 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-[var(--color-text-muted)]">This will set this number as primary.</p>
+                  <LinkPhoneSubmitButton />
+                </div>
               </div>
             </form>
-          </PhonePanel>
-        </div>
+          )}
+        </section>
       ) : null}
     </section>
   );
 }
+
+function LinkPhoneSubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {pending ? (
+        <>
+          <svg className="size-4 animate-spin text-current" fill="none" viewBox="0 0 24 24" aria-hidden>
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          Linking...
+        </>
+      ) : (
+        "Link phone number"
+      )}
+    </button>
+  );
+}
+

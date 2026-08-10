@@ -1,6 +1,20 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { getAppOrigin } from "@/lib/app-origin";
 import { prisma } from "@/lib/prisma";
+
+function loginRedirectTarget(request: Request, appOrigin: string): URL {
+  if (appOrigin) {
+    return new URL("/login", `${appOrigin}/`);
+  }
+
+  const url = new URL("/login", request.url);
+  // Dev servers often bind 0.0.0.0; browsers cannot navigate there.
+  if (url.hostname === "0.0.0.0" || url.hostname === "[::]" || url.hostname === "::") {
+    url.hostname = "localhost";
+  }
+  return url;
+}
 
 /**
  * Logout via POST /logout — clears the httpOnly session cookie and redirects.

@@ -115,6 +115,7 @@ export const APP_NAV_ITEMS: NavItem[] = [
     children: [
       { href: "/billing-admin/organizations", label: "Organizations", requiresAdmin: true },
       { href: "/billing-admin/plans", label: "Plans", requiresAdmin: true },
+      { href: "/billing-admin/refunds", label: "Refunds", requiresAdmin: true },
     ],
   },
   {
@@ -131,6 +132,7 @@ export const APP_NAV_ITEMS: NavItem[] = [
     ),
     children: [
       { href: "/platform/providers", label: "Providers", requiresAdmin: true },
+      { href: "/platform/audit", label: "Audit Log", requiresAdmin: true },
     ],
   },
   {

@@ -652,6 +652,38 @@ export async function cancelBillingSubscription(
   });
 }
 
+export type BillingRefundResult = {
+  id: string | null;
+};
+
+/**
+ * Request a money-side refund in Billing for a customer.
+ * POST /billing/admin/refunds
+ */
+export async function createBillingRefund(input: {
+  customerId: string;
+  organizationId: string;
+  reason: string;
+  notes?: string;
+}): Promise<BillingRefundResult> {
+  const res = await billingFetch("/billing/admin/refunds", {
+    method: "POST",
+    body: JSON.stringify({
+      customerId: input.customerId.trim(),
+      organizationId: input.organizationId.trim(),
+      reason: input.reason.trim(),
+      notes: input.notes?.trim() || undefined,
+    }),
+  });
+
+  const body = (await res.json().catch(() => null)) as unknown;
+  const root = asRecord(body);
+  const nested = asRecord(root?.refund) ?? asRecord(root?.data) ?? root;
+  return {
+    id: nested ? asString(nested.id) : null,
+  };
+}
+
 /**
  * Cancel stuck checkout_pending subscriptions for a Billing customer so a new
  * checkout/create can proceed (Billing returns 409 while one is open).

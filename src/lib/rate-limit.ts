@@ -119,6 +119,16 @@ export function checkRegisterRateLimit(ip: string): RateLimitResult {
 }
 
 /**
+ * Resend verification email: 5 attempts per hour per IP.
+ */
+export function checkVerificationResendRateLimit(ip: string): RateLimitResult {
+  return checkRateLimit(`verify-resend:${ip}`, {
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+  });
+}
+
+/**
  * Chatbot embed API rate limit: 60 requests per minute per IP.
  */
 export function checkChatbotRateLimit(ip: string): RateLimitResult {

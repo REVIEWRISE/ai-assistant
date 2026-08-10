@@ -22,7 +22,9 @@ function isBillingLockoutPath(pathname: string): boolean {
     pathname === "/billing-admin" ||
     pathname.startsWith("/billing-admin/") ||
     pathname === "/logout" ||
-    pathname.startsWith("/logout/")
+    pathname.startsWith("/logout/") ||
+    pathname === "/verify-email" ||
+    pathname.startsWith("/verify-email/")
   );
 }
 

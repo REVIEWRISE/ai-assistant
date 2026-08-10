@@ -29,9 +29,9 @@ const errorMessages: Record<string, string> = {
   organization_select: "Please select an organization.",
   organization_invalid: "You do not have access to that organization.",
   organization_owner_required: "Only organization owners can delete an organization.",
-  organization_last: "You cannot delete your last organization.",
+  organization_last: "You cannot delete the last organization.",
   organization_has_members: "Remove other members before deleting this organization.",
-  organization_not_empty: "This organization has data and cannot be deleted.",
+  organization_not_empty: "This organization has data and cannot be deleted. Ask an admin to force-delete it.",
 };
 
 export function ProfileToasts() {

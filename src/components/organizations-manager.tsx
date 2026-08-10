@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
@@ -24,6 +24,8 @@ type OrganizationsManagerProps = {
   organizations: OrganizationRow[];
   activeOrganizationId: string;
   readOnly?: boolean;
+  /** When true, delete confirms cascade of all workspace data (admin force-delete). */
+  canForceDelete?: boolean;
   returnTo: string;
   onCreateOrganization: (formData: FormData) => void | Promise<void>;
   onUpdateOrganization: (formData: FormData) => void | Promise<void>;
@@ -44,10 +46,202 @@ function organizationInitials(name: string) {
   return `${parts[0]!.charAt(0)}${parts[1]!.charAt(0)}`.toUpperCase();
 }
 
+function OrganizationActionsMenu({
+  organization,
+  isActive,
+  canDelete,
+  isOpen,
+  onToggle,
+  onClose,
+  onSetActive,
+  onEdit,
+  onDelete,
+}: {
+  organization: OrganizationRow;
+  isActive: boolean;
+  canDelete: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onSetActive: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState<{ bottom: number; left: number } | null>(
+    null,
+  );
+
+  function computeMenuPosition(rect: DOMRect) {
+    const menuWidth = 220;
+    const gap = 8;
+    const viewportPadding = 8;
+    const bottom = window.innerHeight - rect.top + gap;
+    let left = rect.right - menuWidth;
+
+    left = Math.min(
+      Math.max(viewportPadding, left),
+      window.innerWidth - menuWidth - viewportPadding,
+    );
+
+    return { bottom, left };
+  }
+
+  function handleTriggerClick() {
+    if (isOpen) {
+      onClose();
+      return;
+    }
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect) setMenuPosition(computeMenuPosition(rect));
+    onToggle();
+  }
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function updatePosition() {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (rect) setMenuPosition(computeMenuPosition(rect));
+    }
+
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      onClose();
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isOpen, onClose]);
+
+  const menuItems = [
+    ...(!isActive
+      ? [
+          {
+            id: "set-active",
+            label: "Set active",
+            description: "Use this workspace for bookings",
+            onClick: onSetActive,
+            danger: false,
+            disabled: false,
+          },
+        ]
+      : []),
+    {
+      id: "edit",
+      label: "Edit organization",
+      description: "Update name or company logo",
+      onClick: onEdit,
+      danger: false,
+      disabled: false,
+    },
+    {
+      id: "delete",
+      label: "Delete organization",
+      description: canDelete
+        ? "Permanently remove this workspace"
+        : "At least one organization is required",
+      onClick: onDelete,
+      danger: true,
+      disabled: !canDelete,
+    },
+  ];
+
+  return (
+    <div className="flex justify-end">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={handleTriggerClick}
+        aria-label={`Open actions for ${organization.name}`}
+        title={`Actions for ${organization.name}`}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition ${
+          isOpen
+            ? "border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]"
+            : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+        }`}
+      >
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+          <circle cx="12" cy="5" r="1.75" />
+          <circle cx="12" cy="12" r="1.75" />
+          <circle cx="12" cy="19" r="1.75" />
+        </svg>
+      </button>
+
+      {isOpen && menuPosition
+        ? createPortal(
+            <div
+              ref={menuRef}
+              role="menu"
+              style={{ bottom: menuPosition.bottom, left: menuPosition.left }}
+              className="fixed z-[120] min-w-[13.75rem] max-w-[13.75rem] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] py-1 shadow-[var(--shadow-lg)]"
+            >
+              {menuItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="menuitem"
+                  disabled={item.disabled}
+                  onClick={() => {
+                    if (item.disabled) return;
+                    item.onClick();
+                    onClose();
+                  }}
+                  className={`flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-45 ${
+                    item.danger
+                      ? "hover:bg-[var(--color-danger-soft)] disabled:hover:bg-transparent"
+                      : "hover:bg-[var(--color-surface)] disabled:hover:bg-transparent"
+                  }`}
+                >
+                  <span
+                    className={`text-sm font-semibold ${
+                      item.danger ? "text-[var(--color-danger)]" : "text-[var(--color-text)]"
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                  <span className="text-[11px] leading-snug text-[var(--color-text-muted)]">
+                    {item.description}
+                  </span>
+                </button>
+              ))}
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
+  );
+}
+
 export function OrganizationsManager({
   organizations,
   activeOrganizationId,
   readOnly = false,
+  canForceDelete = false,
   returnTo,
   onCreateOrganization,
   onUpdateOrganization,
@@ -55,6 +249,7 @@ export function OrganizationsManager({
   onDeleteOrganization,
 }: OrganizationsManagerProps) {
   const [modal, setModal] = useState<ModalState>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(5);
@@ -112,7 +307,7 @@ export function OrganizationsManager({
       </div>
 
       <DataTable className="rounded-none border-x-0 border-b-0">
-        <DataTableHeader className="hidden grid-cols-[64px_minmax(0,1fr)_140px_220px] md:grid">
+        <DataTableHeader className="hidden grid-cols-[64px_minmax(0,1fr)_140px_100px] md:grid">
           <div>Index</div>
           <div>Organization</div>
           <div>Created</div>
@@ -137,7 +332,7 @@ export function OrganizationsManager({
             return (
               <DataTableRow
                 key={organization.id}
-                className="group items-center md:grid-cols-[64px_minmax(0,1fr)_140px_220px]"
+                className="group items-center md:grid-cols-[64px_minmax(0,1fr)_140px_100px]"
               >
                 <div className="text-xs font-semibold text-[var(--color-text-muted)] md:text-sm">
                   <span className="inline-flex min-w-[40px] items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--color-text-muted)]">
@@ -162,55 +357,33 @@ export function OrganizationsManager({
                 <div className="text-xs font-semibold text-[var(--color-text-muted)]">
                   {new Date(organization.createdAt).toLocaleDateString()}
                 </div>
-                <div className="flex items-center justify-start gap-2 md:justify-end">
+                <div className="flex items-center md:justify-end">
                   {readOnly ? (
                     <span className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text-muted)]">
                       View only
                     </span>
-                  ) : isActive ? (
-                    <span className="inline-flex rounded-lg vr-app-status-success px-2.5 py-1 text-xs font-semibold">
-                      Active
-                    </span>
                   ) : (
-                    <form action={onSwitchOrganization}>
-                      <input type="hidden" name="organization_id" value={organization.id} />
-                      <input type="hidden" name="return_to" value={returnTo} />
-                      <button
-                        type="submit"
-                        className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs font-semibold text-[var(--color-text)] transition hover:border-[var(--color-border-hover)] hover:bg-[var(--color-raised)]"
-                      >
-                        Set Active
-                      </button>
-                    </form>
+                    <OrganizationActionsMenu
+                      organization={organization}
+                      isActive={isActive}
+                      canDelete={organizations.length > 1}
+                      isOpen={openMenuId === organization.id}
+                      onToggle={() =>
+                        setOpenMenuId((current) =>
+                          current === organization.id ? null : organization.id,
+                        )
+                      }
+                      onClose={() => setOpenMenuId(null)}
+                      onSetActive={() => {
+                        const formData = new FormData();
+                        formData.set("organization_id", organization.id);
+                        formData.set("return_to", returnTo);
+                        void onSwitchOrganization(formData);
+                      }}
+                      onEdit={() => openEdit(organization)}
+                      onDelete={() => setModal({ type: "delete", organization })}
+                    />
                   )}
-                  {!readOnly ? (
-                    <button
-                      type="button"
-                      onClick={() => openEdit(organization)}
-                      className="inline-flex size-9 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] transition hover:border-[var(--color-border-hover)] hover:bg-[var(--color-raised)]"
-                      aria-label={`Edit ${organization.name}`}
-                    >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                      </svg>
-                    </button>
-                  ) : null}
-                  {!readOnly ? (
-                    <button
-                      type="button"
-                      onClick={() => setModal({ type: "delete", organization })}
-                      className="inline-flex size-9 items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-danger-soft)] text-[color-mix(in_srgb,var(--color-danger)_85%,var(--color-text))] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
-                      aria-label={`Delete ${organization.name}`}
-                      disabled={organizations.length <= 1}
-                    >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M3 6h18" />
-                        <path d="M8 6V4h8v2" />
-                        <path d="M19 6l-1 14H6L5 6" />
-                      </svg>
-                    </button>
-                  ) : null}
                 </div>
               </DataTableRow>
             );
@@ -383,10 +556,12 @@ export function OrganizationsManager({
         title="Delete organization"
         description={
           modal?.type === "delete"
-            ? `This will permanently remove "${modal.organization.name}" if it is empty and you have owner access.`
+            ? canForceDelete
+              ? `Permanently delete "${modal.organization.name}" and all workspace data (members, bookings, reviews, knowledge base, chatbot, voice lines, and audit history)? This cannot be undone.`
+              : `This will permanently remove "${modal.organization.name}" if it is empty and you have owner access.`
             : ""
         }
-        confirmLabel="Delete Organization"
+        confirmLabel={canForceDelete ? "Delete workspace & data" : "Delete Organization"}
         onCancel={() => setModal(null)}
         action={onDeleteOrganization}
         hiddenFields={

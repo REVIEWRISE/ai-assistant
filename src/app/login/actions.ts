@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
+import { resolveDefaultOrganizationId } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import { checkLoginRateLimit, resetRateLimit } from "@/lib/rate-limit";
 import { getRequestIp } from "@/lib/request-ip";
@@ -61,24 +62,29 @@ export async function loginUser(formData: FormData) {
     orderBy: { createdAt: "asc" },
   });
 
+  let activeOrganizationId = membership?.organizationId ?? null;
+  if (!activeOrganizationId) {
+    activeOrganizationId = await resolveDefaultOrganizationId(user.id);
+  }
+
   const sessionToken = crypto.randomUUID();
   await prisma.session.create({
     data: {
       userId: user.id,
-      activeOrganizationId: membership?.organizationId ?? null,
+      activeOrganizationId,
       token: sessionToken,
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
     },
   });
 
   // Audit successful login
-  if (membership?.organizationId) {
+  if (activeOrganizationId) {
     await prisma.auditEvent.create({
       data: {
-        organizationId: membership.organizationId,
+        organizationId: activeOrganizationId,
         actorId: user.id,
         action: "auth.login_success",
-        metadata: {},
+        metadata: { emailVerified: user.emailVerified },
       },
     }).catch(() => {/* non-blocking */});
   }
@@ -94,6 +100,12 @@ export async function loginUser(formData: FormData) {
     maxAge: 60 * 60 * 24 * 7,
     sameSite: "lax",
   });
+
+  if (!user.emailVerified) {
+    redirect(
+      `/verify-email/pending?email=${encodeURIComponent(user.email)}&error=unverified`,
+    );
+  }
 
   redirect("/dashboard?success=login");
 }

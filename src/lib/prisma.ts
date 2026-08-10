@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@/generated/prisma";
 
 const globalForPrisma = globalThis as typeof globalThis & {
   _prisma?: PrismaClient;
@@ -11,7 +11,7 @@ function createPrismaClient() {
 }
 
 /** Bump when Prisma schema changes so dev HMR does not keep a stale client (e.g. missing new columns). */
-const PRISMA_CLIENT_GENERATION = "2026-07-30-billing-customer-id-v2";
+const PRISMA_CLIENT_GENERATION = "2026-08-08-refund-requests-src-generated";
 
 const globalWithMeta = globalForPrisma as typeof globalForPrisma & {
   _prismaGeneration?: string;
