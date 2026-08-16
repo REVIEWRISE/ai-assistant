@@ -1,8 +1,11 @@
+import { createLogger } from "@/lib/logger";
 import {
   REVIEW_SYNC_SCHEDULER_TICK_MS,
   shouldStartReviewSyncScheduler,
 } from "@/lib/review-sync-cron";
 import { syncScheduledReviewProviders } from "@/lib/review-sync";
+
+const log = createLogger("review-sync-scheduler");
 
 type SchedulerGlobal = typeof globalThis & {
   __reviewSyncSchedulerStarted?: boolean;
@@ -21,22 +24,16 @@ async function runReviewSyncSchedulerTick(): Promise<void> {
   try {
     const result = await syncScheduledReviewProviders();
     if (result.attempted > 0 || result.failed > 0 || result.totalInserted > 0) {
-      console.info(
-        "[review-sync-scheduler] tick",
-        JSON.stringify({
-          attempted: result.attempted,
-          synced: result.synced,
-          empty: result.empty,
-          failed: result.failed,
-          inserted: result.totalInserted,
-        }),
-      );
+      log.info("tick", {
+        attempted: result.attempted,
+        synced: result.synced,
+        empty: result.empty,
+        failed: result.failed,
+        inserted: result.totalInserted,
+      });
     }
   } catch (error) {
-    console.error(
-      "[review-sync-scheduler] tick failed",
-      error instanceof Error ? error.message : String(error),
-    );
+    log.error("tick failed", { error: error instanceof Error ? error.message : String(error) });
   } finally {
     globalState.__reviewSyncSchedulerRunning = false;
   }

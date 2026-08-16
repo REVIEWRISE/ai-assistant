@@ -1,3 +1,7 @@
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("google-business-profile");
+
 export type GbpLocationOption = {
   accountId: string;
   locationId: string;
@@ -240,7 +244,7 @@ export async function listGoogleBusinessProfileLocationsWithResult(
       const v1Detail = summarizeApiError(accountsResult);
       const v4Detail = summarizeApiError(v4Accounts);
       const detail = [v1Detail, v4Detail].filter(Boolean).join(" | ");
-      console.error("[gbp] accounts API failed", { v1Status: accountsResult.status, v4Status: v4Accounts.status, detail });
+      log.error("accounts API failed", { v1Status: accountsResult.status, v4Status: v4Accounts.status, detail });
       return {
         locations: [],
         error: "accounts_api_failed",

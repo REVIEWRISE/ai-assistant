@@ -2,10 +2,13 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { resolvePlanSlugFromBillingPlanId } from "@/lib/billing-checkout";
 import { markOrgPaid, markOrgUnpaid } from "@/lib/entitlements";
+import { createLogger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { PLAN_SLUGS, type PlanSlug } from "@/lib/pricing-plans";
 
 export const runtime = "nodejs";
+
+const log = createLogger("billing-webhook");
 
 type BillingEvent = {
   id: string;
@@ -254,7 +257,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[billing-webhook]", error);
+    log.error("processing failed", { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 

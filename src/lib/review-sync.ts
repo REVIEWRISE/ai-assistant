@@ -1,9 +1,12 @@
+import { createLogger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import {
   resolveReviewSyncCronConfig,
   shouldRunReviewSyncCron,
   type ReviewSyncCronConfig,
 } from "@/lib/review-sync-cron";
+
+const log = createLogger("review-sync");
 import { draftRepliesForSyncedReviews } from "@/lib/review-reply-ai";
 import { autoPublishSyncedReviews } from "@/lib/review-reply-publish";
 import { resolveReviewReplyAutomationConfig } from "@/lib/review-reply-automation";
@@ -179,7 +182,7 @@ async function fetchGoogleBusinessProfileReviews(
     if (gbpResult.error === "missing_location") {
       return { reviews: [], error: "missing_location" };
     }
-    console.error("[review-sync] Google reviews fetch failed", gbpResult.error);
+    log.error("Google reviews fetch failed", { error: gbpResult.error });
     return { reviews: [], error: gbpResult.error };
   }
 
@@ -257,7 +260,7 @@ async function fetchYelpFusionProviderReviews(
     if (yelpResult.error === "missing_business") {
       return { reviews: [], error: "missing_location" };
     }
-    console.error("[review-sync] Yelp reviews fetch failed", yelpResult.error);
+    log.error("Yelp reviews fetch failed", { error: yelpResult.error });
     return { reviews: [], error: yelpResult.error };
   }
 
@@ -428,9 +431,10 @@ export async function syncSingleConnectedReviewProvider(args: {
       );
     }
     if (publishResult.failed > 0) {
-      console.warn(
-        `[review-sync] ${publishResult.failed} auto-publish attempt(s) failed for org ${args.organizationId.slice(0, 8)}`,
-      );
+      log.warn("auto-publish attempts failed", {
+        failed: publishResult.failed,
+        organizationId: args.organizationId,
+      });
     }
   }
 
