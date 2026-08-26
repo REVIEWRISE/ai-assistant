@@ -1,5 +1,5 @@
 # Stage 1: Dependencies
-FROM node:20-alpine AS deps
+FROM node:26-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package*.json ./
@@ -7,7 +7,7 @@ COPY prisma ./prisma/
 RUN npm ci
 
 # Stage 2: Builder
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -27,7 +27,7 @@ RUN npx esbuild scripts/review-sync-cron.ts --bundle --platform=node --target=no
 RUN npx esbuild prisma/seed.ts --bundle --platform=node --target=node20 --outfile=dist/seed.js --external:../src/generated/prisma
 
 # Stage 3: Production-only Dependencies
-FROM node:20-alpine AS prod-deps
+FROM node:26-alpine AS prod-deps
 WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
@@ -35,7 +35,7 @@ RUN npm ci --omit=dev
 RUN npx prisma generate
 
 # Stage 4: Runner
-FROM node:20-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 RUN apk add --no-cache curl
 
