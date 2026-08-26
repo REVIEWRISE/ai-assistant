@@ -24,6 +24,7 @@ type ProfileTabsProps = {
   organizationName: string;
   organizationCount: number;
   emailVerified: boolean;
+  hasPassword: boolean;
   onUpdateProfile: (formData: FormData) => void | Promise<void>;
   onUpdatePassword: (formData: FormData) => void | Promise<void>;
 };
@@ -61,6 +62,7 @@ export function ProfileTabs({
   organizationName,
   organizationCount,
   emailVerified,
+  hasPassword,
   onUpdateProfile,
   onUpdatePassword,
 }: ProfileTabsProps) {
@@ -222,13 +224,16 @@ export function ProfileTabs({
             >
               <div className="border-b border-[var(--color-border)] px-4 py-4 sm:px-5">
                 <h3 className="text-base font-semibold text-[var(--color-text)]">
-                  Change password
+                  {hasPassword ? "Change password" : "Set a password"}
                 </h3>
                 <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                  Confirm your current password before setting a new one.
+                  {hasPassword
+                    ? "Confirm your current password before setting a new one."
+                    : "You signed in with Google. Optionally set a password to also sign in with email."}
                 </p>
               </div>
               <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
+                {hasPassword ? (
                 <label className="text-xs font-semibold text-[var(--color-text)] sm:col-span-2">
                   Current password
                   <div className="relative">
@@ -250,6 +255,7 @@ export function ProfileTabs({
                     </button>
                   </div>
                 </label>
+                ) : null}
                 <label className="text-xs font-semibold text-[var(--color-text)]">
                   New password
                   <div className="relative">

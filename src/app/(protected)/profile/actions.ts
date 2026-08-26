@@ -82,7 +82,7 @@ export async function updatePassword(formData: FormData) {
   const newPassword = String(formData.get("new_password") || "");
   const confirmPassword = String(formData.get("confirm_password") || "");
 
-  if (!currentPassword || !newPassword) {
+  if (!newPassword) {
     redirect("/profile?error=missing_password");
   }
 
@@ -99,9 +99,14 @@ export async function updatePassword(formData: FormData) {
     redirect("/login");
   }
 
-  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
-  if (!valid) {
-    redirect("/profile?error=invalid_password");
+  if (user.passwordHash) {
+    if (!currentPassword) {
+      redirect("/profile?error=missing_password");
+    }
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) {
+      redirect("/profile?error=invalid_password");
+    }
   }
 
   const passwordViolation = validatePasswordStrength(newPassword, {

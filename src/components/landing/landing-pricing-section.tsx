@@ -140,11 +140,14 @@ export function LandingPricingSection({
         ) : (
           <div className="mt-10 grid gap-5 lg:mt-14 lg:grid-cols-3 lg:items-stretch">
             {plans.map((plan) => {
-              const displayedPrice =
-                interval === "yearly" ? plan.yearlyMonthlyPrice : plan.price;
+              const isYearly = interval === "yearly";
+              const displayedPrice = isYearly ? plan.yearlyPrice : plan.price;
+              const hasPricedInterval = Boolean(displayedPrice) && displayedPrice !== "Custom";
               const href = isLoggedIn
                 ? registerHref
-                : `${registerHref}?plan=${encodeURIComponent(plan.slug)}&interval=yearly`;
+                : hasPricedInterval
+                  ? `${registerHref}?plan=${encodeURIComponent(plan.slug)}&interval=${interval}`
+                  : "#contact";
 
               return (
                 <article
@@ -173,16 +176,26 @@ export function LandingPricingSection({
                   <div className="mt-6 border-y border-[var(--color-border)] py-6">
                     <div className="flex items-end gap-2">
                       <span className="text-5xl font-semibold tracking-[-0.045em] text-[var(--color-text)]">
-                        {displayedPrice}
+                        {displayedPrice ?? "—"}
                       </span>
-                      <span className="pb-1 text-sm font-medium text-[var(--color-text-muted)]">
-                        /month
-                      </span>
+                      {hasPricedInterval ? (
+                        <span className="pb-1 text-sm font-medium text-[var(--color-text-muted)]">
+                          {isYearly ? "/year" : "/month"}
+                        </span>
+                      ) : null}
                     </div>
                     <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-                      {interval === "yearly"
-                        ? `Billed once yearly at ${plan.yearlyPrice}`
-                        : `Or ${plan.yearlyMonthlyPrice}/month billed yearly`}
+                      {displayedPrice === "Custom"
+                        ? "Custom pricing — talk with our team"
+                        : isYearly && plan.yearlyMonthlyPrice
+                          ? `That's ${plan.yearlyMonthlyPrice}/month billed yearly`
+                          : !isYearly && plan.yearlyPrice && plan.yearlyPrice !== "Custom"
+                            ? `Or ${plan.yearlyPrice}/year billed yearly`
+                            : isYearly && !plan.yearlyPrice
+                              ? "Yearly pricing isn’t listed for this plan"
+                              : !isYearly && !plan.price
+                                ? "Monthly pricing isn’t listed for this plan"
+                                : "Billed on the interval you choose"}
                     </p>
                   </div>
 
@@ -246,7 +259,11 @@ export function LandingPricingSection({
                         : "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:border-[var(--color-primary)]"
                     }`}
                   >
-                    {isLoggedIn ? "Open dashboard" : `Choose ${plan.title}`}
+                    {isLoggedIn
+                      ? "Open dashboard"
+                      : hasPricedInterval
+                        ? `Choose ${plan.title}`
+                        : "Talk with our team"}
                   </Link>
                 </article>
               );

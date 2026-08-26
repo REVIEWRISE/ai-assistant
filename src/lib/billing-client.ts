@@ -143,7 +143,10 @@ export async function billingFetch(
         raw: rawText || null,
       });
 
-      if ((res.status === 429 || res.status >= 500) && attempt < 4) {
+      const retryable =
+        attempt < 4 &&
+        (res.status === 429 || (res.status >= 500 && method === "GET"));
+      if (retryable) {
         lastError = new Error(message);
         await new Promise((resolve) => setTimeout(resolve, attempt * 650));
         continue;
@@ -291,7 +294,9 @@ export async function getBillingProductDetail(
   return { product, plans, stats: body.stats };
 }
 
-export async function getAgentBillingCatalog(): Promise<{
+export async function getAgentBillingCatalog(options?: {
+  includeInactive?: boolean;
+}): Promise<{
   product: BillingProduct;
   plans: BillingRemotePlan[];
 } | null> {
@@ -303,8 +308,63 @@ export async function getAgentBillingCatalog(): Promise<{
   const detail = await getBillingProductDetail(product.id);
   return {
     product: detail.product,
-    plans: detail.plans.filter((plan) => plan.isActive),
+    plans: options?.includeInactive
+      ? detail.plans
+      : detail.plans.filter((plan) => plan.isActive),
   };
+}
+
+function commercialPlanNameKey(name: string): string {
+  return name
+    .trim()
+    .replace(/[\s_\-]*[\-(]?\s*(monthly|yearly|annual|annually|year)\s*[)]?\s*$/i, "")
+    .trim()
+    .toLowerCase();
+}
+
+function mapPlanNameToSlug(name: string): string | null {
+  const key = name.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (key === "starter" || key.startsWith("starter")) return "starter";
+  if (
+    key === "growth" ||
+    key.startsWith("growth") ||
+    key === "professional" ||
+    key === "pro" ||
+    key.startsWith("professional")
+  ) {
+    return "growth";
+  }
+  if (
+    key.includes("voice") ||
+    key.startsWith("pro_voice") ||
+    key === "enterprise" ||
+    key.startsWith("enterprise")
+  ) {
+    return "pro_voice";
+  }
+  return null;
+}
+
+export async function findBillingPlanForInterval(
+  productId: string,
+  name: string,
+  interval: "monthly" | "yearly",
+): Promise<BillingRemotePlan | null> {
+  const detail = await getBillingProductDetail(productId);
+  const wantYearly = interval === "yearly";
+  const key = commercialPlanNameKey(name);
+  const slug = mapPlanNameToSlug(name) ?? mapPlanNameToSlug(key);
+  return (
+    detail.plans.find((plan) => {
+      const yearly = /year|annual/.test(plan.billingInterval.trim().toLowerCase());
+      if (yearly !== wantYearly) return false;
+      if (commercialPlanNameKey(plan.name) === key) return true;
+      if (!slug) return false;
+      const planSlug =
+        mapPlanNameToSlug(plan.name) ?? mapPlanNameToSlug(commercialPlanNameKey(plan.name));
+      return planSlug === slug;
+    }) ?? null
+  );
 }
 
 export type BillingModule = {
@@ -494,7 +554,7 @@ export type BillingPlanCreateInput = {
 export async function createBillingPlan(
   input: BillingPlanCreateInput,
 ): Promise<BillingRemotePlan> {
-  const res = await billingFetch("/billing/plans", {
+  const res = await billingFetch("/billing/admin/plans", {
     method: "POST",
     body: JSON.stringify({
       productId: input.productId,
@@ -503,6 +563,12 @@ export async function createBillingPlan(
       priceAmount: input.priceAmount,
       currencyCode: input.currencyCode.toLowerCase(),
       trialPeriodDays: input.trialPeriodDays,
+      isActive: true,
+      slug: `${input.name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")}-${input.billingInterval}`,
       ...(input.stripePriceId ? { stripePriceId: input.stripePriceId } : {}),
     }),
   });
