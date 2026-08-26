@@ -42,7 +42,7 @@
     "sonner": "^2.0.7",
     "stripe": "^22.3.2",
     "tsx": "^4.21.0",
-    "ws": "^8.18.3"
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
