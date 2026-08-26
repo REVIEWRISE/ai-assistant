@@ -39,6 +39,13 @@ function LoginPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean })
       toast.error(msg);
       return;
     }
+    if (error === "locked") {
+      const msg = retry
+        ? `This account is temporarily locked after too many failed attempts. Try again in ${retry} minute(s).`
+        : "This account is temporarily locked after too many failed attempts. Please try again later.";
+      toast.error(msg);
+      return;
+    }
     const messages: Record<string, string> = {
       missing: "Please provide both email and password.",
       invalid: "Invalid email or password.",
