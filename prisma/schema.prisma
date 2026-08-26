@@ -15,6 +15,8 @@ model User {
   passwordHash String?   @map("password_hash")
   accountStatus String   @default("active") @map("account_status")
   emailVerified Boolean  @default(false) @map("email_verified")
+  failedLoginAttempts Int @default(0) @map("failed_login_attempts")
+  lockedUntil   DateTime? @map("locked_until") @db.Timestamptz(6)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
 

@@ -7,6 +7,7 @@ import { resolveDefaultOrganizationId } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import { checkLoginRateLimit, resetRateLimit } from "@/lib/rate-limit";
 import { getRequestIp } from "@/lib/request-ip";
+import { isLocked, lockoutRetryAfterMs, recordFailedLogin, resetFailedLogins } from "@/lib/account-lockout";
 
 export async function loginUser(formData: FormData) {
   const ip = await getRequestIp();
@@ -42,6 +43,19 @@ export async function loginUser(formData: FormData) {
     redirect("/login?error=oauth_password");
   }
 
+  if (isLocked(user)) {
+    const minutes = Math.ceil(lockoutRetryAfterMs(user) / 60000);
+    await prisma.auditEvent.create({
+      data: {
+        organizationId: "00000000-0000-0000-0000-000000000000",
+        actorId: user.id,
+        action: "auth.login_blocked_locked",
+        metadata: { retryMinutes: minutes },
+      },
+    }).catch(() => {/* non-blocking */});
+    redirect(`/login?error=locked&retry=${minutes}`);
+  }
+
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     const membership = await prisma.organizationMember.findFirst({
@@ -57,6 +71,7 @@ export async function loginUser(formData: FormData) {
         metadata: { reason: "invalid_password" },
       },
     }).catch(() => {/* non-blocking */});
+    await recordFailedLogin(user);
     redirect("/login?error=invalid");
   }
 
@@ -93,8 +108,9 @@ export async function loginUser(formData: FormData) {
     }).catch(() => {/* non-blocking */});
   }
 
-  // Clear the rate limit counter on successful login
+  // Clear the rate limit counter and any lockout state on successful login
   resetRateLimit(`login:${ip}`);
+  await resetFailedLogins(user.id);
 
   const cookieStore = await cookies();
   cookieStore.set("ai_session", sessionToken, {
