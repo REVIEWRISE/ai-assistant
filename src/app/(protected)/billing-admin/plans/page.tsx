@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function BillingPlansPage() {
   await requireAdminSession();
 
-  const catalog = await getBillingCatalogPlans();
+  const catalog = await getBillingCatalogPlans({ includeInactive: true });
   const configured = isBillingConfigured();
   const linkedPriceCount = catalog.plans.reduce(
     (count, plan) => count + Number(Boolean(plan.stripePriceId)),

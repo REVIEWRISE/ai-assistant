@@ -6,9 +6,12 @@ import type { Prisma } from "@prisma/client";
 import { requireAdminSession } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import {
+  attachBillingModuleToPlan,
   createBillingModule,
   createBillingPlan,
   deleteBillingModule,
+  findBillingPlanForInterval,
+  getBillingPlanDetail,
   isBillingConfigured,
   resolveBillingProduct,
   updateBillingModule,
@@ -185,6 +188,50 @@ export async function updatePlanAction(formData: FormData) {
         ...shared,
         priceAmount: isCustomPricing ? (yearlyCents ?? 0) : (yearlyCents as number),
       });
+    } else if (yearlyCents !== null) {
+      const product = await resolveBillingProduct();
+      if (!product) redirectResult(formData, { error: "product_missing" });
+      const existingYearly = await findBillingPlanForInterval(
+        product!.id,
+        name,
+        "yearly",
+      );
+      const yearly = existingYearly
+        ? await updateBillingPlan(existingYearly.id, {
+            ...shared,
+            priceAmount: yearlyCents,
+            isActive,
+          })
+        : await createBillingPlan({
+            productId: product!.id,
+            name,
+            billingInterval: "yearly",
+            priceAmount: yearlyCents,
+            currencyCode,
+            trialPeriodDays,
+          });
+      if (!existingYearly) {
+        await updateBillingPlan(yearly.id, { isActive, isCustomPricing });
+      }
+      if (!existingYearly && monthlyPlanId) {
+        try {
+          const detail = await getBillingPlanDetail(monthlyPlanId);
+          for (const billingModule of detail.modules) {
+            await attachBillingModuleToPlan(
+              yearly.id,
+              billingModule.id,
+              billingModule.featureLimits.map((limit) => ({
+                featureKey: limit.featureKey,
+                limitValue: limit.limitValue,
+                unit: limit.unit ?? undefined,
+                isUnlimited: limit.isUnlimited,
+              })),
+            );
+          }
+        } catch {
+          // Price row can exist without module copy; attach later from Manage modules.
+        }
+      }
     }
   } catch {
     redirectResult(formData, { error: "plan_update_failed" });

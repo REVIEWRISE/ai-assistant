@@ -520,7 +520,7 @@ function PlanEditSheet({
   const monthlyPlanId = plan?.monthlyPlanId ?? null;
   const yearlyPlanId = plan?.yearlyPlanId ?? null;
   const showMonthly = isCreate || Boolean(monthlyPlanId);
-  const showYearly = isCreate ? createYearly : Boolean(yearlyPlanId);
+  const showYearly = isCreate ? createYearly : true;
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setEntered(true));
@@ -670,7 +670,7 @@ function PlanEditSheet({
                   type="number"
                   min={0}
                   step="0.01"
-                  required={!isCustomPricing && showYearly}
+                  required={!isCustomPricing && showYearly && (isCreate || Boolean(yearlyPlanId))}
                   disabled={!showYearly}
                   defaultValue={centsToDollarsInput(plan?.yearlyPriceCents ?? null)}
                   placeholder={showYearly ? "290" : "—"}
@@ -679,9 +679,9 @@ function PlanEditSheet({
                 <span className="mt-1.5 block text-[10px] font-normal text-[var(--color-text-subtle)]">
                   {isCreate
                     ? "Optional — enable yearly below. Use monthly equivalent (e.g. 33) or annual total (e.g. 396)."
-                    : showYearly
+                    : yearlyPlanId
                       ? "Monthly equivalent when billed yearly (e.g. 33), or annual total (e.g. 396)."
-                      : "No yearly plan."}
+                      : "No yearly plan yet — enter a price to create yearly billing."}
                 </span>
               </label>
             </div>

@@ -12,7 +12,7 @@ model User {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email        String    @unique
   fullName     String    @map("full_name")
-  passwordHash String    @map("password_hash")
+  passwordHash String?   @map("password_hash")
   accountStatus String   @default("active") @map("account_status")
   emailVerified Boolean  @default(false) @map("email_verified")
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -24,12 +24,29 @@ model User {
   userRoles           UserRole[]
   auditEvents         AuditEvent[]
   providerConnections ProviderConnection[]
+  authIdentities      AuthIdentity[]
   routedChatbotAppointments Appointment[] @relation("AppointmentRoutedUser")
   emailVerificationTokens EmailVerificationToken[]
   refundRequestsRequested RefundRequest[] @relation("RefundRequestRequester")
   refundRequestsReviewed  RefundRequest[] @relation("RefundRequestReviewer")
 
   @@map("users")
+}
+
+model AuthIdentity {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  provider       String
+  providerUserId String   @map("provider_user_id")
+  email          String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("auth_identities")
 }
 
 model EmailVerificationToken {

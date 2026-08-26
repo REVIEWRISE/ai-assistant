@@ -103,6 +103,22 @@ Upload a **company logo** per organization under **Appointments → Organization
 
 `NEXT_PUBLIC_APP_URL` must be your **public** site URL (used in team notification links).
 
+#### Google social login (optional)
+
+Sign-in reuses `client_id` + `client_secret` from an enabled Google **calendar** or **review** provider (Platform → Providers). On that same Google OAuth client, also add authorized redirect URI:
+
+`https://your-domain.com/auth/google/callback`
+
+(and `http://localhost:3000/auth/google/callback` for local dev).
+
+Optional env overrides if you do not want to use the provider table:
+
+| Secret | Description |
+| :--- | :--- |
+| `NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID` / `GOOGLE_AUTH_CLIENT_ID` | OAuth client ID |
+| `GOOGLE_AUTH_CLIENT_SECRET` | OAuth client secret |
+| `GOOGLE_AUTH_REDIRECT_URI` | Optional. Defaults to `${APP_URL}/auth/google/callback` |
+
 #### Voice Support (Retell AI)
 
 | Secret | Description |

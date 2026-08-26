@@ -218,31 +218,78 @@ async function loadPlanModules(
   return new Map(entries);
 }
 
+function isYearlyInterval(interval: string): boolean {
+  const value = interval.trim().toLowerCase();
+  return /year|annual/.test(value);
+}
+
+/** Strip trailing interval words so "Pro Voice Yearly" pairs with "Pro Voice". */
+function commercialPlanNameKey(name: string): string {
+  return name
+    .trim()
+    .replace(/[\s_\-]*[\-(]?\s*(monthly|yearly|annual|annually|year)\s*[)]?\s*$/i, "")
+    .trim()
+    .toLowerCase();
+}
+
+type RemotePlanGroup = {
+  name: string;
+  monthly?: BillingRemotePlan;
+  yearly?: BillingRemotePlan;
+  any: BillingRemotePlan;
+};
+
+function assignPlanToGroup(group: RemotePlanGroup, plan: BillingRemotePlan): void {
+  if (isYearlyInterval(plan.billingInterval)) {
+    group.yearly = plan;
+  } else if (!group.monthly) {
+    group.monthly = plan;
+  } else if (!group.yearly && group.monthly.id !== plan.id) {
+    // Same commercial name with a second interval the API did not mark as yearly.
+    group.yearly = plan;
+  } else {
+    group.monthly = plan;
+  }
+  group.any = group.monthly ?? group.yearly ?? plan;
+}
+
 function groupRemotePlans(
   plans: BillingRemotePlan[],
   modulesByPlanId: Map<string, BillingPlanModule[]>,
 ): CatalogPlanView[] {
-  const groups = new Map<
-    string,
-    {
-      name: string;
-      monthly?: BillingRemotePlan;
-      yearly?: BillingRemotePlan;
-      any: BillingRemotePlan;
-    }
-  >();
+  const groups = new Map<string, RemotePlanGroup>();
 
   for (const plan of plans) {
-    const key = plan.name.trim().toLowerCase();
+    const key = commercialPlanNameKey(plan.name) || plan.name.trim().toLowerCase();
     const existing = groups.get(key) ?? { name: plan.name, any: plan };
-    const interval = plan.billingInterval.trim().toLowerCase();
-    if (interval === "yearly" || interval === "year" || interval === "annual") {
-      existing.yearly = plan;
-    } else {
-      existing.monthly = plan;
+    assignPlanToGroup(existing, plan);
+    if (!isYearlyInterval(plan.billingInterval)) {
+      existing.name = plan.name;
     }
-    existing.any = plan;
     groups.set(key, existing);
+  }
+
+  // Pair leftover monthly-only / yearly-only groups that share a canonical slug
+  // (e.g. "Pro Voice" monthly + "Enterprise" yearly after a rename).
+  const keyed = Array.from(groups.entries());
+  const absorbed = new Set<string>();
+  for (const [yearlyKey, yearlyGroup] of keyed) {
+    if (yearlyGroup.monthly || !yearlyGroup.yearly || absorbed.has(yearlyKey)) continue;
+    const yearlySlug =
+      mapNameToPlanSlug(yearlyGroup.name) ?? mapNameToPlanSlug(yearlyGroup.yearly.name);
+    if (!yearlySlug) continue;
+    for (const [monthlyKey, monthlyGroup] of keyed) {
+      if (monthlyKey === yearlyKey || absorbed.has(monthlyKey)) continue;
+      if (!monthlyGroup.monthly || monthlyGroup.yearly) continue;
+      const monthlySlug =
+        mapNameToPlanSlug(monthlyGroup.name) ?? mapNameToPlanSlug(monthlyGroup.monthly.name);
+      if (monthlySlug !== yearlySlug) continue;
+      monthlyGroup.yearly = yearlyGroup.yearly;
+      monthlyGroup.any = monthlyGroup.monthly ?? yearlyGroup.yearly;
+      absorbed.add(yearlyKey);
+      groups.delete(yearlyKey);
+      break;
+    }
   }
 
   const grouped = Array.from(groups.values()).map((group) => {
@@ -284,25 +331,33 @@ function groupRemotePlans(
   return withCanonicalOrderAndFeatured(grouped);
 }
 
+function listedPrice(
+  cents: number | null,
+  isCustomPricing: boolean,
+): string | null {
+  if (isCustomPricing && (cents === null || cents === 0)) return "Custom";
+  if (cents === null) return null;
+  return formatUsd(cents);
+}
+
 function toLandingPlan(plan: CatalogPlanView): LandingPlan {
-  const monthly =
-    plan.monthlyPriceCents ??
-    (plan.billingInterval.toLowerCase().includes("year") ? 0 : plan.priceAmount);
-  // Yearly plan `priceAmount` from Billing is the annual total — do not multiply monthly×12.
-  const yearlyTotalCents =
-    plan.yearlyPriceCents ??
-    (plan.billingInterval.toLowerCase().includes("year") ? plan.priceAmount : null);
+  const monthlyCents = plan.monthlyPriceCents;
+  const yearlyTotalCents = plan.yearlyPriceCents;
   const yearlyMonthlyCents =
-    yearlyTotalCents != null ? Math.round(yearlyTotalCents / 12) : monthly || plan.priceAmount;
+    yearlyTotalCents != null ? Math.round(yearlyTotalCents / 12) : null;
 
   return {
     slug: plan.slug,
     title: plan.name,
     description: plan.description,
-    price: formatUsd(monthly || plan.priceAmount),
+    price: listedPrice(monthlyCents, plan.isCustomPricing),
     period: "/mo",
-    yearlyPrice: formatUsd(yearlyTotalCents ?? (monthly || plan.priceAmount) * 12),
-    yearlyMonthlyPrice: formatUsd(yearlyMonthlyCents),
+    yearlyPrice: listedPrice(yearlyTotalCents, plan.isCustomPricing),
+    yearlyMonthlyPrice:
+      yearlyMonthlyCents != null && !plan.isCustomPricing
+        ? formatUsd(yearlyMonthlyCents)
+        : null,
+    isCustomPricing: plan.isCustomPricing,
     trialDays: plan.trialPeriodDays || BILLING_RULES.trialDays,
     includedLocations: plan.includedLocations,
     teamMemberLimit: plan.teamMemberLimit,
@@ -335,13 +390,17 @@ function catalogFromPlanModules(
   return Array.from(byId.values());
 }
 
-export async function getBillingCatalogPlans(): Promise<BillingCatalogResult> {
+export async function getBillingCatalogPlans(options?: {
+  includeInactive?: boolean;
+}): Promise<BillingCatalogResult> {
   if (!isBillingConfigured()) {
     return { plans: [], productModules: [], error: "not_configured" };
   }
 
   try {
-    const catalog = await getAgentBillingCatalog();
+    const catalog = await getAgentBillingCatalog({
+      includeInactive: options?.includeInactive,
+    });
     if (!catalog) {
       return { plans: [], productModules: [], error: "product_missing" };
     }

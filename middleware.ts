@@ -8,7 +8,9 @@ function isPublicAuthFlowPath(pathname: string): boolean {
   return (
     AUTH_ROUTES.has(pathname) ||
     pathname === "/verify-email" ||
-    pathname.startsWith("/verify-email/")
+    pathname.startsWith("/verify-email/") ||
+    pathname === "/auth/google" ||
+    pathname.startsWith("/auth/google/")
   );
 }
 

@@ -38,6 +38,10 @@ export async function loginUser(formData: FormData) {
     redirect("/login?error=invalid");
   }
 
+  if (!user.passwordHash) {
+    redirect("/login?error=oauth_password");
+  }
+
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     const membership = await prisma.organizationMember.findFirst({

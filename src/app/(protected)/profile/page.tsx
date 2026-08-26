@@ -36,6 +36,7 @@ export default async function ProfileSettingsPage() {
           email: true,
           accountStatus: true,
           emailVerified: true,
+          passwordHash: true,
           userRoles: {
             select: {
               role: { select: { name: true } },
@@ -127,6 +128,7 @@ export default async function ProfileSettingsPage() {
         organizationName={orgName}
         organizationCount={orgOptions.length}
         emailVerified={user.emailVerified}
+        hasPassword={Boolean(user.passwordHash)}
         onUpdateProfile={updateProfile}
         onUpdatePassword={updatePassword}
       />

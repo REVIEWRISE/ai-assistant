@@ -62,10 +62,14 @@ export type LandingPlan = {
   slug: string;
   title: string;
   description: string;
-  price: string;
+  /** Monthly list price, or null when no monthly interval exists. */
+  price: string | null;
   period: string;
-  yearlyPrice: string;
-  yearlyMonthlyPrice: string;
+  /** Annual total, or null when no yearly interval exists. Never monthly×12. */
+  yearlyPrice: string | null;
+  /** Monthly equivalent of the yearly total, or null when yearly is unset. */
+  yearlyMonthlyPrice: string | null;
+  isCustomPricing: boolean;
   trialDays: number;
   includedLocations: number;
   teamMemberLimit: number;
