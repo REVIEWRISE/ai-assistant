@@ -23,7 +23,7 @@ jobs:
     permissions:
       contents: read
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     # This repo's default Actions workflow permissions only grant `packages: read`
     # to the ambient GITHUB_TOKEN, so pushing needs an explicit credential instead
