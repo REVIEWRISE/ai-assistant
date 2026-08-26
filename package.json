@@ -30,7 +30,7 @@
     "@prisma/client": "^6.19.2",
     "@sentry/nextjs": "^10.69.0",
     "@stripe/react-stripe-js": "^6.8.0",
-    "@stripe/stripe-js": "^9.12.0",
+    "@stripe/stripe-js": "^9.14.0",
     "bcryptjs": "^3.0.3",
     "next": "16.1.6",
     "nodemailer": "^8.0.8",
