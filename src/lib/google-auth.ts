@@ -55,14 +55,20 @@ function isLikelyGoogleOAuthConfig(config: OAuthProviderConfig, providerName: st
 
 /** Prefer an enabled Google calendar/review provider's client_id + client_secret. */
 async function providerGoogleAuthConfig(): Promise<OAuthProviderConfig | null> {
-  const providers = await prisma.provider.findMany({
-    where: {
-      status: "enabled",
-      type: { in: ["calendar", "review"] },
-    },
-    select: { name: true, type: true, config: true },
-    orderBy: { createdAt: "asc" },
-  });
+  let providers: Array<{ name: string; type: string; config: unknown }>;
+  try {
+    providers = await prisma.provider.findMany({
+      where: {
+        status: "enabled",
+        type: { in: ["calendar", "review"] },
+      },
+      select: { name: true, type: true, config: true },
+      orderBy: { createdAt: "asc" },
+    });
+  } catch {
+    // Build/CI or unavailable DB — fall back to env credentials.
+    return null;
+  }
 
   const scored: Array<{ score: number; config: OAuthProviderConfig }> = [];
 
