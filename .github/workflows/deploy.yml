@@ -42,7 +42,7 @@ jobs:
     # on the production VPS during every deploy — that used to be the single
     # biggest memory-pressure moment in the whole deploy lifecycle.
     - name: Build and push image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v7
       with:
         context: .
         file: Dockerfile.prod
