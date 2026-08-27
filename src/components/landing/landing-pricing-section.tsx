@@ -173,7 +173,7 @@ export function LandingPricingSection({
                     </p>
                   </div>
 
-                  <div className="mt-6 border-y border-[var(--color-border)] py-6">
+                  <div className="mt-6 border-t border-[var(--color-border)] py-6">
                     <div className="flex items-end gap-2">
                       <span className="text-5xl font-semibold tracking-[-0.045em] text-[var(--color-text)]">
                         {displayedPrice ?? "—"}
@@ -199,37 +199,10 @@ export function LandingPricingSection({
                     </p>
                   </div>
 
-                  <dl className="grid grid-cols-3 divide-x divide-[var(--color-border)] py-5 text-center">
-                    <div className="px-1">
-                      <dt className="text-[9px] uppercase tracking-wide text-[var(--color-text-subtle)]">
-                        Locations
-                      </dt>
-                      <dd className="mt-1 text-sm font-semibold text-[var(--color-text)]">
-                        {plan.includedLocations || "—"}
-                      </dd>
-                    </div>
-                    <div className="px-1">
-                      <dt className="text-[9px] uppercase tracking-wide text-[var(--color-text-subtle)]">
-                        Members
-                      </dt>
-                      <dd className="mt-1 text-sm font-semibold text-[var(--color-text)]">
-                        {plan.teamMemberLimit || "—"}
-                      </dd>
-                    </div>
-                    <div className="px-1">
-                      <dt className="text-[9px] uppercase tracking-wide text-[var(--color-text-subtle)]">
-                        Voice min
-                      </dt>
-                      <dd className="mt-1 text-sm font-semibold text-[var(--color-text)]">
-                        {plan.includedVoiceMinutes || "—"}
-                      </dd>
-                    </div>
-                  </dl>
-
-                  <ul className="flex-1 space-y-3 border-t border-[var(--color-border)] pt-5">
+                  <ul className="mt-1 flex-1 space-y-3 border-t border-[var(--color-border)] pt-5">
                     {plan.items.slice(0, 6).map((item) => (
                       <li
-                        key={item}
+                        key={`in-${item}`}
                         className="flex items-start gap-2.5 text-sm leading-5 text-[var(--color-text-muted)]"
                       >
                         <svg
@@ -246,7 +219,37 @@ export function LandingPricingSection({
                             d="m5 12 4 4L19 6"
                           />
                         </svg>
-                        {item}
+                        <span
+                          className={
+                            item.startsWith("Everything in ")
+                              ? "font-semibold text-[var(--color-text)]"
+                              : undefined
+                          }
+                        >
+                          {item}
+                        </span>
+                      </li>
+                    ))}
+                    {plan.excludedItems.slice(0, 5).map((item) => (
+                      <li
+                        key={`out-${item}`}
+                        className="flex items-start gap-2.5 text-sm leading-5 text-[var(--color-text-subtle)]"
+                      >
+                        <svg
+                          className="mt-0.5 size-4 shrink-0 text-[var(--color-danger)]"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          aria-hidden
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M6 6l12 12M18 6L6 18"
+                          />
+                        </svg>
+                        <span>{item}</span>
                       </li>
                     ))}
                   </ul>

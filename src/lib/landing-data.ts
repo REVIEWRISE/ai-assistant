@@ -74,6 +74,9 @@ export type LandingPlan = {
   includedLocations: number;
   teamMemberLimit: number;
   includedVoiceMinutes: number;
+  /** Included features (checkmark). */
   items: string[];
+  /** Features available on higher tiers but not this plan (X). */
+  excludedItems: string[];
   featured?: boolean;
 };
