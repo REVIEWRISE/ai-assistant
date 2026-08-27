@@ -160,10 +160,6 @@ export function BillingPlansManager({
   onCreatePlan,
 }: BillingPlansManagerProps) {
   const [managingPlanId, setManagingPlanId] = useState<string | null>(initialManagePlanId);
-
-  useEffect(() => {
-    if (initialManagePlanId) setManagingPlanId(initialManagePlanId);
-  }, [initialManagePlanId]);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [creatingPlan, setCreatingPlan] = useState(false);
   const [form, setForm] = useState<FormOverlay>(null);

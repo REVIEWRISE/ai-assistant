@@ -83,6 +83,7 @@ export default async function BillingPlansPage({
 
       <Suspense fallback={null}>
         <BillingPlansManager
+          key={params.manage ?? "plans"}
           plans={catalog.plans}
           productModules={catalog.productModules}
           productId={catalog.productId}
