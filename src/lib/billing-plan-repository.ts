@@ -363,8 +363,42 @@ function toLandingPlan(plan: CatalogPlanView): LandingPlan {
     teamMemberLimit: plan.teamMemberLimit,
     includedVoiceMinutes: plan.includedVoiceMinutes,
     items: plan.contents,
+    excludedItems: [],
     featured: plan.featured,
   };
+}
+
+/** Higher tiers lead with “Everything in {previous}”; lower tiers list higher-tier-only modules as excluded. */
+function withTieredIncludes(plans: CatalogPlanView[]): LandingPlan[] {
+  const keysByPlan = plans.map(
+    (plan) => new Set(plan.modules.map((module) => module.key)),
+  );
+
+  return plans.map((plan, index) => {
+    const landing = toLandingPlan(plan);
+    const currentKeys = keysByPlan[index] ?? new Set<string>();
+    const previous = index > 0 ? plans[index - 1] : null;
+
+    if (previous) {
+      const extras = contentsFromModules(
+        plan.modules.filter((module) => !keysByPlan[index - 1]!.has(module.key)),
+      );
+      landing.items = [`Everything in ${previous.name}`, ...extras];
+    }
+
+    const excludedByKey = new Map<string, string>();
+    for (let higher = index + 1; higher < plans.length; higher += 1) {
+      for (const billingModule of plans[higher]!.modules) {
+        if (currentKeys.has(billingModule.key) || excludedByKey.has(billingModule.key)) {
+          continue;
+        }
+        excludedByKey.set(billingModule.key, billingModule.displayName);
+      }
+    }
+    landing.excludedItems = Array.from(excludedByKey.values());
+
+    return landing;
+  });
 }
 
 function catalogFromPlanModules(
@@ -451,5 +485,5 @@ export async function getBillingCatalogPlans(options?: {
 
 export async function getPublicLandingPlans(): Promise<LandingPlan[]> {
   const { plans } = await getBillingCatalogPlans();
-  return plans.map(toLandingPlan);
+  return withTieredIncludes(plans);
 }

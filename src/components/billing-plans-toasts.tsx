@@ -36,6 +36,8 @@ const successMessages: Record<string, string> = {
   deleted: "Module deleted.",
   plan_updated: "Plan updated.",
   plan_created: "Plan created.",
+  module_attached: "Module added to plan — it now appears in what’s included.",
+  module_detached: "Module removed from plan.",
 };
 
 const actionErrorMessages: Record<string, string> = {
@@ -44,6 +46,8 @@ const actionErrorMessages: Record<string, string> = {
   create_failed: "The module could not be created.",
   update_failed: "The module could not be updated.",
   delete_failed: "The module could not be deleted.",
+  attach_failed: "Could not add the module to this plan.",
+  detach_failed: "Could not remove the module from this plan.",
   plan_invalid: "Check the plan name and prices, then try again.",
   plan_update_failed: "The plan could not be updated.",
   plan_create_failed: "The plan could not be created in Billing.",
@@ -82,9 +86,9 @@ export function BillingPlansToasts({ error }: { error: BillingCatalogError | nul
     const params = new URLSearchParams(searchParams.toString());
     params.delete("success");
     params.delete("error");
-    params.delete("manage");
     params.delete("edit");
     params.delete("create");
+    // Keep `manage` so the modules sheet stays open after attach/detach.
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }, [pathname, router, searchParams]);

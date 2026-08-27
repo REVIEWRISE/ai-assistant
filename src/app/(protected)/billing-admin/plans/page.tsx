@@ -6,17 +6,24 @@ import { requireAdminSession } from "@/lib/auth-session";
 import { isBillingConfigured } from "@/lib/billing-client";
 import { getBillingCatalogPlans } from "@/lib/billing-plan-repository";
 import {
+  attachModuleToPlanAction,
   createModuleAction,
   createPlanAction,
   deleteModuleAction,
+  detachModuleFromPlanAction,
   updateModuleAction,
   updatePlanAction,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function BillingPlansPage() {
+export default async function BillingPlansPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ manage?: string }>;
+}) {
   await requireAdminSession();
+  const params = await searchParams;
 
   const catalog = await getBillingCatalogPlans({ includeInactive: true });
   const configured = isBillingConfigured();
@@ -46,7 +53,7 @@ export default async function BillingPlansPage() {
         variant="command"
         eyebrow="Billing"
         title="Billing plans"
-        description="Plans and modules come from the Vyntrise Billing service. Edit plan details and feature modules here."
+        description="Plans and modules come from the Vyntrise Billing service. Edit plan details and feature modules here — attached modules drive what’s included on pricing."
         status={status}
         statusTone={catalog.error ? "warning" : "success"}
         actions={[{ href: "/billing-admin", label: "Billing overview" }]}
@@ -76,16 +83,21 @@ export default async function BillingPlansPage() {
 
       <Suspense fallback={null}>
         <BillingPlansManager
+          key={params.manage ?? "plans"}
           plans={catalog.plans}
           productModules={catalog.productModules}
           productId={catalog.productId}
           productDisplayName={catalog.productDisplayName}
+          initialManagePlanId={params.manage ?? null}
           onCreateModule={createModuleAction}
           onUpdateModule={updateModuleAction}
           onDeleteModule={deleteModuleAction}
+          onAttachModule={attachModuleToPlanAction}
+          onDetachModule={detachModuleFromPlanAction}
           onUpdatePlan={updatePlanAction}
           onCreatePlan={createPlanAction}
         />
-      </Suspense>    </div>
+      </Suspense>
+    </div>
   );
 }

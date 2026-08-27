@@ -48,9 +48,12 @@ type BillingPlansManagerProps = {
   productModules: BillingModule[];
   productId?: string;
   productDisplayName?: string;
+  initialManagePlanId?: string | null;
   onCreateModule: (formData: FormData) => Promise<void>;
   onUpdateModule: (formData: FormData) => Promise<void>;
   onDeleteModule: (formData: FormData) => Promise<void>;
+  onAttachModule: (formData: FormData) => Promise<void>;
+  onDetachModule: (formData: FormData) => Promise<void>;
   onUpdatePlan: (formData: FormData) => Promise<void>;
   onCreatePlan: (formData: FormData) => Promise<void>;
 };
@@ -147,13 +150,16 @@ export function BillingPlansManager({
   productModules,
   productId,
   productDisplayName,
+  initialManagePlanId = null,
   onCreateModule,
   onUpdateModule,
   onDeleteModule,
+  onAttachModule,
+  onDetachModule,
   onUpdatePlan,
   onCreatePlan,
 }: BillingPlansManagerProps) {
-  const [managingPlanId, setManagingPlanId] = useState<string | null>(null);
+  const [managingPlanId, setManagingPlanId] = useState<string | null>(initialManagePlanId);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [creatingPlan, setCreatingPlan] = useState(false);
   const [form, setForm] = useState<FormOverlay>(null);
@@ -445,6 +451,8 @@ export function BillingPlansManager({
               onAdd={() => setForm({ type: "create", planName: managedPlan.name })}
               onEdit={(module) => setForm({ type: "edit", module })}
               onDelete={(module) => setForm({ type: "delete", module })}
+              onAttach={onAttachModule}
+              onDetach={onDetachModule}
             />,
             document.body,
           )
@@ -831,6 +839,8 @@ function PlanModulesPanel({
   onAdd,
   onEdit,
   onDelete,
+  onAttach,
+  onDetach,
 }: {
   plan: RemoteCatalogPlan;
   productModules: BillingModule[];
@@ -839,6 +849,8 @@ function PlanModulesPanel({
   onAdd: () => void;
   onEdit: (module: BillingModule) => void;
   onDelete: (module: BillingModule) => void;
+  onAttach: (formData: FormData) => Promise<void>;
+  onDetach: (formData: FormData) => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ModuleSheetFilter>("all");
@@ -937,7 +949,7 @@ function PlanModulesPanel({
                 {plan.name}
               </h3>
               <p className="mt-1.5 text-sm text-[var(--color-text-muted)]">
-                Create and edit product modules, then attach them to this plan in Billing Admin.
+                Modules on this plan drive “what’s included” on pricing, onboarding, and checkout.
               </p>
             </div>
             <button
@@ -1041,7 +1053,7 @@ function PlanModulesPanel({
                 {productModules.length === 0
                   ? "Add a feature module to the product catalog, then attach it to this plan."
                   : filter === "on_plan"
-                    ? "Attach modules from Billing Admin, or switch to All to browse the catalog."
+                    ? "Attach a catalog module to include it on this plan’s pricing."
                     : "Try another search or filter."}
               </p>
               {productModules.length === 0 ? (
@@ -1115,6 +1127,43 @@ function PlanModulesPanel({
                         }
                         onClose={() => setOpenMenuId(null)}
                         actions={[
+                          onPlan
+                            ? {
+                                id: "detach",
+                                label: "Remove from plan",
+                                description: "Hide from pricing “what's included”",
+                                onClick: () => {
+                                  const fd = new FormData();
+                                  fd.set("module_id", module.id);
+                                  fd.set("manage_plan_id", plan.id);
+                                  fd.set("plan_id", plan.id);
+                                  if (plan.monthlyPlanId) {
+                                    fd.set("monthly_plan_id", plan.monthlyPlanId);
+                                  }
+                                  if (plan.yearlyPlanId) {
+                                    fd.set("yearly_plan_id", plan.yearlyPlanId);
+                                  }
+                                  void onDetach(fd);
+                                },
+                              }
+                            : {
+                                id: "attach",
+                                label: "Add to plan",
+                                description: "Show on pricing “what's included”",
+                                onClick: () => {
+                                  const fd = new FormData();
+                                  fd.set("module_id", module.id);
+                                  fd.set("manage_plan_id", plan.id);
+                                  fd.set("plan_id", plan.id);
+                                  if (plan.monthlyPlanId) {
+                                    fd.set("monthly_plan_id", plan.monthlyPlanId);
+                                  }
+                                  if (plan.yearlyPlanId) {
+                                    fd.set("yearly_plan_id", plan.yearlyPlanId);
+                                  }
+                                  void onAttach(fd);
+                                },
+                              },
                           {
                             id: "edit",
                             label: "Edit module",

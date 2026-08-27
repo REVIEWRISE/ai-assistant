@@ -10,6 +10,7 @@ import {
   createBillingModule,
   createBillingPlan,
   deleteBillingModule,
+  detachBillingModuleFromPlan,
   findBillingPlanForInterval,
   getBillingPlanDetail,
   isBillingConfigured,
@@ -246,6 +247,90 @@ export async function updatePlanAction(formData: FormData) {
   // Stay on plans list after save (clear edit sheet).
   const qs = new URLSearchParams({ success: "plan_updated" });
   redirect(`${ADMIN_PATH}?${qs.toString()}`);
+}
+
+export async function detachModuleFromPlanAction(formData: FormData) {
+  const session = await requireAdminSession();
+  if (!isBillingConfigured()) redirectResult(formData, { error: "not_configured" });
+
+  const moduleId = text(formData, "module_id");
+  const managePlanId = text(formData, "manage_plan_id");
+  const planId = text(formData, "plan_id");
+  const monthlyPlanId = text(formData, "monthly_plan_id");
+  const yearlyPlanId = text(formData, "yearly_plan_id");
+  const planIds = [
+    ...new Set([monthlyPlanId, yearlyPlanId, planId].filter(Boolean)),
+  ];
+
+  if (!moduleId || planIds.length === 0) {
+    redirectResult(formData, {
+      error: "attach_failed",
+      ...(managePlanId ? { manage: managePlanId } : {}),
+    });
+  }
+
+  try {
+    for (const id of planIds) {
+      await detachBillingModuleFromPlan(id, moduleId);
+    }
+  } catch {
+    redirectResult(formData, {
+      error: "detach_failed",
+      ...(managePlanId ? { manage: managePlanId } : {}),
+    });
+  }
+
+  await logAdminAudit(session.userId, "billing_admin.module_detached", {
+    moduleId,
+    planIds,
+  });
+  refresh();
+  redirectResult(formData, {
+    success: "module_detached",
+    ...(managePlanId ? { manage: managePlanId } : {}),
+  });
+}
+
+export async function attachModuleToPlanAction(formData: FormData) {
+  const session = await requireAdminSession();
+  if (!isBillingConfigured()) redirectResult(formData, { error: "not_configured" });
+
+  const moduleId = text(formData, "module_id");
+  const managePlanId = text(formData, "manage_plan_id");
+  const planId = text(formData, "plan_id");
+  const monthlyPlanId = text(formData, "monthly_plan_id");
+  const yearlyPlanId = text(formData, "yearly_plan_id");
+  const planIds = [
+    ...new Set([monthlyPlanId, yearlyPlanId, planId].filter(Boolean)),
+  ];
+
+  if (!moduleId || planIds.length === 0) {
+    redirectResult(formData, {
+      error: "attach_failed",
+      ...(managePlanId ? { manage: managePlanId } : {}),
+    });
+  }
+
+  try {
+    for (const id of planIds) {
+      await attachBillingModuleToPlan(id, moduleId);
+    }
+  } catch {
+    redirectResult(formData, {
+      error: "attach_failed",
+      ...(managePlanId ? { manage: managePlanId } : {}),
+    });
+  }
+
+  await logAdminAudit(session.userId, "billing_admin.module_attached", {
+    moduleId,
+    planIds,
+  });
+  refresh();
+  redirectResult(formData, {
+    success: "module_attached",
+    ...(managePlanId ? { manage: managePlanId } : {}),
+  });
 }
 
 export async function createPlanAction(formData: FormData) {
