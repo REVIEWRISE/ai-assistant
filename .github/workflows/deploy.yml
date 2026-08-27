@@ -52,6 +52,7 @@ jobs:
           ghcr.io/reviewrise/ai-assistant-app:${{ inputs.image-tag }}-${{ github.sha }}
         build-args: |
           NEXT_PUBLIC_SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+          NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
 
     # scp-action only uploads/overwrites — it does not delete files removed from the repo.
     # The image now carries src/prisma/public/etc., so the server only needs the compose
