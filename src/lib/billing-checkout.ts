@@ -39,8 +39,8 @@ function toCheckoutOption(plan: CatalogPlanView): CheckoutPlanOption | null {
     currencyCode: plan.currencyCode,
     monthlyPlanId: plan.monthlyPlanId,
     yearlyPlanId: plan.yearlyPlanId,
-    monthlyStripePriceId: null,
-    yearlyStripePriceId: null,
+    monthlyStripePriceId: plan.monthlyStripePriceId,
+    yearlyStripePriceId: plan.yearlyStripePriceId,
     featured: plan.featured,
     isCustomPricing: plan.isCustomPricing,
     contents: plan.contents,
@@ -60,18 +60,10 @@ export async function listCheckoutPlanOptions(): Promise<{
     return { productId: null, plans: [], error: catalog.error ?? "unavailable" };
   }
 
-  const remote = await getAgentBillingCatalog();
-  const remoteById = new Map((remote?.plans ?? []).map((plan) => [plan.id, plan]));
-
   const bySlug = new Map<PlanSlug, CheckoutPlanOption>();
   for (const plan of catalog.plans) {
     const option = toCheckoutOption(plan);
     if (!option) continue;
-
-    const monthlyRemote = option.monthlyPlanId ? remoteById.get(option.monthlyPlanId) : null;
-    const yearlyRemote = option.yearlyPlanId ? remoteById.get(option.yearlyPlanId) : null;
-    option.monthlyStripePriceId = monthlyRemote?.stripePriceId ?? null;
-    option.yearlyStripePriceId = yearlyRemote?.stripePriceId ?? null;
 
     const existing = bySlug.get(option.slug);
     if (!existing || option.featured) {
