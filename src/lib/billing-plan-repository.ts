@@ -74,6 +74,8 @@ export type CatalogPlanView = {
   yearlyPriceCents: number | null;
   monthlyPlanId: string | null;
   yearlyPlanId: string | null;
+  monthlyStripePriceId: string | null;
+  yearlyStripePriceId: string | null;
   modules: BillingPlanModule[];
 };
 
@@ -324,6 +326,8 @@ function groupRemotePlans(
       yearlyPriceCents,
       monthlyPlanId: group.monthly?.id ?? null,
       yearlyPlanId: group.yearly?.id ?? null,
+      monthlyStripePriceId: group.monthly?.stripePriceId ?? null,
+      yearlyStripePriceId: group.yearly?.stripePriceId ?? null,
       modules,
     } satisfies CatalogPlanView;
   });
@@ -424,6 +428,13 @@ function catalogFromPlanModules(
   return Array.from(byId.values());
 }
 
+let billingCatalogCache: { expiresAt: number; data: BillingCatalogResult } | null = null;
+let billingCatalogInFlight: Promise<BillingCatalogResult> | null = null;
+
+export function clearBillingCatalogCache(): void {
+  billingCatalogCache = null;
+}
+
 export async function getBillingCatalogPlans(options?: {
   includeInactive?: boolean;
 }): Promise<BillingCatalogResult> {
@@ -431,56 +442,84 @@ export async function getBillingCatalogPlans(options?: {
     return { plans: [], productModules: [], error: "not_configured" };
   }
 
-  try {
-    const catalog = await getAgentBillingCatalog({
-      includeInactive: options?.includeInactive,
-    });
-    if (!catalog) {
-      return { plans: [], productModules: [], error: "product_missing" };
-    }
-    if (catalog.plans.length === 0) {
-      return {
-        plans: [],
+  const now = Date.now();
+  if (!options?.includeInactive && billingCatalogCache && billingCatalogCache.expiresAt > now) {
+    return billingCatalogCache.data;
+  }
+
+  if (!options?.includeInactive && billingCatalogInFlight) {
+    return billingCatalogInFlight;
+  }
+
+  const computeCatalog = (async (): Promise<BillingCatalogResult> => {
+    try {
+      const catalog = await getAgentBillingCatalog({
+        includeInactive: options?.includeInactive,
+      });
+      if (!catalog) {
+        return { plans: [], productModules: [], error: "product_missing" };
+      }
+      if (catalog.plans.length === 0) {
+        return {
+          plans: [],
+          productId: catalog.product.id,
+          productName: catalog.product.name,
+          productDisplayName: catalog.product.displayName,
+          productModules: [],
+          error: "empty",
+        };
+      }
+
+      const modulesByPlanId = await loadPlanModules(catalog.plans.map((plan) => plan.id));
+      let productModules: BillingModule[] = [];
+      try {
+        productModules = await listBillingModules(catalog.product.id);
+      } catch {
+        productModules = [];
+      }
+
+      // If the product catalog endpoint flakes (common 503), fall back to the
+      // unique modules already attached across plans so Manage modules still works.
+      if (productModules.length === 0) {
+        productModules = catalogFromPlanModules(catalog.product.id, modulesByPlanId);
+      }
+
+      const sortedProductModules = [...productModules].sort((a, b) => {
+        const aTime = a.createdAt ? Date.parse(a.createdAt) : 0;
+        const bTime = b.createdAt ? Date.parse(b.createdAt) : 0;
+        if (aTime || bTime) return bTime - aTime;
+        return a.displayName.localeCompare(b.displayName);
+      });
+
+      const result: BillingCatalogResult = {
+        plans: groupRemotePlans(catalog.plans, modulesByPlanId),
         productId: catalog.product.id,
         productName: catalog.product.name,
         productDisplayName: catalog.product.displayName,
-        productModules: [],
-        error: "empty",
+        productModules: sortedProductModules,
+        error: null,
       };
-    }
 
-    const modulesByPlanId = await loadPlanModules(catalog.plans.map((plan) => plan.id));
-    let productModules: BillingModule[] = [];
-    try {
-      productModules = await listBillingModules(catalog.product.id);
+      if (!options?.includeInactive && !result.error) {
+        billingCatalogCache = {
+          expiresAt: Date.now() + 60_000, // 60-second TTL
+          data: result,
+        };
+      }
+
+      return result;
     } catch {
-      productModules = [];
+      return { plans: [], productModules: [], error: "unavailable" };
+    } finally {
+      billingCatalogInFlight = null;
     }
+  })();
 
-    // If the product catalog endpoint flakes (common 503), fall back to the
-    // unique modules already attached across plans so Manage modules still works.
-    if (productModules.length === 0) {
-      productModules = catalogFromPlanModules(catalog.product.id, modulesByPlanId);
-    }
-
-    const sortedProductModules = [...productModules].sort((a, b) => {
-      const aTime = a.createdAt ? Date.parse(a.createdAt) : 0;
-      const bTime = b.createdAt ? Date.parse(b.createdAt) : 0;
-      if (aTime || bTime) return bTime - aTime;
-      return a.displayName.localeCompare(b.displayName);
-    });
-
-    return {
-      plans: groupRemotePlans(catalog.plans, modulesByPlanId),
-      productId: catalog.product.id,
-      productName: catalog.product.name,
-      productDisplayName: catalog.product.displayName,
-      productModules: sortedProductModules,
-      error: null,
-    };
-  } catch {
-    return { plans: [], productModules: [], error: "unavailable" };
+  if (!options?.includeInactive) {
+    billingCatalogInFlight = computeCatalog;
   }
+
+  return computeCatalog;
 }
 
 export async function getPublicLandingPlans(): Promise<LandingPlan[]> {

@@ -17,6 +17,11 @@ function billingLogError(...args: unknown[]) {
   console.error(...args);
 }
 
+function billingLogWarn(...args: unknown[]) {
+  if (!billingDebugEnabled) return;
+  console.warn(...args);
+}
+
 export type BillingProduct = {
   id: string;
   name: string;
@@ -84,16 +89,24 @@ export async function billingFetch(
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const url = `${getBillingApiUrl()}${normalizedPath}`;
   let lastError: Error | null = null;
+  const maxAttempts = (options as { maxAttempts?: number }).maxAttempts ?? 2;
+  const timeoutMs = (options as { timeoutMs?: number }).timeoutMs ?? 4500;
 
-  for (let attempt = 1; attempt <= 4; attempt += 1) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const startedAt = Date.now();
     try {
       billingLog(
-        `[billing] → ${method} ${normalizedPath}${attempt > 1 ? ` (retry ${attempt}/4)` : ""}`,
+        `[billing] → ${method} ${normalizedPath}${attempt > 1 ? ` (retry ${attempt}/${maxAttempts})` : ""}`,
       );
+
+      const timeoutSignal = AbortSignal.timeout(timeoutMs);
+      const combinedSignal = options.signal
+        ? AbortSignal.any([options.signal, timeoutSignal])
+        : timeoutSignal;
 
       const res = await fetch(url, {
         ...options,
+        signal: combinedSignal,
         headers: {
           "Content-Type": "application/json",
           "X-Api-Key": apiKey,
@@ -132,6 +145,17 @@ export async function billingFetch(
         "Unknown";
       const message = `Billing API error ${res.status} on ${method} ${normalizedPath}: ${detail}`;
 
+      const retryable =
+        attempt < maxAttempts &&
+        (res.status === 429 || (res.status >= 500 && method === "GET"));
+
+      if (retryable) {
+        billingLogWarn(`[billing] ← ${res.status} ${method} ${normalizedPath} (${elapsedMs}ms) error response (will retry)`);
+        lastError = new Error(message);
+        await new Promise((resolve) => setTimeout(resolve, attempt * 650));
+        continue;
+      }
+
       billingLogError(`[billing] ← ${res.status} ${method} ${normalizedPath} (${elapsedMs}ms) error response`, {
         status: res.status,
         statusText: res.statusText,
@@ -143,25 +167,25 @@ export async function billingFetch(
         raw: rawText || null,
       });
 
-      const retryable =
-        attempt < 4 &&
-        (res.status === 429 || (res.status >= 500 && method === "GET"));
-      if (retryable) {
-        lastError = new Error(message);
-        await new Promise((resolve) => setTimeout(resolve, attempt * 650));
-        continue;
-      }
       throw new Error(message);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+      const willRetry = attempt < maxAttempts && !/Billing API error (4\d\d)/.test(lastError.message);
       if (!/^Billing API error /.test(lastError.message)) {
-        billingLogError(`[billing] ✕ ${method} ${normalizedPath} failed`, {
-          error: lastError.message,
-          attempt,
-          elapsedMs: Date.now() - startedAt,
-        });
+        const errorDetail = lastError.message || String(lastError);
+        if (willRetry) {
+          billingLogWarn(
+            `[billing] ✕ ${method} ${normalizedPath} attempt ${attempt} failed (${errorDetail}), retrying...`,
+          );
+        } else {
+          billingLogError(`[billing] ✕ ${method} ${normalizedPath} failed`, {
+            error: errorDetail,
+            attempt,
+            elapsedMs: Date.now() - startedAt,
+          });
+        }
       }
-      if (attempt >= 4 || /Billing API error (4\d\d)/.test(lastError.message)) {
+      if (!willRetry) {
         break;
       }
       await new Promise((resolve) => setTimeout(resolve, attempt * 650));
@@ -230,28 +254,51 @@ function normalizePlan(raw: unknown): BillingRemotePlan | null {
   };
 }
 
-export async function listBillingProducts(): Promise<BillingProduct[]> {
-  const res = await billingFetch("/billing/admin/products");
-  const body = (await res.json()) as { data?: unknown };
-  const rows = Array.isArray(body.data) ? body.data : [];
-  const products: BillingProduct[] = [];
+let billingProductsCache: { expiresAt: number; data: BillingProduct[] } | null = null;
+let billingProductsInFlight: Promise<BillingProduct[]> | null = null;
 
-  for (const item of rows) {
-    const row = asRecord(item);
-    if (!row) continue;
-    const id = asString(row.id);
-    const name = asString(row.name);
-    if (!id || !name) continue;
-    products.push({
-      id,
-      name,
-      displayName: asString(row.displayName) ?? name,
-      description: asString(row.description),
-      isActive: asBoolean(row.isActive, true),
-    });
+export async function listBillingProducts(): Promise<BillingProduct[]> {
+  const now = Date.now();
+  if (billingProductsCache && billingProductsCache.expiresAt > now) {
+    return billingProductsCache.data;
+  }
+  if (billingProductsInFlight) {
+    return billingProductsInFlight;
   }
 
-  return products;
+  billingProductsInFlight = (async () => {
+    try {
+      const res = await billingFetch("/billing/admin/products");
+      const body = (await res.json()) as { data?: unknown };
+      const rows = Array.isArray(body.data) ? body.data : [];
+      const products: BillingProduct[] = [];
+
+      for (const item of rows) {
+        const row = asRecord(item);
+        if (!row) continue;
+        const id = asString(row.id);
+        const name = asString(row.name);
+        if (!id || !name) continue;
+        products.push({
+          id,
+          name,
+          displayName: asString(row.displayName) ?? name,
+          description: asString(row.description),
+          isActive: asBoolean(row.isActive, true),
+        });
+      }
+
+      billingProductsCache = {
+        expiresAt: Date.now() + 30_000, // 30-second TTL
+        data: products,
+      };
+      return products;
+    } finally {
+      billingProductsInFlight = null;
+    }
+  })();
+
+  return billingProductsInFlight;
 }
 
 export async function resolveBillingProduct(
@@ -294,6 +341,18 @@ export async function getBillingProductDetail(
   return { product, plans, stats: body.stats };
 }
 
+let agentCatalogCache: {
+  expiresAt: number;
+  data: { product: BillingProduct; plans: BillingRemotePlan[] };
+} | null = null;
+let agentCatalogInFlight: Promise<{ product: BillingProduct; plans: BillingRemotePlan[] } | null> | null = null;
+
+export function clearAgentBillingCatalogCache(): void {
+  agentCatalogCache = null;
+  billingProductsCache = null;
+  planDetailCache.clear();
+}
+
 export async function getAgentBillingCatalog(options?: {
   includeInactive?: boolean;
 }): Promise<{
@@ -302,16 +361,44 @@ export async function getAgentBillingCatalog(options?: {
 } | null> {
   if (!isBillingConfigured()) return null;
 
-  const product = await resolveBillingProduct();
-  if (!product) return null;
+  const now = Date.now();
+  if (!options?.includeInactive && agentCatalogCache && agentCatalogCache.expiresAt > now) {
+    return agentCatalogCache.data;
+  }
 
-  const detail = await getBillingProductDetail(product.id);
-  return {
-    product: detail.product,
-    plans: options?.includeInactive
-      ? detail.plans
-      : detail.plans.filter((plan) => plan.isActive),
-  };
+  if (!options?.includeInactive && agentCatalogInFlight) {
+    return agentCatalogInFlight;
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      const product = await resolveBillingProduct();
+      if (!product) return null;
+
+      const detail = await getBillingProductDetail(product.id);
+      const result = {
+        product: detail.product,
+        plans: options?.includeInactive
+          ? detail.plans
+          : detail.plans.filter((plan) => plan.isActive),
+      };
+      if (!options?.includeInactive) {
+        agentCatalogCache = {
+          expiresAt: Date.now() + 20_000, // 20-second TTL
+          data: result,
+        };
+      }
+      return result;
+    } finally {
+      agentCatalogInFlight = null;
+    }
+  })();
+
+  if (!options?.includeInactive) {
+    agentCatalogInFlight = fetchPromise;
+  }
+
+  return fetchPromise;
 }
 
 function commercialPlanNameKey(name: string): string {
@@ -466,11 +553,27 @@ export async function listBillingModules(productId: string): Promise<BillingModu
     .filter((item): item is BillingModule => Boolean(item));
 }
 
+const planDetailCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    data: { plan: BillingRemotePlan & { productId: string }; modules: BillingPlanModule[] };
+  }
+>();
+
 export async function getBillingPlanDetail(planId: string): Promise<{
   plan: BillingRemotePlan & { productId: string };
   modules: BillingPlanModule[];
 }> {
-  const res = await billingFetch(`/billing/admin/plans/${encodeURIComponent(planId)}`);
+  const cached = planDetailCache.get(planId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
+  const res = await billingFetch(`/billing/admin/plans/${encodeURIComponent(planId)}`, {
+    maxAttempts: 2,
+    timeoutMs: 4000,
+  } as RequestInit);
   const body = (await res.json()) as { plan?: unknown; modules?: unknown };
   const planRow = asRecord(body.plan);
   const normalized = normalizePlan(planRow);
@@ -483,10 +586,17 @@ export async function getBillingPlanDetail(planId: string): Promise<{
     .map(normalizePlanModule)
     .filter((item): item is BillingPlanModule => Boolean(item));
 
-  return {
+  const result = {
     plan: { ...normalized, productId },
     modules,
   };
+
+  planDetailCache.set(planId, {
+    expiresAt: Date.now() + 180_000, // 3-minute cache
+    data: result,
+  });
+
+  return result;
 }
 
 export async function createBillingModule(input: BillingModuleInput): Promise<BillingModule> {
