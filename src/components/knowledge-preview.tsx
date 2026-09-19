@@ -4,6 +4,7 @@ import { KNOWLEDGE_UI_PREVIEW_MAX_CHARS } from "@/lib/knowledge-base-limits";
 
 type KnowledgePreviewProps = {
   rawText: string;
+  rawTextLength?: number;
   formattedPreview?: string;
 };
 
@@ -39,6 +40,7 @@ function FormattedPreviewBody({ text }: { text: string }) {
   };
 
   lines.forEach((line, idx) => {
+    if (idx > 800) return;
     const trimmed = line.trim();
     const headingMatch = trimmed.match(/^(#{1,6})\s*(.+)$/);
 
@@ -90,13 +92,15 @@ function FormattedPreviewBody({ text }: { text: string }) {
 
 export function KnowledgePreview({
   rawText,
+  rawTextLength,
   formattedPreview,
 }: KnowledgePreviewProps) {
   const raw = String(rawText ?? "");
   const formatted = String(formattedPreview ?? "").trim();
   const hasDigest = Boolean(formatted);
   const digestText = (hasDigest ? formatted : raw || "").slice(0, KNOWLEDGE_UI_PREVIEW_MAX_CHARS);
-  const rawLen = raw.length;
+  const rawLen = rawTextLength ?? raw.length;
+  const showingExcerpt = rawLen > raw.length;
   const showRawPanel = rawLen > 0;
 
   return (
@@ -108,10 +112,8 @@ export function KnowledgePreview({
           </p>
           {hasDigest ? (
             <p className="mt-1 max-w-3xl text-xs leading-relaxed text-[var(--color-text-muted)]">
-              This is an AI-generated digest for quick reading and chat context. It is meant to be shorter than the
-              import. The complete scrape ({rawLen.toLocaleString()} characters) is stored as{" "}
-              <span className="font-semibold text-[var(--color-text)]">imported text</span> below—nothing was dropped from the
-              crawl when building that field.
+              This is an AI-generated digest for quick reading and chat context. The full scrape (
+              {rawLen.toLocaleString()} characters) is stored for the agent.
             </p>
           ) : (
             <p className="mt-1 max-w-3xl text-xs leading-relaxed text-[var(--color-text-muted)]">
@@ -128,8 +130,11 @@ export function KnowledgePreview({
       {showRawPanel ? (
         <details className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5">
           <summary className="cursor-pointer select-none text-sm font-semibold text-[var(--color-text)]">
-            Full imported text
-            <span className="ml-2 font-normal text-[var(--color-text-muted)]">({rawLen.toLocaleString()} characters)</span>
+            {showingExcerpt ? "Imported text excerpt" : "Full imported text"}
+            <span className="ml-2 font-normal text-[var(--color-text-muted)]">
+              ({rawLen.toLocaleString()} characters stored
+              {showingExcerpt ? ` · showing first ${raw.length.toLocaleString()}` : ""})
+            </span>
           </summary>
           <div className="mt-2 max-h-[min(28rem,65vh)] overflow-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs leading-relaxed text-[var(--color-text)] whitespace-pre-wrap break-words">
             {raw}

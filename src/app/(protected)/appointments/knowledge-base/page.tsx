@@ -12,6 +12,9 @@ import {
   clearKnowledgeBase,
   importFromWebsite,
 } from "./actions";
+import { KNOWLEDGE_UI_PREVIEW_MAX_CHARS } from "@/lib/knowledge-base-limits";
+
+export const maxDuration = 60;
 
 export default async function AppointmentKnowledgeBasePage() {
   const cookieStore = await cookies();
@@ -31,7 +34,17 @@ export default async function AppointmentKnowledgeBasePage() {
         select: {
           id: true,
           name: true,
-          knowledgeBase: true,
+          knowledgeBase: {
+            select: {
+              status: true,
+              sourceType: true,
+              sourceUrl: true,
+              sourceFileName: true,
+              lastImportedAt: true,
+              parsedData: true,
+              rawText: true,
+            },
+          },
         },
       },
     },
@@ -59,7 +72,9 @@ export default async function AppointmentKnowledgeBasePage() {
   const lastImported = knowledgeBase?.lastImportedAt
     ? new Date(knowledgeBase.lastImportedAt).toLocaleDateString()
     : "Never";
-  const knowledgeCharacters = String(knowledgeBase?.rawText ?? "").length;
+  const storedRawText = String(knowledgeBase?.rawText ?? "");
+  const knowledgeCharacters = storedRawText.length;
+  const rawTextPreview = storedRawText.slice(0, KNOWLEDGE_UI_PREVIEW_MAX_CHARS);
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
@@ -210,7 +225,8 @@ export default async function AppointmentKnowledgeBasePage() {
             </div>
 
             <KnowledgePreview
-              rawText={String(session.activeOrganization.knowledgeBase.rawText ?? "")}
+              rawText={rawTextPreview}
+              rawTextLength={knowledgeCharacters}
               formattedPreview={formattedPreview}
             />
 
