@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { createPortal, useFormStatus } from "react-dom";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { BillingModule, BillingPlanModule } from "@/lib/billing-client";
@@ -711,9 +711,11 @@ function PlanFeaturesList({
     [plan.modules],
   );
 
-  function isOnPlan(module: BillingModule) {
-    return planModuleIds.has(module.id) || planModuleKeys.has(module.key);
-  }
+  const isOnPlan = useCallback(
+    (module: BillingModule) =>
+      planModuleIds.has(module.id) || planModuleKeys.has(module.key),
+    [planModuleIds, planModuleKeys],
+  );
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -730,7 +732,7 @@ function PlanFeaturesList({
       if (aOn !== bOn) return aOn - bOn;
       return a.displayName.localeCompare(b.displayName);
     });
-  }, [productModules, query, planModuleIds, planModuleKeys]);
+  }, [productModules, query, isOnPlan]);
 
   const includedCount = productModules.filter(isOnPlan).length;
 

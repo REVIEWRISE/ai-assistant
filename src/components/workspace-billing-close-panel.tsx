@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { cancelActiveWorkspaceSubscription } from "@/app/(protected)/subscription/actions";
 import { CONTACT_EMAIL } from "@/lib/brand";
@@ -51,22 +51,25 @@ function ConfirmModal({
     setMounted(true);
   }, []);
 
+  const close = useCallback(() => {
+    if (pending) return;
+    setTypedName("");
+    onClose();
+  }, [pending, onClose]);
+
   useEffect(() => {
-    if (!open) {
-      setTypedName("");
-      return;
-    }
+    if (!open) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !pending) onClose();
+      if (event.key === "Escape") close();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = previous;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, pending, onClose]);
+  }, [open, close]);
 
   if (!mounted || !open) return null;
 
@@ -78,7 +81,7 @@ function ConfirmModal({
         aria-label="Close confirmation"
         disabled={pending}
         onClick={() => {
-          if (!pending) onClose();
+          close();
         }}
       />
       <div
@@ -102,7 +105,7 @@ function ConfirmModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             disabled={pending}
             className="rounded-lg px-2 py-1 text-lg leading-none text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)] disabled:opacity-50"
             aria-label="Close dialog"
@@ -130,7 +133,7 @@ function ConfirmModal({
             <button
               type="button"
               disabled={pending}
-              onClick={onClose}
+              onClick={close}
               className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] disabled:opacity-50"
             >
               Keep plan
@@ -293,6 +296,7 @@ export function WorkspaceBillingClosePanel({ billing }: { billing: WorkspaceBill
       ) : null}
 
       <ConfirmModal
+        key={confirmOpen ? "open" : "closed"}
         open={confirmOpen}
         pending={pending}
         workspaceName={billing.workspaceName}
