@@ -164,12 +164,17 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
       billingInterval: true,
       paidAt: true,
       currentPeriodEndsAt: true,
+      trialEndsAt: true,
     },
   });
   if (!org) return null;
 
   const trialStartsAt = await getTrialAnchorForOrganization(organizationId);
-  const trialEndsAt = trialEndsAtFrom(trialStartsAt);
+  const computedTrialEndsAt = trialEndsAtFrom(trialStartsAt);
+  const trialEndsAt =
+    org.trialEndsAt && org.trialEndsAt.getTime() < computedTrialEndsAt.getTime()
+      ? org.trialEndsAt
+      : computedTrialEndsAt;
   const planSlug = isPlanSlug(org.planSlug) ? org.planSlug : null;
   let billingStatus = asBillingStatus(org.billingStatus);
   const isPaid = Boolean(org.paidAt) && billingStatus === "active";
@@ -189,6 +194,7 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
         billingInterval: true,
         paidAt: true,
         currentPeriodEndsAt: true,
+        trialEndsAt: true,
       },
     });
     if (!refreshed) return null;
@@ -198,27 +204,24 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
       billingStatus: asBillingStatus(refreshed.billingStatus),
       billingInterval: asBillingInterval(refreshed.billingInterval),
       trialStartsAt,
-      trialEndsAt,
+      trialEndsAt: refreshed.trialEndsAt ?? trialEndsAt,
       paidAt: refreshed.paidAt,
       currentPeriodEndsAt: refreshed.currentPeriodEndsAt,
     };
   }
 
-  // Unpaid access is only valid during the active account createdAt → +14d trial window.
-  if (!isPaid && billingStatus !== "needs_plan") {
-    const shouldBeExpired = isTrialExpiredByCreatedAt(trialStartsAt);
-    const nextStatus: BillingStatus = shouldBeExpired ? "expired" : "trialing";
-    if (billingStatus !== nextStatus) {
-      await prisma.organization.update({
-        where: { id: organizationId },
-        data: {
-          billingStatus: nextStatus,
-          trialStartsAt,
-          trialEndsAt,
-        },
-      });
-      billingStatus = nextStatus;
-    }
+  // Unpaid trial access expires with the 14-day window. Never revive an expired
+  // workspace back to trialing (e.g. after a subscription cancel).
+  if (!isPaid && billingStatus === "trialing" && isTrialExpiredByCreatedAt(trialStartsAt)) {
+    await prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        billingStatus: "expired",
+        trialStartsAt,
+        trialEndsAt,
+      },
+    });
+    billingStatus = "expired";
   }
 
   return {
@@ -432,11 +435,16 @@ export async function startOrgTrial(input: {
   planSlug: PlanSlug;
   billingInterval: BillingInterval;
 }): Promise<void> {
+  const existing = await prisma.organization.findUnique({
+    where: { id: input.organizationId },
+    select: { billingStatus: true },
+  });
+  const trialConsumed = asBillingStatus(existing?.billingStatus) === "expired";
+
   const trialStartsAt = await getTrialAnchorForOrganization(input.organizationId);
   const trialEndsAt = trialEndsAtFrom(trialStartsAt);
-  const billingStatus: BillingStatus = isTrialExpiredByCreatedAt(trialStartsAt)
-    ? "expired"
-    : "trialing";
+  const billingStatus: BillingStatus =
+    trialConsumed || isTrialExpiredByCreatedAt(trialStartsAt) ? "expired" : "trialing";
 
   await prisma.organization.update({
     where: { id: input.organizationId },
@@ -445,7 +453,7 @@ export async function startOrgTrial(input: {
       billingInterval: input.billingInterval,
       billingStatus,
       trialStartsAt,
-      trialEndsAt,
+      trialEndsAt: trialConsumed ? new Date() : trialEndsAt,
       paidAt: null,
       currentPeriodEndsAt: null,
     },
@@ -555,23 +563,19 @@ export async function repairShortYearlyBillingPeriods(): Promise<number> {
 
 export async function markOrgUnpaid(organizationId: string): Promise<void> {
   const trialStartsAt = await getTrialAnchorForOrganization(organizationId);
-  const trialEndsAt = trialEndsAtFrom(trialStartsAt);
-  // Without a plan slug, unpaid workspaces must re-pick a plan (needs_plan)
-  // or are fully locked out (expired) — never keep the previous paid tier.
-  const billingStatus: BillingStatus = isTrialExpiredByCreatedAt(trialStartsAt)
-    ? "expired"
-    : "needs_plan";
-
+  const computedTrialEndsAt = trialEndsAtFrom(trialStartsAt);
+  const now = new Date();
+  // Cancel / unpaid always ends local trial access. Users must subscribe to continue.
+  // Keep last plan + interval so the buy-plan page can show the right prices.
   await prisma.organization.update({
     where: { id: organizationId },
     data: {
-      planSlug: null,
-      billingInterval: null,
-      billingStatus,
+      billingStatus: "expired",
       paidAt: null,
       currentPeriodEndsAt: null,
       trialStartsAt,
-      trialEndsAt,
+      trialEndsAt:
+        computedTrialEndsAt.getTime() < now.getTime() ? computedTrialEndsAt : now,
     },
   });
 }

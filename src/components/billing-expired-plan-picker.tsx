@@ -13,11 +13,19 @@ type BillingExpiredPlanPickerProps = {
   billingConfigured: boolean;
 };
 
-function displayPriceCents(
+function displayPrice(
   plan: CheckoutPlanOption,
   interval: "monthly" | "yearly",
-): number | null {
-  return interval === "yearly" ? plan.yearlyPriceCents : plan.monthlyPriceCents;
+): { amount: string; suffix: string } {
+  const cents = interval === "yearly" ? plan.yearlyPriceCents : plan.monthlyPriceCents;
+  if (plan.isCustomPricing && (cents === null || cents === 0)) {
+    return { amount: "Custom", suffix: "" };
+  }
+  if (cents == null) return { amount: "—", suffix: "" };
+  return {
+    amount: formatUsd(cents),
+    suffix: interval === "yearly" ? "/year" : "/month",
+  };
 }
 
 export function BillingExpiredPlanPicker({
@@ -53,8 +61,7 @@ export function BillingExpiredPlanPicker({
     [plans, selected],
   );
 
-  const priceCents = active ? displayPriceCents(active, interval) : null;
-  const priceSuffix = interval === "yearly" ? "/yr" : "/mo";
+  const price = active ? displayPrice(active, interval) : null;
   const hasPlanId = Boolean(
     active && (interval === "yearly" ? active.yearlyPlanId : active.monthlyPlanId),
   );
@@ -121,7 +128,7 @@ export function BillingExpiredPlanPicker({
       <div className="space-y-3" role="radiogroup" aria-label="Plans">
         {plans.map((plan) => {
           const isSelected = selected === plan.slug;
-          const planPriceCents = displayPriceCents(plan, interval);
+          const planPrice = displayPrice(plan, interval);
           const planAvailable = Boolean(
             interval === "yearly" ? plan.yearlyPlanId : plan.monthlyPlanId,
           );
@@ -220,12 +227,14 @@ export function BillingExpiredPlanPicker({
                   ) : null}
                 </div>
 
-                <div className="shrink-0 text-right">
+                <div className="shrink-0 whitespace-nowrap text-right">
                   <p className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
-                    {planPriceCents != null ? formatUsd(planPriceCents) : "Custom"}
-                  </p>
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    {interval === "yearly" ? "/yr" : "/mo"}
+                    {planPrice.amount}
+                    {planPrice.suffix ? (
+                      <span className="ml-1 text-xs font-medium text-[var(--color-text-muted)]">
+                        {planPrice.suffix}
+                      </span>
+                    ) : null}
                   </p>
                 </div>
               </div>
@@ -239,7 +248,9 @@ export function BillingExpiredPlanPicker({
           <div>
             <p className="text-sm font-semibold text-[var(--color-text)]">
               {active?.name ?? "Plan"}
-              {priceCents != null ? ` · ${formatUsd(priceCents)}${priceSuffix}` : ""}
+              {price && price.amount !== "—"
+                ? ` · ${price.amount}${price.suffix}`
+                : ""}
             </p>
             <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">
               {interval === "yearly"
@@ -255,8 +266,8 @@ export function BillingExpiredPlanPicker({
           >
             {pending
               ? "Redirecting…"
-              : priceCents != null
-                ? `Subscribe · ${formatUsd(priceCents)}${priceSuffix}`
+              : price && price.amount !== "—" && price.amount !== "Custom"
+                ? `Subscribe · ${price.amount}${price.suffix}`
                 : "Subscribe"}
           </button>
         </div>

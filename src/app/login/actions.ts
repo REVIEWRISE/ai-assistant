@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { checkLoginRateLimit, resetRateLimit } from "@/lib/rate-limit";
 import { getRequestIp } from "@/lib/request-ip";
 import { isLocked, lockoutRetryAfterMs, recordFailedLogin, resetFailedLogins } from "@/lib/account-lockout";
+import { getOrgBilling, billingRedirectForStatus } from "@/lib/entitlements";
 
 export async function loginUser(formData: FormData) {
   const ip = await getRequestIp();
@@ -125,6 +126,12 @@ export async function loginUser(formData: FormData) {
     redirect(
       `/verify-email/pending?email=${encodeURIComponent(user.email)}&error=unverified`,
     );
+  }
+
+  if (activeOrganizationId) {
+    const billing = await getOrgBilling(activeOrganizationId);
+    const billingHome = billing ? billingRedirectForStatus(billing.billingStatus) : null;
+    if (billingHome) redirect(`${billingHome}?success=login`);
   }
 
   redirect("/dashboard?success=login");

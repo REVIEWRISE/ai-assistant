@@ -36,6 +36,11 @@ export async function selectPlanAction(formData: FormData) {
     redirect("/onboarding/plan?error=plan_invalid");
   }
 
+  const existing = await getOrgBilling(organizationId);
+  if (existing?.billingStatus === "expired") {
+    redirect("/billing/expired");
+  }
+
   await startOrgTrial({
     organizationId,
     planSlug,

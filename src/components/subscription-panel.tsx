@@ -32,6 +32,7 @@ export type SubscriptionViewModel = {
   paidAt: string | null;
   currentPeriodEndsAt: string | null;
   canCancel: boolean;
+  canUpgrade: boolean;
   isOwner: boolean;
   refund: SubscriptionRefundView;
 };
@@ -245,7 +246,7 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
           : "Subscription will end after the current period.",
       );
       if (result.mode === "now") {
-        window.location.assign("/onboarding/plan?success=subscription_canceled");
+        window.location.assign("/billing/expired?success=subscription_canceled");
         return;
       }
       window.location.assign("/subscription?success=cancel_scheduled");
@@ -324,12 +325,14 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
               {subscription.planPositioning?.trim() || `Plan for ${subscription.workspaceName}.`}
             </p>
           </div>
-          <Link
-            href="/billing?error=upgrade_required"
-            className="rounded-xl vr-btn-primary px-4 py-2.5 text-sm font-semibold"
-          >
-            Upgrade plan
-          </Link>
+          {subscription.canUpgrade ? (
+            <Link
+              href="/billing?error=upgrade_required"
+              className="rounded-xl vr-btn-primary px-4 py-2.5 text-sm font-semibold"
+            >
+              Upgrade plan
+            </Link>
+          ) : null}
         </div>
 
         <div className="grid gap-4 px-5 py-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">

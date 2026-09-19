@@ -5,7 +5,7 @@ import { requireSession } from "@/lib/auth-session";
 import { userHasAdminRole } from "@/lib/admin-view-only";
 import { getOrgBilling } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
-import { getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
+import { canUpgradePlan, getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +56,7 @@ export default async function SubscriptionPage() {
   const plan = billing.planSlug ? getPlanBySlug(billing.planSlug as PlanSlug) : null;
   const planName = plan?.name ?? "No plan";
   const statusLabel = billing.billingStatus.replace(/_/g, " ");
+  const canUpgrade = canUpgradePlan(billing.planSlug);
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
@@ -66,7 +67,7 @@ export default async function SubscriptionPage() {
         description={
           <>
             Plan and billing timeline for <span className="text-neutral-200">{organization.name}</span>.
-            Upgrade anytime, or cancel when you need to.
+            {canUpgrade ? " Upgrade anytime, or cancel when you need to." : " Cancel when you need to."}
           </>
         }
         status={`${statusLabel}${billing.billingInterval ? ` · ${billing.billingInterval}` : ""}`}
@@ -77,9 +78,11 @@ export default async function SubscriptionPage() {
               ? "neutral"
               : "warning"
         }
-        actions={[
-          { href: "/billing?error=upgrade_required", label: "Upgrade plan", primary: true },
-        ]}
+        actions={
+          canUpgrade
+            ? [{ href: "/billing?error=upgrade_required", label: "Upgrade plan", primary: true }]
+            : []
+        }
         metrics={[
           { label: "Plan", value: planName, hint: "workspace plan" },
           {
@@ -141,6 +144,7 @@ export default async function SubscriptionPage() {
           paidAt: billing.paidAt?.toISOString() ?? null,
           currentPeriodEndsAt: billing.currentPeriodEndsAt?.toISOString() ?? null,
           canCancel,
+          canUpgrade,
           isOwner: Boolean(isOwner),
           refund: {
             canRequest: canRequestRefund,

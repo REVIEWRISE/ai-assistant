@@ -157,6 +157,20 @@ export function getPlanBySlug(slug: PlanSlug): PricingPlan {
   return plan;
 }
 
+export function planRank(slug: PlanSlug): number {
+  return PLAN_SLUGS.indexOf(slug);
+}
+
+export function isPlanSlug(value: string | null | undefined): value is PlanSlug {
+  return Boolean(value && (PLAN_SLUGS as readonly string[]).includes(value));
+}
+
+/** True when the workspace can move to a higher catalog tier. */
+export function canUpgradePlan(slug: string | null | undefined): boolean {
+  if (!isPlanSlug(slug)) return false;
+  return planRank(slug) < PLAN_SLUGS.length - 1;
+}
+
 export function getPlanEntitlement(
   slug: PlanSlug,
   key: PlanFeatureKey,

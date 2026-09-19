@@ -31,8 +31,10 @@ export default async function OnboardingPlanPage({ searchParams }: PageProps) {
   }
 
   const billing = await getOrgBilling(organizationId);
+  if (params.success === "subscription_canceled" || billing?.billingStatus === "expired") {
+    redirect("/billing/expired?success=subscription_canceled");
+  }
   if (billing && billing.billingStatus !== "needs_plan" && billing.planSlug) {
-    if (billing.billingStatus === "expired") redirect("/billing/expired");
     redirect("/dashboard");
   }
 

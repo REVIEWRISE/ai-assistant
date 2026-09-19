@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createBillingCheckoutSession } from "@/app/(protected)/billing/actions";
 import type { CheckoutPlanOption } from "@/lib/billing-checkout-types";
-import { formatUsd, type PlanSlug } from "@/lib/pricing-plans";
+import { formatUsd, PLAN_SLUGS, type PlanSlug } from "@/lib/pricing-plans";
 import { toast } from "@/lib/toast";
 
 type BillingCheckoutPanelProps = {
@@ -21,12 +21,13 @@ export function BillingCheckoutPanel({
   billingConfigured,
   mode = "subscribe",
 }: BillingCheckoutPanelProps) {
+  const currentRank = initialPlanSlug ? PLAN_SLUGS.indexOf(initialPlanSlug) : -1;
+  const visiblePlans =
+    mode === "upgrade"
+      ? plans.filter((plan) => PLAN_SLUGS.indexOf(plan.slug) > currentRank)
+      : plans;
   const defaultSlug =
-    (initialPlanSlug && plans.some((plan) => plan.slug === initialPlanSlug)
-      ? initialPlanSlug
-      : plans.find((plan) => plan.featured)?.slug) ??
-    plans[0]?.slug ??
-    null;
+    visiblePlans.find((plan) => plan.featured)?.slug ?? visiblePlans[0]?.slug ?? null;
 
   const [planSlug, setPlanSlug] = useState<PlanSlug | null>(defaultSlug);
   const [interval, setInterval] = useState<"monthly" | "yearly">(initialInterval);
@@ -43,7 +44,7 @@ export function BillingCheckoutPanel({
     });
   }, [billingConfigured]);
 
-  const selected = plans.find((plan) => plan.slug === planSlug) ?? null;
+  const selected = visiblePlans.find((plan) => plan.slug === planSlug) ?? null;
   const priceCents =
     interval === "yearly" ? selected?.yearlyPriceCents : selected?.monthlyPriceCents;
   const hasPlanId = Boolean(
@@ -71,11 +72,12 @@ export function BillingCheckoutPanel({
     });
   }
 
-  if (!plans.length) {
+  if (!visiblePlans.length) {
     return (
       <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-raised)] px-4 py-4 text-sm text-[var(--color-text-muted)]">
-        No paid plans are available from Billing yet. Ask a platform admin to configure prices in
-        Billing → Plans.
+        {mode === "upgrade"
+          ? "You’re already on the highest plan. There’s nothing to upgrade to."
+          : "No paid plans are available from Billing yet. Ask a platform admin to configure prices in Billing → Plans."}
       </div>
     );
   }
@@ -110,7 +112,7 @@ export function BillingCheckoutPanel({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        {plans.map((plan) => {
+        {visiblePlans.map((plan) => {
           const selectedPlan = plan.slug === planSlug;
           const amount =
             interval === "yearly" ? plan.yearlyPriceCents : plan.monthlyPriceCents;

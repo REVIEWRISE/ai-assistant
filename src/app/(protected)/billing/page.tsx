@@ -7,7 +7,7 @@ import { userHasAdminRole } from "@/lib/admin-view-only";
 import { isBillingConfigured } from "@/lib/billing-client";
 import { listCheckoutPlanOptions } from "@/lib/billing-checkout";
 import { getOrgBilling, isBillingAccessAllowed } from "@/lib/entitlements";
-import { getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
+import { canUpgradePlan, getPlanBySlug, isPlanSlug, planRank, type PlanSlug } from "@/lib/pricing-plans";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +59,9 @@ export default async function BillingPage({ searchParams }: PageProps) {
   const planName = plan?.name ?? "No plan";
   const workspaceName = session.activeOrganization?.name ?? "Workspace";
   const upgradeRequired = params.error === "upgrade_required";
+  if (upgradeRequired && !canUpgradePlan(billing.planSlug)) {
+    redirect("/subscription");
+  }
   const billingStatusLabel = statusLabel(billing.billingStatus);
 
   const title = upgradeRequired ? "Upgrade your plan" : "Choose a plan";
@@ -70,6 +73,10 @@ export default async function BillingPage({ searchParams }: PageProps) {
     listCheckoutPlanOptions(),
     Promise.resolve(isBillingConfigured()),
   ]);
+  const currentRank = isPlanSlug(billing.planSlug) ? planRank(billing.planSlug) : -1;
+  const checkoutPlans = upgradeRequired
+    ? plans.filter((plan) => planRank(plan.slug) > currentRank)
+    : plans;
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
@@ -204,7 +211,7 @@ export default async function BillingPage({ searchParams }: PageProps) {
 
           <div className="px-5 py-5 sm:px-6">
             <BillingCheckoutPanel
-              plans={plans}
+              plans={checkoutPlans}
               initialPlanSlug={(billing.planSlug as PlanSlug | null) ?? null}
               initialInterval={billing.billingInterval === "yearly" ? "yearly" : "monthly"}
               billingConfigured={billingConfigured}

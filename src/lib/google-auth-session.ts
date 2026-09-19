@@ -11,6 +11,7 @@ import {
 } from "@/lib/google-auth";
 import { createLogger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { billingRedirectForStatus, getOrgBilling } from "@/lib/entitlements";
 
 const log = createLogger("google-auth");
 
@@ -261,6 +262,12 @@ export async function completeGoogleAuthLogin(
     return {
       redirectTo: `/verify-email/pending?email=${encodeURIComponent(profile.email)}&error=unverified`,
     };
+  }
+
+  if (activeOrganizationId) {
+    const billing = await getOrgBilling(activeOrganizationId);
+    const billingHome = billing ? billingRedirectForStatus(billing.billingStatus) : null;
+    if (billingHome) return { redirectTo: `${billingHome}?success=login` };
   }
 
   return { redirectTo: "/dashboard?success=login" };

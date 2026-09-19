@@ -9,13 +9,19 @@ import { isBillingConfigured } from "@/lib/billing-client";
 import { listCheckoutPlanOptions } from "@/lib/billing-checkout";
 import { getOrgBilling, isBillingAccessAllowed } from "@/lib/entitlements";
 import { BRAND_NAME, PRODUCT_NAME } from "@/lib/brand";
-import { BILLING_RULES, getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
+import { getPlanBySlug, isPlanSlug, type PlanSlug } from "@/lib/pricing-plans";
 
 export const dynamic = "force-dynamic";
 
-export default async function BillingTrialExpiredPage() {
+type PageProps = {
+  searchParams?: Promise<{ success?: string }>;
+};
+
+export default async function BillingTrialExpiredPage({ searchParams }: PageProps) {
   const session = await requireSession();
   const organizationId = session.activeOrganizationId;
+  const params = (await searchParams) ?? {};
+  const justCanceled = params.success === "subscription_canceled";
 
   if (await userHasAdminRole(session.userId)) {
     redirect("/billing-admin");
@@ -30,19 +36,19 @@ export default async function BillingTrialExpiredPage() {
     redirect("/profile?error=organization_required");
   }
 
-  if (billing.billingStatus === "needs_plan") {
+  if (!justCanceled && billing.billingStatus === "needs_plan") {
     redirect("/onboarding/plan");
   }
 
-  if (isBillingAccessAllowed(billing.billingStatus)) {
+  if (!justCanceled && isBillingAccessAllowed(billing.billingStatus)) {
     redirect("/dashboard");
   }
 
-  if (billing.billingStatus !== "expired") {
+  if (!justCanceled && billing.billingStatus !== "expired") {
     redirect("/billing");
   }
 
-  const planName = billing.planSlug ? getPlanBySlug(billing.planSlug).name : "your plan";
+  const planName = isPlanSlug(billing.planSlug) ? getPlanBySlug(billing.planSlug).name : "your plan";
   const workspaceName = session.activeOrganization?.name ?? "Workspace";
   const trialEndedLabel = billing.trialEndsAt
     ? billing.trialEndsAt.toLocaleDateString(undefined, {
@@ -85,17 +91,16 @@ export default async function BillingTrialExpiredPage() {
 
             <span className="mt-14 inline-flex items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[10px] font-semibold text-amber-800 [[data-theme=dark]_&]:text-amber-200">
               <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
-              Trial expired
+              Subscription required
             </span>
 
             <h1 className="mt-5 text-4xl font-semibold tracking-[-0.04em] text-[var(--color-text)] sm:text-5xl">
               Restore access to {workspaceName}.
             </h1>
             <p className="mt-5 text-base leading-7 text-[var(--color-text-muted)]">
-              The {BILLING_RULES.trialDays}-day trial
-              {planName ? ` for ${planName}` : ""} has ended
+              Your trial or subscription has ended
               {trialEndedLabel ? ` (${trialEndedLabel})` : ""}. Subscribe to unlock your workspace
-              again.
+              again — a new free trial is not available after canceling.
             </p>
 
             <dl className="mt-10 grid gap-4 sm:grid-cols-2">

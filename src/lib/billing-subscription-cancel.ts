@@ -23,8 +23,8 @@ export type CancelOrganizationSubscriptionResult =
   | { ok: false; error: string };
 
 /**
- * End paid/local entitlement immediately and clear the saved plan so cancel
- * does not leave the workspace "trialing" on the previous tier (e.g. pro_voice).
+ * End paid/local entitlement immediately and expire the workspace so cancel
+ * cannot restore a free trial on the previous tier.
  */
 async function revokeLocalWorkspaceAccess(organizationId: string): Promise<void> {
   await markOrgUnpaid(organizationId);
