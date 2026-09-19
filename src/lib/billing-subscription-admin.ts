@@ -104,7 +104,13 @@ export async function resumeOrganizationBillingSubscription(
           ? org.currentPeriodEndsAt
           : addBillingPeriod(new Date(), interval),
         cancelAtPeriodEnd: false,
+        billingAdminOverride: !billingSynced,
       },
+    });
+  } else {
+    await prisma.organization.update({
+      where: { id: organizationId },
+      data: { billingAdminOverride: !billingSynced },
     });
   }
 

@@ -25,6 +25,7 @@ export default async function BillingAdminOrganizationsPage() {
       currentPeriodEndsAt: true,
       createdAt: true,
       cancelAtPeriodEnd: true,
+      billingAdminOverride: true,
       _count: { select: { members: true } },
     },
   });
@@ -55,6 +56,7 @@ export default async function BillingAdminOrganizationsPage() {
     createdAt: org.createdAt.toISOString(),
     memberCount: org._count.members,
     cancelAtPeriodEnd: org.cancelAtPeriodEnd,
+    billingAdminOverride: org.billingAdminOverride,
   }));
 
   return (

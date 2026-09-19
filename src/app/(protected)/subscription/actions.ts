@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/auth-session";
 import { userHasAdminRole } from "@/lib/admin-view-only";
 import { cancelOrganizationBillingSubscription } from "@/lib/billing-subscription-cancel";
 import { prisma } from "@/lib/prisma";
+import { writePlatformAudit } from "@/lib/platform-audit";
 
 export type CancelSubscriptionResult =
   | { ok: true; mode: "now" | "period_end" }
@@ -38,6 +39,17 @@ export async function cancelActiveWorkspaceSubscription(input: {
     mode: input.mode,
   });
   if (!result.ok) return result;
+
+  await writePlatformAudit({
+    actorId: session.userId,
+    organizationId,
+    action: "billing.subscription_canceled",
+    metadata: {
+      mode: result.mode,
+      localOnly: result.localOnly,
+      canceledCount: result.canceledCount,
+    },
+  });
 
   revalidatePath("/subscription");
   revalidatePath("/billing-admin/organizations");

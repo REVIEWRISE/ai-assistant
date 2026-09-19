@@ -2,7 +2,7 @@
  * Production-safe menu bootstrap.
  *
  * Does NOT rewrite unrelated menus/roles/permissions.
- * - Ensures /subscription exists and is granted to Admin + User
+ * - Ensures /subscription exists and is granted to User only (not Admin)
  * - Ensures /platform/audit exists and is granted to Admin only
  */
 try {
@@ -105,6 +105,24 @@ async function ensureRoleGrants(menuItemId, roleNames, label) {
   }
 }
 
+async function revokeRoleGrants(menuItemId, roleNames, label) {
+  const roles = await prisma.role.findMany({
+    where: { name: { in: roleNames } },
+    select: { id: true, name: true },
+  });
+  if (roles.length === 0) return;
+
+  const result = await prisma.menuAccess.deleteMany({
+    where: {
+      menuItemId,
+      roleId: { in: roles.map((role) => role.id) },
+    },
+  });
+  if (result.count > 0) {
+    console.log(`[ensure-menus] Revoked ${label} from ${roleNames.join("/")}.`);
+  }
+}
+
 async function main() {
   const subscriptionId = await ensureMenuItem({
     id: SUBSCRIPTION_MENU_ID,
@@ -113,7 +131,8 @@ async function main() {
     sortOrder: 5,
   });
   if (subscriptionId) {
-    await ensureRoleGrants(subscriptionId, ["Admin", "User"], "Subscription");
+    await revokeRoleGrants(subscriptionId, ["Admin"], "Subscription");
+    await ensureRoleGrants(subscriptionId, ["User"], "Subscription");
   }
 
   const auditId = await ensureMenuItem({

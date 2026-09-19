@@ -22,6 +22,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { PLAN_SLUGS, type PlanSlug } from "@/lib/pricing-plans";
 import { getAppUrl } from "@/lib/stripe";
+import { writePlatformAudit } from "@/lib/platform-audit";
 
 export type CreateCheckoutSessionResult =
   | { ok: true; alreadyActive: true }
@@ -177,6 +178,12 @@ export async function createBillingCheckoutSession(input: {
 
     try {
       const checkout = await createBillingCheckout(checkoutInput);
+      await writePlatformAudit({
+        actorId: session.userId,
+        organizationId,
+        action: "billing.checkout_started",
+        metadata: { planSlug, billingInterval, sessionId: checkout.sessionId },
+      });
       return {
         ok: true,
         checkoutUrl: checkout.checkoutUrl,
@@ -223,6 +230,12 @@ export async function createBillingCheckoutSession(input: {
       }
 
       const checkout = await createBillingCheckout(checkoutInput);
+      await writePlatformAudit({
+        actorId: session.userId,
+        organizationId,
+        action: "billing.checkout_started",
+        metadata: { planSlug, billingInterval, sessionId: checkout.sessionId, retried: true },
+      });
       return {
         ok: true,
         checkoutUrl: checkout.checkoutUrl,

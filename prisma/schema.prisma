@@ -95,6 +95,7 @@ model Organization {
   paidAt               DateTime? @map("paid_at") @db.Timestamptz(6)
   currentPeriodEndsAt  DateTime? @map("current_period_ends_at") @db.Timestamptz(6)
   cancelAtPeriodEnd    Boolean   @default(false) @map("cancel_at_period_end")
+  billingAdminOverride Boolean   @default(false) @map("billing_admin_override")
   billingCustomerId    String?   @map("billing_customer_id")
 
   members        OrganizationMember[]

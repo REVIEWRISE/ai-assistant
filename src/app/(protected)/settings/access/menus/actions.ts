@@ -2,12 +2,15 @@
 
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { requireSession } from "@/lib/auth-session";
+import { writePlatformAudit } from "@/lib/platform-audit";
 
 function normalizeText(input: string): string {
   return input.trim();
 }
 
 export async function createMenuItem(formData: FormData) {
+  const session = await requireSession();
   const label = normalizeText(String(formData.get("label") || ""));
   const path = normalizeText(String(formData.get("path") || ""));
   const description = normalizeText(String(formData.get("description") || ""));
@@ -35,6 +38,12 @@ export async function createMenuItem(formData: FormData) {
         sortOrder,
       },
     });
+    await writePlatformAudit({
+      actorId: session.userId,
+      organizationId: session.activeOrganizationId,
+      action: "access.menu_created",
+      metadata: { label, path },
+    });
   } catch {
     redirect("/settings/access/menus?error=unknown");
   }
@@ -43,6 +52,7 @@ export async function createMenuItem(formData: FormData) {
 }
 
 export async function updateMenuItem(formData: FormData) {
+  const session = await requireSession();
   const id = String(formData.get("id") || "");
   const label = normalizeText(String(formData.get("label") || ""));
   const path = normalizeText(String(formData.get("path") || ""));
@@ -72,6 +82,12 @@ export async function updateMenuItem(formData: FormData) {
         sortOrder,
       },
     });
+    await writePlatformAudit({
+      actorId: session.userId,
+      organizationId: session.activeOrganizationId,
+      action: "access.menu_updated",
+      metadata: { menuItemId: id, label, path },
+    });
   } catch {
     redirect("/settings/access/menus?error=unknown");
   }
@@ -80,13 +96,24 @@ export async function updateMenuItem(formData: FormData) {
 }
 
 export async function deleteMenuItem(formData: FormData) {
+  const session = await requireSession();
   const id = String(formData.get("id") || "");
   if (!id) {
     redirect("/settings/access/menus?error=missing");
   }
 
   try {
+    const menu = await prisma.menuItem.findUnique({
+      where: { id },
+      select: { label: true, path: true },
+    });
     await prisma.menuItem.delete({ where: { id } });
+    await writePlatformAudit({
+      actorId: session.userId,
+      organizationId: session.activeOrganizationId,
+      action: "access.menu_deleted",
+      metadata: { menuItemId: id, label: menu?.label ?? null, path: menu?.path ?? null },
+    });
   } catch {
     redirect("/settings/access/menus?error=delete_failed");
   }

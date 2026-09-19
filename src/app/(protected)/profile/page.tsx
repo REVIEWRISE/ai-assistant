@@ -95,7 +95,7 @@ export default async function ProfileSettingsPage() {
         userHasAdminRole(session.userId),
       ])
     : [null, null, false];
-  if (billing?.billingStatus === "expired") {
+  if (!isAdmin && billing?.billingStatus === "expired") {
     redirect("/billing/expired");
   }
 

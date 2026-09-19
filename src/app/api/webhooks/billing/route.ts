@@ -4,6 +4,7 @@ import { resolvePlanSlugFromBillingPlanId } from "@/lib/billing-checkout";
 import { markOrgPaid, markOrgUnpaid, scheduleOrgCancelAtPeriodEnd } from "@/lib/entitlements";
 import { createLogger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { writePlatformAudit } from "@/lib/platform-audit";
 import { PLAN_SLUGS, type PlanSlug } from "@/lib/pricing-plans";
 
 export const runtime = "nodejs";
@@ -187,6 +188,24 @@ function isScheduledPeriodEndCancel(data: Record<string, unknown>): boolean {
 async function revokeAccess(event: BillingEvent): Promise<void> {
   const organizationId = await resolveOrganizationId(event);
   if (!organizationId) return;
+
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { billingAdminOverride: true },
+  });
+  if (org?.billingAdminOverride) {
+    log.info("skipping revoke; admin grant is protecting local access", {
+      organizationId,
+      eventType: event.eventType,
+    });
+    await writePlatformAudit({
+      organizationId,
+      action: "billing.webhook_revoke_skipped",
+      metadata: { eventType: event.eventType, eventId: event.id, reason: "admin_override" },
+    });
+    return;
+  }
+
   if (event.eventType !== "subscription.paused" && isScheduledPeriodEndCancel(event.data)) {
     await scheduleOrgCancelAtPeriodEnd(organizationId);
     return;
@@ -273,6 +292,15 @@ export async function POST(req: NextRequest) {
         break;
       default:
         break;
+    }
+
+    const resolvedOrganizationId = await resolveOrganizationId(event);
+    if (event.eventType !== "ping") {
+      await writePlatformAudit({
+        organizationId: resolvedOrganizationId ?? event.organizationId,
+        action: `billing.webhook_${event.eventType.replace(/\./g, "_")}`,
+        metadata: { eventId: event.id, eventType: event.eventType },
+      });
     }
 
     await prisma.billingWebhookEvent.create({

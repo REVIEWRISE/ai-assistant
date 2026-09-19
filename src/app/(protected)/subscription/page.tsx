@@ -11,12 +11,16 @@ export const dynamic = "force-dynamic";
 
 export default async function SubscriptionPage() {
   const session = await requireSession();
+  if (await userHasAdminRole(session.userId)) {
+    redirect("/billing-admin");
+  }
+
   const organizationId = session.activeOrganizationId;
   if (!organizationId) {
     redirect("/appointments/organization");
   }
 
-  const [billing, membership, organization, isAdmin, latestRefund] = await Promise.all([
+  const [billing, membership, organization, latestRefund] = await Promise.all([
     getOrgBilling(organizationId),
     prisma.organizationMember.findFirst({
       where: { userId: session.userId, organizationId },
@@ -26,7 +30,6 @@ export default async function SubscriptionPage() {
       where: { id: organizationId },
       select: { name: true, paidAt: true },
     }),
-    userHasAdminRole(session.userId),
     prisma.refundRequest.findFirst({
       where: { organizationId },
       orderBy: { createdAt: "desc" },
@@ -50,7 +53,7 @@ export default async function SubscriptionPage() {
     redirect("/billing/expired");
   }
 
-  const isOwner = isAdmin || membership?.role === "owner";
+  const isOwner = membership?.role === "owner";
   const canCancel =
     billing.billingStatus === "active" || billing.billingStatus === "trialing";
   const canRequestRefund =

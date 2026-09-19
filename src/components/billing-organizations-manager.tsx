@@ -21,6 +21,7 @@ export type BillingOrganizationRow = {
   createdAt: string;
   memberCount: number;
   cancelAtPeriodEnd: boolean;
+  billingAdminOverride: boolean;
 };
 
 type StatusFilter = "all" | "needs_plan" | "trialing" | "active" | "expired";
@@ -261,7 +262,7 @@ function OrganizationBillingSheet({
       toast.success(
         result.billingSynced
           ? "Workspace plan updated in the app and Billing."
-          : "Workspace plan updated in the app. Billing invoices were not changed.",
+          : "Access updated in the app. Stripe was not changed, so this grant is protected from Billing cancel events.",
       );
       router.refresh();
     });
@@ -373,6 +374,11 @@ function OrganizationBillingSheet({
                   {organization.cancelAtPeriodEnd ? (
                     <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
                       Cancels at period end
+                    </span>
+                  ) : null}
+                  {organization.billingAdminOverride ? (
+                    <span className="rounded-full border border-violet-400/40 bg-violet-500/15 px-2.5 py-1 text-[11px] font-semibold text-violet-200">
+                      Admin grant
                     </span>
                   ) : null}
                   <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
@@ -867,6 +873,11 @@ export function BillingOrganizationsManager({
                         {org.cancelAtPeriodEnd ? (
                           <p className="mt-1.5 text-[11px] font-semibold text-amber-800 [[data-theme=dark]_&]:text-amber-300">
                             Cancels at period end
+                          </p>
+                        ) : null}
+                        {org.billingAdminOverride ? (
+                          <p className="mt-1.5 text-[11px] font-semibold text-violet-800 [[data-theme=dark]_&]:text-violet-300">
+                            Admin grant
                           </p>
                         ) : null}
                       </td>

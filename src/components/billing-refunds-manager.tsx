@@ -76,7 +76,7 @@ export function BillingRefundsManager({ requests }: { requests: AdminRefundReque
         toast.error(result.error);
         return;
       }
-      toast.success("Refund approved and submitted to Billing.");
+      toast.success("Refund approved. The charge was returned and workspace access ended.");
       closeSheet();
       router.refresh();
     });
@@ -124,8 +124,8 @@ export function BillingRefundsManager({ requests }: { requests: AdminRefundReque
           ))}
         </div>
         <p className="text-xs text-[var(--color-text-muted)]">
-          {visible.length} request{visible.length === 1 ? "" : "s"}. Approving a refund does not
-          change workspace access.
+          {visible.length} request{visible.length === 1 ? "" : "s"}. Approving a refund
+          returns the charge and ends workspace access.
         </p>
       </div>
 

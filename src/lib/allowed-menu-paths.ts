@@ -67,6 +67,7 @@ export async function getAllowedMenuPathsForUser(
   }
 
   // Platform and billing admin are admin-only, even if a menu row exists for other roles.
+  // Subscription is the inverse: workspace billing for members, not platform admins.
   if (!isAdmin) {
     for (const path of [...paths]) {
       if (
@@ -78,6 +79,8 @@ export async function getAllowedMenuPathsForUser(
         paths.delete(path);
       }
     }
+  } else {
+    paths.delete("/subscription");
   }
 
   if (organizationId) {

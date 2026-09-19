@@ -14,6 +14,7 @@ import {
 } from "@/lib/billing-client";
 import { validatePasswordStrength } from "@/lib/password-policy";
 import { fallbackOrganizationIdForAdmin, purgeOrganization } from "@/lib/organization-delete";
+import { writePlatformAudit } from "@/lib/platform-audit";
 
 function resolveReturnTo(formData: FormData, fallback: string): string {
   const returnTo = String(formData.get("return_to") || "").trim();
@@ -124,6 +125,12 @@ export async function updatePassword(formData: FormData) {
     data: { passwordHash, updatedAt: new Date() },
   });
 
+  await writePlatformAudit({
+    actorId: session.userId,
+    organizationId: session.activeOrganizationId,
+    action: "auth.password_changed",
+  });
+
   redirect("/profile?success=password");
 }
 
@@ -151,6 +158,13 @@ export async function createOrganization(formData: FormData) {
       userId: session.userId,
       role: "owner",
     },
+  });
+
+  await writePlatformAudit({
+    actorId: session.userId,
+    organizationId: organization.id,
+    action: "organization.created",
+    metadata: { name: organization.name },
   });
 
   await prisma.session.update({
@@ -376,6 +390,19 @@ export async function deleteOrganization(formData: FormData) {
   } else {
     fallbackOrganizationId = session.activeOrganizationId;
   }
+
+  await writePlatformAudit({
+    actorId: session.userId,
+    organizationId:
+      fallbackOrganizationId && fallbackOrganizationId !== organizationId
+        ? fallbackOrganizationId
+        : session.activeOrganizationId,
+    action: "organization.deleted",
+    metadata: {
+      deletedOrganizationId: organizationId,
+      name: organization.name,
+    },
+  });
 
   await purgeOrganization({
     organizationId,

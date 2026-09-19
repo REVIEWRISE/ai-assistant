@@ -27,6 +27,10 @@ export type CancelOrganizationSubscriptionResult =
     }
   | { ok: false; error: string };
 
+export function isIgnorableCancelError(message: string): boolean {
+  return /no Billing customer|No active subscription|nothing to cancel/i.test(message);
+}
+
 /**
  * End paid/local entitlement immediately and expire the workspace so cancel
  * cannot restore a free trial on the previous tier.

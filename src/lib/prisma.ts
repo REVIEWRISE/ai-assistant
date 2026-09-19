@@ -11,7 +11,7 @@ function createPrismaClient() {
 }
 
 /** Bump when Prisma schema changes so dev HMR does not keep a stale client (e.g. missing new columns). */
-const PRISMA_CLIENT_GENERATION = "2026-09-19-cancel-at-period-end";
+const PRISMA_CLIENT_GENERATION = "2026-09-19-billing-admin-override-v2";
 
 const globalWithMeta = globalForPrisma as typeof globalForPrisma & {
   _prismaGeneration?: string;

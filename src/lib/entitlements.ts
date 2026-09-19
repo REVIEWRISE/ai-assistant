@@ -217,6 +217,7 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
         trialStartsAt,
         trialEndsAt,
         cancelAtPeriodEnd: false,
+        billingAdminOverride: false,
       },
     });
     billingStatus = "expired";
@@ -488,6 +489,7 @@ export async function startOrgTrial(input: {
       paidAt: null,
       currentPeriodEndsAt: null,
       cancelAtPeriodEnd: false,
+      billingAdminOverride: false,
     },
   });
 }
@@ -531,6 +533,7 @@ export async function markOrgPaid(input: {
       paidAt: now,
       currentPeriodEndsAt: periodEndsAt,
       cancelAtPeriodEnd: false,
+      billingAdminOverride: false,
     },
   });
 }
@@ -539,7 +542,7 @@ export async function markOrgPaid(input: {
 export async function scheduleOrgCancelAtPeriodEnd(organizationId: string): Promise<void> {
   await prisma.organization.update({
     where: { id: organizationId },
-    data: { cancelAtPeriodEnd: true },
+    data: { cancelAtPeriodEnd: true, billingAdminOverride: false },
   });
 }
 
@@ -625,6 +628,7 @@ export async function markOrgUnpaid(organizationId: string): Promise<void> {
       trialEndsAt:
         computedTrialEndsAt.getTime() < now.getTime() ? computedTrialEndsAt : now,
       cancelAtPeriodEnd: false,
+      billingAdminOverride: false,
     },
   });
 }

@@ -127,9 +127,14 @@ export function CustomSelect<T extends string>({
           if (open) closeMenu();
           else openMenu();
         }}
-        className={`flex w-full items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-2 text-left text-sm text-[var(--color-text)] outline-none transition hover:border-[var(--color-border-hover)] focus:border-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60 ${triggerClassName}`}
+        className={`flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-2 text-left text-sm text-[var(--color-text)] outline-none transition hover:border-[var(--color-border-hover)] focus:border-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60 ${triggerClassName}`}
       >
-        <span className={selected ? "text-[var(--color-text)]" : "text-[var(--color-text-muted)]"}>
+        <span
+          className={`min-w-0 flex-1 truncate ${
+            selected ? "text-[var(--color-text)]" : "text-[var(--color-text-muted)]"
+          }`}
+          title={selected?.label ?? placeholder}
+        >
           {selected?.label ?? placeholder}
         </span>
         <svg
@@ -172,13 +177,15 @@ export function CustomSelect<T extends string>({
                         onChange(option.value);
                         closeMenu();
                       }}
-                      className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm transition ${
+                      className={`flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition ${
                         isSelected
                           ? "bg-[var(--color-primary-soft)] font-semibold text-[var(--color-primary-h)]"
                           : "text-[var(--color-text)] hover:bg-[var(--color-surface)]"
                       }`}
                     >
-                      <span>{option.label}</span>
+                      <span className="min-w-0 flex-1 truncate" title={option.label}>
+                        {option.label}
+                      </span>
                       {isSelected ? (
                         <svg
                           viewBox="0 0 24 24"

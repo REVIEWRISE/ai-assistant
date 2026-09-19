@@ -13,7 +13,13 @@ import {
   resumeOrganizationBillingSubscription,
   syncOrganizationBillingPlan,
 } from "@/lib/billing-subscription-admin";
+import {
+  cancelOrganizationBillingSubscription,
+  isIgnorableCancelError,
+} from "@/lib/billing-subscription-cancel";
+import { isBillingConfigured } from "@/lib/billing-client";
 import { fallbackOrganizationIdForAdmin, purgeOrganization } from "@/lib/organization-delete";
+import { writePlatformAudit } from "@/lib/platform-audit";
 
 const ADMIN_ORGS_PATH = "/billing-admin/organizations";
 
@@ -44,7 +50,8 @@ function asBillingStatus(value: string): BillingStatus | null {
 
 /**
  * Admin override: change a workspace's local plan / interval / status.
- * Tries to PATCH a matching live Billing subscription; falls back to local-only.
+ * Tries to PATCH a matching live Billing subscription; falls back to a
+ * protected local grant that cancel webhooks will not overwrite.
  */
 export async function adminUpdateOrganizationPlan(input: {
   organizationId: string;
@@ -53,7 +60,7 @@ export async function adminUpdateOrganizationPlan(input: {
   billingStatus?: string;
   resetPeriod?: boolean;
 }): Promise<AdminUpdateOrganizationPlanResult> {
-  await requireAdminSession();
+  const session = await requireAdminSession();
 
   const organizationId = input.organizationId.trim();
   const planSlug = asPlanSlug(input.planSlug.trim());
@@ -66,6 +73,8 @@ export async function adminUpdateOrganizationPlan(input: {
     where: { id: organizationId },
     select: {
       id: true,
+      name: true,
+      planSlug: true,
       billingStatus: true,
       billingInterval: true,
       paidAt: true,
@@ -92,6 +101,28 @@ export async function adminUpdateOrganizationPlan(input: {
       ? org.billingStatus
       : "active");
 
+  let billingSynced = false;
+
+  if (nextStatus === "expired" || nextStatus === "needs_plan") {
+    if (isBillingConfigured()) {
+      const cancelResult = await cancelOrganizationBillingSubscription({
+        organizationId,
+        mode: "now",
+      });
+      if (!cancelResult.ok && !isIgnorableCancelError(cancelResult.error)) {
+        return { ok: false, error: cancelResult.error };
+      }
+      billingSynced = Boolean(cancelResult.ok && !cancelResult.localOnly);
+    }
+  } else {
+    const sync = await syncOrganizationBillingPlan({
+      organizationId,
+      planSlug,
+      billingInterval,
+    });
+    billingSynced = sync.billingSynced;
+  }
+
   const intervalChanged = org.billingInterval !== billingInterval;
   const shouldResetPeriod = Boolean(input.resetPeriod) || intervalChanged;
 
@@ -111,22 +142,35 @@ export async function adminUpdateOrganizationPlan(input: {
       planSlug,
       billingInterval,
       billingStatus: nextStatus,
-      paidAt: nextStatus === "active" ? paidAt : org.paidAt,
-      currentPeriodEndsAt: nextStatus === "active" ? currentPeriodEndsAt : org.currentPeriodEndsAt,
+      paidAt: nextStatus === "active" ? paidAt : null,
+      currentPeriodEndsAt: nextStatus === "active" ? currentPeriodEndsAt : null,
       ...(nextStatus === "active" || nextStatus === "expired"
         ? { cancelAtPeriodEnd: false }
         : {}),
+      billingAdminOverride:
+        (nextStatus === "active" || nextStatus === "trialing") && !billingSynced,
     },
   });
 
-  const { billingSynced } =
-    nextStatus === "active" || nextStatus === "trialing"
-      ? await syncOrganizationBillingPlan({
-          organizationId,
-          planSlug,
-          billingInterval,
-        })
-      : { billingSynced: false };
+  await writePlatformAudit({
+    actorId: session.userId,
+    organizationId,
+    action: "billing_admin.plan_overridden",
+    metadata: {
+      organizationName: org.name,
+      from: {
+        planSlug: org.planSlug,
+        billingInterval: org.billingInterval,
+        billingStatus: org.billingStatus,
+      },
+      to: {
+        planSlug,
+        billingInterval,
+        billingStatus: nextStatus,
+      },
+      billingSynced,
+    },
+  });
 
   revalidatePath(ADMIN_ORGS_PATH);
   revalidatePath("/billing-admin");
@@ -145,17 +189,25 @@ export async function adminCancelOrganizationSubscription(input: {
   organizationId: string;
   mode?: "now" | "period_end";
 }): Promise<AdminCancelOrganizationSubscriptionResult> {
-  await requireAdminSession();
+  const session = await requireAdminSession();
 
-  const { cancelOrganizationBillingSubscription } = await import(
-    "@/lib/billing-subscription-cancel"
-  );
   const result = await cancelOrganizationBillingSubscription({
     organizationId: input.organizationId,
     mode: input.mode,
   });
 
   if (!result.ok) return result;
+
+  await writePlatformAudit({
+    actorId: session.userId,
+    organizationId: input.organizationId,
+    action: "billing_admin.subscription_canceled",
+    metadata: {
+      mode: result.mode,
+      localOnly: result.localOnly,
+      canceledCount: result.canceledCount,
+    },
+  });
 
   revalidatePath(ADMIN_ORGS_PATH);
   revalidatePath("/billing-admin");
@@ -170,12 +222,22 @@ export type AdminRestoreOrganizationSubscriptionResult =
 export async function adminRestoreOrganizationSubscription(input: {
   organizationId: string;
 }): Promise<AdminRestoreOrganizationSubscriptionResult> {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const organizationId = input.organizationId.trim();
   if (!organizationId) return { ok: false, error: "Workspace is required." };
 
   const result = await resumeOrganizationBillingSubscription(organizationId);
   if (!result.ok) return result;
+
+  await writePlatformAudit({
+    actorId: session.userId,
+    organizationId,
+    action: "billing_admin.access_restored",
+    metadata: {
+      billingSynced: result.billingSynced,
+      localOnly: result.localOnly,
+    },
+  });
 
   revalidatePath(ADMIN_ORGS_PATH);
   revalidatePath("/billing-admin");
@@ -197,7 +259,7 @@ export async function adminDeleteOrganization(input: {
 
   const organization = await prisma.organization.findUnique({
     where: { id: organizationId },
-    select: { id: true },
+    select: { id: true, name: true },
   });
   if (!organization) return { ok: false, error: "Workspace not found." };
 
@@ -205,6 +267,19 @@ export async function adminDeleteOrganization(input: {
     session.activeOrganizationId === organizationId
       ? await fallbackOrganizationIdForAdmin(organizationId)
       : session.activeOrganizationId;
+
+  await writePlatformAudit({
+    actorId: session.userId,
+    organizationId:
+      fallbackOrganizationId && fallbackOrganizationId !== organizationId
+        ? fallbackOrganizationId
+        : session.activeOrganizationId,
+    action: "billing_admin.organization_deleted",
+    metadata: {
+      deletedOrganizationId: organizationId,
+      name: organization.name,
+    },
+  });
 
   try {
     await purgeOrganization({

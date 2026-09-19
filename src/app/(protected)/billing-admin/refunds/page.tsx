@@ -36,13 +36,13 @@ export default async function BillingAdminRefundsPage() {
         variant="command"
         eyebrow="Billing"
         title="Refund requests"
-        description="Review customer refund requests. Approve submits the refund to Billing; access is unchanged unless you cancel the subscription separately."
+        description="Review customer refund requests. Approve refunds the charge in Billing and ends workspace access."
         status={`${pendingCount} pending`}
         statusTone={pendingCount > 0 ? "warning" : "success"}
         actions={[{ href: "/billing-admin", label: "Billing overview" }]}
         metrics={[
           { label: "Pending", value: pendingCount, hint: "awaiting review" },
-          { label: "Listed", value: rows.length, hint: totalCount > rows.length ? `${totalCount} total` : "most recent 500" },
+          { label: "Listed", value: rows.length, hint: totalCount > rows.length ? `${totalCount} total` : "all requests" },
         ]}
       />
 

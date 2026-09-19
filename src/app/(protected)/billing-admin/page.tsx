@@ -28,8 +28,8 @@ export default async function BillingAdminPage() {
     {
       href: "/billing-admin/plans",
       eyebrow: "Catalog",
-      title: "Plans & modules",
-      description: "View and edit commercial plans from the Vyntrise Billing service.",
+      title: "Plans",
+      description: "Set prices and choose which features each plan includes.",
       count: planCount,
       label: planCount === 1 ? "plan" : "plans",
     },
