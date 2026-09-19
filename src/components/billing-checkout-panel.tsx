@@ -125,6 +125,14 @@ export function BillingCheckoutPanel({
             interval === "yearly" ? plan.yearlyPriceCents : plan.monthlyPriceCents;
           const planAvailable = planIntervalAllowsSelfServeCheckout(plan, interval);
           const isCurrent = plan.slug === initialPlanSlug;
+          const alternateBilling =
+            !plan.isCustomPricing
+              ? interval === "yearly" && plan.monthlyPriceCents != null
+                ? `Billed monthly at ${formatUsd(plan.monthlyPriceCents)}/month`
+                : interval === "monthly" && plan.yearlyPriceCents != null
+                  ? `Billed yearly at ${formatUsd(plan.yearlyPriceCents)}/year`
+                  : null
+              : null;
           return (
             <button
               key={plan.slug}
@@ -157,6 +165,11 @@ export function BillingCheckoutPanel({
                   {interval === "yearly" ? "/yr" : "/mo"}
                 </span>
               </p>
+              {alternateBilling ? (
+                <p className="mt-1 text-[10px] font-medium leading-4 text-[var(--color-text-muted)]">
+                  {alternateBilling}
+                </p>
+              ) : null}
               <p className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">
                 {plan.description}
               </p>

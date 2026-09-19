@@ -110,7 +110,7 @@ export function BillingExpiredPlanPicker({
         role="group"
         aria-label="Billing interval"
       >
-        {(["yearly", "monthly"] as const).map((value) => (
+        {(["monthly", "yearly"] as const).map((value) => (
           <button
             key={value}
             type="button"
@@ -137,6 +137,14 @@ export function BillingExpiredPlanPicker({
           const isSelected = selected === plan.slug;
           const planPrice = displayPrice(plan, interval);
           const planAvailable = planIntervalAllowsSelfServeCheckout(plan, interval);
+          const alternateBilling =
+            !plan.isCustomPricing
+              ? interval === "yearly" && plan.monthlyPriceCents != null
+                ? `Billed monthly at ${formatUsd(plan.monthlyPriceCents)}/month`
+                : interval === "monthly" && plan.yearlyPriceCents != null
+                  ? `Billed yearly at ${formatUsd(plan.yearlyPriceCents)}/year`
+                  : null
+              : null;
 
           return (
             <button
@@ -211,8 +219,8 @@ export function BillingExpiredPlanPicker({
                   ) : null}
                 </div>
 
-                <div className="shrink-0 whitespace-nowrap text-right">
-                  <p className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
+                <div className="shrink-0 text-right">
+                  <p className="whitespace-nowrap text-2xl font-semibold tracking-tight text-[var(--color-text)]">
                     {planPrice.amount}
                     {planPrice.suffix ? (
                       <span className="ml-1 text-xs font-medium text-[var(--color-text-muted)]">
@@ -220,6 +228,11 @@ export function BillingExpiredPlanPicker({
                       </span>
                     ) : null}
                   </p>
+                  {alternateBilling ? (
+                    <p className="mt-1 max-w-[14rem] text-[10px] font-medium leading-4 text-[var(--color-text-muted)]">
+                      {alternateBilling}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </button>

@@ -253,7 +253,7 @@ export async function completeGoogleAuthLogin(
     if (intent.plan) onboardingQs.set("plan", intent.plan);
     onboardingQs.set(
       "interval",
-      intent.interval === "monthly" || intent.interval === "yearly" ? intent.interval : "yearly",
+      intent.interval === "monthly" || intent.interval === "yearly" ? intent.interval : "monthly",
     );
     return { redirectTo: `/onboarding/plan?${onboardingQs.toString()}` };
   }
