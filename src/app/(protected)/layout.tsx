@@ -6,7 +6,10 @@ import {
   billingRedirectForStatus,
   getOrgBilling,
   isBillingBypassPath,
+  isExpiredBillingBypassPath,
 } from "@/lib/entitlements";
+
+export const dynamic = "force-dynamic";
 
 export default async function ProtectedLayout({
   children,
@@ -31,20 +34,20 @@ export default async function ProtectedLayout({
     isBillingBypassPath(pathname) &&
     (!onAdminOnlySurface || isAdmin);
 
-  if (session.activeOrganizationId && pathname && !bypass) {
-    // Non-admins should never stay on platform or billing-admin routes.
-    if (onAdminOnlySurface && !isAdmin) {
-      redirect("/dashboard");
-    }
+  if (onAdminOnlySurface && !isAdmin) {
+    redirect("/dashboard");
+  }
 
-    // Platform admins are exempt from plan/trial billing lockouts.
-    if (!isAdmin) {
-      const billing = await getOrgBilling(session.activeOrganizationId);
-      if (billing) {
-        const target = billingRedirectForStatus(billing.billingStatus);
-        if (target && target.split("?")[0] !== pathname) {
-          redirect(target);
-        }
+  if (session.activeOrganizationId && pathname && !isAdmin) {
+    const billing = await getOrgBilling(session.activeOrganizationId);
+    if (billing?.billingStatus === "expired") {
+      if (!isExpiredBillingBypassPath(pathname)) {
+        redirect("/billing/expired");
+      }
+    } else if (!bypass && billing) {
+      const target = billingRedirectForStatus(billing.billingStatus);
+      if (target && target.split("?")[0] !== pathname) {
+        redirect(target);
       }
     }
   }

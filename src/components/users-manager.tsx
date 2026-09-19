@@ -42,6 +42,7 @@ type UserRow = {
 type UsersManagerProps = {
   users: UserRow[];
   roles: RoleOption[];
+  currentUserId: string;
   onCreateUser: (formData: FormData) => void | Promise<void>;
   onUpdateUser: (formData: FormData) => void | Promise<void>;
   onDeleteUser: (formData: FormData) => void | Promise<void>;
@@ -88,6 +89,8 @@ function statusLabel(status: string): string {
 function UserActionsMenu({
   user,
   isOpen,
+  canDelete,
+  deleteDisabledReason,
   onToggle,
   onClose,
   onEdit,
@@ -95,6 +98,8 @@ function UserActionsMenu({
 }: {
   user: UserRow;
   isOpen: boolean;
+  canDelete: boolean;
+  deleteDisabledReason: string;
   onToggle: () => void;
   onClose: () => void;
   onEdit: () => void;
@@ -176,13 +181,15 @@ function UserActionsMenu({
       description: "Update name, role, or status",
       onClick: onEdit,
       danger: false,
+      disabled: false,
     },
     {
       id: "delete",
       label: "Delete user",
-      description: "Permanently remove this account",
+      description: canDelete ? "Permanently remove this account" : deleteDisabledReason,
       onClick: onDelete,
       danger: true,
+      disabled: !canDelete,
     },
   ];
 
@@ -222,14 +229,18 @@ function UserActionsMenu({
                   key={item.id}
                   type="button"
                   role="menuitem"
+                  disabled={item.disabled}
                   onClick={() => {
+                    if (item.disabled) return;
                     item.onClick();
                     onClose();
                   }}
                   className={`flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left transition ${
-                    item.danger
-                      ? "hover:bg-[var(--color-danger-soft)]"
-                      : "hover:bg-[var(--color-surface)]"
+                    item.disabled
+                      ? "cursor-not-allowed opacity-50"
+                      : item.danger
+                        ? "hover:bg-[var(--color-danger-soft)]"
+                        : "hover:bg-[var(--color-surface)]"
                   }`}
                 >
                   <span
@@ -255,6 +266,7 @@ function UserActionsMenu({
 export function UsersManager({
   users,
   roles,
+  currentUserId,
   onCreateUser,
   onUpdateUser,
   onDeleteUser,
@@ -268,6 +280,12 @@ export function UsersManager({
   const [roleFilter, setRoleFilter] = useState("all");
   const [showPassword, setShowPassword] = useState(false);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState("");
+
+  const adminIds = useMemo(
+    () => users.filter((user) => user.roleName.toLowerCase() === "admin").map((user) => user.id),
+    [users],
+  );
+  const lastAdminId = adminIds.length === 1 ? adminIds[0] : null;
 
   const roleNames = useMemo(() => {
     const names = new Set(users.map((user) => user.roleName));
@@ -365,7 +383,7 @@ export function UsersManager({
             Directory
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold text-[var(--color-text)]">Workspace users</h2>
+            <h2 className="text-lg font-semibold text-[var(--color-text)]">All users</h2>
             <span className="rounded-full bg-[var(--color-primary-soft)] px-2.5 py-1 text-[10px] font-semibold text-[var(--color-primary-h)]">
               {filteredUsers.length}
               {filteredUsers.length !== users.length ? ` of ${users.length}` : ""} shown
@@ -479,6 +497,12 @@ export function UsersManager({
                 <UserActionsMenu
                   user={user}
                   isOpen={openMenuId === user.id}
+                  canDelete={user.id !== currentUserId && user.id !== lastAdminId}
+                  deleteDisabledReason={
+                    user.id === currentUserId
+                      ? "You cannot delete your own account"
+                      : "At least one administrator is required"
+                  }
                   onToggle={() =>
                     setOpenMenuId((current) => (current === user.id ? null : user.id))
                   }

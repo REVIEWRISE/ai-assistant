@@ -184,19 +184,19 @@ export function LandingPricingSection({
                         </span>
                       ) : null}
                     </div>
-                    <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-                      {displayedPrice === "Custom"
-                        ? "Custom pricing — talk with our team"
-                        : isYearly && plan.yearlyMonthlyPrice
-                          ? `That's ${plan.yearlyMonthlyPrice}/month billed yearly`
-                          : !isYearly && plan.yearlyPrice && plan.yearlyPrice !== "Custom"
-                            ? `Or ${plan.yearlyPrice}/year billed yearly`
-                            : isYearly && !plan.yearlyPrice
-                              ? "Yearly pricing isn’t listed for this plan"
-                              : !isYearly && !plan.price
-                                ? "Monthly pricing isn’t listed for this plan"
-                                : "Billed on the interval you choose"}
-                    </p>
+                    {displayedPrice === "Custom" ? (
+                      <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                        Custom pricing — talk with our team
+                      </p>
+                    ) : isYearly && !plan.yearlyPrice ? (
+                      <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                        Yearly pricing isn’t listed for this plan
+                      </p>
+                    ) : !isYearly && !plan.price ? (
+                      <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                        Monthly pricing isn’t listed for this plan
+                      </p>
+                    ) : null}
                   </div>
 
                   <ul className="mt-1 flex-1 space-y-3 border-t border-[var(--color-border)] pt-5">

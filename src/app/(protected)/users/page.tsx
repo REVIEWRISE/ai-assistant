@@ -9,7 +9,7 @@ import { createUser, deleteUser, updateUser } from "./actions";
 export const dynamic = "force-dynamic";
 
 export default async function UserManagementPage() {
-  await requireAdminSession();
+  const session = await requireAdminSession();
 
   const [users, roles] = await Promise.all([
     prisma.user.findMany({
@@ -59,7 +59,7 @@ export default async function UserManagementPage() {
         variant="command"
         eyebrow="User Management"
         title="Team directory"
-        description="Invite teammates, assign roles, and keep account access current across the workspace."
+        description="Invite people, assign roles, and manage sign-in access across every workspace."
         status={status}
         statusTone={totalUsers === 0 || attentionUsers > 0 ? "warning" : "success"}
         actions={[
@@ -112,6 +112,7 @@ export default async function UserManagementPage() {
           })),
         }))}
         roles={roles}
+        currentUserId={session.userId}
         onCreateUser={createUser}
         onUpdateUser={updateUser}
         onDeleteUser={deleteUser}

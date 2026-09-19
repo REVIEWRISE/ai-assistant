@@ -74,6 +74,7 @@ export function filterNavItemsByPermissions(
   return items
     .map((item) => {
       if (item.requiresAdmin && !isAdmin) return null;
+      if (item.hideForAdmin && isAdmin) return null;
       const children = item.children?.filter(
         (c) => (!c.requiresAdmin || isAdmin) && isHrefAllowedForNav(c.href, allowed),
       );

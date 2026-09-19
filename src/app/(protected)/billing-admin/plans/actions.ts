@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import { requireAdminSession } from "@/lib/auth-session";
-import { prisma } from "@/lib/prisma";
+import { writePlatformAudit } from "@/lib/platform-audit";
 import {
   attachBillingModuleToPlan,
   createBillingModule,
@@ -21,17 +21,8 @@ import {
 
 const ADMIN_PATH = "/billing-admin/plans";
 
-// Billing catalog admin actions aren't scoped to a single organization —
-// audit events still require an organizationId, so use the same null-org
-// sentinel already established in src/app/login/actions.ts.
-const PLATFORM_AUDIT_ORG_ID = "00000000-0000-0000-0000-000000000000";
-
 async function logAdminAudit(actorId: string, action: string, metadata: Prisma.InputJsonObject) {
-  await prisma.auditEvent
-    .create({
-      data: { organizationId: PLATFORM_AUDIT_ORG_ID, actorId, action, metadata },
-    })
-    .catch(() => {/* non-blocking */});
+  await writePlatformAudit({ actorId, action, metadata });
 }
 
 function text(formData: FormData, key: string): string {

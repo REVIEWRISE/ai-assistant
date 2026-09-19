@@ -13,6 +13,8 @@ import {
   isBillingConfigured,
 } from "@/lib/billing-client";
 import { validatePasswordStrength } from "@/lib/password-policy";
+import { fallbackOrganizationIdForAdmin, purgeOrganization } from "@/lib/organization-delete";
+import { writePlatformAudit } from "@/lib/platform-audit";
 
 function resolveReturnTo(formData: FormData, fallback: string): string {
   const returnTo = String(formData.get("return_to") || "").trim();
@@ -123,6 +125,12 @@ export async function updatePassword(formData: FormData) {
     data: { passwordHash, updatedAt: new Date() },
   });
 
+  await writePlatformAudit({
+    actorId: session.userId,
+    organizationId: session.activeOrganizationId,
+    action: "auth.password_changed",
+  });
+
   redirect("/profile?success=password");
 }
 
@@ -150,6 +158,13 @@ export async function createOrganization(formData: FormData) {
       userId: session.userId,
       role: "owner",
     },
+  });
+
+  await writePlatformAudit({
+    actorId: session.userId,
+    organizationId: organization.id,
+    action: "organization.created",
+    metadata: { name: organization.name },
   });
 
   await prisma.session.update({
@@ -356,22 +371,12 @@ export async function deleteOrganization(formData: FormData) {
     ) {
       redirect(`${destination}?error=organization_not_empty`);
     }
-  } else {
-    const totalOrgs = await prisma.organization.count();
-    if (totalOrgs <= 1) {
-      redirect(`${destination}?error=organization_last`);
-    }
   }
 
   let fallbackOrganizationId: string | null = null;
   if (session.activeOrganizationId === organizationId) {
     if (isAdmin) {
-      const other = await prisma.organization.findFirst({
-        where: { id: { not: organizationId } },
-        orderBy: { name: "asc" },
-        select: { id: true },
-      });
-      fallbackOrganizationId = other?.id ?? null;
+      fallbackOrganizationId = await fallbackOrganizationIdForAdmin(organizationId);
     } else {
       const userMemberships = await prisma.organizationMember.findMany({
         where: { userId: session.userId },
@@ -386,29 +391,23 @@ export async function deleteOrganization(formData: FormData) {
     fallbackOrganizationId = session.activeOrganizationId;
   }
 
-  await prisma.$transaction(async (tx) => {
-    // Clear this workspace from any active sessions (FK is onDelete: SetNull, but be explicit).
-    await tx.session.updateMany({
-      where: { activeOrganizationId: organizationId },
-      data: { activeOrganizationId: null },
-    });
+  await writePlatformAudit({
+    actorId: session.userId,
+    organizationId:
+      fallbackOrganizationId && fallbackOrganizationId !== organizationId
+        ? fallbackOrganizationId
+        : session.activeOrganizationId,
+    action: "organization.deleted",
+    metadata: {
+      deletedOrganizationId: organizationId,
+      name: organization.name,
+    },
+  });
 
-    await tx.session.update({
-      where: { id: session.id },
-      data: {
-        activeOrganizationId: fallbackOrganizationId,
-      },
-    });
-
-    // No FK relation on this table — clean up manually.
-    await tx.billingWebhookEvent.deleteMany({
-      where: { organizationId },
-    });
-
-    // Cascades members, reviews, appointments, KB, chatbot, voice, calls, etc.
-    await tx.organization.delete({
-      where: { id: organizationId },
-    });
+  await purgeOrganization({
+    organizationId,
+    sessionId: session.id,
+    fallbackOrganizationId,
   });
 
   redirect(`${destination}?success=organization_deleted`);

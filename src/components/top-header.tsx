@@ -12,8 +12,8 @@ type HeaderCopy = {
 
 const headerByRoute: Record<string, HeaderCopy> = {
   "/dashboard": {
-    eyebrow: "Command Center",
-    title: "Operations dashboard",
+    eyebrow: "Overview",
+    title: "Dashboard",
   },
   "/appointments": {
     eyebrow: "Appointment Agent",
@@ -89,7 +89,7 @@ const headerByRoute: Record<string, HeaderCopy> = {
   },
   "/billing-admin/plans": {
     eyebrow: "Billing",
-    title: "Plans & modules",
+    title: "Plans",
   },
   "/users": {
     eyebrow: "User Management",
@@ -98,7 +98,7 @@ const headerByRoute: Record<string, HeaderCopy> = {
 };
 
 function getHeaderCopy(pathname: string): HeaderCopy {
-  if (pathname === "/") {
+  if (pathname === "/" || pathname === "/dashboard") {
     return headerByRoute["/dashboard"];
   }
 
@@ -211,9 +211,9 @@ export function TopHeader({
         placeholder="Select workspace"
         disabled={switchingOrganization}
         aria-label="Switch organization"
-        className="mt-0 w-full"
+        className="mt-0 w-full min-w-0"
         triggerClassName="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] py-2 text-xs shadow-[var(--shadow-sm)] hover:bg-[var(--color-raised)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
-        menuClassName="min-w-[220px]"
+        menuClassName="min-w-[16rem]"
       />
     ) : null;
 
@@ -240,11 +240,10 @@ export function TopHeader({
           </h2>
         </div>
 
-        <div className="hidden min-w-0 shrink-0 lg:block lg:w-[12rem]">
-          {organizationSelect}
-        </div>
-
         <div className="flex shrink-0 items-center gap-1.5">
+          <div className="hidden w-[18.5rem] min-w-0 lg:block">
+            {organizationSelect}
+          </div>
           <ThemeSwitch />
           <div className="relative">
             <button

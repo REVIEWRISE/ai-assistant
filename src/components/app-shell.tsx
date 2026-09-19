@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppFooter } from "@/components/app-footer";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -18,8 +18,23 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+type MePayload = {
+  user?: {
+    fullName?: string;
+    email?: string;
+    emailVerified?: boolean;
+    role?: string;
+    organization?: string;
+    organizationId?: string | null;
+  };
+  organizations?: Array<{ id: string; name: string }>;
+  allowedNavPaths?: string[];
+  billing?: { billingStatus?: string } | null;
+};
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
   const [profileOpen, setProfileOpen] = useState(false);
@@ -56,6 +71,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isChromeFreeBillingGate =
     isOnboardingPlan || isBillingExpiredWall || isBillingCheckoutReturn;
 
+  const lockExpiredWorkspace =
+    billingStatus === "expired" && profileRole !== "Admin" && !isChromeFreeBillingGate;
+
   const visibleNavItems = useMemo(() => {
     const set = allowedNavPaths === null ? new Set<string>() : new Set(allowedNavPaths);
     return filterNavItemsByPermissions(APP_NAV_ITEMS, set, profileRole === "Admin");
@@ -69,55 +87,52 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const navPermissionsReady = allowedNavPaths !== null;
   const hasNoMenuAccess = navPermissionsReady && visibleNavItems.length === 0;
 
+  const applyMePayload = useCallback((data: MePayload) => {
+    if (!data.user) return false;
+
+    if (data.user.emailVerified === false) {
+      const email = data.user.email?.trim() ?? "";
+      const pendingQs = email ? `?email=${encodeURIComponent(email)}` : "";
+      window.location.replace(`/verify-email/pending${pendingQs}`);
+      return false;
+    }
+
+    if (data.user.fullName) setProfileName(data.user.fullName);
+    if (data.user.email) setProfileEmail(data.user.email);
+    if (data.user.role) setProfileRole(data.user.role);
+    if (data.user.organization) setProfileOrg(data.user.organization);
+    if (typeof data.user.organizationId !== "undefined") {
+      setActiveOrganizationId(data.user.organizationId ?? null);
+    }
+    setOrganizations(Array.isArray(data.organizations) ? data.organizations : []);
+    setAllowedNavPaths(Array.isArray(data.allowedNavPaths) ? data.allowedNavPaths : []);
+    setBillingStatus(data.billing?.billingStatus ?? null);
+    return true;
+  }, []);
+
+  const loadSession = useCallback(async () => {
+    const res = await fetch("/api/me", { cache: "no-store" });
+    if (!res.ok) {
+      setAllowedNavPaths([]);
+      return false;
+    }
+    const data = (await res.json()) as MePayload;
+    return applyMePayload(data);
+  }, [applyMePayload]);
+
   useEffect(() => {
     let isMounted = true;
 
-    async function loadSession() {
+    async function load() {
       try {
-        const res = await fetch("/api/me", { cache: "no-store" });
-        if (!res.ok) {
-          if (isMounted) setAllowedNavPaths([]);
-          return;
-        }
-        const data = (await res.json()) as {
-          user?: {
-            fullName?: string;
-            email?: string;
-            emailVerified?: boolean;
-            role?: string;
-            organization?: string;
-            organizationId?: string | null;
-          };
-          organizations?: Array<{ id: string; name: string }>;
-          allowedNavPaths?: string[];
-          billing?: { billingStatus?: string } | null;
-        };
-        if (!isMounted || !data.user) return;
-
-        if (data.user.emailVerified === false) {
-          const email = data.user.email?.trim() ?? "";
-          const pendingQs = email ? `?email=${encodeURIComponent(email)}` : "";
-          window.location.replace(`/verify-email/pending${pendingQs}`);
-          return;
-        }
-
-        if (data.user.fullName) setProfileName(data.user.fullName);
-        if (data.user.email) setProfileEmail(data.user.email);
-        if (data.user.role) setProfileRole(data.user.role);
-        if (data.user.organization) setProfileOrg(data.user.organization);
-        if (typeof data.user.organizationId !== "undefined") {
-          setActiveOrganizationId(data.user.organizationId ?? null);
-        }
-        setOrganizations(Array.isArray(data.organizations) ? data.organizations : []);
-        setAllowedNavPaths(Array.isArray(data.allowedNavPaths) ? data.allowedNavPaths : []);
-        setBillingStatus(data.billing?.billingStatus ?? null);
+        await loadSession();
       } catch {
         if (isMounted) setAllowedNavPaths([]);
       }
     }
 
     if (!authRoute && !isPublicLanding && !isEmbedRoute) {
-      void loadSession();
+      void load();
     } else {
       setTimeout(() => {
         if (isMounted) setAllowedNavPaths(null);
@@ -127,7 +142,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => {
       isMounted = false;
     };
-  }, [authRoute, isPublicLanding, isEmbedRoute, isChromeFreeBillingGate, pathname, searchKey]);
+  }, [authRoute, isPublicLanding, isEmbedRoute, isChromeFreeBillingGate, pathname, searchKey, loadSession]);
 
   const handleSwitchOrganization = async (organizationId: string) => {
     if (!organizationId || organizationId === activeOrganizationId || switchingOrganization) return;
@@ -142,7 +157,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const nextOrg = organizations.find((org) => org.id === organizationId);
       if (nextOrg) setProfileOrg(nextOrg.name);
       setActiveOrganizationId(organizationId);
-      window.location.reload();
+      await loadSession();
+      router.refresh();
     } finally {
       setSwitchingOrganization(false);
     }
@@ -196,7 +212,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isChromeFreeBillingGate) {
+  if (isChromeFreeBillingGate || lockExpiredWorkspace) {
     return (
       <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
         <BillingAccessGuard
@@ -270,7 +286,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onSwitchOrganization={handleSwitchOrganization}
             switchingOrganization={switchingOrganization}
           />
-          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 [scrollbar-width:thin] lg:p-5">{children}</main>
+          <main
+            key={activeOrganizationId ?? "none"}
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-16 [scrollbar-width:thin] lg:p-5 lg:pb-16"
+          >
+            {children}
+          </main>
           <AppFooter organization={profileOrg} role={profileRole} />
         </div>
       </div>

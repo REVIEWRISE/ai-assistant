@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createBillingCheckoutSession } from "@/app/(protected)/billing/actions";
+import { CONTACT_EMAIL } from "@/lib/brand";
 import type { CheckoutPlanOption } from "@/lib/billing-checkout-types";
-import { formatUsd, type PlanSlug } from "@/lib/pricing-plans";
+import { planIntervalAllowsSelfServeCheckout } from "@/lib/billing-checkout-types";
+import { formatUsd, PLAN_SLUGS, type PlanSlug } from "@/lib/pricing-plans";
 import { toast } from "@/lib/toast";
 
 type BillingCheckoutPanelProps = {
@@ -21,12 +23,13 @@ export function BillingCheckoutPanel({
   billingConfigured,
   mode = "subscribe",
 }: BillingCheckoutPanelProps) {
+  const currentRank = initialPlanSlug ? PLAN_SLUGS.indexOf(initialPlanSlug) : -1;
+  const visiblePlans =
+    mode === "upgrade"
+      ? plans.filter((plan) => PLAN_SLUGS.indexOf(plan.slug) > currentRank)
+      : plans;
   const defaultSlug =
-    (initialPlanSlug && plans.some((plan) => plan.slug === initialPlanSlug)
-      ? initialPlanSlug
-      : plans.find((plan) => plan.featured)?.slug) ??
-    plans[0]?.slug ??
-    null;
+    visiblePlans.find((plan) => plan.featured)?.slug ?? visiblePlans[0]?.slug ?? null;
 
   const [planSlug, setPlanSlug] = useState<PlanSlug | null>(defaultSlug);
   const [interval, setInterval] = useState<"monthly" | "yearly">(initialInterval);
@@ -43,13 +46,18 @@ export function BillingCheckoutPanel({
     });
   }, [billingConfigured]);
 
-  const selected = plans.find((plan) => plan.slug === planSlug) ?? null;
+  const selected = visiblePlans.find((plan) => plan.slug === planSlug) ?? null;
   const priceCents =
     interval === "yearly" ? selected?.yearlyPriceCents : selected?.monthlyPriceCents;
-  const hasPlanId = Boolean(
-    selected && (interval === "yearly" ? selected.yearlyPlanId : selected.monthlyPlanId),
-  );
-  const canCheckout = billingConfigured && Boolean(selected) && hasPlanId;
+  const canCheckout =
+    billingConfigured &&
+    Boolean(selected) &&
+    selected != null &&
+    planIntervalAllowsSelfServeCheckout(selected, interval);
+  const isCustomPricing = Boolean(selected?.isCustomPricing);
+  const salesHref = selected
+    ? `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`Custom pricing for ${selected.name}`)}`
+    : `mailto:${CONTACT_EMAIL}`;
 
   function startCheckout() {
     if (!planSlug) return;
@@ -71,11 +79,12 @@ export function BillingCheckoutPanel({
     });
   }
 
-  if (!plans.length) {
+  if (!visiblePlans.length) {
     return (
       <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-raised)] px-4 py-4 text-sm text-[var(--color-text-muted)]">
-        No paid plans are available from Billing yet. Ask a platform admin to configure prices in
-        Billing → Plans.
+        {mode === "upgrade"
+          ? "You’re already on the highest plan. There’s nothing to upgrade to."
+          : "No paid plans are available from Billing yet. Ask a platform admin to configure prices in Billing → Plans."}
       </div>
     );
   }
@@ -110,13 +119,11 @@ export function BillingCheckoutPanel({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        {plans.map((plan) => {
+        {visiblePlans.map((plan) => {
           const selectedPlan = plan.slug === planSlug;
           const amount =
             interval === "yearly" ? plan.yearlyPriceCents : plan.monthlyPriceCents;
-          const planAvailable = Boolean(
-            interval === "yearly" ? plan.yearlyPlanId : plan.monthlyPlanId,
-          );
+          const planAvailable = planIntervalAllowsSelfServeCheckout(plan, interval);
           const isCurrent = plan.slug === initialPlanSlug;
           return (
             <button
@@ -155,7 +162,9 @@ export function BillingCheckoutPanel({
               </p>
               {!planAvailable ? (
                 <p className="mt-3 text-[11px] font-medium text-amber-700 [[data-theme=dark]_&]:text-amber-300">
-                  Not available for checkout
+                  {plan.isCustomPricing
+                    ? "Custom pricing · talk to sales"
+                    : "Not available for checkout"}
                 </p>
               ) : null}
             </button>
@@ -169,24 +178,37 @@ export function BillingCheckoutPanel({
             {selected?.name ?? "Select a plan"}
           </p>
           <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-            {interval === "yearly" ? "Billed annually" : "Billed monthly"}
-            {priceCents != null ? ` · ${formatUsd(priceCents)}` : ""}
+            {isCustomPricing
+              ? "Custom pricing · talk to sales"
+              : interval === "yearly"
+                ? "Billed annually"
+                : "Billed monthly"}
+            {!isCustomPricing && priceCents != null ? ` · ${formatUsd(priceCents)}` : ""}
           </p>
         </div>
-        <button
-          type="button"
-          disabled={!canCheckout || pending}
-          onClick={startCheckout}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl vr-btn-primary px-5 text-sm font-semibold shadow-[0_10px_24px_-14px_color-mix(in_srgb,var(--color-primary)_85%,transparent)] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {pending
-            ? "Redirecting"
-            : priceCents != null
-              ? `${mode === "upgrade" ? "Upgrade" : "Subscribe"} · ${formatUsd(priceCents)}`
-              : mode === "upgrade"
-                ? "Upgrade"
-                : "Subscribe"}
-        </button>
+        {isCustomPricing ? (
+          <a
+            href={salesHref}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl vr-btn-primary px-5 text-sm font-semibold shadow-[0_10px_24px_-14px_color-mix(in_srgb,var(--color-primary)_85%,transparent)]"
+          >
+            Contact sales
+          </a>
+        ) : (
+          <button
+            type="button"
+            disabled={!canCheckout || pending}
+            onClick={startCheckout}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl vr-btn-primary px-5 text-sm font-semibold shadow-[0_10px_24px_-14px_color-mix(in_srgb,var(--color-primary)_85%,transparent)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending
+              ? "Redirecting"
+              : priceCents != null
+                ? `${mode === "upgrade" ? "Upgrade" : "Subscribe"} · ${formatUsd(priceCents)}`
+                : mode === "upgrade"
+                  ? "Upgrade"
+                  : "Subscribe"}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -8,6 +8,9 @@ import { prisma } from "@/lib/prisma";
 import { checkLoginRateLimit, resetRateLimit } from "@/lib/rate-limit";
 import { getRequestIp } from "@/lib/request-ip";
 import { isLocked, lockoutRetryAfterMs, recordFailedLogin, resetFailedLogins } from "@/lib/account-lockout";
+import { writePlatformAudit } from "@/lib/platform-audit";
+import { userHasAdminRole } from "@/lib/admin-view-only";
+import { getOrgBilling, billingRedirectForStatus } from "@/lib/entitlements";
 
 export async function loginUser(formData: FormData) {
   const ip = await getRequestIp();
@@ -28,14 +31,10 @@ export async function loginUser(formData: FormData) {
 
   if (!user) {
     // Audit failed login attempt (no user found — use null actor/org)
-    await prisma.auditEvent.create({
-      data: {
-        organizationId: "00000000-0000-0000-0000-000000000000",
-        actorId: null,
-        action: "auth.login_failed",
-        metadata: { reason: "user_not_found", email },
-      },
-    }).catch(() => {/* non-blocking */});
+    await writePlatformAudit({
+      action: "auth.login_failed",
+      metadata: { reason: "user_not_found", email },
+    });
     redirect("/login?error=invalid");
   }
 
@@ -45,14 +44,11 @@ export async function loginUser(formData: FormData) {
 
   if (isLocked(user)) {
     const minutes = Math.ceil(lockoutRetryAfterMs(user) / 60000);
-    await prisma.auditEvent.create({
-      data: {
-        organizationId: "00000000-0000-0000-0000-000000000000",
-        actorId: user.id,
-        action: "auth.login_blocked_locked",
-        metadata: { retryMinutes: minutes },
-      },
-    }).catch(() => {/* non-blocking */});
+    await writePlatformAudit({
+      actorId: user.id,
+      action: "auth.login_blocked_locked",
+      metadata: { retryMinutes: minutes },
+    });
     redirect(`/login?error=locked&retry=${minutes}`);
   }
 
@@ -63,14 +59,12 @@ export async function loginUser(formData: FormData) {
       select: { organizationId: true },
       orderBy: { createdAt: "asc" },
     });
-    await prisma.auditEvent.create({
-      data: {
-        organizationId: membership?.organizationId ?? "00000000-0000-0000-0000-000000000000",
-        actorId: user.id,
-        action: "auth.login_failed",
-        metadata: { reason: "invalid_password" },
-      },
-    }).catch(() => {/* non-blocking */});
+    await writePlatformAudit({
+      actorId: user.id,
+      organizationId: membership?.organizationId,
+      action: "auth.login_failed",
+      metadata: { reason: "invalid_password" },
+    });
     await recordFailedLogin(user);
     redirect("/login?error=invalid");
   }
@@ -125,6 +119,12 @@ export async function loginUser(formData: FormData) {
     redirect(
       `/verify-email/pending?email=${encodeURIComponent(user.email)}&error=unverified`,
     );
+  }
+
+  if (activeOrganizationId && !(await userHasAdminRole(user.id))) {
+    const billing = await getOrgBilling(activeOrganizationId);
+    const billingHome = billing ? billingRedirectForStatus(billing.billingStatus) : null;
+    if (billingHome) redirect(`${billingHome}?success=login`);
   }
 
   redirect("/dashboard?success=login");

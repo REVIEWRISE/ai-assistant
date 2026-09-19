@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createBillingCheckoutSession } from "@/app/(protected)/billing/actions";
+import { CONTACT_EMAIL } from "@/lib/brand";
 import type { CheckoutPlanOption } from "@/lib/billing-checkout-types";
+import { planIntervalAllowsSelfServeCheckout } from "@/lib/billing-checkout-types";
 import { formatUsd, type PlanSlug } from "@/lib/pricing-plans";
 import { toast } from "@/lib/toast";
 
@@ -13,11 +15,19 @@ type BillingExpiredPlanPickerProps = {
   billingConfigured: boolean;
 };
 
-function displayPriceCents(
+function displayPrice(
   plan: CheckoutPlanOption,
   interval: "monthly" | "yearly",
-): number | null {
-  return interval === "yearly" ? plan.yearlyPriceCents : plan.monthlyPriceCents;
+): { amount: string; suffix: string } {
+  const cents = interval === "yearly" ? plan.yearlyPriceCents : plan.monthlyPriceCents;
+  if (plan.isCustomPricing && (cents === null || cents === 0)) {
+    return { amount: "Custom", suffix: "" };
+  }
+  if (cents == null) return { amount: "—", suffix: "" };
+  return {
+    amount: formatUsd(cents),
+    suffix: interval === "yearly" ? "/year" : "/month",
+  };
 }
 
 export function BillingExpiredPlanPicker({
@@ -53,12 +63,16 @@ export function BillingExpiredPlanPicker({
     [plans, selected],
   );
 
-  const priceCents = active ? displayPriceCents(active, interval) : null;
-  const priceSuffix = interval === "yearly" ? "/yr" : "/mo";
-  const hasPlanId = Boolean(
-    active && (interval === "yearly" ? active.yearlyPlanId : active.monthlyPlanId),
-  );
-  const canCheckout = billingConfigured && Boolean(active) && hasPlanId;
+  const price = active ? displayPrice(active, interval) : null;
+  const canCheckout =
+    billingConfigured &&
+    Boolean(active) &&
+    active != null &&
+    planIntervalAllowsSelfServeCheckout(active, interval);
+  const isCustomPricing = Boolean(active?.isCustomPricing);
+  const salesHref = active
+    ? `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`Custom pricing for ${active.name}`)}`
+    : `mailto:${CONTACT_EMAIL}`;
 
   function startCheckout() {
     if (!active) return;
@@ -121,10 +135,8 @@ export function BillingExpiredPlanPicker({
       <div className="space-y-3" role="radiogroup" aria-label="Plans">
         {plans.map((plan) => {
           const isSelected = selected === plan.slug;
-          const planPriceCents = displayPriceCents(plan, interval);
-          const planAvailable = Boolean(
-            interval === "yearly" ? plan.yearlyPlanId : plan.monthlyPlanId,
-          );
+          const planPrice = displayPrice(plan, interval);
+          const planAvailable = planIntervalAllowsSelfServeCheckout(plan, interval);
 
           return (
             <button
@@ -167,35 +179,14 @@ export function BillingExpiredPlanPicker({
                   </p>
                   {!planAvailable ? (
                     <p className="mt-2 text-[11px] font-medium text-amber-700 [[data-theme=dark]_&]:text-amber-300">
-                      Not available for checkout
+                      {plan.isCustomPricing
+                        ? "Custom pricing · talk to sales"
+                        : "Not available for checkout"}
                     </p>
                   ) : null}
 
                   {isSelected ? (
                     <div className="mt-4 space-y-3 border-t border-[color-mix(in_srgb,var(--color-primary)_18%,var(--color-border))] pt-4">
-                      <div className="flex flex-wrap gap-2">
-                        <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-                          {Number.isFinite(plan.includedLocations)
-                            ? `${plan.includedLocations} location${plan.includedLocations === 1 ? "" : "s"}`
-                            : "Unlimited locations"}
-                        </span>
-                        <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-                          {Number.isFinite(plan.teamMemberLimit)
-                            ? `${plan.teamMemberLimit} team seat${plan.teamMemberLimit === 1 ? "" : "s"}`
-                            : "Unlimited team seats"}
-                        </span>
-                        {plan.includedVoiceMinutes > 0 ? (
-                          <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-                            {Number.isFinite(plan.includedVoiceMinutes)
-                              ? `${plan.includedVoiceMinutes} voice minutes`
-                              : "Unlimited voice minutes"}
-                          </span>
-                        ) : (
-                          <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-                            No voice minutes
-                          </span>
-                        )}
-                      </div>
                       {(plan.contents ?? []).length ? (
                         <ul className="grid gap-2 sm:grid-cols-2">
                           {(plan.contents ?? []).slice(0, 6).map((item) => (
@@ -220,12 +211,14 @@ export function BillingExpiredPlanPicker({
                   ) : null}
                 </div>
 
-                <div className="shrink-0 text-right">
+                <div className="shrink-0 whitespace-nowrap text-right">
                   <p className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
-                    {planPriceCents != null ? formatUsd(planPriceCents) : "Custom"}
-                  </p>
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    {interval === "yearly" ? "/yr" : "/mo"}
+                    {planPrice.amount}
+                    {planPrice.suffix ? (
+                      <span className="ml-1 text-xs font-medium text-[var(--color-text-muted)]">
+                        {planPrice.suffix}
+                      </span>
+                    ) : null}
                   </p>
                 </div>
               </div>
@@ -239,26 +232,39 @@ export function BillingExpiredPlanPicker({
           <div>
             <p className="text-sm font-semibold text-[var(--color-text)]">
               {active?.name ?? "Plan"}
-              {priceCents != null ? ` · ${formatUsd(priceCents)}${priceSuffix}` : ""}
+              {price && price.amount !== "—"
+                ? ` · ${price.amount}${price.suffix}`
+                : ""}
             </p>
             <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">
-              {interval === "yearly"
-                ? "Billed annually · access restores after payment"
-                : "Billed monthly · access restores after payment"}
+              {isCustomPricing
+                ? "Custom pricing · we’ll set this up with you"
+                : interval === "yearly"
+                  ? "Billed annually · access restores after payment"
+                  : "Billed monthly · access restores after payment"}
             </p>
           </div>
-          <button
-            type="button"
-            disabled={!canCheckout || pending}
-            onClick={startCheckout}
-            className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {pending
-              ? "Redirecting…"
-              : priceCents != null
-                ? `Subscribe · ${formatUsd(priceCents)}${priceSuffix}`
-                : "Subscribe"}
-          </button>
+          {isCustomPricing ? (
+            <a
+              href={salesHref}
+              className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+            >
+              Contact sales
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled={!canCheckout || pending}
+              onClick={startCheckout}
+              className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {pending
+                ? "Redirecting…"
+                : price && price.amount !== "—" && price.amount !== "Custom"
+                  ? `Subscribe · ${price.amount}${price.suffix}`
+                  : "Subscribe"}
+            </button>
+          )}
         </div>
       </div>
     </div>

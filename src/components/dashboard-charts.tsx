@@ -257,9 +257,13 @@ function DashboardBarChartCard({
 export function DashboardOverviewGrid({
   stats,
   organizationName,
+  eyebrow = "Workspace pulse",
+  caption = "Live operational totals",
 }: {
   stats: DashboardOverviewStat[];
   organizationName?: string | null;
+  eyebrow?: string;
+  caption?: string;
 }) {
   if (!stats.length) return null;
 
@@ -276,12 +280,12 @@ export function DashboardOverviewGrid({
     <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-md)] lg:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 px-1">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Workspace pulse</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">{eyebrow}</p>
           <h2 className="mt-1 text-base font-semibold text-[var(--color-text)]">
             {organizationName ?? "Collective performance"}
           </h2>
         </div>
-        <p className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-[10px] font-medium text-[var(--color-text-muted)]">Live operational totals</p>
+        <p className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-[10px] font-medium text-[var(--color-text-muted)]">{caption}</p>
       </div>
       <div className={`grid gap-3 ${gridCols}`}>
         {stats.map((stat) => (

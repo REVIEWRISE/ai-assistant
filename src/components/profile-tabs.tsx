@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { WorkspaceBillingClosePanel } from "@/components/workspace-billing-close-panel";
 import { useFormStatus } from "react-dom";
 
 type TabKey = "profile" | "security";
@@ -27,6 +28,12 @@ type ProfileTabsProps = {
   hasPassword: boolean;
   onUpdateProfile: (formData: FormData) => void | Promise<void>;
   onUpdatePassword: (formData: FormData) => void | Promise<void>;
+  billingClose?: {
+    workspaceName: string;
+    cancelAtPeriodEnd: boolean;
+    trialEndsAt: string | null;
+    currentPeriodEndsAt: string | null;
+  } | null;
 };
 
 function SubmitButton({ children }: { children: string }) {
@@ -65,6 +72,7 @@ export function ProfileTabs({
   hasPassword,
   onUpdateProfile,
   onUpdatePassword,
+  billingClose = null,
 }: ProfileTabsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("profile");
   const [showCurrent, setShowCurrent] = useState(false);
@@ -213,9 +221,8 @@ export function ProfileTabs({
         ) : null}
 
         {activeTab === "security" ? (
+          <div id="profile-panel-security" role="tabpanel">
           <div
-            id="profile-panel-security"
-            role="tabpanel"
             className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]"
           >
             <form
@@ -350,6 +357,8 @@ export function ProfileTabs({
                 </p>
               </div>
             </aside>
+          </div>
+          {billingClose ? <WorkspaceBillingClosePanel billing={billingClose} /> : null}
           </div>
         ) : null}
       </div>

@@ -6,7 +6,7 @@ import { ThemeSwitch } from "@/components/theme-switch";
 import { requireSession } from "@/lib/auth-session";
 import { getPublicLandingPlans } from "@/lib/billing-plan-repository";
 import { BRAND_NAME, PRODUCT_NAME } from "@/lib/brand";
-import { getOrgBilling } from "@/lib/entitlements";
+import { getOrgBilling, ownerHasConsumedTrial } from "@/lib/entitlements";
 import { BILLING_RULES } from "@/lib/pricing-plans";
 import { mapCatalogNameToPlanSlug } from "@/lib/billing-checkout";
 
@@ -31,10 +31,14 @@ export default async function OnboardingPlanPage({ searchParams }: PageProps) {
   }
 
   const billing = await getOrgBilling(organizationId);
+  if (params.success === "subscription_canceled" || billing?.billingStatus === "expired") {
+    redirect("/billing/expired?success=subscription_canceled");
+  }
   if (billing && billing.billingStatus !== "needs_plan" && billing.planSlug) {
-    if (billing.billingStatus === "expired") redirect("/billing/expired");
     redirect("/dashboard");
   }
+
+  const trialAvailable = !(await ownerHasConsumedTrial(organizationId));
 
   const catalog = await getPublicLandingPlans().catch(() => []);
   const preselect = (params.plan || "") as string;
@@ -52,7 +56,6 @@ export default async function OnboardingPlanPage({ searchParams }: PageProps) {
         title: live.title,
         description: live.description,
         monthlyPrice: live.price ?? "—",
-        yearlyMonthlyPrice: live.yearlyMonthlyPrice ?? "—",
         yearlyTotal: live.yearlyPrice ?? "—",
         featured: Boolean(live.featured),
         highlights: live.items.length ? [...live.items] : [],
@@ -110,8 +113,9 @@ export default async function OnboardingPlanPage({ searchParams }: PageProps) {
               Choose how {workspaceName} starts.
             </h1>
             <p className="mt-5 text-base leading-7 text-[var(--color-text-muted)]">
-              Every plan includes a {BILLING_RULES.trialDays}-day trial. No credit card. You can
-              change plans later from billing.
+              {trialAvailable
+                ? `Every plan includes a ${BILLING_RULES.trialDays}-day trial. No credit card. You can change plans later from billing.`
+                : "A free trial is no longer available on this account. Choose a plan and subscribe to unlock the workspace."}
             </p>
 
             <dl className="mt-10 grid gap-4 sm:grid-cols-2">
@@ -120,7 +124,7 @@ export default async function OnboardingPlanPage({ searchParams }: PageProps) {
                   Trial
                 </dt>
                 <dd className="mt-1.5 text-lg font-semibold text-[var(--color-text)]">
-                  {BILLING_RULES.trialDays} days free
+                  {trialAvailable ? `${BILLING_RULES.trialDays} days free` : "Subscribe to continue"}
                 </dd>
               </div>
               <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]/70 px-4 py-4 backdrop-blur-sm">
@@ -158,7 +162,7 @@ export default async function OnboardingPlanPage({ searchParams }: PageProps) {
                 Select a plan
               </p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--color-text)]">
-                Start your trial
+                {trialAvailable ? "Start your trial" : "Choose a plan"}
               </h2>
             </div>
 
@@ -167,6 +171,7 @@ export default async function OnboardingPlanPage({ searchParams }: PageProps) {
               preselect={preselect}
               intervalDefault={intervalDefault}
               trialDays={BILLING_RULES.trialDays}
+              trialAvailable={trialAvailable}
             />
           </div>
         </main>

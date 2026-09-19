@@ -13,7 +13,8 @@ const successMessages: Record<string, string> = {
 const errorMessages: Record<string, string> = {
   missing: "Please fill in all required fields.",
   exists: "That email is already in use.",
-  delete_failed: "Unable to delete that user.",
+  cannot_delete_self: "You cannot delete your own account.",
+  last_admin: "Keep at least one administrator.",
   organization_missing: "Enter an organization name before adding its details.",
   organization_invalid: "Organization details exceed the allowed length.",
   unknown: "Something went wrong. Try again.",

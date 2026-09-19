@@ -7,6 +7,8 @@ import {
   getOrganizationBillingCustomerId,
   isBillingConfigured,
 } from "@/lib/billing-client";
+import { cancelOrganizationBillingSubscription } from "@/lib/billing-subscription-cancel";
+import { markOrgUnpaid } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 
 export type ReviewRefundResult = { ok: true } | { ok: false; error: string };
@@ -64,6 +66,14 @@ export async function approveRefundRequest(input: {
     return { ok: false, error: message };
   }
 
+  const cancelResult = await cancelOrganizationBillingSubscription({
+    organizationId: request.organizationId,
+    mode: "now",
+  });
+  if (!cancelResult.ok) {
+    await markOrgUnpaid(request.organizationId);
+  }
+
   const adminNote = String(input.adminNote || "").trim().slice(0, 1000) || null;
 
   await prisma.refundRequest.update({
@@ -83,7 +93,11 @@ export async function approveRefundRequest(input: {
         organizationId: request.organizationId,
         actorId: session.userId,
         action: "billing.refund_approved",
-        metadata: { refundRequestId: request.id },
+        metadata: {
+          refundRequestId: request.id,
+          accessEnded: true,
+          subscriptionCanceled: cancelResult.ok && !cancelResult.localOnly,
+        },
       },
     })
     .catch(() => undefined);
@@ -91,6 +105,8 @@ export async function approveRefundRequest(input: {
   revalidatePath(REFUNDS_PATH);
   revalidatePath("/subscription");
   revalidatePath("/billing-admin");
+  revalidatePath("/billing/expired");
+  revalidatePath("/billing-admin/organizations");
   return { ok: true };
 }
 

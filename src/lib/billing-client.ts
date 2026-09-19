@@ -718,6 +718,52 @@ export async function cancelBillingSubscription(
   });
 }
 
+export function isBillingHttpError(error: unknown, status: number): boolean {
+  return error instanceof Error && error.message.includes(`Billing API error ${status} `);
+}
+
+/**
+ * Clear a scheduled Billing/Stripe cancel. Tries /resume, then a generic PATCH.
+ */
+export async function resumeBillingSubscription(subscriptionId: string): Promise<void> {
+  const path = `/billing/admin/subscriptions/${encodeURIComponent(subscriptionId)}`;
+  try {
+    await billingFetch(`${path}/resume`, {
+      method: "PATCH",
+      body: JSON.stringify({}),
+    });
+    return;
+  } catch (error) {
+    if (!isBillingHttpError(error, 404) && !isBillingHttpError(error, 405)) {
+      throw error;
+    }
+  }
+
+  await billingFetch(path, {
+    method: "PATCH",
+    body: JSON.stringify({
+      cancelAtPeriodEnd: false,
+      cancel_at_period_end: false,
+    }),
+  });
+}
+
+export async function updateBillingSubscription(
+  subscriptionId: string,
+  input: { planId?: string; cancelAtPeriodEnd?: boolean },
+): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (input.planId) body.planId = input.planId;
+  if (typeof input.cancelAtPeriodEnd === "boolean") {
+    body.cancelAtPeriodEnd = input.cancelAtPeriodEnd;
+    body.cancel_at_period_end = input.cancelAtPeriodEnd;
+  }
+  await billingFetch(`/billing/admin/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export type BillingRefundResult = {
   id: string | null;
 };

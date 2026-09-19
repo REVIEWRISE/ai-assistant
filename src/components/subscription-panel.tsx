@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { createPortal } from "react-dom";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { cancelActiveWorkspaceSubscription } from "@/app/(protected)/subscription/actions";
 import { requestWorkspaceRefund } from "@/app/(protected)/subscription/refund-actions";
 import { REFUND_REASON_OPTIONS, labelForRefundReason } from "@/lib/refund-reasons";
 import { toast } from "@/lib/toast";
@@ -31,7 +29,9 @@ export type SubscriptionViewModel = {
   trialEndsAt: string | null;
   paidAt: string | null;
   currentPeriodEndsAt: string | null;
+  cancelAtPeriodEnd: boolean;
   canCancel: boolean;
+  canUpgrade: boolean;
   isOwner: boolean;
   refund: SubscriptionRefundView;
 };
@@ -103,122 +103,16 @@ function Fact({
   );
 }
 
-function CancelConfirmModal({
-  open,
-  pending,
-  title,
-  description,
-  confirmLabel,
-  onClose,
-  onConfirm,
-}: {
-  open: boolean;
-  pending: boolean;
-  title: string;
-  description: string;
-  confirmLabel: string;
-  onClose: () => void;
-  onConfirm: () => void;
-}) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !pending) onClose();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = previous;
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open, pending, onClose]);
-
-  if (!mounted || !open) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-[var(--color-overlay)] px-4 backdrop-blur-sm">
-      <button
-        type="button"
-        className="absolute inset-0 cursor-default"
-        aria-label="Close confirmation"
-        disabled={pending}
-        onClick={() => {
-          if (!pending) onClose();
-        }}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="cancel-confirm-title"
-        className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"
-      >
-        <div className="flex items-start justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-danger)]">
-              Confirm cancel
-            </p>
-            <h2
-              id="cancel-confirm-title"
-              className="mt-1 text-lg font-semibold text-[var(--color-text)]"
-            >
-              {title}
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">{description}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={pending}
-            className="rounded-lg px-2 py-1 text-lg leading-none text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)] disabled:opacity-50"
-            aria-label="Close dialog"
-          >
-            ×
-          </button>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2 p-5">
-          <button
-            type="button"
-            disabled={pending}
-            onClick={onClose}
-            className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] disabled:opacity-50"
-          >
-            Keep plan
-          </button>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={onConfirm}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-danger)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
-          >
-            {pending ? "Canceling…" : confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
 export function SubscriptionPanel({ subscription }: { subscription: SubscriptionViewModel }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
   const [refundPending, startRefundTransition] = useTransition();
-  const [cancelMode, setCancelMode] = useState<"period_end" | "now">("period_end");
-  const [confirmCancel, setConfirmCancel] = useState(false);
   const [refundReason, setRefundReason] = useState<(typeof REFUND_REASON_OPTIONS)[number]["value"]>(
     "accidental_purchase",
   );
   const [refundNotes, setRefundNotes] = useState("");
   const tone = statusMeta(subscription.billingStatus);
   const isTrialing = subscription.billingStatus === "trialing";
+  const accessEndsAt = subscription.currentPeriodEndsAt ?? subscription.trialEndsAt;
   const intervalLabel = subscription.billingInterval
     ? subscription.billingInterval.charAt(0).toUpperCase() + subscription.billingInterval.slice(1)
     : null;
@@ -230,27 +124,6 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
     subscription.isOwner &&
     !refundUnderReview &&
     latestRefund?.status !== "approved";
-
-  function onCancel() {
-    startTransition(async () => {
-      const result = await cancelActiveWorkspaceSubscription({ mode: cancelMode });
-      setConfirmCancel(false);
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success(
-        result.mode === "now"
-          ? "Subscription canceled. Access has been revoked."
-          : "Subscription will end after the current period.",
-      );
-      if (result.mode === "now") {
-        window.location.assign("/onboarding/plan?success=subscription_canceled");
-        return;
-      }
-      window.location.assign("/subscription?success=cancel_scheduled");
-    });
-  }
 
   function onRequestRefund() {
     startRefundTransition(async () => {
@@ -276,14 +149,14 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
     },
     {
       label: isTrialing ? "Trial ends" : "Period ends",
-      value: formatDate(
-        isTrialing ? subscription.trialEndsAt : subscription.currentPeriodEndsAt,
-      ),
-      hint: isTrialing
-        ? "Free trial window"
-        : subscription.currentPeriodEndsAt
-          ? "Renewal or cutoff"
-          : "No billing period",
+      value: formatDate(isTrialing ? subscription.trialEndsAt : subscription.currentPeriodEndsAt),
+      hint: subscription.cancelAtPeriodEnd
+        ? "Access ends · won’t renew"
+        : isTrialing
+          ? "Free trial window"
+          : subscription.currentPeriodEndsAt
+            ? "Renewal or cutoff"
+            : "No billing period",
     },
     {
       label: isTrialing ? "Bills as" : "Interval",
@@ -319,17 +192,31 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
                 <span className={`size-1.5 rounded-full ${tone.dot}`} aria-hidden />
                 {tone.label}
               </span>
+              {subscription.cancelAtPeriodEnd ? (
+                <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 [[data-theme=dark]_&]:border-amber-500/30 [[data-theme=dark]_&]:bg-amber-500/15 [[data-theme=dark]_&]:text-amber-200">
+                  Cancels {formatDate(accessEndsAt)}
+                </span>
+              ) : null}
             </div>
             <p className="mt-1.5 max-w-xl text-sm leading-6 text-[var(--color-text-muted)]">
               {subscription.planPositioning?.trim() || `Plan for ${subscription.workspaceName}.`}
             </p>
           </div>
-          <Link
-            href="/billing?error=upgrade_required"
-            className="rounded-xl vr-btn-primary px-4 py-2.5 text-sm font-semibold"
-          >
-            Upgrade plan
-          </Link>
+          {subscription.billingStatus === "expired" ? (
+            <Link
+              href="/billing/expired"
+              className="rounded-xl vr-btn-primary px-4 py-2.5 text-sm font-semibold"
+            >
+              View plans
+            </Link>
+          ) : subscription.canUpgrade ? (
+            <Link
+              href="/billing?error=upgrade_required"
+              className="rounded-xl vr-btn-primary px-4 py-2.5 text-sm font-semibold"
+            >
+              Upgrade plan
+            </Link>
+          ) : null}
         </div>
 
         <div className="grid gap-4 px-5 py-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
@@ -340,140 +227,7 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
       </section>
 
       {subscription.canCancel ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-            <div className="border-b border-[var(--color-border)] px-5 py-4 sm:px-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-                Manage
-              </p>
-              <h3 className="mt-1.5 text-base font-semibold tracking-tight text-[var(--color-text)]">
-                Cancel subscription
-              </h3>
-              <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-                {subscription.isOwner
-                  ? "Pick when access should end."
-                  : "Only workspace owners can cancel billing."}
-              </p>
-            </div>
-
-            {subscription.isOwner ? (
-              <div className="space-y-3 p-5">
-                <fieldset className="space-y-2" disabled={pending}>
-                  <legend className="sr-only">When to cancel</legend>
-                  {(
-                    [
-                      {
-                        value: "period_end" as const,
-                        title: "At period end",
-                        body: subscription.currentPeriodEndsAt
-                          ? `Keep access until ${formatDate(subscription.currentPeriodEndsAt)}.`
-                          : "Keep access until the current period finishes.",
-                        badge: "Recommended",
-                      },
-                      {
-                        value: "now" as const,
-                        title: "Cancel immediately",
-                        body: "Revoke access as soon as you confirm.",
-                        badge: null,
-                      },
-                    ] as const
-                  ).map((option) => {
-                    const selected = cancelMode === option.value;
-                    return (
-                      <label
-                        key={option.value}
-                        className={`flex cursor-pointer gap-3 rounded-xl border px-3.5 py-3 transition ${
-                          selected
-                            ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)]"
-                            : "border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[color-mix(in_srgb,var(--color-primary)_28%,var(--color-border))]"
-                        } ${pending ? "pointer-events-none opacity-60" : ""}`}
-                      >
-                        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center">
-                          <span
-                            className={`flex size-4 items-center justify-center rounded-full border-2 ${
-                              selected
-                                ? "border-[var(--color-primary)]"
-                                : "border-[var(--color-border-hover)]"
-                            }`}
-                            aria-hidden
-                          >
-                            {selected ? (
-                              <span className="size-2 rounded-full bg-[var(--color-primary)]" />
-                            ) : null}
-                          </span>
-                          <input
-                            type="radio"
-                            name="cancel_mode"
-                            value={option.value}
-                            checked={selected}
-                            onChange={() => {
-                              setCancelMode(option.value);
-                              setConfirmCancel(false);
-                            }}
-                            className="sr-only"
-                          />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-semibold text-[var(--color-text)]">
-                              {option.title}
-                            </span>
-                            {option.badge ? (
-                              <span className="rounded-md bg-[var(--color-surface)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-primary-h)]">
-                                {option.badge}
-                              </span>
-                            ) : null}
-                          </span>
-                          <span className="mt-0.5 block text-xs leading-relaxed text-[var(--color-text-muted)]">
-                            {option.body}
-                          </span>
-                        </span>
-                      </label>
-                    );
-                  })}
-                </fieldset>
-
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => setConfirmCancel(true)}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] disabled:opacity-50"
-                >
-                  Continue to cancel
-                  <span aria-hidden>→</span>
-                </button>
-              </div>
-            ) : (
-              <div className="p-5">
-                <p className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
-                  Ask a workspace owner if you need this subscription ended.
-                </p>
-              </div>
-            )}
-          </section>
-
-          <CancelConfirmModal
-            open={confirmCancel}
-            pending={pending}
-            title={
-              cancelMode === "now"
-                ? "Cancel now and end access?"
-                : "Schedule end of subscription?"
-            }
-            description={
-              cancelMode === "now"
-                ? `${subscription.workspaceName} will lose paid features immediately.`
-                : subscription.currentPeriodEndsAt
-                  ? `Access continues until ${formatDate(subscription.currentPeriodEndsAt)}. You can resubscribe later.`
-                  : "Access continues until the current period ends. You can resubscribe later."
-            }
-            confirmLabel={
-              cancelMode === "now" ? "Yes, cancel now" : "Yes, cancel at period end"
-            }
-            onClose={() => setConfirmCancel(false)}
-            onConfirm={onCancel}
-          />
-
+        <div className="space-y-4">
           <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
             <div className="border-b border-[var(--color-border)] px-5 py-4">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
@@ -483,7 +237,7 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
                 Request a refund
               </h3>
               <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-                Reviewed by our team. Separate from canceling.
+                Reviewed by our team.
               </p>
             </div>
 
@@ -574,7 +328,7 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
 
               {refundUnderReview ? (
                 <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-                  We’ll notify you after review. You can still cancel separately if you want access to end.
+                  We’ll notify you after review.
                 </p>
               ) : null}
             </div>
@@ -587,7 +341,7 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
           </p>
           <h3 className="mt-1.5 text-base font-semibold text-[var(--color-text)]">No active billing</h3>
           <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-            There is nothing to cancel right now. Choose a plan when you are ready to subscribe.
+            Choose a plan when you are ready to subscribe.
           </p>
           <Link
             href="/billing?error=upgrade_required"

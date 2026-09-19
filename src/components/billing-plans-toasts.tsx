@@ -31,13 +31,13 @@ const ERROR_TOASTS: Record<
 };
 
 const successMessages: Record<string, string> = {
-  created: "Module created.",
-  updated: "Module updated.",
-  deleted: "Module deleted.",
+  created: "Feature created.",
+  updated: "Feature updated.",
+  deleted: "Feature deleted.",
   plan_updated: "Plan updated.",
   plan_created: "Plan created.",
-  module_attached: "Module added to plan — it now appears in what’s included.",
-  module_detached: "Module removed from plan.",
+  module_attached: "Feature added to this plan.",
+  module_detached: "Feature removed from this plan.",
 };
 
 const actionErrorMessages: Record<string, string> = {

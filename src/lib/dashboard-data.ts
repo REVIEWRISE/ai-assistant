@@ -4,6 +4,7 @@ import { getVoiceAnalytics } from "@/lib/voice-analytics";
 import { getOrgRetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import { displayRoleFromUserRoles, getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
 import { isHrefAllowedForNav } from "@/lib/nav-access";
+import { getPlanBySlug, isPlanSlug } from "@/lib/pricing-plans";
 import { calendarConnectionIsUsable } from "@/lib/calendar-oauth-connection";
 import { resolveBookingFlowConfig } from "@/lib/chatbot-config";
 import {
@@ -78,19 +79,41 @@ export type DashboardSetupStep = {
   complete: boolean;
 };
 
+export type DashboardPlatformStat = {
+  id: string;
+  title: string;
+  value: string | number;
+  hint: string;
+  href: string;
+  tone?: "default" | "warning" | "danger" | "success";
+};
+
+export type DashboardWorkspaceBilling = {
+  status: string;
+  planLabel: string | null;
+  interval: string | null;
+  cancelAtPeriodEnd: boolean;
+  billingAdminOverride: boolean;
+  periodHint: string | null;
+};
+
 export type DashboardData = {
   roleName: string;
+  isOwner: boolean;
   organizationId: string | null;
   organizationName: string | null;
   heroEyebrow: string;
   heroTitle: string;
   heroTitleAccent?: string;
   heroDescription: string;
+  heroBadge: string;
   headlineStats: DashboardStat[];
   overviewStats: DashboardOverviewStat[];
   sections: DashboardSection[];
   quickLinks: DashboardQuickLink[];
   setupSteps: DashboardSetupStep[];
+  platformStats: DashboardPlatformStat[];
+  workspaceBilling: DashboardWorkspaceBilling | null;
   emptyMessage: string | null;
 };
 
@@ -98,20 +121,56 @@ function canAccess(allowed: Set<string>, href: string): boolean {
   return isHrefAllowedForNav(href, allowed);
 }
 
-function heroCopyForRole(
-  roleName: string,
-  sectionCount: number,
-): Pick<DashboardData, "heroEyebrow" | "heroTitle" | "heroTitleAccent" | "heroDescription"> {
-  if (roleName === "Admin") {
+function formatShortDate(value: Date | null | undefined): string | null {
+  if (!value) return null;
+  return value.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function billingStatusLabel(status: string | null | undefined): string {
+  const normalized = (status || "needs_plan").toLowerCase();
+  if (normalized === "trialing") return "Trialing";
+  if (normalized === "active") return "Active";
+  if (normalized === "expired") return "Expired";
+  return "Needs plan";
+}
+
+function billingPeriodHint(org: {
+  billingStatus: string;
+  cancelAtPeriodEnd: boolean;
+  trialEndsAt: Date | null;
+  currentPeriodEndsAt: Date | null;
+}): string | null {
+  const status = (org.billingStatus || "needs_plan").toLowerCase();
+  if (status === "trialing") {
+    const ends = formatShortDate(org.trialEndsAt);
+    return ends ? `Trial ends ${ends}` : null;
+  }
+  if (org.cancelAtPeriodEnd) {
+    const ends = formatShortDate(org.currentPeriodEndsAt);
+    return ends ? `Access until ${ends}` : "Cancels at period end";
+  }
+  if (status === "active") {
+    const ends = formatShortDate(org.currentPeriodEndsAt);
+    return ends ? `Renews ${ends}` : null;
+  }
+  return null;
+}
+
+function heroCopyForRole(input: {
+  roleName: string;
+  sectionCount: number;
+  organizationName: string | null;
+  isOwner: boolean;
+}): Pick<DashboardData, "heroEyebrow" | "heroTitle" | "heroTitleAccent" | "heroDescription"> {
+  if (input.roleName === "Admin") {
     return {
-      heroEyebrow: "Admin overview",
-      heroTitle: "Your workspace",
-      heroTitleAccent: "operations at a glance",
+      heroEyebrow: "Platform",
+      heroTitle: "What needs attention",
       heroDescription:
-        "Full cross-module stats for appointments, reviews, voice, users, and platform health — independent of sidebar menu grants.",
+        "Counts across every workspace. Switch the header to inspect one customer.",
     };
   }
-  if (sectionCount === 0) {
+  if (input.sectionCount === 0) {
     return {
       heroEyebrow: "Welcome",
       heroTitle: "Your dashboard will appear here soon",
@@ -119,19 +178,19 @@ function heroCopyForRole(
         "Your role does not include any workspace modules yet. Contact an administrator if you need access.",
     };
   }
-  if (sectionCount === 1) {
+  const workspace = input.organizationName?.trim() || "your workspace";
+  if (input.isOwner) {
     return {
-      heroEyebrow: `${roleName} dashboard`,
-      heroTitle: "Focus on what matters for",
-      heroTitleAccent: "your role",
-      heroDescription: "Key numbers and shortcuts for the modules assigned to you.",
+      heroEyebrow: workspace,
+      heroTitle: "Today in your workspace",
+      heroDescription:
+        "Bookings, reviews, and calls for this workspace — jump into any module from here.",
     };
   }
   return {
-    heroEyebrow: `${roleName} dashboard`,
-    heroTitle: "Your assigned modules",
-    heroTitleAccent: "at a glance",
-    heroDescription: "Live stats from the areas you can access — open any card to dive deeper.",
+    heroEyebrow: workspace,
+    heroTitle: "Your work at a glance",
+    heroDescription: "Live stats from the modules assigned to you.",
   };
 }
 
@@ -146,7 +205,7 @@ function formatPhoneLineLabel(line: {
 }
 
 export async function getDashboardData(userId: string, activeOrganizationId: string | null): Promise<DashboardData> {
-  const [user, allowedPaths, activeOrganization] = await Promise.all([
+  const [user, allowedPaths, activeOrganization, membership] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       include: { userRoles: { include: { role: true } } },
@@ -160,6 +219,13 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
             name: true,
             logoUrl: true,
             timezone: true,
+            planSlug: true,
+            billingStatus: true,
+            billingInterval: true,
+            cancelAtPeriodEnd: true,
+            billingAdminOverride: true,
+            trialEndsAt: true,
+            currentPeriodEndsAt: true,
             knowledgeBase: { select: { status: true, rawText: true } },
             chatbotSettings: {
               select: { id: true, welcomeMessage: true, bookingFlow: true },
@@ -167,11 +233,18 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           },
         })
       : Promise.resolve(null),
+    activeOrganizationId
+      ? prisma.organizationMember.findFirst({
+          where: { userId, organizationId: activeOrganizationId },
+          select: { role: true },
+        })
+      : Promise.resolve(null),
   ]);
 
   const roleName = displayRoleFromUserRoles(user?.userRoles.map((ur) => ur.role) ?? []);
   const allowed = allowedPaths;
   const isAdmin = roleName === "Admin";
+  const isOwner = membership?.role === "owner";
   const now = new Date();
   const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const in7d = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -180,8 +253,6 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
   const showAppointments = isAdmin || canAccess(allowed, "/appointments");
   const showReviews = isAdmin || canAccess(allowed, "/reviews");
   const showVoice = isAdmin || canAccess(allowed, "/voice-agent");
-  const showUsers = isAdmin || canAccess(allowed, "/users");
-  const showPlatform = isAdmin || canAccess(allowed, "/platform");
 
   const sections: DashboardSection[] = [];
   const headlineStats: DashboardStat[] = [];
@@ -258,10 +329,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           ],
         });
 
-        headlineStats.push(
-          { label: "Upcoming bookings", value: upcoming7d },
-          { label: "Bookings (30d)", value: analytics.totalLast30Days },
-        );
+        headlineStats.push({ label: "Upcoming (24h)", value: upcoming24h });
 
         overviewStats.push({
           id: "bookings",
@@ -533,135 +601,201 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
     });
   }
 
-  if (showUsers) {
-    fetches.push(
-      (async () => {
-        const [totalUsers, activeUsers] = await Promise.all([
-          prisma.user.count(),
-          prisma.user.count({ where: { accountStatus: "active" } }),
-        ]);
-
-        overviewStats.push({
-          id: "users",
-          title: "Users",
-          value: totalUsers,
-          hint: `${activeUsers} active · ${Math.max(0, totalUsers - activeUsers)} inactive`,
-          href: "/users",
-          accent: "#fbbf24",
-        });
-
-        if (roleName === "Admin") {
-          headlineStats.push({ label: "Workspace users", value: totalUsers });
-        }
-      })(),
-    );
-  }
-
-  if (showPlatform) {
-    fetches.push(
-      (async () => {
-        const [enabledProviders, calendarProviders, reviewProviders] = await Promise.all([
-          prisma.provider.count({ where: { status: "enabled" } }),
-          prisma.provider.count({ where: { status: "enabled", type: "calendar" } }),
-          prisma.provider.count({ where: { status: "enabled", type: "review" } }),
-        ]);
-
-        sections.push({
-          id: "platform",
-          title: "Platform Settings",
-          description: "Enabled integrations and provider catalog",
-          href: "/platform/providers",
-          accent: "#38bdf8",
-          stats: [
-            { label: "Enabled providers", value: enabledProviders, accent: "#38bdf8" },
-            { label: "Calendar providers", value: calendarProviders, accent: "#34d399" },
-            { label: "Review providers", value: reviewProviders, accent: "#a78bfa" },
-          ],
-          charts: [
-            {
-              kind: "bar",
-              id: "providers",
-              featured: true,
-              title: "Provider catalog",
-              data: [
-                { label: "Enabled", value: enabledProviders, color: "#38bdf8" },
-                { label: "Calendar", value: calendarProviders, color: "#34d399" },
-                { label: "Review", value: reviewProviders, color: "#a78bfa" },
-              ],
-              color: "#38bdf8",
-            },
-          ],
-        });
-      })(),
-    );
-  }
-
   await Promise.all(fetches);
+
+  if (!isAdmin && orgId) {
+    const teamCount = await prisma.organizationMember.count({
+      where: { organizationId: orgId },
+    });
+    headlineStats.push({ label: "Team", value: teamCount });
+  }
 
   const sectionOrder = ["appointments", "reviews", "voice", "platform"];
   sections.sort((a, b) => sectionOrder.indexOf(a.id) - sectionOrder.indexOf(b.id));
 
-  const hero = heroCopyForRole(roleName, sections.length);
+  const platformStats: DashboardPlatformStat[] = [];
+  let adminHeadline: DashboardStat[] | null = null;
+
+  if (isAdmin) {
+    const since24HoursAgo = new Date();
+    since24HoursAgo.setUTCDate(since24HoursAgo.getUTCDate() - 1);
+
+    const [statusGroups, pendingRefunds, recentAudit, totalUsers, cancelingSoon] = await Promise.all([
+      prisma.organization.groupBy({
+        by: ["billingStatus"],
+        _count: { _all: true },
+      }),
+      prisma.refundRequest.count({ where: { status: "pending" } }),
+      prisma.auditEvent.count({ where: { createdAt: { gte: since24HoursAgo } } }),
+      prisma.user.count(),
+      prisma.organization.count({ where: { cancelAtPeriodEnd: true } }),
+    ]);
+
+    const countFor = (status: string) =>
+      statusGroups.find((row) => (row.billingStatus || "needs_plan").toLowerCase() === status)?._count
+        ._all ?? 0;
+    const expired = countFor("expired");
+    const trialing = countFor("trialing");
+    const needsPlan = countFor("needs_plan");
+    const active = countFor("active");
+    const totalOrgs = statusGroups.reduce((sum, row) => sum + row._count._all, 0);
+
+    platformStats.push(
+      {
+        id: "workspaces",
+        title: "Workspaces",
+        value: totalOrgs,
+        hint: `${active} active · ${trialing} on trial${
+          cancelingSoon ? ` · ${cancelingSoon} canceling` : ""
+        }`,
+        href: "/billing-admin/organizations",
+      },
+      {
+        id: "expired",
+        title: "Expired",
+        value: expired,
+        hint: needsPlan > 0 ? `${needsPlan} still choosing a plan` : "Need a plan to get back in",
+        href: "/billing-admin/organizations",
+        tone: expired > 0 ? "danger" : "success",
+      },
+      {
+        id: "refunds",
+        title: "Refunds",
+        value: pendingRefunds,
+        hint: pendingRefunds === 1 ? "1 request waiting" : "Requests waiting for review",
+        href: "/billing-admin/refunds",
+        tone: pendingRefunds > 0 ? "warning" : "default",
+      },
+      {
+        id: "audit",
+        title: "Audit (24h)",
+        value: recentAudit,
+        hint: "New events today",
+        href: "/platform/audit",
+      },
+    );
+
+    adminHeadline = [
+      { label: "Workspaces", value: totalOrgs },
+      { label: "Expired", value: expired },
+      { label: "Pending refunds", value: pendingRefunds },
+      { label: "Users", value: totalUsers },
+    ];
+  }
+
+  const hero = heroCopyForRole({
+    roleName,
+    sectionCount: sections.length,
+    organizationName: orgName,
+    isOwner,
+  });
 
   const quickLinks: DashboardQuickLink[] = [];
-  if (canAccess(allowed, "/appointments/overview")) {
-    quickLinks.push({
-      href: "/appointments/overview",
-      label: "Appointment overview",
-      description: "Upcoming bookings and calendar sync",
-    });
-  }
-  if (canAccess(allowed, "/appointments/chatbot")) {
-    quickLinks.push({
-      href: "/appointments/chatbot",
-      label: "Configure chatbot",
-      description: "Booking flow, voice, and CRM",
-    });
-  }
-  if (canAccess(allowed, "/appointments/knowledge-base")) {
-    quickLinks.push({
-      href: "/appointments/knowledge-base",
-      label: "Knowledge base",
-      description: "Import and approve business context",
-    });
-  }
-  if (canAccess(allowed, "/reviews")) {
-    quickLinks.push({
-      href: "/reviews",
-      label: "Review inbox",
-      description: "Pending reviews and auto-reply queue",
-    });
-  }
-  if (canAccess(allowed, "/voice-agent")) {
-    quickLinks.push({
-      href: "/voice-agent?tab=phone",
-      label: "Phone lines",
-      description: "Buy numbers, assign agents, and view per-line stats",
-    });
-  }
-  if (canAccess(allowed, "/users")) {
-    quickLinks.push({
-      href: "/users",
-      label: "Manage users",
-      description: "Accounts, roles, and status",
-    });
-  }
-  if (canAccess(allowed, "/settings/access/permissions")) {
-    quickLinks.push({
-      href: "/settings/access/permissions",
-      label: "Menu permissions",
-      description: "Role-based navigation access",
-    });
-  }
-  if (canAccess(allowed, "/platform/providers")) {
-    quickLinks.push({
-      href: "/platform/providers",
-      label: "Providers",
-      description: "Calendar and review integrations",
-    });
+  if (isAdmin) {
+    const pendingRefunds = platformStats.find((stat) => stat.id === "refunds")?.value ?? 0;
+    quickLinks.push(
+      {
+        href: "/billing-admin/organizations",
+        label: "Organizations",
+        description: "Plans, trials, and access",
+      },
+      {
+        href: "/billing-admin/plans",
+        label: "Plans",
+        description: "Set prices and features",
+      },
+      {
+        href: "/billing-admin/refunds",
+        label: "Refunds",
+        description: Number(pendingRefunds) > 0 ? `${pendingRefunds} waiting` : "Approve or reject requests",
+      },
+      {
+        href: "/users",
+        label: "Users",
+        description: "Accounts and roles",
+      },
+      {
+        href: "/platform/audit",
+        label: "Audit log",
+        description: "Sign-ins and admin changes",
+      },
+      {
+        href: "/platform/providers",
+        label: "Providers",
+        description: "Calendar and review integrations",
+      },
+    );
+  } else {
+    if (canAccess(allowed, "/appointments/overview")) {
+      quickLinks.push({
+        href: "/appointments/overview",
+        label: "Appointment overview",
+        description: "Upcoming bookings and calendar sync",
+      });
+    }
+    if (canAccess(allowed, "/appointments/chatbot")) {
+      quickLinks.push({
+        href: "/appointments/chatbot",
+        label: "Configure chatbot",
+        description: "Booking flow, voice, and CRM",
+      });
+    }
+    if (canAccess(allowed, "/appointments/knowledge-base")) {
+      quickLinks.push({
+        href: "/appointments/knowledge-base",
+        label: "Knowledge base",
+        description: "Import and approve business context",
+      });
+    }
+    if (canAccess(allowed, "/reviews")) {
+      quickLinks.push({
+        href: "/reviews",
+        label: "Review inbox",
+        description: "Pending reviews and auto-reply queue",
+      });
+    }
+    if (canAccess(allowed, "/voice-agent")) {
+      quickLinks.push({
+        href: "/voice-agent?tab=phone",
+        label: "Phone lines",
+        description: "Buy numbers, assign agents, and view per-line stats",
+      });
+    }
+    if (isOwner && canAccess(allowed, "/subscription")) {
+      quickLinks.push({
+        href: "/subscription",
+        label: "Plan & billing",
+        description: "See your plan, trial, and invoices",
+      });
+    }
+    if (canAccess(allowed, "/appointments/organization")) {
+      quickLinks.push({
+        href: "/appointments/organization",
+        label: "Workspace settings",
+        description: "Name, logo, and timezone",
+      });
+    }
   }
 
-  const uniqueHeadline = headlineStats.slice(0, 4);
+  const uniqueHeadline = adminHeadline ?? headlineStats.slice(0, 4);
+  const hasOverviewActivity = overviewStats.some((stat) =>
+    typeof stat.value === "number" ? stat.value > 0 : Number.parseFloat(String(stat.value)) > 0,
+  );
+  const expiredCount = Number(platformStats.find((stat) => stat.id === "expired")?.value ?? 0);
+  const refundCount = Number(platformStats.find((stat) => stat.id === "refunds")?.value ?? 0);
+
+  const workspaceBilling: DashboardWorkspaceBilling | null = activeOrganization
+    ? {
+        status: billingStatusLabel(activeOrganization.billingStatus),
+        planLabel: isPlanSlug(activeOrganization.planSlug)
+          ? getPlanBySlug(activeOrganization.planSlug).name
+          : activeOrganization.planSlug,
+        interval: activeOrganization.billingInterval,
+        cancelAtPeriodEnd: activeOrganization.cancelAtPeriodEnd,
+        billingAdminOverride: activeOrganization.billingAdminOverride,
+        periodHint: billingPeriodHint(activeOrganization),
+      }
+    : null;
 
   const setupSteps: DashboardSetupStep[] = [];
   if (!orgId || !activeOrganization) {
@@ -765,16 +899,34 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
     }
   }
 
+  const heroBadge = isAdmin
+    ? expiredCount > 0 || refundCount > 0
+      ? "Needs attention"
+      : "All clear"
+    : workspaceBilling?.cancelAtPeriodEnd
+      ? "Cancels soon"
+      : setupSteps.some((step) => !step.complete)
+        ? "Finish setup"
+        : workspaceBilling?.status === "Trialing"
+          ? "On trial"
+          : hasOverviewActivity
+            ? "Workspace active"
+            : "Ready to go";
+
   return {
     roleName,
+    isOwner,
     organizationId: orgId,
     organizationName: orgName,
     ...hero,
+    heroBadge,
     headlineStats: uniqueHeadline,
     overviewStats,
     sections,
     quickLinks: quickLinks.slice(0, 6),
     setupSteps,
+    platformStats,
+    workspaceBilling,
     emptyMessage: sections.length === 0 ? "No modules are assigned to your role yet." : null,
   };
 }

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-const RECENT_EVENT_LIMIT = 500;
+const RECENT_EVENT_LIMIT = 2000;
 
 export default async function PlatformAuditPage() {
   await requireAdminSession();
@@ -46,7 +46,7 @@ export default async function PlatformAuditPage() {
         variant="command"
         eyebrow="Platform Settings"
         title="Audit log"
-        description="Review sign-ins, admin changes, and system events across every organization."
+        description="Review sign-ins, billing changes, access grants, and other events the app records."
         status={recentDayCount > 0 ? `${recentDayCount} in last 24h` : "Quiet last 24h"}
         statusTone={recentDayCount > 0 ? "success" : "warning"}
         actions={[{ href: "/platform", label: "Platform overview" }]}

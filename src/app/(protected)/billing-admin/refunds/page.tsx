@@ -8,22 +8,25 @@ export const dynamic = "force-dynamic";
 export default async function BillingAdminRefundsPage() {
   await requireAdminSession();
 
-  const rows = await prisma.refundRequest.findMany({
-    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-    take: 100,
-    select: {
-      id: true,
-      status: true,
-      reason: true,
-      notes: true,
-      adminNote: true,
-      createdAt: true,
-      reviewedAt: true,
-      organization: { select: { id: true, name: true } },
-      requestedBy: { select: { id: true, fullName: true, email: true } },
-      reviewedBy: { select: { id: true, fullName: true } },
-    },
-  });
+  const [rows, totalCount] = await Promise.all([
+    prisma.refundRequest.findMany({
+      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+      take: 500,
+      select: {
+        id: true,
+        status: true,
+        reason: true,
+        notes: true,
+        adminNote: true,
+        createdAt: true,
+        reviewedAt: true,
+        organization: { select: { id: true, name: true } },
+        requestedBy: { select: { id: true, fullName: true, email: true } },
+        reviewedBy: { select: { id: true, fullName: true } },
+      },
+    }),
+    prisma.refundRequest.count(),
+  ]);
 
   const pendingCount = rows.filter((row) => row.status === "pending").length;
 
@@ -33,13 +36,13 @@ export default async function BillingAdminRefundsPage() {
         variant="command"
         eyebrow="Billing"
         title="Refund requests"
-        description="Review customer refund requests. Approve submits the refund to Billing; reject leaves access unchanged."
+        description="Review customer refund requests. Approve refunds the charge in Billing and ends workspace access."
         status={`${pendingCount} pending`}
         statusTone={pendingCount > 0 ? "warning" : "success"}
         actions={[{ href: "/billing-admin", label: "Billing overview" }]}
         metrics={[
           { label: "Pending", value: pendingCount, hint: "awaiting review" },
-          { label: "Listed", value: rows.length, hint: "most recent 100" },
+          { label: "Listed", value: rows.length, hint: totalCount > rows.length ? `${totalCount} total` : "all requests" },
         ]}
       />
 

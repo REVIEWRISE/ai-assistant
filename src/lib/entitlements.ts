@@ -30,7 +30,19 @@ export type OrgBilling = {
   trialEndsAt: Date | null;
   paidAt: Date | null;
   currentPeriodEndsAt: Date | null;
+  cancelAtPeriodEnd: boolean;
 };
+
+const ORG_BILLING_SELECT = {
+  id: true,
+  planSlug: true,
+  billingStatus: true,
+  billingInterval: true,
+  paidAt: true,
+  currentPeriodEndsAt: true,
+  trialEndsAt: true,
+  cancelAtPeriodEnd: true,
+} as const;
 
 /** Route prefixes that require a given feature when billing access is allowed. */
 export const FEATURE_ROUTE_GATES: Array<{ feature: PlanFeatureKey; prefixes: string[] }> = [
@@ -62,7 +74,6 @@ const BILLING_LOCKOUT_PATHS = [
   "/billing",
   "/billing/expired",
   "/onboarding/plan",
-  "/subscription",
   "/profile",
   "/logout",
 ];
@@ -157,19 +168,16 @@ export async function getTrialAnchorForOrganization(
 export async function getOrgBilling(organizationId: string): Promise<OrgBilling | null> {
   const org = await prisma.organization.findUnique({
     where: { id: organizationId },
-    select: {
-      id: true,
-      planSlug: true,
-      billingStatus: true,
-      billingInterval: true,
-      paidAt: true,
-      currentPeriodEndsAt: true,
-    },
+    select: ORG_BILLING_SELECT,
   });
   if (!org) return null;
 
   const trialStartsAt = await getTrialAnchorForOrganization(organizationId);
-  const trialEndsAt = trialEndsAtFrom(trialStartsAt);
+  const computedTrialEndsAt = trialEndsAtFrom(trialStartsAt);
+  const trialEndsAt =
+    org.trialEndsAt && org.trialEndsAt.getTime() < computedTrialEndsAt.getTime()
+      ? org.trialEndsAt
+      : computedTrialEndsAt;
   const planSlug = isPlanSlug(org.planSlug) ? org.planSlug : null;
   let billingStatus = asBillingStatus(org.billingStatus);
   const isPaid = Boolean(org.paidAt) && billingStatus === "active";
@@ -183,13 +191,7 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
     await markOrgUnpaid(organizationId);
     const refreshed = await prisma.organization.findUnique({
       where: { id: organizationId },
-      select: {
-        planSlug: true,
-        billingStatus: true,
-        billingInterval: true,
-        paidAt: true,
-        currentPeriodEndsAt: true,
-      },
+      select: ORG_BILLING_SELECT,
     });
     if (!refreshed) return null;
     return {
@@ -198,27 +200,27 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
       billingStatus: asBillingStatus(refreshed.billingStatus),
       billingInterval: asBillingInterval(refreshed.billingInterval),
       trialStartsAt,
-      trialEndsAt,
+      trialEndsAt: refreshed.trialEndsAt ?? trialEndsAt,
       paidAt: refreshed.paidAt,
       currentPeriodEndsAt: refreshed.currentPeriodEndsAt,
+      cancelAtPeriodEnd: refreshed.cancelAtPeriodEnd,
     };
   }
 
-  // Unpaid access is only valid during the active account createdAt → +14d trial window.
-  if (!isPaid && billingStatus !== "needs_plan") {
-    const shouldBeExpired = isTrialExpiredByCreatedAt(trialStartsAt);
-    const nextStatus: BillingStatus = shouldBeExpired ? "expired" : "trialing";
-    if (billingStatus !== nextStatus) {
-      await prisma.organization.update({
-        where: { id: organizationId },
-        data: {
-          billingStatus: nextStatus,
-          trialStartsAt,
-          trialEndsAt,
-        },
-      });
-      billingStatus = nextStatus;
-    }
+  // Unpaid trial access expires with the 14-day window. Never revive an expired
+  // workspace back to trialing (e.g. after a subscription cancel).
+  if (!isPaid && billingStatus === "trialing" && isTrialExpiredByCreatedAt(trialStartsAt)) {
+    await prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        billingStatus: "expired",
+        trialStartsAt,
+        trialEndsAt,
+        cancelAtPeriodEnd: false,
+        billingAdminOverride: false,
+      },
+    });
+    billingStatus = "expired";
   }
 
   return {
@@ -230,6 +232,7 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
     trialEndsAt,
     paidAt: org.paidAt,
     currentPeriodEndsAt: org.currentPeriodEndsAt,
+    cancelAtPeriodEnd: billingStatus === "expired" ? false : org.cancelAtPeriodEnd,
   };
 }
 
@@ -331,6 +334,7 @@ export async function requireOrgFeature(
       trialEndsAt: null,
       paidAt: null,
       currentPeriodEndsAt: null,
+      cancelAtPeriodEnd: false,
     };
   }
 
@@ -400,24 +404,31 @@ export function pathAllowedByPlan(pathname: string, billing: OrgBilling | null):
   return true;
 }
 
+function pathIs(pathname: string, prefix: string): boolean {
+  const path = pathname.split("?")[0] || "/";
+  return path === prefix || path.startsWith(`${prefix}/`);
+}
+
 /** Paths that should remain reachable even when trial is expired / plan not chosen. */
 export function isBillingBypassPath(pathname: string): boolean {
-  const path = pathname.split("?")[0] || "/";
   return (
-    path === "/onboarding/plan" ||
-    path.startsWith("/onboarding/plan/") ||
-    path === "/billing" ||
-    path.startsWith("/billing/") || // includes /billing/success for post-checkout sync
-    path === "/subscription" ||
-    path.startsWith("/subscription/") ||
-    path === "/logout" ||
-    path.startsWith("/logout/") ||
-    path === "/profile" ||
-    path.startsWith("/profile/") ||
-    path === "/platform" ||
-    path.startsWith("/platform/") ||
-    path === "/billing-admin" ||
-    path.startsWith("/billing-admin/")
+    pathIs(pathname, "/onboarding/plan") ||
+    pathIs(pathname, "/billing") || // includes /billing/success for post-checkout sync
+    pathIs(pathname, "/logout") ||
+    pathIs(pathname, "/profile") ||
+    pathIs(pathname, "/platform") ||
+    pathIs(pathname, "/billing-admin")
+  );
+}
+
+/**
+ * After cancel / expiry, stay on the buy-plan wall.
+ * Profile and the in-app subscription page are not an escape into the dashboard.
+ */
+export function isExpiredBillingBypassPath(pathname: string): boolean {
+  return (
+    pathIs(pathname, "/billing") ||
+    pathIs(pathname, "/logout")
   );
 }
 
@@ -427,16 +438,45 @@ export function billingRedirectForStatus(status: BillingStatus): string | null {
   return null;
 }
 
+/** True when this workspace's owner already used or canceled a trial/subscription. */
+export async function ownerHasConsumedTrial(organizationId: string): Promise<boolean> {
+  const owners = await prisma.organizationMember.findMany({
+    where: { organizationId, role: "owner" },
+    select: { userId: true },
+  });
+  const ownerIds = owners.map((row) => row.userId);
+  if (ownerIds.length === 0) return false;
+
+  const consumed = await prisma.organizationMember.findFirst({
+    where: {
+      userId: { in: ownerIds },
+      role: "owner",
+      organization: {
+        OR: [{ billingStatus: "expired" }, { cancelAtPeriodEnd: true }],
+      },
+    },
+    select: { id: true },
+  });
+  return Boolean(consumed);
+}
+
 export async function startOrgTrial(input: {
   organizationId: string;
   planSlug: PlanSlug;
   billingInterval: BillingInterval;
 }): Promise<void> {
+  const existing = await prisma.organization.findUnique({
+    where: { id: input.organizationId },
+    select: { billingStatus: true },
+  });
+  const trialConsumed =
+    asBillingStatus(existing?.billingStatus) === "expired" ||
+    (await ownerHasConsumedTrial(input.organizationId));
+
   const trialStartsAt = await getTrialAnchorForOrganization(input.organizationId);
   const trialEndsAt = trialEndsAtFrom(trialStartsAt);
-  const billingStatus: BillingStatus = isTrialExpiredByCreatedAt(trialStartsAt)
-    ? "expired"
-    : "trialing";
+  const billingStatus: BillingStatus =
+    trialConsumed || isTrialExpiredByCreatedAt(trialStartsAt) ? "expired" : "trialing";
 
   await prisma.organization.update({
     where: { id: input.organizationId },
@@ -445,9 +485,11 @@ export async function startOrgTrial(input: {
       billingInterval: input.billingInterval,
       billingStatus,
       trialStartsAt,
-      trialEndsAt,
+      trialEndsAt: trialConsumed ? new Date() : trialEndsAt,
       paidAt: null,
       currentPeriodEndsAt: null,
+      cancelAtPeriodEnd: false,
+      billingAdminOverride: false,
     },
   });
 }
@@ -490,7 +532,24 @@ export async function markOrgPaid(input: {
       billingStatus: "active",
       paidAt: now,
       currentPeriodEndsAt: periodEndsAt,
+      cancelAtPeriodEnd: false,
+      billingAdminOverride: false,
     },
+  });
+}
+
+/** Keep access until the current paid period or trial window ends. */
+export async function scheduleOrgCancelAtPeriodEnd(organizationId: string): Promise<void> {
+  await prisma.organization.update({
+    where: { id: organizationId },
+    data: { cancelAtPeriodEnd: true, billingAdminOverride: false },
+  });
+}
+
+export async function clearOrgCancelAtPeriodEnd(organizationId: string): Promise<void> {
+  await prisma.organization.update({
+    where: { id: organizationId },
+    data: { cancelAtPeriodEnd: false },
   });
 }
 
@@ -555,23 +614,21 @@ export async function repairShortYearlyBillingPeriods(): Promise<number> {
 
 export async function markOrgUnpaid(organizationId: string): Promise<void> {
   const trialStartsAt = await getTrialAnchorForOrganization(organizationId);
-  const trialEndsAt = trialEndsAtFrom(trialStartsAt);
-  // Without a plan slug, unpaid workspaces must re-pick a plan (needs_plan)
-  // or are fully locked out (expired) — never keep the previous paid tier.
-  const billingStatus: BillingStatus = isTrialExpiredByCreatedAt(trialStartsAt)
-    ? "expired"
-    : "needs_plan";
-
+  const computedTrialEndsAt = trialEndsAtFrom(trialStartsAt);
+  const now = new Date();
+  // Cancel / unpaid always ends local trial access. Users must subscribe to continue.
+  // Keep last plan + interval so the buy-plan page can show the right prices.
   await prisma.organization.update({
     where: { id: organizationId },
     data: {
-      planSlug: null,
-      billingInterval: null,
-      billingStatus,
+      billingStatus: "expired",
       paidAt: null,
       currentPeriodEndsAt: null,
       trialStartsAt,
-      trialEndsAt,
+      trialEndsAt:
+        computedTrialEndsAt.getTime() < now.getTime() ? computedTrialEndsAt : now,
+      cancelAtPeriodEnd: false,
+      billingAdminOverride: false,
     },
   });
 }

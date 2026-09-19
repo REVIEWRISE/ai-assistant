@@ -15,8 +15,6 @@ function isBypassPath(pathname: string): boolean {
     pathname.startsWith("/onboarding/plan/") ||
     pathname === "/billing" ||
     pathname.startsWith("/billing/") ||
-    pathname === "/subscription" ||
-    pathname.startsWith("/subscription/") ||
     pathname === "/logout" ||
     pathname.startsWith("/logout/") ||
     pathname === "/profile" ||
@@ -25,6 +23,15 @@ function isBypassPath(pathname: string): boolean {
     pathname.startsWith("/platform/") ||
     pathname === "/billing-admin" ||
     pathname.startsWith("/billing-admin/")
+  );
+}
+
+function isExpiredBypassPath(pathname: string): boolean {
+  return (
+    pathname === "/billing" ||
+    pathname.startsWith("/billing/") ||
+    pathname === "/logout" ||
+    pathname.startsWith("/logout/")
   );
 }
 
@@ -38,14 +45,18 @@ export function BillingAccessGuard({
 
   useEffect(() => {
     if (!enabled || !billingStatus || isAdmin) return;
+
+    if (billingStatus === "expired") {
+      if (!isExpiredBypassPath(pathname)) {
+        router.replace("/billing/expired");
+      }
+      return;
+    }
+
     if (isBypassPath(pathname)) return;
 
     if (billingStatus === "needs_plan") {
       router.replace("/onboarding/plan");
-      return;
-    }
-    if (billingStatus === "expired") {
-      router.replace("/billing/expired");
     }
   }, [billingStatus, enabled, isAdmin, pathname, router]);
 

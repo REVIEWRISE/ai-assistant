@@ -2,7 +2,9 @@ import { Suspense } from "react";
 import { ProfileTabs } from "@/components/profile-tabs";
 import { ProfileToasts } from "@/components/profile-toasts";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
+import { userHasAdminRole } from "@/lib/admin-view-only";
 import { getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
+import { getOrgBilling } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { isHrefAllowedForNav, redirectPathWhenMenuForbidden } from "@/lib/nav-access";
 import { cookies } from "next/headers";
@@ -82,6 +84,24 @@ export default async function ProfileSettingsPage() {
   const statusLabel =
     user.accountStatus?.charAt(0).toUpperCase() + user.accountStatus.slice(1);
   const isActive = user.accountStatus?.toLowerCase() === "active";
+  const organizationId = session.activeOrganizationId;
+  const [billing, membership, isAdmin] = organizationId
+    ? await Promise.all([
+        getOrgBilling(organizationId),
+        prisma.organizationMember.findFirst({
+          where: { userId: session.userId, organizationId },
+          select: { role: true },
+        }),
+        userHasAdminRole(session.userId),
+      ])
+    : [null, null, false];
+  if (!isAdmin && billing?.billingStatus === "expired") {
+    redirect("/billing/expired");
+  }
+
+  const canCloseBilling =
+    Boolean(isAdmin || membership?.role === "owner") &&
+    (billing?.billingStatus === "active" || billing?.billingStatus === "trialing");
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
@@ -131,6 +151,16 @@ export default async function ProfileSettingsPage() {
         hasPassword={Boolean(user.passwordHash)}
         onUpdateProfile={updateProfile}
         onUpdatePassword={updatePassword}
+        billingClose={
+          canCloseBilling && billing
+            ? {
+                workspaceName: orgName,
+                cancelAtPeriodEnd: billing.cancelAtPeriodEnd,
+                trialEndsAt: billing.trialEndsAt?.toISOString() ?? null,
+                currentPeriodEndsAt: billing.currentPeriodEndsAt?.toISOString() ?? null,
+              }
+            : null
+        }
       />
     </div>
   );
