@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { DataTablePagination } from "@/components/data-table";
 import { CustomSelect } from "@/components/custom-select";
-import { adminUpdateOrganizationPlan, adminCancelOrganizationSubscription } from "@/app/(protected)/billing-admin/organizations/actions";
+import { adminUpdateOrganizationPlan, adminCancelOrganizationSubscription, adminRestoreOrganizationSubscription, adminDeleteOrganization } from "@/app/(protected)/billing-admin/organizations/actions";
 import { toast } from "@/lib/toast";
 import { PLAN_SLUGS, getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
 
@@ -20,6 +20,7 @@ export type BillingOrganizationRow = {
   currentPeriodEndsAt: string | null;
   createdAt: string;
   memberCount: number;
+  cancelAtPeriodEnd: boolean;
 };
 
 type StatusFilter = "all" | "needs_plan" | "trialing" | "active" | "expired";
@@ -109,6 +110,16 @@ function statusTone(status: StatusFilter): {
 
 function timelineCopy(org: BillingOrganizationRow): { primary: string; secondary: string } {
   const status = normalizeStatus(org.billingStatus);
+  if (org.cancelAtPeriodEnd) {
+    return {
+      primary: org.currentPeriodEndsAt
+        ? `Cancels ${formatDate(org.currentPeriodEndsAt)}`
+        : "Cancel scheduled",
+      secondary: org.paidAt
+        ? `Paid ${formatDate(org.paidAt)}`
+        : `Created ${formatDate(org.createdAt)}`,
+    };
+  }
   if (org.paidAt) {
     return {
       primary: `Paid ${formatDate(org.paidAt)}`,
@@ -204,6 +215,8 @@ function OrganizationBillingSheet({
   const [resetPeriod, setResetPeriod] = useState(false);
   const [cancelMode, setCancelMode] = useState<"period_end" | "now">("period_end");
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmRestore, setConfirmRestore] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const dirty =
     planSlug !== initialPlan ||
@@ -211,7 +224,8 @@ function OrganizationBillingSheet({
     billingStatus !== status ||
     resetPeriod;
 
-  const canCancel = status === "active" || status === "trialing";
+  const canCancel = (status === "active" || status === "trialing") && !organization.cancelAtPeriodEnd;
+  const canRestore = organization.cancelAtPeriodEnd || status === "expired";
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setEntered(true));
@@ -244,7 +258,11 @@ function OrganizationBillingSheet({
         toast.error(result.error);
         return;
       }
-      toast.success("Workspace plan updated.");
+      toast.success(
+        result.billingSynced
+          ? "Workspace plan updated in the app and Billing."
+          : "Workspace plan updated in the app. Billing invoices were not changed.",
+      );
       router.refresh();
     });
   }
@@ -265,6 +283,41 @@ function OrganizationBillingSheet({
           ? "Subscription canceled. Access revoked."
           : "Subscription set to cancel at period end.",
       );
+      router.refresh();
+    });
+  }
+
+  function restoreSubscription() {
+    startTransition(async () => {
+      const result = await adminRestoreOrganizationSubscription({
+        organizationId: organization.id,
+      });
+      setConfirmRestore(false);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(
+        result.billingSynced
+          ? "Subscription will continue. The scheduled Billing cancel was cleared."
+          : "Access restored in the app. Billing may still need a live subscription.",
+      );
+      router.refresh();
+    });
+  }
+
+  function deleteWorkspace() {
+    startTransition(async () => {
+      const result = await adminDeleteOrganization({
+        organizationId: organization.id,
+      });
+      setConfirmDelete(false);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Workspace deleted.");
+      onClose();
       router.refresh();
     });
   }
@@ -317,6 +370,11 @@ function OrganizationBillingSheet({
                     <span className={`size-1.5 rounded-full ${tone.dot}`} aria-hidden />
                     {tone.label}
                   </span>
+                  {organization.cancelAtPeriodEnd ? (
+                    <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
+                      Cancels at period end
+                    </span>
+                  ) : null}
                   <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
                     {planLabel(organization.planSlug)}
                   </span>
@@ -378,7 +436,7 @@ function OrganizationBillingSheet({
               Change plan
             </p>
             <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
-              Updates this workspace&apos;s entitlements in the app. Stripe/Billing invoices are not changed.
+              Updates this workspace&apos;s entitlements. A matching Billing subscription is updated when one exists.
             </p>
 
             <div className="mt-4 space-y-3">
@@ -510,6 +568,53 @@ function OrganizationBillingSheet({
             </section>
           ) : null}
 
+          {canRestore ? (
+            <section className="rounded-2xl border border-emerald-200 bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-emerald-500/30">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-800 [[data-theme=dark]_&]:text-emerald-300">
+                Restore access
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+                {organization.cancelAtPeriodEnd
+                  ? "Keep the current subscription and clear the scheduled cancel in Billing when possible."
+                  : "Grant app access again. Billing is updated only if a live subscription still exists."}
+              </p>
+              {!confirmRestore ? (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setConfirmRestore(true)}
+                  className="mt-4 w-full rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-100 disabled:opacity-50 [[data-theme=dark]_&]:border-emerald-500/40 [[data-theme=dark]_&]:bg-emerald-500/10 [[data-theme=dark]_&]:text-emerald-200 [[data-theme=dark]_&]:hover:bg-emerald-500/20"
+                >
+                  Restore access…
+                </button>
+              ) : (
+                <div className="mt-4 space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 [[data-theme=dark]_&]:border-emerald-500/30 [[data-theme=dark]_&]:bg-emerald-500/10">
+                  <p className="text-xs font-medium text-emerald-900 [[data-theme=dark]_&]:text-emerald-200">
+                    Restore access for this workspace?
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => setConfirmRestore(false)}
+                      className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-text)]"
+                    >
+                      Keep
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={restoreSubscription}
+                      className="flex-1 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                    >
+                      {pending ? "Restoring…" : "Confirm restore"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
+          ) : null}
+
           <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
               Timeline
@@ -546,6 +651,49 @@ function OrganizationBillingSheet({
                 value={`${organization.memberCount} member${organization.memberCount === 1 ? "" : "s"}`}
               />
             </div>
+          </section>
+
+          <section className="rounded-2xl border border-red-200 bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-red-500/30">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-red-700 [[data-theme=dark]_&]:text-red-300">
+              Delete workspace
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+              Permanently removes this organization and all of its data.
+            </p>
+            {!confirmDelete ? (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setConfirmDelete(true)}
+                className="mt-4 w-full rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800 transition hover:bg-red-100 disabled:opacity-50 [[data-theme=dark]_&]:border-red-500/40 [[data-theme=dark]_&]:bg-red-500/10 [[data-theme=dark]_&]:text-red-200 [[data-theme=dark]_&]:hover:bg-red-500/20"
+              >
+                Delete workspace…
+              </button>
+            ) : (
+              <div className="mt-4 space-y-2 rounded-xl border border-red-200 bg-red-50/80 p-3 [[data-theme=dark]_&]:border-red-500/30 [[data-theme=dark]_&]:bg-red-500/10">
+                <p className="text-xs font-medium text-red-800 [[data-theme=dark]_&]:text-red-200">
+                  Delete “{organization.name}” and all workspace data? This cannot be undone.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => setConfirmDelete(false)}
+                    className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-text)]"
+                  >
+                    Keep
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={deleteWorkspace}
+                    className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {pending ? "Deleting…" : "Delete workspace"}
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         </div>
       </aside>
@@ -716,6 +864,11 @@ export function BillingOrganizationsManager({
                           <span className={`size-1.5 rounded-full ${tone.dot}`} aria-hidden />
                           {tone.label}
                         </span>
+                        {org.cancelAtPeriodEnd ? (
+                          <p className="mt-1.5 text-[11px] font-semibold text-amber-800 [[data-theme=dark]_&]:text-amber-300">
+                            Cancels at period end
+                          </p>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3.5">
                         <p

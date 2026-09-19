@@ -95,7 +95,7 @@ export async function resolveCheckoutPlan(input: {
   if (!productId) return null;
 
   const option = plans.find((plan) => plan.slug === input.planSlug);
-  if (!option) return null;
+  if (!option || option.isCustomPricing) return null;
 
   const yearly = input.billingInterval === "yearly";
   const planId = yearly ? option.yearlyPlanId : option.monthlyPlanId;

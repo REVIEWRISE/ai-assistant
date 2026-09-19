@@ -56,6 +56,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isChromeFreeBillingGate =
     isOnboardingPlan || isBillingExpiredWall || isBillingCheckoutReturn;
 
+  const lockExpiredWorkspace =
+    billingStatus === "expired" && profileRole !== "Admin" && !isChromeFreeBillingGate;
+
   const visibleNavItems = useMemo(() => {
     const set = allowedNavPaths === null ? new Set<string>() : new Set(allowedNavPaths);
     return filterNavItemsByPermissions(APP_NAV_ITEMS, set, profileRole === "Admin");
@@ -196,7 +199,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isChromeFreeBillingGate) {
+  if (isChromeFreeBillingGate || lockExpiredWorkspace) {
     return (
       <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
         <BillingAccessGuard
@@ -270,7 +273,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onSwitchOrganization={handleSwitchOrganization}
             switchingOrganization={switchingOrganization}
           />
-          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 [scrollbar-width:thin] lg:p-5">{children}</main>
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-16 [scrollbar-width:thin] lg:p-5 lg:pb-16">{children}</main>
           <AppFooter organization={profileOrg} role={profileRole} />
         </div>
       </div>

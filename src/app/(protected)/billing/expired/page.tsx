@@ -1,15 +1,15 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BillingExpiredPlanPicker } from "@/components/billing-expired-plan-picker";
+import { BillingLockoutAccount } from "@/components/billing-lockout-account";
 import { BrandLogo } from "@/components/brand-logo";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { requireSession } from "@/lib/auth-session";
-import { userHasAdminRole } from "@/lib/admin-view-only";
 import { isBillingConfigured } from "@/lib/billing-client";
 import { listCheckoutPlanOptions } from "@/lib/billing-checkout";
 import { getOrgBilling, isBillingAccessAllowed } from "@/lib/entitlements";
 import { BRAND_NAME, PRODUCT_NAME } from "@/lib/brand";
 import { getPlanBySlug, isPlanSlug, type PlanSlug } from "@/lib/pricing-plans";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -22,10 +22,6 @@ export default async function BillingTrialExpiredPage({ searchParams }: PageProp
   const organizationId = session.activeOrganizationId;
   const params = (await searchParams) ?? {};
   const justCanceled = params.success === "subscription_canceled";
-
-  if (await userHasAdminRole(session.userId)) {
-    redirect("/billing-admin");
-  }
 
   if (!organizationId) {
     redirect("/profile?error=organization_required");
@@ -58,10 +54,16 @@ export default async function BillingTrialExpiredPage({ searchParams }: PageProp
       })
     : null;
 
-  const [{ plans }, billingConfigured] = await Promise.all([
+  const [{ plans }, billingConfigured, memberships] = await Promise.all([
     listCheckoutPlanOptions(),
     Promise.resolve(isBillingConfigured()),
+    prisma.organizationMember.findMany({
+      where: { userId: session.userId },
+      select: { organization: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
+  const organizations = memberships.map((row) => row.organization);
 
   return (
     <div className="relative min-h-[100dvh] bg-[var(--color-bg)] text-[var(--color-text)]">
@@ -100,7 +102,7 @@ export default async function BillingTrialExpiredPage({ searchParams }: PageProp
             <p className="mt-5 text-base leading-7 text-[var(--color-text-muted)]">
               Your trial or subscription has ended
               {trialEndedLabel ? ` (${trialEndedLabel})` : ""}. Subscribe to unlock your workspace
-              again — a new free trial is not available after canceling.
+              again. A new free trial is not available after a subscription ends.
             </p>
 
             <dl className="mt-10 grid gap-4 sm:grid-cols-2">
@@ -123,15 +125,12 @@ export default async function BillingTrialExpiredPage({ searchParams }: PageProp
             </dl>
           </div>
 
-          <p className="relative mx-auto mt-12 w-full max-w-lg text-xs text-[var(--color-text-subtle)] lg:mx-0 lg:ml-auto lg:mt-0 lg:max-w-md xl:max-w-lg">
-            Need a different workspace or account settings?{" "}
-            <Link
-              href="/profile"
-              className="font-semibold text-[var(--color-primary-h)] underline-offset-2 hover:underline"
-            >
-              Open profile
-            </Link>
-          </p>
+          <div className="relative mx-auto mt-12 w-full max-w-lg lg:mx-0 lg:ml-auto lg:mt-0 lg:max-w-md xl:max-w-lg">
+            <BillingLockoutAccount
+              organizations={organizations}
+              activeOrganizationId={organizationId}
+            />
+          </div>
         </aside>
 
         <main className="relative flex flex-col justify-center px-6 py-10 sm:px-10 lg:px-12 lg:py-12 xl:px-16">

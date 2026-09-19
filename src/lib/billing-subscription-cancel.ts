@@ -8,7 +8,12 @@ import {
   listBillingSubscriptions,
   resolveBillingProduct,
 } from "@/lib/billing-client";
-import { asBillingStatus, isBillingAccessAllowed, markOrgUnpaid } from "@/lib/entitlements";
+import {
+  asBillingStatus,
+  isBillingAccessAllowed,
+  markOrgUnpaid,
+  scheduleOrgCancelAtPeriodEnd,
+} from "@/lib/entitlements";
 
 export type CancelSubscriptionMode = "now" | "period_end";
 
@@ -30,17 +35,23 @@ async function revokeLocalWorkspaceAccess(organizationId: string): Promise<void>
   await markOrgUnpaid(organizationId);
 }
 
+function accessStillOpen(endsAt: Date | null): boolean {
+  return Boolean(endsAt && endsAt.getTime() > Date.now());
+}
+
 async function cancelLocalOnly(input: {
   organizationId: string;
   mode: CancelSubscriptionMode;
   currentPeriodEndsAt: Date | null;
+  trialEndsAt: Date | null;
 }): Promise<CancelOrganizationSubscriptionResult> {
-  const { organizationId, mode, currentPeriodEndsAt } = input;
-  const periodStillOpen =
-    Boolean(currentPeriodEndsAt) && currentPeriodEndsAt!.getTime() > Date.now();
+  const { organizationId, mode, currentPeriodEndsAt, trialEndsAt } = input;
+  const accessEndsAt = currentPeriodEndsAt ?? trialEndsAt;
+  const periodStillOpen = accessStillOpen(accessEndsAt);
 
   if (mode === "period_end" && periodStillOpen) {
-    // Keep active until currentPeriodEndsAt; getOrgBilling expires it afterward.
+    // Keep access until the paid period or remaining trial ends.
+    await scheduleOrgCancelAtPeriodEnd(organizationId);
     return {
       ok: true,
       mode: "period_end",
@@ -88,6 +99,7 @@ export async function cancelOrganizationBillingSubscription(input: {
       billingStatus: true,
       paidAt: true,
       currentPeriodEndsAt: true,
+      trialEndsAt: true,
     },
   });
   if (!org) {
@@ -109,6 +121,7 @@ export async function cancelOrganizationBillingSubscription(input: {
       organizationId,
       mode,
       currentPeriodEndsAt: org.currentPeriodEndsAt,
+      trialEndsAt: org.trialEndsAt,
     });
   }
 
@@ -141,6 +154,7 @@ export async function cancelOrganizationBillingSubscription(input: {
       organizationId,
       mode,
       currentPeriodEndsAt: org.currentPeriodEndsAt,
+      trialEndsAt: org.trialEndsAt,
     });
   }
 
@@ -168,6 +182,8 @@ export async function cancelOrganizationBillingSubscription(input: {
 
   if (mode === "now") {
     await revokeLocalWorkspaceAccess(organizationId);
+  } else {
+    await scheduleOrgCancelAtPeriodEnd(organizationId);
   }
 
   return {

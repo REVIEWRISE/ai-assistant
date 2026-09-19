@@ -124,7 +124,8 @@ export function BillingRefundsManager({ requests }: { requests: AdminRefundReque
           ))}
         </div>
         <p className="text-xs text-[var(--color-text-muted)]">
-          {visible.length} request{visible.length === 1 ? "" : "s"}
+          {visible.length} request{visible.length === 1 ? "" : "s"}. Approving a refund does not
+          change workspace access.
         </p>
       </div>
 

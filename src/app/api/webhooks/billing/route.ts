@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { resolvePlanSlugFromBillingPlanId } from "@/lib/billing-checkout";
-import { markOrgPaid, markOrgUnpaid } from "@/lib/entitlements";
+import { markOrgPaid, markOrgUnpaid, scheduleOrgCancelAtPeriodEnd } from "@/lib/entitlements";
 import { createLogger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { PLAN_SLUGS, type PlanSlug } from "@/lib/pricing-plans";
@@ -44,6 +44,13 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function asBoolean(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+  if (value === 1 || value === "1" || value === "true") return true;
+  if (value === 0 || value === "0" || value === "false") return false;
+  return null;
 }
 
 function asDate(value: unknown): Date | null {
@@ -160,9 +167,30 @@ async function grantAccess(event: BillingEvent): Promise<void> {
   });
 }
 
+function isScheduledPeriodEndCancel(data: Record<string, unknown>): boolean {
+  const subscription = asRecord(data.subscription) ?? {};
+  const cancelAtPeriodEnd =
+    asBoolean(data.cancelAtPeriodEnd) ??
+    asBoolean(data.cancel_at_period_end) ??
+    asBoolean(subscription.cancelAtPeriodEnd) ??
+    asBoolean(subscription.cancel_at_period_end) ??
+    false;
+  if (!cancelAtPeriodEnd) return false;
+
+  const periodEnd = readPeriodEndFromPayload(data);
+  if (periodEnd && periodEnd.getTime() > Date.now()) return true;
+
+  const status = (asString(subscription.status) ?? asString(data.status) ?? "").toLowerCase();
+  return status === "active" || status === "trialing" || status === "past_due";
+}
+
 async function revokeAccess(event: BillingEvent): Promise<void> {
   const organizationId = await resolveOrganizationId(event);
   if (!organizationId) return;
+  if (event.eventType !== "subscription.paused" && isScheduledPeriodEndCancel(event.data)) {
+    await scheduleOrgCancelAtPeriodEnd(organizationId);
+    return;
+  }
   await markOrgUnpaid(organizationId);
 }
 

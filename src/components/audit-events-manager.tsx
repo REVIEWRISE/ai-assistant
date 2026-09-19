@@ -59,8 +59,12 @@ function formatWhen(value: string | Date, compact = false) {
   });
 }
 
-function organizationLabel(organizationId: string, name: string | null) {
+function organizationLabel(organizationId: string, name: string | null, metadata: unknown) {
   if (organizationId === PLATFORM_AUDIT_ORG_ID) return "Platform";
+  const meta = metadata && typeof metadata === "object" && !Array.isArray(metadata)
+    ? (metadata as Record<string, unknown>)
+    : null;
+  if (meta?.scope === "platform") return name?.trim() ? `Platform · ${name.trim()}` : "Platform";
   return name?.trim() || "Unknown workspace";
 }
 
@@ -167,7 +171,7 @@ function AuditEventSheet({
   const [showRawJson, setShowRawJson] = useState(false);
   const severity = actionSeverity(event.action);
   const actorLabel = event.actorName || event.actorEmail || "System";
-  const workspace = organizationLabel(event.organizationId, event.organizationName);
+  const workspace = organizationLabel(event.organizationId, event.organizationName, event.metadata);
   const details = metadataEntries(event.metadata);
   const hasDetails = details !== null && details.length > 0;
 
@@ -389,7 +393,7 @@ export function AuditEventsManager({
   const organizationOptions = useMemo(() => {
     const fromEvents = new Map<string, string>();
     for (const event of events) {
-      fromEvents.set(event.organizationId, organizationLabel(event.organizationId, event.organizationName));
+      fromEvents.set(event.organizationId, organizationLabel(event.organizationId, event.organizationName, event.metadata));
     }
     for (const org of organizations) {
       if (!fromEvents.has(org.id)) fromEvents.set(org.id, org.name);
@@ -413,7 +417,7 @@ export function AuditEventsManager({
       const haystack = [
         event.action,
         formatAuditAction(event.action),
-        organizationLabel(event.organizationId, event.organizationName),
+        organizationLabel(event.organizationId, event.organizationName, event.metadata),
         event.actorName,
         event.actorEmail,
         metadataPreview(event.metadata),
@@ -512,7 +516,7 @@ export function AuditEventsManager({
             />
           ) : null}
           {paged.map((event) => {
-            const orgName = organizationLabel(event.organizationId, event.organizationName);
+            const orgName = organizationLabel(event.organizationId, event.organizationName, event.metadata);
             const actorLabel = event.actorName || event.actorEmail || "System";
             const actionLabel = formatAuditAction(event.action);
             return (

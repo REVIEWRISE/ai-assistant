@@ -9,7 +9,6 @@ export type OnboardingPlanCard = {
   title: string;
   description: string;
   monthlyPrice: string;
-  yearlyMonthlyPrice: string;
   yearlyTotal: string;
   featured: boolean;
   highlights: string[];
@@ -18,16 +17,32 @@ export type OnboardingPlanCard = {
   includedVoiceMinutes: number;
 };
 
+function planDisplayPrice(
+  plan: OnboardingPlanCard,
+  interval: "monthly" | "yearly",
+): { amount: string; suffix: string } {
+  const amount = interval === "yearly" ? plan.yearlyTotal : plan.monthlyPrice;
+  if (amount === "Custom" || amount === "—") {
+    return { amount, suffix: "" };
+  }
+  return {
+    amount,
+    suffix: interval === "yearly" ? "/year" : "/month",
+  };
+}
+
 export function OnboardingPlanPicker({
   plans,
   preselect,
   intervalDefault,
   trialDays,
+  trialAvailable,
 }: {
   plans: OnboardingPlanCard[];
   preselect: string;
   intervalDefault: "monthly" | "yearly";
   trialDays: number;
+  trialAvailable: boolean;
 }) {
   const [interval, setInterval] = useState<"monthly" | "yearly">(intervalDefault);
   const [selected, setSelected] = useState<PlanSlug>(
@@ -44,7 +59,7 @@ export function OnboardingPlanPicker({
 
   if (!active) return null;
 
-  const price = interval === "yearly" ? active.yearlyMonthlyPrice : active.monthlyPrice;
+  const price = planDisplayPrice(active, interval);
 
   function submit() {
     if (!active) return;
@@ -88,8 +103,7 @@ export function OnboardingPlanPicker({
       <div className="space-y-3" role="radiogroup" aria-label="Plans">
         {plans.map((plan) => {
           const isSelected = selected === plan.slug;
-          const planPrice =
-            interval === "yearly" ? plan.yearlyMonthlyPrice : plan.monthlyPrice;
+          const planPrice = planDisplayPrice(plan, interval);
 
           return (
             <button
@@ -133,23 +147,6 @@ export function OnboardingPlanPicker({
 
                   {isSelected ? (
                     <div className="mt-4 space-y-3 border-t border-[color-mix(in_srgb,var(--color-primary)_18%,var(--color-border))] pt-4">
-                      <div className="flex flex-wrap gap-2">
-                        <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-                          {plan.includedLocations} location{plan.includedLocations === 1 ? "" : "s"}
-                        </span>
-                        <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-                          {plan.teamMemberLimit} team seat{plan.teamMemberLimit === 1 ? "" : "s"}
-                        </span>
-                        {plan.includedVoiceMinutes > 0 ? (
-                          <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-                            {plan.includedVoiceMinutes} voice minutes
-                          </span>
-                        ) : (
-                          <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-                            No voice minutes
-                          </span>
-                        )}
-                      </div>
                       {plan.highlights.length ? (
                         <ul className="grid gap-2 sm:grid-cols-2">
                           {plan.highlights.slice(0, 6).map((item) => (
@@ -174,11 +171,15 @@ export function OnboardingPlanPicker({
                   ) : null}
                 </div>
 
-                <div className="shrink-0 text-right">
+                <div className="shrink-0 whitespace-nowrap text-right">
                   <p className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
-                    {planPrice}
+                    {planPrice.amount}
+                    {planPrice.suffix ? (
+                      <span className="ml-1 text-xs font-medium text-[var(--color-text-muted)]">
+                        {planPrice.suffix}
+                      </span>
+                    ) : null}
                   </p>
-                  <p className="text-xs text-[var(--color-text-muted)]">/mo</p>
                 </div>
               </div>
             </button>
@@ -190,12 +191,15 @@ export function OnboardingPlanPicker({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-[var(--color-text)]">
-              {active.title} · {price}/mo
+              {active.title}
+              {price.amount !== "—" ? ` · ${price.amount}${price.suffix}` : ""}
             </p>
             <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">
-              {interval === "yearly"
-                ? `${active.yearlyTotal}/yr after trial · ${trialDays}-day free trial`
-                : `${trialDays}-day free trial · no card required`}
+              {trialAvailable
+                ? interval === "yearly"
+                  ? `${active.yearlyTotal === "Custom" ? "Custom yearly pricing" : `${active.yearlyTotal}/year after trial`} · ${trialDays}-day free trial`
+                  : `${trialDays}-day free trial · no card required`
+                : "A free trial is not available after canceling. You’ll subscribe next."}
             </p>
           </div>
           <button
@@ -204,7 +208,13 @@ export function OnboardingPlanPicker({
             onClick={submit}
             className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {pending ? "Starting trial…" : `Start ${trialDays}-day trial`}
+            {pending
+              ? trialAvailable
+                ? "Starting trial…"
+                : "Continuing…"
+              : trialAvailable
+                ? `Start ${trialDays}-day trial`
+                : "Continue to subscribe"}
           </button>
         </div>
       </div>

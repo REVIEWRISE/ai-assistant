@@ -30,7 +30,19 @@ export type OrgBilling = {
   trialEndsAt: Date | null;
   paidAt: Date | null;
   currentPeriodEndsAt: Date | null;
+  cancelAtPeriodEnd: boolean;
 };
+
+const ORG_BILLING_SELECT = {
+  id: true,
+  planSlug: true,
+  billingStatus: true,
+  billingInterval: true,
+  paidAt: true,
+  currentPeriodEndsAt: true,
+  trialEndsAt: true,
+  cancelAtPeriodEnd: true,
+} as const;
 
 /** Route prefixes that require a given feature when billing access is allowed. */
 export const FEATURE_ROUTE_GATES: Array<{ feature: PlanFeatureKey; prefixes: string[] }> = [
@@ -62,7 +74,6 @@ const BILLING_LOCKOUT_PATHS = [
   "/billing",
   "/billing/expired",
   "/onboarding/plan",
-  "/subscription",
   "/profile",
   "/logout",
 ];
@@ -157,15 +168,7 @@ export async function getTrialAnchorForOrganization(
 export async function getOrgBilling(organizationId: string): Promise<OrgBilling | null> {
   const org = await prisma.organization.findUnique({
     where: { id: organizationId },
-    select: {
-      id: true,
-      planSlug: true,
-      billingStatus: true,
-      billingInterval: true,
-      paidAt: true,
-      currentPeriodEndsAt: true,
-      trialEndsAt: true,
-    },
+    select: ORG_BILLING_SELECT,
   });
   if (!org) return null;
 
@@ -188,14 +191,7 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
     await markOrgUnpaid(organizationId);
     const refreshed = await prisma.organization.findUnique({
       where: { id: organizationId },
-      select: {
-        planSlug: true,
-        billingStatus: true,
-        billingInterval: true,
-        paidAt: true,
-        currentPeriodEndsAt: true,
-        trialEndsAt: true,
-      },
+      select: ORG_BILLING_SELECT,
     });
     if (!refreshed) return null;
     return {
@@ -207,6 +203,7 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
       trialEndsAt: refreshed.trialEndsAt ?? trialEndsAt,
       paidAt: refreshed.paidAt,
       currentPeriodEndsAt: refreshed.currentPeriodEndsAt,
+      cancelAtPeriodEnd: refreshed.cancelAtPeriodEnd,
     };
   }
 
@@ -219,6 +216,7 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
         billingStatus: "expired",
         trialStartsAt,
         trialEndsAt,
+        cancelAtPeriodEnd: false,
       },
     });
     billingStatus = "expired";
@@ -233,6 +231,7 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
     trialEndsAt,
     paidAt: org.paidAt,
     currentPeriodEndsAt: org.currentPeriodEndsAt,
+    cancelAtPeriodEnd: billingStatus === "expired" ? false : org.cancelAtPeriodEnd,
   };
 }
 
@@ -334,6 +333,7 @@ export async function requireOrgFeature(
       trialEndsAt: null,
       paidAt: null,
       currentPeriodEndsAt: null,
+      cancelAtPeriodEnd: false,
     };
   }
 
@@ -403,24 +403,31 @@ export function pathAllowedByPlan(pathname: string, billing: OrgBilling | null):
   return true;
 }
 
+function pathIs(pathname: string, prefix: string): boolean {
+  const path = pathname.split("?")[0] || "/";
+  return path === prefix || path.startsWith(`${prefix}/`);
+}
+
 /** Paths that should remain reachable even when trial is expired / plan not chosen. */
 export function isBillingBypassPath(pathname: string): boolean {
-  const path = pathname.split("?")[0] || "/";
   return (
-    path === "/onboarding/plan" ||
-    path.startsWith("/onboarding/plan/") ||
-    path === "/billing" ||
-    path.startsWith("/billing/") || // includes /billing/success for post-checkout sync
-    path === "/subscription" ||
-    path.startsWith("/subscription/") ||
-    path === "/logout" ||
-    path.startsWith("/logout/") ||
-    path === "/profile" ||
-    path.startsWith("/profile/") ||
-    path === "/platform" ||
-    path.startsWith("/platform/") ||
-    path === "/billing-admin" ||
-    path.startsWith("/billing-admin/")
+    pathIs(pathname, "/onboarding/plan") ||
+    pathIs(pathname, "/billing") || // includes /billing/success for post-checkout sync
+    pathIs(pathname, "/logout") ||
+    pathIs(pathname, "/profile") ||
+    pathIs(pathname, "/platform") ||
+    pathIs(pathname, "/billing-admin")
+  );
+}
+
+/**
+ * After cancel / expiry, stay on the buy-plan wall.
+ * Profile and the in-app subscription page are not an escape into the dashboard.
+ */
+export function isExpiredBillingBypassPath(pathname: string): boolean {
+  return (
+    pathIs(pathname, "/billing") ||
+    pathIs(pathname, "/logout")
   );
 }
 
@@ -428,6 +435,28 @@ export function billingRedirectForStatus(status: BillingStatus): string | null {
   if (status === "needs_plan") return "/onboarding/plan";
   if (status === "expired") return "/billing/expired";
   return null;
+}
+
+/** True when this workspace's owner already used or canceled a trial/subscription. */
+export async function ownerHasConsumedTrial(organizationId: string): Promise<boolean> {
+  const owners = await prisma.organizationMember.findMany({
+    where: { organizationId, role: "owner" },
+    select: { userId: true },
+  });
+  const ownerIds = owners.map((row) => row.userId);
+  if (ownerIds.length === 0) return false;
+
+  const consumed = await prisma.organizationMember.findFirst({
+    where: {
+      userId: { in: ownerIds },
+      role: "owner",
+      organization: {
+        OR: [{ billingStatus: "expired" }, { cancelAtPeriodEnd: true }],
+      },
+    },
+    select: { id: true },
+  });
+  return Boolean(consumed);
 }
 
 export async function startOrgTrial(input: {
@@ -439,7 +468,9 @@ export async function startOrgTrial(input: {
     where: { id: input.organizationId },
     select: { billingStatus: true },
   });
-  const trialConsumed = asBillingStatus(existing?.billingStatus) === "expired";
+  const trialConsumed =
+    asBillingStatus(existing?.billingStatus) === "expired" ||
+    (await ownerHasConsumedTrial(input.organizationId));
 
   const trialStartsAt = await getTrialAnchorForOrganization(input.organizationId);
   const trialEndsAt = trialEndsAtFrom(trialStartsAt);
@@ -456,6 +487,7 @@ export async function startOrgTrial(input: {
       trialEndsAt: trialConsumed ? new Date() : trialEndsAt,
       paidAt: null,
       currentPeriodEndsAt: null,
+      cancelAtPeriodEnd: false,
     },
   });
 }
@@ -498,7 +530,23 @@ export async function markOrgPaid(input: {
       billingStatus: "active",
       paidAt: now,
       currentPeriodEndsAt: periodEndsAt,
+      cancelAtPeriodEnd: false,
     },
+  });
+}
+
+/** Keep access until the current paid period or trial window ends. */
+export async function scheduleOrgCancelAtPeriodEnd(organizationId: string): Promise<void> {
+  await prisma.organization.update({
+    where: { id: organizationId },
+    data: { cancelAtPeriodEnd: true },
+  });
+}
+
+export async function clearOrgCancelAtPeriodEnd(organizationId: string): Promise<void> {
+  await prisma.organization.update({
+    where: { id: organizationId },
+    data: { cancelAtPeriodEnd: false },
   });
 }
 
@@ -576,6 +624,7 @@ export async function markOrgUnpaid(organizationId: string): Promise<void> {
       trialStartsAt,
       trialEndsAt:
         computedTrialEndsAt.getTime() < now.getTime() ? computedTrialEndsAt : now,
+      cancelAtPeriodEnd: false,
     },
   });
 }

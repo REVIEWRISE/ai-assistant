@@ -9,11 +9,16 @@ import {
 } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { PLAN_SLUGS, type PlanSlug } from "@/lib/pricing-plans";
+import {
+  resumeOrganizationBillingSubscription,
+  syncOrganizationBillingPlan,
+} from "@/lib/billing-subscription-admin";
+import { fallbackOrganizationIdForAdmin, purgeOrganization } from "@/lib/organization-delete";
 
 const ADMIN_ORGS_PATH = "/billing-admin/organizations";
 
 export type AdminUpdateOrganizationPlanResult =
-  | { ok: true }
+  | { ok: true; billingSynced: boolean }
   | { ok: false; error: string };
 
 function asPlanSlug(value: string): PlanSlug | null {
@@ -39,7 +44,7 @@ function asBillingStatus(value: string): BillingStatus | null {
 
 /**
  * Admin override: change a workspace's local plan / interval / status.
- * Does not modify Stripe or Billing invoices — entitlements only.
+ * Tries to PATCH a matching live Billing subscription; falls back to local-only.
  */
 export async function adminUpdateOrganizationPlan(input: {
   organizationId: string;
@@ -108,12 +113,24 @@ export async function adminUpdateOrganizationPlan(input: {
       billingStatus: nextStatus,
       paidAt: nextStatus === "active" ? paidAt : org.paidAt,
       currentPeriodEndsAt: nextStatus === "active" ? currentPeriodEndsAt : org.currentPeriodEndsAt,
+      ...(nextStatus === "active" || nextStatus === "expired"
+        ? { cancelAtPeriodEnd: false }
+        : {}),
     },
   });
 
+  const { billingSynced } =
+    nextStatus === "active" || nextStatus === "trialing"
+      ? await syncOrganizationBillingPlan({
+          organizationId,
+          planSlug,
+          billingInterval,
+        })
+      : { billingSynced: false };
+
   revalidatePath(ADMIN_ORGS_PATH);
   revalidatePath("/billing-admin");
-  return { ok: true };
+  return { ok: true, billingSynced };
 }
 
 export type AdminCancelOrganizationSubscriptionResult =
@@ -144,4 +161,63 @@ export async function adminCancelOrganizationSubscription(input: {
   revalidatePath("/billing-admin");
   revalidatePath("/subscription");
   return { ok: true, mode: result.mode };
+}
+
+export type AdminRestoreOrganizationSubscriptionResult =
+  | { ok: true; billingSynced: boolean; localOnly: boolean }
+  | { ok: false; error: string };
+
+export async function adminRestoreOrganizationSubscription(input: {
+  organizationId: string;
+}): Promise<AdminRestoreOrganizationSubscriptionResult> {
+  await requireAdminSession();
+  const organizationId = input.organizationId.trim();
+  if (!organizationId) return { ok: false, error: "Workspace is required." };
+
+  const result = await resumeOrganizationBillingSubscription(organizationId);
+  if (!result.ok) return result;
+
+  revalidatePath(ADMIN_ORGS_PATH);
+  revalidatePath("/billing-admin");
+  revalidatePath("/subscription");
+  revalidatePath("/billing/expired");
+  return result;
+}
+
+export type AdminDeleteOrganizationResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+export async function adminDeleteOrganization(input: {
+  organizationId: string;
+}): Promise<AdminDeleteOrganizationResult> {
+  const session = await requireAdminSession();
+  const organizationId = input.organizationId.trim();
+  if (!organizationId) return { ok: false, error: "Workspace is required." };
+
+  const organization = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { id: true },
+  });
+  if (!organization) return { ok: false, error: "Workspace not found." };
+
+  const fallbackOrganizationId =
+    session.activeOrganizationId === organizationId
+      ? await fallbackOrganizationIdForAdmin(organizationId)
+      : session.activeOrganizationId;
+
+  try {
+    await purgeOrganization({
+      organizationId,
+      sessionId: session.id,
+      fallbackOrganizationId,
+    });
+  } catch {
+    return { ok: false, error: "Could not delete this workspace." };
+  }
+
+  revalidatePath(ADMIN_ORGS_PATH);
+  revalidatePath("/billing-admin");
+  revalidatePath("/appointments/organization");
+  return { ok: true };
 }

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { consumeEmailVerificationToken } from "@/lib/email-verification";
 import { resolveDefaultOrganizationId } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
+import { writePlatformAudit } from "@/lib/platform-audit";
 
 function safePostVerifyPath(raw: string | undefined): string {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) {
@@ -73,18 +74,11 @@ export async function GET(request: NextRequest) {
 
   redirectResponse.cookies.delete("post_verify_next");
 
-  await prisma.auditEvent
-    .create({
-      data: {
-        organizationId:
-          (await resolveDefaultOrganizationId(result.userId)) ??
-          "00000000-0000-0000-0000-000000000000",
-        actorId: result.userId,
-        action: "auth.email_verified",
-        metadata: {},
-      },
-    })
-    .catch(() => undefined);
+  await writePlatformAudit({
+    actorId: result.userId,
+    organizationId: await resolveDefaultOrganizationId(result.userId),
+    action: "auth.email_verified",
+  });
 
   return redirectResponse;
 }

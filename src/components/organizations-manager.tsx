@@ -162,7 +162,7 @@ function OrganizationActionsMenu({
       label: "Delete organization",
       description: canDelete
         ? "Permanently remove this workspace"
-        : "At least one organization is required",
+        : "Add another workspace before deleting this one",
       onClick: onDelete,
       danger: true,
       disabled: !canDelete,
@@ -366,7 +366,7 @@ export function OrganizationsManager({
                     <OrganizationActionsMenu
                       organization={organization}
                       isActive={isActive}
-                      canDelete={organizations.length > 1}
+                      canDelete={canForceDelete || organizations.length > 1}
                       isOpen={openMenuId === organization.id}
                       onToggle={() =>
                         setOpenMenuId((current) =>

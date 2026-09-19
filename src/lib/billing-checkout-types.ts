@@ -29,3 +29,11 @@ export type ResolvedCheckoutPlan = {
   priceAmount: number | null;
   currencyCode: string;
 };
+
+export function planIntervalAllowsSelfServeCheckout(
+  plan: Pick<CheckoutPlanOption, "isCustomPricing" | "monthlyPlanId" | "yearlyPlanId">,
+  interval: "monthly" | "yearly",
+): boolean {
+  if (plan.isCustomPricing) return false;
+  return Boolean(interval === "yearly" ? plan.yearlyPlanId : plan.monthlyPlanId);
+}

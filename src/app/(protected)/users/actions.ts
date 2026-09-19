@@ -4,12 +4,9 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { requireAdminSession } from "@/lib/auth-session";
+import { userHasAdminRole } from "@/lib/admin-view-only";
 import { validatePasswordStrength } from "@/lib/password-policy";
-
-// Platform-level admin actions aren't scoped to a single organization —
-// audit events still require an organizationId, so use the same null-org
-// sentinel already established in src/app/login/actions.ts.
-const PLATFORM_AUDIT_ORG_ID = "00000000-0000-0000-0000-000000000000";
+import { writePlatformAudit } from "@/lib/platform-audit";
 
 function organizationFields(formData: FormData) {
   return {
@@ -65,6 +62,7 @@ export async function createUser(formData: FormData) {
           email,
           passwordHash,
           accountStatus: accountStatus || "active",
+          emailVerified: true,
         },
       });
 
@@ -98,19 +96,17 @@ export async function createUser(formData: FormData) {
       return createdUser;
     });
 
-    await prisma.auditEvent.create({
-      data: {
-        organizationId: PLATFORM_AUDIT_ORG_ID,
-        actorId: session.userId,
-        action: "admin.user_created",
-        metadata: {
-          targetUserId: user.id,
-          email,
-          roleId: resolvedRole ?? null,
-          organizationName: organization.name || null,
-        },
+    await writePlatformAudit({
+      actorId: session.userId,
+      organizationId: session.activeOrganizationId,
+      action: "admin.user_created",
+      metadata: {
+        targetUserId: user.id,
+        email,
+        roleId: resolvedRole ?? null,
+        organizationName: organization.name || null,
       },
-    }).catch(() => {/* non-blocking */});
+    });
   } catch (error) {
     if (typeof error === "object" && error && "code" in error) {
       const code = (error as { code?: string }).code;
@@ -210,21 +206,19 @@ export async function updateUser(formData: FormData) {
       }
     });
 
-    await prisma.auditEvent.create({
-      data: {
-        organizationId: PLATFORM_AUDIT_ORG_ID,
-        actorId: session.userId,
-        action: "admin.user_updated",
-        metadata: {
-          targetUserId: id,
-          email,
-          roleId: roleId || null,
-          accountStatus,
-          organizationId: organization.id || null,
-          organizationName: organization.name || null,
-        },
+    await writePlatformAudit({
+      actorId: session.userId,
+      organizationId: session.activeOrganizationId,
+      action: "admin.user_updated",
+      metadata: {
+        targetUserId: id,
+        email,
+        roleId: roleId || null,
+        accountStatus,
+        organizationId: organization.id || null,
+        organizationName: organization.name || null,
       },
-    }).catch(() => {/* non-blocking */});
+    });
   } catch {
     redirect("/users?error=unknown");
   }
@@ -240,17 +234,32 @@ export async function deleteUser(formData: FormData) {
     redirect("/users?error=missing");
   }
 
+  if (id === session.userId) {
+    redirect("/users?error=cannot_delete_self");
+  }
+
+  const targetIsAdmin = await userHasAdminRole(id);
+  if (targetIsAdmin) {
+    const remainingAdmins = await prisma.userRole.count({
+      where: {
+        role: { name: "Admin" },
+        userId: { not: id },
+      },
+    });
+    if (remainingAdmins === 0) {
+      redirect("/users?error=last_admin");
+    }
+  }
+
   try {
     await prisma.user.delete({ where: { id } });
 
-    await prisma.auditEvent.create({
-      data: {
-        organizationId: PLATFORM_AUDIT_ORG_ID,
-        actorId: session.userId,
-        action: "admin.user_deleted",
-        metadata: { targetUserId: id },
-      },
-    }).catch(() => {/* non-blocking */});
+    await writePlatformAudit({
+      actorId: session.userId,
+      organizationId: session.activeOrganizationId,
+      action: "admin.user_deleted",
+      metadata: { targetUserId: id },
+    });
   } catch {
     redirect("/users?error=delete_failed");
   }

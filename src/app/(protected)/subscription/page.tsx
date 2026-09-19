@@ -3,7 +3,7 @@ import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { SubscriptionPanel } from "@/components/subscription-panel";
 import { requireSession } from "@/lib/auth-session";
 import { userHasAdminRole } from "@/lib/admin-view-only";
-import { getOrgBilling } from "@/lib/entitlements";
+import { getOrgBilling, isBillingAccessAllowed } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { canUpgradePlan, getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
 
@@ -46,6 +46,10 @@ export default async function SubscriptionPage() {
     redirect("/appointments/organization");
   }
 
+  if (billing.billingStatus === "expired") {
+    redirect("/billing/expired");
+  }
+
   const isOwner = isAdmin || membership?.role === "owner";
   const canCancel =
     billing.billingStatus === "active" || billing.billingStatus === "trialing";
@@ -56,7 +60,8 @@ export default async function SubscriptionPage() {
   const plan = billing.planSlug ? getPlanBySlug(billing.planSlug as PlanSlug) : null;
   const planName = plan?.name ?? "No plan";
   const statusLabel = billing.billingStatus.replace(/_/g, " ");
-  const canUpgrade = canUpgradePlan(billing.planSlug);
+  const canUpgrade =
+    isBillingAccessAllowed(billing.billingStatus) && canUpgradePlan(billing.planSlug);
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
@@ -67,10 +72,16 @@ export default async function SubscriptionPage() {
         description={
           <>
             Plan and billing timeline for <span className="text-neutral-200">{organization.name}</span>.
-            {canUpgrade ? " Upgrade anytime, or cancel when you need to." : " Cancel when you need to."}
+            {billing.cancelAtPeriodEnd
+              ? " Cancellation is scheduled. Access continues until the period ends."
+              : canUpgrade
+                ? " Upgrade anytime."
+                : ""}
           </>
         }
-        status={`${statusLabel}${billing.billingInterval ? ` · ${billing.billingInterval}` : ""}`}
+        status={`${
+          billing.cancelAtPeriodEnd ? "cancels" : statusLabel
+        }${billing.billingInterval ? ` · ${billing.billingInterval}` : ""}`}
         statusTone={
           billing.billingStatus === "active"
             ? "success"
@@ -126,9 +137,11 @@ export default async function SubscriptionPage() {
                 })
               : "—",
             hint:
-              billing.billingStatus === "trialing"
-                ? "14-day trial window"
-                : "renewal or cutoff",
+              billing.cancelAtPeriodEnd
+                ? "won't renew"
+                : billing.billingStatus === "trialing"
+                  ? "14-day trial window"
+                  : "renewal or cutoff",
           },
         ]}
       />
@@ -143,6 +156,7 @@ export default async function SubscriptionPage() {
           trialEndsAt: billing.trialEndsAt?.toISOString() ?? null,
           paidAt: billing.paidAt?.toISOString() ?? null,
           currentPeriodEndsAt: billing.currentPeriodEndsAt?.toISOString() ?? null,
+          cancelAtPeriodEnd: billing.cancelAtPeriodEnd,
           canCancel,
           canUpgrade,
           isOwner: Boolean(isOwner),

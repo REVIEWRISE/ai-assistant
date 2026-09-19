@@ -123,7 +123,7 @@ export async function createBillingCheckoutSession(input: {
   if (!resolved) {
     return {
       ok: false,
-      error: "This plan is not available for checkout yet. Contact support.",
+      error: "This plan is not available for self-serve checkout. Contact sales to subscribe.",
     };
   }
 
