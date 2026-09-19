@@ -147,7 +147,7 @@ export default async function BillingTrialExpiredPage({ searchParams }: PageProp
             <BillingExpiredPlanPicker
               plans={plans}
               initialPlanSlug={(billing.planSlug as PlanSlug | null) ?? null}
-              initialInterval={billing.billingInterval === "monthly" ? "monthly" : "yearly"}
+              initialInterval="monthly"
               billingConfigured={billingConfigured}
             />
           </div>

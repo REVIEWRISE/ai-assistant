@@ -42,7 +42,7 @@ export default async function OnboardingPlanPage({ searchParams }: PageProps) {
 
   const catalog = await getPublicLandingPlans().catch(() => []);
   const preselect = (params.plan || "") as string;
-  const intervalDefault = params.interval === "monthly" ? "monthly" : "yearly";
+  const intervalDefault = params.interval === "yearly" ? "yearly" : "monthly";
   const workspaceName = session.activeOrganization?.name ?? "Your workspace";
   const justRegistered = params.success === "register";
 

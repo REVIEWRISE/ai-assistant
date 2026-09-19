@@ -78,7 +78,7 @@ export function OnboardingPlanPicker({
         role="group"
         aria-label="Billing interval"
       >
-        {(["yearly", "monthly"] as const).map((value) => (
+        {(["monthly", "yearly"] as const).map((value) => (
           <button
             key={value}
             type="button"
@@ -104,6 +104,14 @@ export function OnboardingPlanPicker({
         {plans.map((plan) => {
           const isSelected = selected === plan.slug;
           const planPrice = planDisplayPrice(plan, interval);
+          const alternateBilling =
+            interval === "yearly"
+              ? plan.monthlyPrice !== "Custom" && plan.monthlyPrice !== "—"
+                ? `Billed monthly at ${plan.monthlyPrice}/month`
+                : null
+              : plan.yearlyTotal !== "Custom" && plan.yearlyTotal !== "—"
+                ? `Billed yearly at ${plan.yearlyTotal}/year`
+                : null;
 
           return (
             <button
@@ -171,8 +179,8 @@ export function OnboardingPlanPicker({
                   ) : null}
                 </div>
 
-                <div className="shrink-0 whitespace-nowrap text-right">
-                  <p className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
+                <div className="shrink-0 text-right">
+                  <p className="whitespace-nowrap text-2xl font-semibold tracking-tight text-[var(--color-text)]">
                     {planPrice.amount}
                     {planPrice.suffix ? (
                       <span className="ml-1 text-xs font-medium text-[var(--color-text-muted)]">
@@ -180,6 +188,11 @@ export function OnboardingPlanPicker({
                       </span>
                     ) : null}
                   </p>
+                  {alternateBilling ? (
+                    <p className="mt-1 max-w-[14rem] text-[10px] font-medium leading-4 text-[var(--color-text-muted)]">
+                      {alternateBilling}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </button>

@@ -8,7 +8,7 @@ type BillingInterval = "monthly" | "yearly";
 
 function PricingPlaceholder() {
   return (
-    <div className="mt-10 space-y-6 lg:mt-14">
+    <div className="mt-10 lg:mt-14">
       <div className="rounded-[1.6rem] border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-8 text-center sm:px-10">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-h)]">
           Plans unavailable
@@ -35,30 +35,6 @@ function PricingPlaceholder() {
           </Link>
         </div>
       </div>
-
-      <div className="grid gap-5 lg:grid-cols-3" aria-hidden>
-        {[0, 1, 2].map((index) => (
-          <div
-            key={index}
-            className={`rounded-[1.6rem] border border-[var(--color-border)] bg-[var(--color-bg)] p-6 sm:p-7 ${
-              index === 1 ? "lg:-translate-y-2" : ""
-            }`}
-          >
-            <div className="h-3 w-20 animate-pulse rounded bg-[var(--color-skeleton)]" />
-            <div className="mt-4 h-4 w-full max-w-[14rem] animate-pulse rounded bg-[var(--color-skeleton)]" />
-            <div className="mt-6 border-y border-[var(--color-border)] py-6">
-              <div className="h-12 w-28 animate-pulse rounded-lg bg-[var(--color-skeleton)]" />
-              <div className="mt-3 h-3 w-40 animate-pulse rounded bg-[var(--color-skeleton)]" />
-            </div>
-            <div className="space-y-3 pt-5">
-              <div className="h-3 w-full animate-pulse rounded bg-[var(--color-skeleton)]" />
-              <div className="h-3 w-[90%] animate-pulse rounded bg-[var(--color-skeleton)]" />
-              <div className="h-3 w-[80%] animate-pulse rounded bg-[var(--color-skeleton)]" />
-            </div>
-            <div className="mt-7 h-12 animate-pulse rounded-full bg-[var(--color-skeleton)]" />
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -72,7 +48,7 @@ export function LandingPricingSection({
   registerHref: string;
   isLoggedIn: boolean;
 }) {
-  const [interval, setInterval] = useState<BillingInterval>("yearly");
+  const [interval, setInterval] = useState<BillingInterval>("monthly");
   const hasPlans = plans.length > 0;
 
   return (
@@ -105,7 +81,7 @@ export function LandingPricingSection({
               className="inline-flex w-fit rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-sm"
               aria-label="Billing interval"
             >
-              {(["yearly", "monthly"] as const).map((option) => (
+              {(["monthly", "yearly"] as const).map((option) => (
                 <button
                   key={option}
                   type="button"
@@ -143,6 +119,13 @@ export function LandingPricingSection({
               const isYearly = interval === "yearly";
               const displayedPrice = isYearly ? plan.yearlyPrice : plan.price;
               const hasPricedInterval = Boolean(displayedPrice) && displayedPrice !== "Custom";
+              const alternateBilling = isYearly
+                ? plan.price && plan.price !== "Custom"
+                  ? `Billed monthly at ${plan.price}/month`
+                  : null
+                : plan.yearlyPrice && plan.yearlyPrice !== "Custom"
+                  ? `Billed yearly at ${plan.yearlyPrice}/year`
+                  : null;
               const href = isLoggedIn
                 ? registerHref
                 : hasPricedInterval
@@ -195,6 +178,10 @@ export function LandingPricingSection({
                     ) : !isYearly && !plan.price ? (
                       <p className="mt-2 text-xs text-[var(--color-text-muted)]">
                         Monthly pricing isn’t listed for this plan
+                      </p>
+                    ) : alternateBilling ? (
+                      <p className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">
+                        {alternateBilling}
                       </p>
                     ) : null}
                   </div>

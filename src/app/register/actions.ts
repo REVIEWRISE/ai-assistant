@@ -165,7 +165,7 @@ export async function registerUser(formData: FormData) {
   if (intervalHint === "monthly" || intervalHint === "yearly") {
     onboardingQs.set("interval", intervalHint);
   } else {
-    onboardingQs.set("interval", "yearly");
+    onboardingQs.set("interval", "monthly");
   }
   const postVerifyPath = `/onboarding/plan?${onboardingQs.toString()}`;
 

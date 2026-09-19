@@ -40,7 +40,7 @@ function RegisterPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean
   const selectedPlanSlug = searchParams?.get("plan") ?? "";
   const selectedPlan = PLAN_LABELS[selectedPlanSlug];
   const selectedInterval =
-    searchParams?.get("interval") === "monthly" ? "monthly" : "yearly";
+    searchParams?.get("interval") === "yearly" ? "yearly" : "monthly";
   const preservedName = searchParams?.get("name") ?? "";
   const preservedEmail = searchParams?.get("email") ?? "";
   const preservedOrganization = searchParams?.get("organization_name") ?? "";
