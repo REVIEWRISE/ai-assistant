@@ -72,9 +72,9 @@ export function OnboardingPlanPicker({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-5">
       <div
-        className="flex rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1"
+        className="flex shrink-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1"
         role="group"
         aria-label="Billing interval"
       >
@@ -100,7 +100,7 @@ export function OnboardingPlanPicker({
         ))}
       </div>
 
-      <div className="space-y-3" role="radiogroup" aria-label="Plans">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1" role="radiogroup" aria-label="Plans">
         {plans.map((plan) => {
           const isSelected = selected === plan.slug;
           const planPrice = planDisplayPrice(plan, interval);
@@ -200,9 +200,9 @@ export function OnboardingPlanPicker({
         })}
       </div>
 
-      <div className="sticky bottom-4 z-10 rounded-[1.35rem] border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-4 shadow-[var(--shadow-lg)] backdrop-blur-xl sm:p-5">
+      <div className="shrink-0 rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)] sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-[var(--color-text)]">
               {active.title}
               {price.amount !== "—" ? ` · ${price.amount}${price.suffix}` : ""}
@@ -219,7 +219,7 @@ export function OnboardingPlanPicker({
             type="button"
             disabled={pending}
             onClick={submit}
-            className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-12 w-full shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             {pending
               ? trialAvailable

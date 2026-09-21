@@ -87,7 +87,7 @@ export default async function OnboardingPlanPage({ searchParams }: PageProps) {
         <ThemeSwitch />
       </div>
 
-      <div className="relative grid min-h-[100dvh] w-full lg:grid-cols-[minmax(20rem,0.95fr)_minmax(0,1.15fr)]">
+      <div className="relative grid min-h-[100dvh] w-full lg:h-dvh lg:grid-cols-[minmax(20rem,0.95fr)_minmax(0,1.15fr)]">
         <aside className="relative flex flex-col justify-between overflow-hidden border-b border-[var(--color-border)] px-6 py-10 sm:px-10 lg:border-b-0 lg:border-r lg:px-12 lg:py-12 xl:px-16">
           <div
             className="pointer-events-none absolute inset-0 bg-[linear-gradient(165deg,color-mix(in_srgb,var(--color-primary)_8%,var(--color-surface)),var(--color-bg)_55%)]"
@@ -149,15 +149,15 @@ export default async function OnboardingPlanPage({ searchParams }: PageProps) {
           </p>
         </aside>
 
-        <main className="relative flex flex-col justify-center px-6 py-10 sm:px-10 lg:px-12 lg:py-12 xl:px-16">
-          <div className="mx-auto w-full max-w-xl lg:mx-0 lg:mr-auto">
+        <main className="relative flex min-h-[100dvh] flex-col px-6 py-8 sm:px-10 lg:h-full lg:min-h-0 lg:overflow-hidden lg:px-12 lg:py-10 xl:px-16">
+          <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col lg:mx-0 lg:mr-auto">
             {errorMessage ? (
-              <p className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 [[data-theme=dark]_&]:border-red-900/50 [[data-theme=dark]_&]:bg-red-950/40 [[data-theme=dark]_&]:text-red-200">
+              <p className="mb-5 shrink-0 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 [[data-theme=dark]_&]:border-red-900/50 [[data-theme=dark]_&]:bg-red-950/40 [[data-theme=dark]_&]:text-red-200">
                 {errorMessage}
               </p>
             ) : null}
 
-            <div className="mb-6">
+            <div className="mb-5 shrink-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
                 Select a plan
               </p>
