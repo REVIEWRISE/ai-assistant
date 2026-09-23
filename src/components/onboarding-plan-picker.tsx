@@ -10,6 +10,8 @@ export type OnboardingPlanCard = {
   description: string;
   monthlyPrice: string;
   yearlyTotal: string;
+  yearlyMonthlyPrice: string;
+  yearlySavingsPercent: number | null;
   featured: boolean;
   highlights: string[];
   includedLocations: number;
@@ -21,13 +23,18 @@ function planDisplayPrice(
   plan: OnboardingPlanCard,
   interval: "monthly" | "yearly",
 ): { amount: string; suffix: string } {
-  const amount = interval === "yearly" ? plan.yearlyTotal : plan.monthlyPrice;
+  const amount =
+    interval === "yearly"
+      ? plan.yearlyTotal === "Custom" || plan.yearlyTotal === "—"
+        ? plan.yearlyTotal
+        : plan.yearlyMonthlyPrice || plan.yearlyTotal
+      : plan.monthlyPrice;
   if (amount === "Custom" || amount === "—") {
     return { amount, suffix: "" };
   }
   return {
     amount,
-    suffix: interval === "yearly" ? "/year" : "/month",
+    suffix: "/mo",
   };
 }
 
@@ -104,14 +111,6 @@ export function OnboardingPlanPicker({
         {plans.map((plan) => {
           const isSelected = selected === plan.slug;
           const planPrice = planDisplayPrice(plan, interval);
-          const alternateBilling =
-            interval === "yearly"
-              ? plan.monthlyPrice !== "Custom" && plan.monthlyPrice !== "—"
-                ? `Billed monthly at ${plan.monthlyPrice}/month`
-                : null
-              : plan.yearlyTotal !== "Custom" && plan.yearlyTotal !== "—"
-                ? `Billed yearly at ${plan.yearlyTotal}/year`
-                : null;
 
           return (
             <button
@@ -188,9 +187,19 @@ export function OnboardingPlanPicker({
                       </span>
                     ) : null}
                   </p>
-                  {alternateBilling ? (
+                  {interval === "yearly" &&
+                  plan.yearlyTotal !== "Custom" &&
+                  plan.yearlyTotal !== "—" ? (
                     <p className="mt-1 max-w-[14rem] text-[10px] font-medium leading-4 text-[var(--color-text-muted)]">
-                      {alternateBilling}
+                      Billed yearly at {plan.yearlyTotal}/year
+                      {plan.yearlySavingsPercent != null ? (
+                        <>
+                          {" · "}
+                          <span className="font-semibold text-emerald-600">
+                            Save {plan.yearlySavingsPercent}%
+                          </span>
+                        </>
+                      ) : null}
                     </p>
                   ) : null}
                 </div>

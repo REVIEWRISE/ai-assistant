@@ -99,9 +99,34 @@ export function LandingFooter({ isLoggedIn }: { isLoggedIn: boolean }) {
       </div>
 
       <div className="relative border-t border-[var(--color-border)] bg-[var(--color-surface)]">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-[var(--color-text-subtle)] sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-6 text-xs text-[var(--color-text-subtle)] sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} VyntRise. All rights reserved.</p>
-          <p>Built for local businesses scaling with AI.</p>
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-2" aria-label="Legal">
+            <a
+              href={`${MAIN_SITE_URL}/privacy`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition hover:text-[var(--color-primary-h)]"
+            >
+              Privacy Policy
+            </a>
+            <a
+              href={`${MAIN_SITE_URL}/terms`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition hover:text-[var(--color-primary-h)]"
+            >
+              Terms of Service
+            </a>
+            <a
+              href={`${MAIN_SITE_URL}/cookies`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition hover:text-[var(--color-primary-h)]"
+            >
+              Cookie Policy
+            </a>
+          </nav>
         </div>
       </div>
     </footer>

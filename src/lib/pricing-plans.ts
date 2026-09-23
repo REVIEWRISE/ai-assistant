@@ -151,6 +151,24 @@ export function formatUsd(cents: number): string {
   }).format(cents / 100);
 }
 
+/** Percent saved vs paying monthly for a full year. Null when not applicable. */
+export function yearlySavingsPercent(
+  monthlyPriceCents: number | null | undefined,
+  yearlyPriceCents: number | null | undefined,
+): number | null {
+  if (
+    monthlyPriceCents == null ||
+    yearlyPriceCents == null ||
+    monthlyPriceCents <= 0 ||
+    yearlyPriceCents <= 0
+  ) {
+    return null;
+  }
+  const monthlyAnnualized = monthlyPriceCents * 12;
+  if (yearlyPriceCents >= monthlyAnnualized) return null;
+  return Math.round((1 - yearlyPriceCents / monthlyAnnualized) * 100);
+}
+
 export function getPlanBySlug(slug: PlanSlug): PricingPlan {
   const plan = PRICING_PLANS.find((candidate) => candidate.slug === slug);
   if (!plan) throw new Error(`Unknown pricing plan: ${slug}`);

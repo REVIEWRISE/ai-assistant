@@ -1,10 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useFormStatus } from "react-dom";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import type { RetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import type { OrgRetellPhoneNumber } from "@/lib/retell-phone-numbers";
-import { toast } from "@/lib/toast";
 
 function formatLineLabel(phone: OrgRetellPhoneNumber | RetellPhoneNumberStats): string {
   if (phone.nickname?.trim()) return phone.nickname.trim();
@@ -68,13 +68,7 @@ export function VoiceAgentPhoneManager({
   const bookings = phoneStats.reduce((sum, stat) => sum + stat.bookingsCount, 0);
   const linkedLines = phones.filter((phone) => phone.retellAgentId === retellAgentId).length;
 
-  const [mode, setMode] = useState<"buy" | "link">("buy");
-
-  useEffect(() => {
-    if (retellApiConfigured && !agentReady) {
-      toast.warning("Save your voice agent first — phone numbers must be linked to an agent for inbound calls.");
-    }
-  }, [retellApiConfigured, agentReady]);
+  const [mode, setMode] = useState<"buy" | "link">("link");
 
   return (
     <section className="space-y-4">
@@ -82,6 +76,20 @@ export function VoiceAgentPhoneManager({
         <div className="vr-app-alert vr-app-alert-warning">
           Phone service is not configured yet. Contact your administrator to enable buying and managing support
           numbers.
+        </div>
+      ) : null}
+
+      {retellApiConfigured && !agentReady ? (
+        <div className="vr-app-alert vr-app-alert-warning flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm">
+            Create and save your voice agent first, then you can add a phone number on this tab.
+          </p>
+          <Link
+            href="/voice-agent?tab=agent"
+            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+          >
+            Set up voice agent
+          </Link>
         </div>
       ) : null}
 
@@ -124,7 +132,13 @@ export function VoiceAgentPhoneManager({
             <div>
             <span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-lg text-[var(--color-primary-h)]" aria-hidden>☎</span>
             <p className="mt-3 font-semibold text-[var(--color-text)]">No phone lines yet</p>
-            <p className="mx-auto mt-1 max-w-lg text-xs leading-relaxed">Buy a new US or Canada support number or link an existing one below to start receiving calls.</p>
+            <p className="mx-auto mt-1 max-w-lg text-xs leading-relaxed">
+              {retellApiConfigured
+                ? agentReady
+                  ? "Add an existing support number below to start receiving calls. Buying a new number is coming soon."
+                  : "Save your voice agent on the Agent setup tab first — then return here to add a number."
+                : "Phone service must be configured before you can add a support line."}
+            </p>
             </div>
           </div>
         ) : (
@@ -187,7 +201,7 @@ export function VoiceAgentPhoneManager({
         )}
       </PhonePanel>
 
-      {retellApiConfigured && agentReady ? (
+      {retellApiConfigured ? (
         <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
           <div className="relative overflow-hidden border-b border-[var(--color-border)] bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 py-6 text-white lg:px-6">
             <div className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-white/10 blur-3xl" aria-hidden />
@@ -200,24 +214,40 @@ export function VoiceAgentPhoneManager({
                 <div className="mt-2 inline-flex rounded-xl bg-white/10 p-0.5">
                   <button
                     type="button"
+                    onClick={() => setMode("link")}
+                    className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "link" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
+                  >
+                    Add number
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setMode("buy")}
                     className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "buy" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
                   >
                     Buy a number
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMode("link")}
-                    className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "link" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
-                  >
-                    Link existing number
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {mode === "buy" ? (
+          {!agentReady ? (
+            <div className="flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between lg:p-6">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[var(--color-text)]">Voice agent required</p>
+                <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+                  Finish Agent setup and save so we can route inbound calls to your AI agent. Then come back to
+                  add or buy a number.
+                </p>
+              </div>
+              <Link
+                href="/voice-agent?tab=agent"
+                className="inline-flex shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+              >
+                Go to Agent setup
+              </Link>
+            </div>
+          ) : mode === "buy" ? (
             <div className="grid gap-0 lg:grid-cols-2">
               <div className="space-y-4 border-b border-[var(--color-border)] p-5 lg:border-b-0 lg:border-r lg:p-6" aria-disabled="true">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
@@ -279,7 +309,7 @@ export function VoiceAgentPhoneManager({
                 </div>
 
                 <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-                  Self-serve purchasing is not available yet. You can still manage existing lines above.
+                  Self-serve purchasing is not available yet. You can still link an existing number.
                 </p>
 
                 <div className="mt-auto flex flex-col gap-3 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center sm:justify-between">

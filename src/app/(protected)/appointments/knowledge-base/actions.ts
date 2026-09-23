@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   KNOWLEDGE_APPEND_SECTION_MARKER,
+  sanitizeKnowledgeValueForPostgres,
+  stripNullBytes,
   truncateKnowledgeRawTextForPrompt,
 } from "@/lib/knowledge-base-raw-truncate";
 import {
@@ -286,7 +288,10 @@ async function upsertKnowledgeBase(args: {
   sourceFileName?: string | null;
   metadata?: Record<string, string>;
 }) {
-  const parsedData = await buildParsedData(args.rawText, args.sourceType, args.metadata);
+  const rawText = stripNullBytes(args.rawText);
+  const parsedData = sanitizeKnowledgeValueForPostgres(
+    await buildParsedData(rawText, args.sourceType, args.metadata),
+  );
   await prisma.organizationKnowledgeBase.upsert({
     where: { organizationId: args.organizationId },
     create: {
@@ -295,7 +300,7 @@ async function upsertKnowledgeBase(args: {
       sourceUrl: args.sourceUrl ?? null,
       sourceFileName: args.sourceFileName ?? null,
       status: "draft",
-      rawText: args.rawText,
+      rawText,
       parsedData,
       lastImportedAt: new Date(),
     },
@@ -304,7 +309,7 @@ async function upsertKnowledgeBase(args: {
       sourceUrl: args.sourceUrl ?? null,
       sourceFileName: args.sourceFileName ?? null,
       status: "draft",
-      rawText: args.rawText,
+      rawText,
       parsedData,
       lastImportedAt: new Date(),
       updatedAt: new Date(),
@@ -396,10 +401,12 @@ export async function appendKnowledgeBaseNotes(formData: FormData) {
   });
   if (!existing) redirect(`${KB_ROUTE}?error=kb_missing`);
 
-  const base = String(existing.rawText ?? "").trim();
-  const combined = (base ? `${base}${KNOWLEDGE_APPEND_SECTION_MARKER}${supplement}` : supplement).slice(
-    0,
-    KNOWLEDGE_STORED_RAW_TEXT_MAX_CHARS,
+  const base = stripNullBytes(String(existing.rawText ?? "").trim());
+  const combined = stripNullBytes(
+    (base ? `${base}${KNOWLEDGE_APPEND_SECTION_MARKER}${supplement}` : supplement).slice(
+      0,
+      KNOWLEDGE_STORED_RAW_TEXT_MAX_CHARS,
+    ),
   );
 
   const prevParsed = existing.parsedData as Record<string, unknown> | null;
@@ -411,10 +418,12 @@ export async function appendKnowledgeBaseNotes(formData: FormData) {
       ? { ...(prevParsed.metadata as Record<string, string>) }
       : {};
 
-  const parsedData = await buildParsedData(combined, String(existing.sourceType || "text"), {
-    ...prevMeta,
-    lastSupplementedAt: new Date().toISOString(),
-  });
+  const parsedData = sanitizeKnowledgeValueForPostgres(
+    await buildParsedData(combined, String(existing.sourceType || "text"), {
+      ...prevMeta,
+      lastSupplementedAt: new Date().toISOString(),
+    }),
+  );
 
   try {
     await prisma.organizationKnowledgeBase.update({

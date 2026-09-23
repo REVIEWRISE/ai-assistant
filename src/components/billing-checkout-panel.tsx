@@ -5,7 +5,7 @@ import { createBillingCheckoutSession } from "@/app/(protected)/billing/actions"
 import { CONTACT_EMAIL } from "@/lib/brand";
 import type { CheckoutPlanOption } from "@/lib/billing-checkout-types";
 import { planIntervalAllowsSelfServeCheckout } from "@/lib/billing-checkout-types";
-import { formatUsd, PLAN_SLUGS, type PlanSlug } from "@/lib/pricing-plans";
+import { formatUsd, PLAN_SLUGS, yearlySavingsPercent, type PlanSlug } from "@/lib/pricing-plans";
 import { toast } from "@/lib/toast";
 
 type BillingCheckoutPanelProps = {
@@ -122,17 +122,17 @@ export function BillingCheckoutPanel({
         {visiblePlans.map((plan) => {
           const selectedPlan = plan.slug === planSlug;
           const amount =
-            interval === "yearly" ? plan.yearlyPriceCents : plan.monthlyPriceCents;
+            interval === "yearly"
+              ? plan.yearlyPriceCents != null
+                ? Math.round(plan.yearlyPriceCents / 12)
+                : null
+              : plan.monthlyPriceCents;
+          const savingsPercent =
+            interval === "yearly"
+              ? yearlySavingsPercent(plan.monthlyPriceCents, plan.yearlyPriceCents)
+              : null;
           const planAvailable = planIntervalAllowsSelfServeCheckout(plan, interval);
           const isCurrent = plan.slug === initialPlanSlug;
-          const alternateBilling =
-            !plan.isCustomPricing
-              ? interval === "yearly" && plan.monthlyPriceCents != null
-                ? `Billed monthly at ${formatUsd(plan.monthlyPriceCents)}/month`
-                : interval === "monthly" && plan.yearlyPriceCents != null
-                  ? `Billed yearly at ${formatUsd(plan.yearlyPriceCents)}/year`
-                  : null
-              : null;
           return (
             <button
               key={plan.slug}
@@ -161,13 +161,23 @@ export function BillingCheckoutPanel({
               </div>
               <p className="mt-3 text-2xl font-semibold tracking-tight text-[var(--color-text)]">
                 {amount != null ? formatUsd(amount) : "Custom"}
-                <span className="ml-1 text-xs font-medium text-[var(--color-text-muted)]">
-                  {interval === "yearly" ? "/yr" : "/mo"}
-                </span>
+                {amount != null ? (
+                  <span className="ml-1 text-xs font-medium text-[var(--color-text-muted)]">
+                    /mo
+                  </span>
+                ) : null}
               </p>
-              {alternateBilling ? (
+              {interval === "yearly" && plan.yearlyPriceCents != null ? (
                 <p className="mt-1 text-[10px] font-medium leading-4 text-[var(--color-text-muted)]">
-                  {alternateBilling}
+                  Billed yearly at {formatUsd(plan.yearlyPriceCents)}/year
+                  {savingsPercent != null ? (
+                    <>
+                      {" · "}
+                      <span className="font-semibold text-emerald-600">
+                        Save {savingsPercent}%
+                      </span>
+                    </>
+                  ) : null}
                 </p>
               ) : null}
               <p className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">

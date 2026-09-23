@@ -117,15 +117,16 @@ export function LandingPricingSection({
           <div className="mt-10 grid gap-5 lg:mt-14 lg:grid-cols-3 lg:items-stretch">
             {plans.map((plan) => {
               const isYearly = interval === "yearly";
-              const displayedPrice = isYearly ? plan.yearlyPrice : plan.price;
-              const hasPricedInterval = Boolean(displayedPrice) && displayedPrice !== "Custom";
-              const alternateBilling = isYearly
-                ? plan.price && plan.price !== "Custom"
-                  ? `Billed monthly at ${plan.price}/month`
-                  : null
-                : plan.yearlyPrice && plan.yearlyPrice !== "Custom"
-                  ? `Billed yearly at ${plan.yearlyPrice}/year`
-                  : null;
+              const intervalAvailable = isYearly
+                ? Boolean(plan.yearlyPrice)
+                : Boolean(plan.price);
+              const displayedPrice = isYearly
+                ? plan.yearlyPrice === "Custom"
+                  ? "Custom"
+                  : (plan.yearlyMonthlyPrice ?? plan.yearlyPrice)
+                : plan.price;
+              const hasPricedInterval =
+                Boolean(displayedPrice) && displayedPrice !== "Custom";
               const href = isLoggedIn
                 ? registerHref
                 : hasPricedInterval
@@ -163,7 +164,7 @@ export function LandingPricingSection({
                       </span>
                       {hasPricedInterval ? (
                         <span className="pb-1 text-sm font-medium text-[var(--color-text-muted)]">
-                          {isYearly ? "/year" : "/month"}
+                          /mo
                         </span>
                       ) : null}
                     </div>
@@ -171,17 +172,23 @@ export function LandingPricingSection({
                       <p className="mt-2 text-xs text-[var(--color-text-muted)]">
                         Custom pricing — talk with our team
                       </p>
-                    ) : isYearly && !plan.yearlyPrice ? (
+                    ) : !intervalAvailable ? (
                       <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-                        Yearly pricing isn’t listed for this plan
+                        {isYearly
+                          ? "Yearly pricing isn’t listed for this plan"
+                          : "Monthly pricing isn’t listed for this plan"}
                       </p>
-                    ) : !isYearly && !plan.price ? (
-                      <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-                        Monthly pricing isn’t listed for this plan
-                      </p>
-                    ) : alternateBilling ? (
+                    ) : isYearly && plan.yearlyPrice ? (
                       <p className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">
-                        {alternateBilling}
+                        Billed yearly at {plan.yearlyPrice}/year
+                        {plan.yearlySavingsPercent != null ? (
+                          <>
+                            {" · "}
+                            <span className="font-semibold text-emerald-600">
+                              Save {plan.yearlySavingsPercent}%
+                            </span>
+                          </>
+                        ) : null}
                       </p>
                     ) : null}
                   </div>
