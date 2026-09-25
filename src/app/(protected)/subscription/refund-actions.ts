@@ -4,6 +4,14 @@ import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth-session";
 import { userHasAdminRole } from "@/lib/admin-view-only";
 import { isRefundReasonCode } from "@/lib/refund-reasons";
+import {
+  getBillingOrganizationCredits,
+  getOrganizationBillingCustomerId,
+  isBillingConfigured,
+  listBillingSubscriptions,
+  requestCustomerBillingRefund,
+  type BillingOrganizationCreditsResult,
+} from "@/lib/billing-client";
 import { prisma } from "@/lib/prisma";
 
 export type RequestRefundResult =
@@ -30,10 +38,16 @@ async function assertCanManageRefunds(userId: string, organizationId: string): P
   return { ok: true };
 }
 
-export async function requestWorkspaceRefund(input: {
+export type RequestWorkspaceRefundInput = {
+  type?: "full" | "partial";
+  amountCents?: number;
   reason: string;
   notes?: string;
-}): Promise<RequestRefundResult> {
+};
+
+export async function requestWorkspaceRefund(
+  input: RequestWorkspaceRefundInput,
+): Promise<RequestRefundResult> {
   const session = await requireSession();
   const organizationId = session.activeOrganizationId;
   if (!organizationId) {
@@ -42,6 +56,17 @@ export async function requestWorkspaceRefund(input: {
 
   const access = await assertCanManageRefunds(session.userId, organizationId);
   if (!access.ok) return access;
+
+  const type = input.type === "partial" ? "partial" : "full";
+
+  let amountCents: number | null = null;
+  if (type === "partial") {
+    const rawAmount = Number(input.amountCents);
+    if (!Number.isFinite(rawAmount) || rawAmount <= 0) {
+      return { ok: false, error: "Please enter a valid partial refund amount greater than $0.00." };
+    }
+    amountCents = Math.round(rawAmount);
+  }
 
   const reason = String(input.reason || "").trim();
   if (!isRefundReasonCode(reason)) {
@@ -56,6 +81,7 @@ export async function requestWorkspaceRefund(input: {
       billingStatus: true,
       paidAt: true,
       name: true,
+      billingCustomerId: true,
     },
   });
   if (!org) {
@@ -72,6 +98,17 @@ export async function requestWorkspaceRefund(input: {
     };
   }
 
+  // 30-day window check for full refunds
+  if (type === "full" && org.paidAt) {
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    if (org.paidAt.getTime() < thirtyDaysAgo) {
+      return {
+        ok: false,
+        error: "Full refunds must be requested within 30 days of purchase. For service issues or partial refund, please choose 'Partial Refund'.",
+      };
+    }
+  }
+
   const existingPending = await prisma.refundRequest.findFirst({
     where: { organizationId, status: "pending" },
     select: { id: true },
@@ -86,11 +123,39 @@ export async function requestWorkspaceRefund(input: {
         organizationId,
         requestedByUserId: session.userId,
         status: "pending",
-        reason,
+        reason: type === "partial" ? `[partial] ${reason}` : reason,
         notes,
+        amountCents,
+        currency: "USD",
       },
       select: { id: true },
     });
+
+    // Optionally notify Billing API if customer subscription is found
+    if (isBillingConfigured()) {
+      try {
+        const customerId = org.billingCustomerId || (await getOrganizationBillingCustomerId(organizationId));
+        if (customerId) {
+          const subs = await listBillingSubscriptions({
+            customerId,
+            status: ["active", "trialing", "past_due"],
+            limit: 5,
+          });
+          const activeSub = subs[0];
+          if (activeSub?.id) {
+            await requestCustomerBillingRefund({
+              subscriptionId: activeSub.id,
+              type,
+              amountCents: amountCents ?? undefined,
+              reason,
+              message: notes || `Refund requested for workspace ${org.name}`,
+            }).catch(() => undefined);
+          }
+        }
+      } catch {
+        // Log & proceed; local database record is already created safely
+      }
+    }
 
     await prisma.auditEvent
       .create({
@@ -98,7 +163,12 @@ export async function requestWorkspaceRefund(input: {
           organizationId,
           actorId: session.userId,
           action: "billing.refund_requested",
-          metadata: { refundRequestId: created.id, reason },
+          metadata: {
+            refundRequestId: created.id,
+            reason,
+            type,
+            amountCents,
+          },
         },
       })
       .catch(() => undefined);
@@ -116,4 +186,20 @@ export async function requestWorkspaceRefund(input: {
     }
     return { ok: false, error: "Could not submit the refund request. Please try again." };
   }
+}
+
+/**
+ * Retrieve credits balance for the active workspace.
+ */
+export async function getWorkspaceCredits(): Promise<BillingOrganizationCreditsResult | null> {
+  const session = await requireSession();
+  const organizationId = session.activeOrganizationId;
+  if (!organizationId) return null;
+
+  if (!isBillingConfigured()) return null;
+
+  const customerId = await getOrganizationBillingCustomerId(organizationId);
+  if (!customerId) return null;
+
+  return getBillingOrganizationCredits(customerId);
 }

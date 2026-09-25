@@ -71,9 +71,13 @@ export function isBillingConfigured(): boolean {
   return Boolean(getBillingApiKey());
 }
 
+export type BillingFetchOptions = RequestInit & {
+  silent404?: boolean;
+};
+
 export async function billingFetch(
   path: string,
-  options: RequestInit = {},
+  options: BillingFetchOptions = {},
 ): Promise<Response> {
   const apiKey = getBillingApiKey();
   if (!apiKey) {
@@ -132,16 +136,20 @@ export async function billingFetch(
         "Unknown";
       const message = `Billing API error ${res.status} on ${method} ${normalizedPath}: ${detail}`;
 
-      billingLogError(`[billing] ← ${res.status} ${method} ${normalizedPath} (${elapsedMs}ms) error response`, {
-        status: res.status,
-        statusText: res.statusText,
-        path: normalizedPath,
-        method,
-        attempt,
-        elapsedMs,
-        body: errorBody,
-        raw: rawText || null,
-      });
+      if (res.status === 404 && options.silent404) {
+        billingLog(`[billing] ← 404 ${method} ${normalizedPath} (${elapsedMs}ms) (not found)`);
+      } else {
+        billingLogError(`[billing] ← ${res.status} ${method} ${normalizedPath} (${elapsedMs}ms) error response`, {
+          status: res.status,
+          statusText: res.statusText,
+          path: normalizedPath,
+          method,
+          attempt,
+          elapsedMs,
+          body: errorBody,
+          raw: rawText || null,
+        });
+      }
 
       const retryable =
         attempt < 4 &&
@@ -168,9 +176,13 @@ export async function billingFetch(
     }
   }
 
-  billingLogError(`[billing] giving up on ${method} ${normalizedPath}`, {
-    error: lastError?.message ?? "Billing API request failed.",
-  });
+  if (options.silent404 && lastError?.message.includes("Billing API error 404 ")) {
+    billingLog(`[billing] (not found) ${method} ${normalizedPath}`);
+  } else {
+    billingLogError(`[billing] giving up on ${method} ${normalizedPath}`, {
+      error: lastError?.message ?? "Billing API request failed.",
+    });
+  }
   throw lastError ?? new Error("Billing API request failed.");
 }
 
@@ -731,6 +743,7 @@ export async function resumeBillingSubscription(subscriptionId: string): Promise
     await billingFetch(`${path}/resume`, {
       method: "PATCH",
       body: JSON.stringify({}),
+      silent404: true,
     });
     return;
   } catch (error) {
@@ -764,35 +777,302 @@ export async function updateBillingSubscription(
   });
 }
 
+export type BillingRefundMethod = "store_credit" | "payment_method";
+export type BillingRefundType = "full" | "partial" | "store_credit" | "pro_rata_cancel";
+
 export type BillingRefundResult = {
   id: string | null;
+  status?: string;
+  executionStatus?: string;
+};
+
+export type BillingRefundApproveInput = {
+  refundMethod?: BillingRefundMethod;
+  internalNotes?: string;
+};
+
+export type BillingRefundApproveResult = {
+  status: string;
+  executionStatus?: string;
+  raw?: unknown;
+};
+
+export type BillingRefundRejectInput = {
+  reason: "outside_window" | "insufficient_funds" | "duplicate" | "other" | string;
+  internalNotes?: string;
+};
+
+export type BillingRefundRejectResult = {
+  status: string;
+  rejectionReason?: string;
+  raw?: unknown;
+};
+
+export type BillingDirectRefundCreateInput = {
+  organizationId: string;
+  subscriptionId?: string | null;
+  invoiceId?: string | null;
+  type: BillingRefundType;
+  amountCents?: number | null;
+  reason: string;
+  description?: string;
+  refundMethod?: BillingRefundMethod;
+};
+
+export type BillingDirectRefundCreateResult = {
+  id: string;
+  status: string;
+  executionStatus?: string;
+};
+
+export type BillingCustomerCreditItem = {
+  id: string;
+  amountCents: number;
+  balanceCents: number;
+  source: "refund" | "promotion" | "adjustment" | string;
+  expiresAt: string | null;
+  refundRequestId?: string | null;
+};
+
+export type BillingOrganizationCreditsResult = {
+  organizationId: string;
+  totalBalanceCents: number;
+  credits: BillingCustomerCreditItem[];
+  expiring?: string | null;
 };
 
 /**
- * Request a money-side refund in Billing for a customer.
- * POST /billing/admin/refunds
+ * Approve a pending refund request in Billing.
+ * POST /admin/refunds/:refundRequestId/approve
  */
-export async function createBillingRefund(input: {
-  customerId: string;
-  organizationId: string;
-  reason: string;
-  notes?: string;
-}): Promise<BillingRefundResult> {
-  const res = await billingFetch("/billing/admin/refunds", {
+export async function approveBillingRefund(
+  refundRequestId: string,
+  input: BillingRefundApproveInput = {},
+): Promise<BillingRefundApproveResult> {
+  const res = await billingFetch(`/admin/refunds/${encodeURIComponent(refundRequestId)}/approve`, {
     method: "POST",
     body: JSON.stringify({
-      customerId: input.customerId.trim(),
-      organizationId: input.organizationId.trim(),
-      reason: input.reason.trim(),
-      notes: input.notes?.trim() || undefined,
+      refundMethod: input.refundMethod ?? "store_credit",
+      internalNotes: input.internalNotes?.trim() || undefined,
     }),
   });
 
-  const body = (await res.json().catch(() => null)) as unknown;
-  const root = asRecord(body);
-  const nested = asRecord(root?.refund) ?? asRecord(root?.data) ?? root;
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   return {
-    id: nested ? asString(nested.id) : null,
+    status: asString(body.status) ?? "approved",
+    executionStatus: asString(body.executionStatus) ?? undefined,
+    raw: body,
+  };
+}
+
+/**
+ * Reject a pending refund request in Billing.
+ * POST /admin/refunds/:refundRequestId/reject
+ */
+export async function rejectBillingRefund(
+  refundRequestId: string,
+  input: BillingRefundRejectInput,
+): Promise<BillingRefundRejectResult> {
+  const res = await billingFetch(`/admin/refunds/${encodeURIComponent(refundRequestId)}/reject`, {
+    method: "POST",
+    body: JSON.stringify({
+      reason: input.reason.trim(),
+      internalNotes: input.internalNotes?.trim() || undefined,
+    }),
+  });
+
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  return {
+    status: asString(body.status) ?? "rejected",
+    rejectionReason: asString(body.rejectionReason) ?? asString(body.reason) ?? undefined,
+    raw: body,
+  };
+}
+
+/**
+ * Directly create and issue a refund or credit from the Admin portal.
+ * POST /admin/refunds/create
+ */
+export async function createDirectBillingRefund(
+  input: BillingDirectRefundCreateInput,
+): Promise<BillingDirectRefundCreateResult> {
+  const payload: Record<string, unknown> = {
+    organizationId: input.organizationId.trim(),
+    type: input.type,
+    reason: input.reason.trim(),
+    refundMethod: input.refundMethod ?? "store_credit",
+  };
+  if (input.subscriptionId) payload.subscriptionId = input.subscriptionId.trim();
+  if (input.invoiceId) payload.invoiceId = input.invoiceId.trim();
+  if (typeof input.amountCents === "number") payload.amountCents = input.amountCents;
+  if (input.description) payload.description = input.description.trim();
+
+  const res = await billingFetch("/admin/refunds/create", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const id = asString(body.id) ?? asString(body.refundId) ?? "";
+  const status = asString(body.status) ?? "approved";
+  const executionStatus = asString(body.executionStatus) ?? undefined;
+
+  return { id, status, executionStatus };
+}
+
+/**
+ * Legacy wrapper for createDirectBillingRefund or fallback.
+ * POST /billing/admin/refunds or POST /admin/refunds/create
+ */
+export async function createBillingRefund(input: {
+  customerId?: string;
+  organizationId: string;
+  subscriptionId?: string;
+  reason: string;
+  notes?: string;
+  type?: BillingRefundType;
+  amountCents?: number;
+  refundMethod?: BillingRefundMethod;
+}): Promise<BillingRefundResult> {
+  try {
+    const direct = await createDirectBillingRefund({
+      organizationId: input.organizationId,
+      subscriptionId: input.subscriptionId,
+      type: input.type ?? "full",
+      amountCents: input.amountCents,
+      reason: input.reason,
+      description: input.notes,
+      refundMethod: input.refundMethod ?? "store_credit",
+    });
+    return {
+      id: direct.id,
+      status: direct.status,
+      executionStatus: direct.executionStatus,
+    };
+  } catch {
+    // Fallback to legacy endpoint if /admin/refunds/create is not supported
+    const res = await billingFetch("/billing/admin/refunds", {
+      method: "POST",
+      body: JSON.stringify({
+        customerId: input.customerId?.trim(),
+        organizationId: input.organizationId.trim(),
+        reason: input.reason.trim(),
+        notes: input.notes?.trim() || undefined,
+      }),
+    });
+    const body = (await res.json().catch(() => null)) as unknown;
+    const root = asRecord(body);
+    const nested = asRecord(root?.refund) ?? asRecord(root?.data) ?? root;
+    return {
+      id: nested ? asString(nested.id) : null,
+    };
+  }
+}
+
+const unmountedCreditPaths = new Set<string>();
+
+/**
+ * Fetch store credits and balance for an organization/customer.
+ * GET /admin/organizations/:customerId/credits
+ */
+export async function getBillingOrganizationCredits(
+  customerIdOrOrgId: string,
+): Promise<BillingOrganizationCreditsResult | null> {
+  const targetId = customerIdOrOrgId?.trim();
+  if (!targetId) return null;
+
+  const candidatePaths = [
+    `/admin/organizations/${encodeURIComponent(targetId)}/credits`,
+    `/billing/admin/organizations/${encodeURIComponent(targetId)}/credits`,
+  ].filter((p) => !unmountedCreditPaths.has(p));
+
+  if (candidatePaths.length === 0) return null;
+
+  for (const path of candidatePaths) {
+    try {
+      const res = await billingFetch(path, { silent404: true });
+      const body = (await res.json().catch(() => null)) as unknown;
+      const root = asRecord(body);
+      if (!root) continue;
+
+      const rawCredits = Array.isArray(root.credits) ? root.credits : [];
+      const credits: BillingCustomerCreditItem[] = [];
+      for (const item of rawCredits) {
+        const row = asRecord(item);
+        if (!row) continue;
+        const id = asString(row.id);
+        if (!id) continue;
+        credits.push({
+          id,
+          amountCents: asNumber(row.amountCents),
+          balanceCents: asNumber(row.balanceCents),
+          source: asString(row.source) ?? "refund",
+          expiresAt: asString(row.expiresAt),
+          refundRequestId: asString(row.refundRequestId),
+        });
+      }
+
+      return {
+        organizationId: asString(root.organizationId) ?? targetId,
+        totalBalanceCents: asNumber(root.totalBalanceCents),
+        credits,
+        expiring: asString(root.expiring),
+      };
+    } catch (error) {
+      if (isBillingHttpError(error, 404)) {
+        if (error instanceof Error && error.message.includes("Cannot GET /api/")) {
+          unmountedCreditPaths.add(path);
+        }
+        continue;
+      }
+      billingLog(`[billing] getBillingOrganizationCredits for ${targetId} on ${path}:`, error);
+      return null;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Customer initiates refund request from product app.
+ * POST /billing/refunds/request
+ */
+export async function requestCustomerBillingRefund(input: {
+  subscriptionId: string;
+  type: "full" | "partial";
+  amountCents?: number;
+  reason: string;
+  message?: string;
+  customerJwt?: string;
+}): Promise<{
+  id: string;
+  status: string;
+  amountCents?: number;
+  requestedAt?: string;
+}> {
+  const headers: Record<string, string> = {};
+  if (input.customerJwt) {
+    headers["Authorization"] = `Bearer ${input.customerJwt}`;
+  }
+
+  const res = await billingFetch("/billing/refunds/request", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      subscriptionId: input.subscriptionId.trim(),
+      type: input.type,
+      amountCents: input.type === "partial" ? input.amountCents : undefined,
+      reason: input.reason.trim(),
+      message: input.message?.trim() || undefined,
+    }),
+  });
+
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  return {
+    id: asString(body.id) ?? "",
+    status: asString(body.status) ?? "pending_review",
+    amountCents: typeof body.amountCents === "number" ? body.amountCents : undefined,
+    requestedAt: asString(body.requestedAt) ?? undefined,
   };
 }
 
