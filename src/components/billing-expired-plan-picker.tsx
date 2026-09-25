@@ -5,7 +5,7 @@ import { createBillingCheckoutSession } from "@/app/(protected)/billing/actions"
 import { CONTACT_EMAIL } from "@/lib/brand";
 import type { CheckoutPlanOption } from "@/lib/billing-checkout-types";
 import { planIntervalAllowsSelfServeCheckout } from "@/lib/billing-checkout-types";
-import { formatUsd, type PlanSlug } from "@/lib/pricing-plans";
+import { formatUsd, yearlySavingsPercent, type PlanSlug } from "@/lib/pricing-plans";
 import { toast } from "@/lib/toast";
 
 type BillingExpiredPlanPickerProps = {
@@ -19,14 +19,19 @@ function displayPrice(
   plan: CheckoutPlanOption,
   interval: "monthly" | "yearly",
 ): { amount: string; suffix: string } {
-  const cents = interval === "yearly" ? plan.yearlyPriceCents : plan.monthlyPriceCents;
+  const cents =
+    interval === "yearly"
+      ? plan.yearlyPriceCents != null
+        ? Math.round(plan.yearlyPriceCents / 12)
+        : null
+      : plan.monthlyPriceCents;
   if (plan.isCustomPricing && (cents === null || cents === 0)) {
     return { amount: "Custom", suffix: "" };
   }
   if (cents == null) return { amount: "—", suffix: "" };
   return {
     amount: formatUsd(cents),
-    suffix: interval === "yearly" ? "/year" : "/month",
+    suffix: "/mo",
   };
 }
 
@@ -137,13 +142,9 @@ export function BillingExpiredPlanPicker({
           const isSelected = selected === plan.slug;
           const planPrice = displayPrice(plan, interval);
           const planAvailable = planIntervalAllowsSelfServeCheckout(plan, interval);
-          const alternateBilling =
-            !plan.isCustomPricing
-              ? interval === "yearly" && plan.monthlyPriceCents != null
-                ? `Billed monthly at ${formatUsd(plan.monthlyPriceCents)}/month`
-                : interval === "monthly" && plan.yearlyPriceCents != null
-                  ? `Billed yearly at ${formatUsd(plan.yearlyPriceCents)}/year`
-                  : null
+          const savingsPercent =
+            interval === "yearly"
+              ? yearlySavingsPercent(plan.monthlyPriceCents, plan.yearlyPriceCents)
               : null;
 
           return (
@@ -228,9 +229,17 @@ export function BillingExpiredPlanPicker({
                       </span>
                     ) : null}
                   </p>
-                  {alternateBilling ? (
+                  {interval === "yearly" && plan.yearlyPriceCents != null ? (
                     <p className="mt-1 max-w-[14rem] text-[10px] font-medium leading-4 text-[var(--color-text-muted)]">
-                      {alternateBilling}
+                      Billed yearly at {formatUsd(plan.yearlyPriceCents)}/year
+                      {savingsPercent != null ? (
+                        <>
+                          {" · "}
+                          <span className="font-semibold text-emerald-600">
+                            Save {savingsPercent}%
+                          </span>
+                        </>
+                      ) : null}
                     </p>
                   ) : null}
                 </div>

@@ -1,19 +1,28 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { requestWorkspaceRefund } from "@/app/(protected)/subscription/refund-actions";
-import { REFUND_REASON_OPTIONS, labelForRefundReason } from "@/lib/refund-reasons";
-import { toast } from "@/lib/toast";
+import { useState } from "react";
+import { CustomerRefundSheet } from "@/components/customer-refund-sheet";
+import {
+  REFUND_TYPES,
+  formatCents,
+  labelForRefundReason,
+} from "@/lib/refund-reasons";
 
 export type SubscriptionRefundView = {
   canRequest: boolean;
+  paidAt?: string | null;
+  planPriceCents?: number | null;
+  credits?: {
+    totalBalanceCents: number;
+    expiring?: string | null;
+  } | null;
   latest: {
     id: string;
     status: string;
     reason: string;
     notes: string;
+    amountCents?: number | null;
+    currency?: string | null;
     adminNote: string | null;
     createdAt: string;
     reviewedAt: string | null;
@@ -64,36 +73,43 @@ function statusMeta(status: string): {
         label: "Trialing",
         badge:
           "border-sky-200 bg-sky-50 text-sky-800 [[data-theme=dark]_&]:border-sky-500/30 [[data-theme=dark]_&]:bg-sky-500/15 [[data-theme=dark]_&]:text-sky-200",
-        dot: "bg-sky-600 [[data-theme=dark]_&]:bg-sky-300",
+        dot: "bg-sky-600 [[data-theme=dark]_&]:bg-sky-400",
+      };
+    case "past_due":
+      return {
+        label: "Past due",
+        badge:
+          "border-amber-200 bg-amber-50 text-amber-900 [[data-theme=dark]_&]:border-amber-500/30 [[data-theme=dark]_&]:bg-amber-500/15 [[data-theme=dark]_&]:text-amber-200",
+        dot: "bg-amber-600 [[data-theme=dark]_&]:bg-amber-400",
       };
     case "expired":
       return {
         label: "Expired",
         badge:
-          "border-red-200 bg-red-50 text-red-800 [[data-theme=dark]_&]:border-red-500/30 [[data-theme=dark]_&]:bg-red-500/15 [[data-theme=dark]_&]:text-red-200",
-        dot: "bg-red-600 [[data-theme=dark]_&]:bg-red-400",
+          "border-rose-200 bg-rose-50 text-rose-800 [[data-theme=dark]_&]:border-rose-500/30 [[data-theme=dark]_&]:bg-rose-500/15 [[data-theme=dark]_&]:text-rose-200",
+        dot: "bg-rose-600 [[data-theme=dark]_&]:bg-rose-400",
       };
     default:
       return {
-        label: "Needs plan",
+        label: status ? status.replace(/_/g, " ") : "No plan",
         badge:
-          "border-amber-200 bg-amber-50 text-amber-900 [[data-theme=dark]_&]:border-amber-500/30 [[data-theme=dark]_&]:bg-amber-500/15 [[data-theme=dark]_&]:text-amber-200",
-        dot: "bg-amber-600 [[data-theme=dark]_&]:bg-amber-400",
+          "border-neutral-200 bg-neutral-100 text-neutral-800 [[data-theme=dark]_&]:border-neutral-700 [[data-theme=dark]_&]:bg-neutral-800 [[data-theme=dark]_&]:text-neutral-200",
+        dot: "bg-neutral-500",
       };
   }
 }
 
-function Fact({
+function MetricCard({
   label,
   value,
   hint,
 }: {
   label: string;
   value: string;
-  hint?: string;
+  hint?: string | null;
 }) {
   return (
-    <div className="min-w-0">
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
         {label}
       </p>
@@ -104,42 +120,18 @@ function Fact({
 }
 
 export function SubscriptionPanel({ subscription }: { subscription: SubscriptionViewModel }) {
-  const router = useRouter();
-  const [refundPending, startRefundTransition] = useTransition();
-  const [refundReason, setRefundReason] = useState<(typeof REFUND_REASON_OPTIONS)[number]["value"]>(
-    "accidental_purchase",
-  );
-  const [refundNotes, setRefundNotes] = useState("");
+  const [isRefundSheetOpen, setIsRefundSheetOpen] = useState(false);
+  const [sheetMode, setSheetMode] = useState<"create" | "view">("create");
+
   const tone = statusMeta(subscription.billingStatus);
   const isTrialing = subscription.billingStatus === "trialing";
-  const accessEndsAt = subscription.currentPeriodEndsAt ?? subscription.trialEndsAt;
   const intervalLabel = subscription.billingInterval
     ? subscription.billingInterval.charAt(0).toUpperCase() + subscription.billingInterval.slice(1)
     : null;
 
   const latestRefund = subscription.refund.latest;
   const refundUnderReview = latestRefund?.status === "pending";
-  const showRefundForm =
-    subscription.refund.canRequest &&
-    subscription.isOwner &&
-    !refundUnderReview &&
-    latestRefund?.status !== "approved";
-
-  function onRequestRefund() {
-    startRefundTransition(async () => {
-      const result = await requestWorkspaceRefund({
-        reason: refundReason,
-        notes: refundNotes,
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Refund request submitted. We’ll review it shortly.");
-      setRefundNotes("");
-      router.refresh();
-    });
-  }
+  const creditsBalance = subscription.refund.credits?.totalBalanceCents ?? 0;
 
   const facts = [
     {
@@ -176,181 +168,211 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
 
   return (
     <div className="space-y-4">
-      <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--color-border)] px-5 py-5 sm:px-6">
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-h)]">
-              Current plan
+      {/* Store Credit Balance Banner */}
+      {creditsBalance > 0 ? (
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-[1.35rem] border border-emerald-500/30 bg-emerald-500/10 p-5 [[data-theme=dark]_&]:bg-emerald-950/30">
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-600 [[data-theme=dark]_&]:text-emerald-400">
+              Account Store Credit
             </p>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
-              <h2 className="text-2xl font-semibold tracking-[-0.03em] text-[var(--color-text)]">
-                {subscription.planName}
-              </h2>
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${tone.badge}`}
-              >
-                <span className={`size-1.5 rounded-full ${tone.dot}`} aria-hidden />
-                {tone.label}
-              </span>
-              {subscription.cancelAtPeriodEnd ? (
-                <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 [[data-theme=dark]_&]:border-amber-500/30 [[data-theme=dark]_&]:bg-amber-500/15 [[data-theme=dark]_&]:text-amber-200">
-                  Cancels {formatDate(accessEndsAt)}
-                </span>
-              ) : null}
-            </div>
-            <p className="mt-1.5 max-w-xl text-sm leading-6 text-[var(--color-text-muted)]">
-              {subscription.planPositioning?.trim() || `Plan for ${subscription.workspaceName}.`}
+            <p className="text-xl font-extrabold text-[var(--color-text)]">
+              {formatCents(creditsBalance)}
+            </p>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              Your available store credit will be applied automatically toward renewals or invoices.
             </p>
           </div>
-          {subscription.billingStatus === "expired" ? (
-            <Link
-              href="/billing/expired"
-              className="rounded-xl vr-btn-primary px-4 py-2.5 text-sm font-semibold"
+          <span className="rounded-full border border-emerald-500/40 bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-700 [[data-theme=dark]_&]:text-emerald-300">
+            Active credit
+          </span>
+        </section>
+      ) : null}
+
+      <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--color-border)] px-5 py-5 sm:px-6">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+              Subscription
+            </p>
+            <h2 className="mt-1 text-xl font-bold tracking-tight text-[var(--color-text)]">
+              {subscription.planName}
+            </h2>
+            {subscription.planPositioning ? (
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                {subscription.planPositioning}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${tone.badge}`}
             >
-              View plans
-            </Link>
-          ) : subscription.canUpgrade ? (
-            <Link
-              href="/billing?error=upgrade_required"
-              className="rounded-xl vr-btn-primary px-4 py-2.5 text-sm font-semibold"
-            >
-              Upgrade plan
-            </Link>
-          ) : null}
+              <span className={`size-1.5 rounded-full ${tone.dot}`} aria-hidden />
+              {tone.label}
+            </span>
+          </div>
         </div>
 
-        <div className="grid gap-4 px-5 py-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-4">
           {facts.map((fact) => (
-            <Fact key={fact.label} {...fact} />
+            <MetricCard key={fact.label} label={fact.label} value={fact.value} hint={fact.hint} />
           ))}
         </div>
       </section>
 
-      {subscription.canCancel ? (
-        <div className="space-y-4">
-          <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-            <div className="border-b border-[var(--color-border)] px-5 py-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-                Refunds
-              </p>
-              <h3 className="mt-1.5 text-base font-semibold tracking-tight text-[var(--color-text)]">
-                Request a refund
-              </h3>
-              <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-                Reviewed by our team.
-              </p>
-            </div>
+      {/* Refunds and Credits Section */}
+      <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border)] px-5 py-4 sm:px-6">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+              Refunds & Store Credit Guarantee
+            </p>
+            <h3 className="mt-1 text-base font-semibold tracking-tight text-[var(--color-text)]">
+              Money-back guarantee & credit options
+            </h3>
+            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+              Full refunds within 30 days of purchase · Flexible partial refunds and store credit anytime
+            </p>
+          </div>
 
-            <div className="space-y-3 p-5">
-              {latestRefund ? (
-                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-                    Latest request
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-[var(--color-text)]">
+          <div>
+            {refundUnderReview ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSheetMode("view");
+                  setIsRefundSheetOpen(true);
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-3.5 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-500/25 [[data-theme=dark]_&]:text-amber-300"
+              >
+                <span>⏳</span>
+                <span>Request Under Review · View Details</span>
+              </button>
+            ) : subscription.refund.canRequest && subscription.isOwner ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSheetMode("create");
+                  setIsRefundSheetOpen(true);
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--color-primary-h)]"
+              >
+                <span>↺</span>
+                <span>Request a refund or credit</span>
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="space-y-4 p-5 sm:p-6">
+          {/* Policy summary table */}
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+            {REFUND_TYPES.map((t) => (
+              <div
+                key={t.value}
+                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-[var(--color-text)]">{t.label}</span>
+                  {t.windowDays ? (
+                    <span className="rounded-full bg-[var(--color-raised)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">
+                      {t.windowDays}d window
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-[var(--color-raised)] px-2 py-0.5 text-[10px] font-medium text-emerald-600 [[data-theme=dark]_&]:text-emerald-400">
+                      Anytime
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                  {t.description}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Active / Latest Refund Request Card */}
+          {latestRefund ? (
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                      latestRefund.status === "pending"
+                        ? "bg-amber-500/15 text-amber-600 [[data-theme=dark]_&]:text-amber-400"
+                        : latestRefund.status === "approved"
+                          ? "bg-emerald-500/15 text-emerald-600 [[data-theme=dark]_&]:text-emerald-400"
+                          : "bg-rose-500/15 text-rose-600 [[data-theme=dark]_&]:text-rose-400"
+                    }`}
+                  >
                     {latestRefund.status === "pending"
                       ? "Under review"
                       : latestRefund.status === "approved"
                         ? "Approved"
                         : "Rejected"}
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
-                    {labelForRefundReason(latestRefund.reason)}
-                    {" · "}
-                    Submitted {formatDate(latestRefund.createdAt)}
-                    {latestRefund.reviewedAt
-                      ? ` · Reviewed ${formatDate(latestRefund.reviewedAt)}`
-                      : ""}
-                  </p>
-                  {latestRefund.status === "rejected" && latestRefund.adminNote ? (
-                    <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
-                      Note: {latestRefund.adminNote}
-                    </p>
+                  </span>
+                  <span className="text-xs font-semibold text-[var(--color-text)]">
+                    {labelForRefundReason(latestRefund.reason.replace(/^\[[^\]]+\]\s*/, ""))}
+                  </span>
+                  {latestRefund.amountCents != null && latestRefund.amountCents > 0 ? (
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      ({formatCents(latestRefund.amountCents, latestRefund.currency ?? "USD")})
+                    </span>
                   ) : null}
                 </div>
-              ) : null}
-
-              {showRefundForm ? (
-                <>
-                  <label className="block space-y-1.5">
-                    <span className="text-xs font-semibold text-[var(--color-text)]">Reason</span>
-                    <select
-                      value={refundReason}
-                      onChange={(e) =>
-                        setRefundReason(e.target.value as (typeof REFUND_REASON_OPTIONS)[number]["value"])
-                      }
-                      disabled={refundPending}
-                      className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
-                    >
-                      {REFUND_REASON_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block space-y-1.5">
-                    <span className="text-xs font-semibold text-[var(--color-text)]">
-                      Details <span className="font-normal text-[var(--color-text-muted)]">(optional)</span>
-                    </span>
-                    <textarea
-                      value={refundNotes}
-                      onChange={(e) => setRefundNotes(e.target.value)}
-                      rows={3}
-                      maxLength={1000}
-                      disabled={refundPending}
-                      placeholder="Anything that helps us review your request"
-                      className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    disabled={refundPending}
-                    onClick={onRequestRefund}
-                    className="inline-flex w-full items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:opacity-50"
-                  >
-                    {refundPending ? "Submitting…" : "Submit refund request"}
-                  </button>
-                </>
-              ) : null}
-
-              {!subscription.refund.canRequest && !latestRefund ? (
-                <p className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
-                  Refunds are available after a paid subscription. This workspace is still on a free trial, so there is no charge to refund yet.
+                <p className="text-[11px] text-[var(--color-text-muted)]">
+                  Submitted {formatDate(latestRefund.createdAt)}
+                  {latestRefund.reviewedAt ? ` · Reviewed ${formatDate(latestRefund.reviewedAt)}` : ""}
                 </p>
-              ) : null}
+                {latestRefund.adminNote ? (
+                  <p className="mt-1 text-xs text-[var(--color-text)]">
+                    <span className="font-semibold text-[var(--color-text-muted)]">Admin note: </span>
+                    {latestRefund.adminNote}
+                  </p>
+                ) : null}
+              </div>
 
-              {!subscription.isOwner && subscription.refund.canRequest && !latestRefund ? (
-                <p className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
-                  Ask a workspace owner if you need to request a refund.
-                </p>
-              ) : null}
-
-              {refundUnderReview ? (
-                <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-                  We’ll notify you after review.
-                </p>
-              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  setSheetMode("view");
+                  setIsRefundSheetOpen(true);
+                }}
+                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] hover:shadow-sm"
+              >
+                View full status ➔
+              </button>
             </div>
-          </section>
+          ) : null}
+
+          {!subscription.refund.canRequest && !latestRefund ? (
+            <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] p-4 text-xs leading-relaxed text-[var(--color-text-muted)]">
+              💡 <span className="font-semibold text-[var(--color-text)]">Trial Active:</span> Refunds are available after a paid billing cycle. Because this workspace is on a free trial, no payment has occurred yet. You can cancel anytime without being charged.
+            </div>
+          ) : null}
+
+          {!subscription.isOwner && subscription.refund.canRequest && !latestRefund ? (
+            <p className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+              Ask a workspace owner if you need to submit a refund request.
+            </p>
+          ) : null}
         </div>
-      ) : (
-        <section className="rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-sm)]">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-            Manage
-          </p>
-          <h3 className="mt-1.5 text-base font-semibold text-[var(--color-text)]">No active billing</h3>
-          <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-            Choose a plan when you are ready to subscribe.
-          </p>
-          <Link
-            href="/billing?error=upgrade_required"
-            className="mt-4 inline-flex rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
-          >
-            View plans
-          </Link>
-        </section>
-      )}
+      </section>
+
+      {/* Customer Refund Slide-over Sheet */}
+      <CustomerRefundSheet
+        key={`${isRefundSheetOpen}-${sheetMode}`}
+        isOpen={isRefundSheetOpen}
+        onClose={() => setIsRefundSheetOpen(false)}
+        initialMode={sheetMode}
+        workspaceName={subscription.workspaceName}
+        planName={subscription.planName}
+        billingInterval={subscription.billingInterval}
+        paidAt={subscription.paidAt}
+        planPriceCents={subscription.refund.planPriceCents}
+        creditsBalance={creditsBalance}
+        existingRequest={latestRefund}
+      />
     </div>
   );
 }

@@ -57,6 +57,8 @@ export default async function OnboardingPlanPage({ searchParams }: PageProps) {
         description: live.description,
         monthlyPrice: live.price ?? "—",
         yearlyTotal: live.yearlyPrice ?? "—",
+        yearlyMonthlyPrice: live.yearlyMonthlyPrice ?? live.yearlyPrice ?? "—",
+        yearlySavingsPercent: live.yearlySavingsPercent,
         featured: Boolean(live.featured),
         highlights: live.items.length ? [...live.items] : [],
         includedLocations: live.includedLocations,

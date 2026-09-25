@@ -3,6 +3,10 @@ import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { SubscriptionPanel } from "@/components/subscription-panel";
 import { requireSession } from "@/lib/auth-session";
 import { userHasAdminRole } from "@/lib/admin-view-only";
+import {
+  getBillingOrganizationCredits,
+  getOrganizationBillingCustomerId,
+} from "@/lib/billing-client";
 import { getOrgBilling, isBillingAccessAllowed } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { canUpgradePlan, getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
@@ -20,7 +24,7 @@ export default async function SubscriptionPage() {
     redirect("/appointments/organization");
   }
 
-  const [billing, membership, organization, latestRefund] = await Promise.all([
+  const [billing, membership, organization, latestRefund, customerId] = await Promise.all([
     getOrgBilling(organizationId),
     prisma.organizationMember.findFirst({
       where: { userId: session.userId, organizationId },
@@ -28,7 +32,7 @@ export default async function SubscriptionPage() {
     }),
     prisma.organization.findUnique({
       where: { id: organizationId },
-      select: { name: true, paidAt: true },
+      select: { name: true, paidAt: true, billingCustomerId: true },
     }),
     prisma.refundRequest.findFirst({
       where: { organizationId },
@@ -38,11 +42,14 @@ export default async function SubscriptionPage() {
         status: true,
         reason: true,
         notes: true,
+        amountCents: true,
+        currency: true,
         adminNote: true,
         createdAt: true,
         reviewedAt: true,
       },
     }),
+    getOrganizationBillingCustomerId(organizationId).catch(() => null),
   ]);
 
   if (!billing || !organization) {
@@ -51,6 +58,12 @@ export default async function SubscriptionPage() {
 
   if (billing.billingStatus === "expired") {
     redirect("/billing/expired");
+  }
+
+  let credits = null;
+  const resolvedCustomerId = organization.billingCustomerId || customerId;
+  if (resolvedCustomerId) {
+    credits = await getBillingOrganizationCredits(resolvedCustomerId).catch(() => null);
   }
 
   const isOwner = membership?.role === "owner";
@@ -165,12 +178,26 @@ export default async function SubscriptionPage() {
           isOwner: Boolean(isOwner),
           refund: {
             canRequest: canRequestRefund,
+            paidAt: organization.paidAt?.toISOString() ?? billing.paidAt?.toISOString() ?? null,
+            planPriceCents: plan
+              ? billing.billingInterval === "yearly"
+                ? plan.yearlyPriceCents
+                : plan.monthlyPriceCents
+              : null,
+            credits: credits
+              ? {
+                  totalBalanceCents: credits.totalBalanceCents,
+                  expiring: credits.expiring,
+                }
+              : null,
             latest: latestRefund
               ? {
                   id: latestRefund.id,
                   status: latestRefund.status,
                   reason: latestRefund.reason,
                   notes: latestRefund.notes,
+                  amountCents: latestRefund.amountCents,
+                  currency: latestRefund.currency ?? "USD",
                   adminNote: latestRefund.adminNote,
                   createdAt: latestRefund.createdAt.toISOString(),
                   reviewedAt: latestRefund.reviewedAt?.toISOString() ?? null,

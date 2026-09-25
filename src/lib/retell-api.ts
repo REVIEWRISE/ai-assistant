@@ -322,3 +322,10 @@ export async function createRetellPhoneNumber(
 ): Promise<RetellApiResult<RetellPhoneNumberRecord>> {
   return retellRequest<RetellPhoneNumberRecord>("POST", "/create-phone-number", body);
 }
+
+/** Stop an ongoing voice call (Retell POST /v2/stop-call/{call_id}). */
+export async function stopRetellCall(callId: string): Promise<RetellApiResult<Record<string, never>>> {
+  const id = callId.trim();
+  if (!id) return { ok: false, status: 400, error: "Call ID is required." };
+  return retellRequest<Record<string, never>>("POST", `/v2/stop-call/${encodeURIComponent(id)}`);
+}
