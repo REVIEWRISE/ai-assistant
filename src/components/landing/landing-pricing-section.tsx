@@ -114,9 +114,6 @@ export function LandingPricingSection({
           <div className="mt-14 grid gap-8 lg:grid-cols-3 lg:items-stretch">
             {plans.map((plan) => {
               const isYearly = interval === "yearly";
-              const intervalAvailable = isYearly
-                ? Boolean(plan.yearlyPrice)
-                : Boolean(plan.price);
               const displayedPrice = isYearly
                 ? plan.yearlyPrice === "Custom"
                   ? "Custom"

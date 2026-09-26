@@ -149,16 +149,18 @@ export function LandingIntegrationsSection({
 
           {/* Filter Pills */}
           <div className="flex flex-wrap gap-2 self-start md:self-end">
-            {[
-              { id: "all", label: "All Integrations" },
-              { id: "reviews", label: "Reviews & Maps" },
-              { id: "calendar", label: "Calendars" },
-              { id: "messaging", label: "Messaging & Leads" },
-            ].map((tab) => (
+            {(
+              [
+                { id: "all", label: "All Integrations" },
+                { id: "reviews", label: "Reviews & Maps" },
+                { id: "calendar", label: "Calendars" },
+                { id: "messaging", label: "Messaging & Leads" },
+              ] as const
+            ).map((tab) => (
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setFilter(tab.id as any)}
+                onClick={() => setFilter(tab.id)}
                 className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
                   filter === tab.id
                     ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] shadow-sm"

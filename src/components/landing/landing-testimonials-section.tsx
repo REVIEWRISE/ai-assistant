@@ -1,5 +1,3 @@
-import { LANDING_TESTIMONIALS } from "@/lib/landing-data";
-
 const TESTIMONIAL_METRICS = [
   {
     name: "Helen T.",
