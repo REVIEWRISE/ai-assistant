@@ -1,4 +1,5 @@
 import { LandingContactSection } from "@/components/landing/landing-contact-section";
+import { LandingDemoPlayground } from "@/components/landing/landing-demo-playground";
 import { LandingFaqSection } from "@/components/landing/landing-faq-section";
 import { LandingFeaturesSection } from "@/components/landing/landing-features-section";
 import { LandingFooter } from "@/components/landing/landing-footer";
@@ -25,7 +26,7 @@ export default async function Home() {
   return (
     <div className="landing relative min-h-screen antialiased">
       <div className="landing-mesh pointer-events-none absolute inset-0" aria-hidden />
-      <div className="landing-grid pointer-events-none absolute inset-0 opacity-[0.14]" aria-hidden />
+      <div className="landing-grid pointer-events-none absolute inset-0 opacity-[0.05]" aria-hidden />
 
       <div className="relative">
         <LandingHeader isLoggedIn={isLoggedIn} />
@@ -36,15 +37,17 @@ export default async function Home() {
 
         <LandingFeaturesSection />
 
-        <LandingPlaybookSection registerHref={registerHref} isLoggedIn={isLoggedIn} />
+        <LandingDemoPlayground />
 
-        <LandingPricingSection plans={plans} registerHref={registerHref} isLoggedIn={isLoggedIn} />
+        <LandingPlaybookSection registerHref={registerHref} isLoggedIn={isLoggedIn} />
 
         <LandingIntegrationsSection
           integrations={LANDING_INTEGRATIONS}
           registerHref={registerHref}
           isLoggedIn={isLoggedIn}
         />
+
+        <LandingPricingSection plans={plans} registerHref={registerHref} isLoggedIn={isLoggedIn} />
 
         <LandingTestimonialsSection />
 
