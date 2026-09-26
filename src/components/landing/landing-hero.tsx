@@ -179,7 +179,7 @@ export function LandingHero({ isLoggedIn }: { isLoggedIn: boolean }) {
                         <span className="text-amber-400">★★★★★</span>
                       </div>
                       <p className="mt-2.5 text-xs leading-[1.65] text-[var(--color-text-muted)] italic">
-                        "The catering for our corporate lunch was perfection — arrived hot and everyone loved the flavors!"
+                        &ldquo;The catering for our corporate lunch was perfection — arrived hot and everyone loved the flavors!&rdquo;
                       </p>
                     </div>
 
@@ -193,7 +193,7 @@ export function LandingHero({ isLoggedIn }: { isLoggedIn: boolean }) {
                         </span>
                       </div>
                       <p className="mt-2.5 text-xs leading-[1.65] text-[var(--color-text)]">
-                        "Thank you so much, Helen! We're thrilled your team enjoyed every bite. Looking forward to catering your next event!"
+                        &ldquo;Thank you so much, Helen! We&apos;re thrilled your team enjoyed every bite. Looking forward to catering your next event!&rdquo;
                       </p>
                       <div className="mt-3 flex items-center justify-between border-t border-[var(--color-border)]/50 pt-3">
                         <span className="text-[10px] text-[var(--color-text-subtle)]">
@@ -249,7 +249,7 @@ export function LandingHero({ isLoggedIn }: { isLoggedIn: boolean }) {
                         </span>
                       </div>
                       <p className="mt-2.5 text-xs italic leading-relaxed text-[var(--color-text-muted)]">
-                        "Looking to book a recurring monthly service for our downtown office starting next week."
+                        &ldquo;Looking to book a recurring monthly service for our downtown office starting next week.&rdquo;
                       </p>
                     </div>
                     <div className="rounded-xl border border-[var(--color-primary)]/25 bg-[var(--color-primary-soft)]/40 p-4">
@@ -260,7 +260,7 @@ export function LandingHero({ isLoggedIn }: { isLoggedIn: boolean }) {
                         <span className="text-[10px] font-semibold text-[var(--color-primary-h)]">24s</span>
                       </div>
                       <p className="mt-2.5 text-xs leading-[1.65] text-[var(--color-text)]">
-                        "Hello! We'd love to support your downtown office. Here's our service packages and booking link..."
+                        &ldquo;Hello! We&apos;d love to support your downtown office. Here&apos;s our service packages and booking link...&rdquo;
                       </p>
                       <div className="mt-3 flex items-center gap-2 border-t border-[var(--color-border)]/50 pt-3 text-[10px]">
                         <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 font-semibold text-emerald-600">Lead Qualified</span>

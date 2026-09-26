@@ -1,11 +1,20 @@
-export function LandingTrustedSection({ names }: { names: readonly string[] }) {
-  const PARTNERS = [
-    { name: "Habesha Food", category: "Hospitality" },
-    { name: "Liya Cookies", category: "Bakery & Retail" },
-    { name: "Nazaret Market", category: "Grocery" },
-    { name: "Apex Wellness", category: "Healthcare" },
-    { name: "Nova Auto Care", category: "Automotive" },
-  ];
+export function LandingTrustedSection({ names }: { names?: readonly string[] }) {
+  const PARTNERS = (names && names.length > 0 ? names : [
+    "Habesha Food",
+    "Liya Cookies",
+    "Nazaret Market",
+    "Apex Wellness",
+    "Nova Auto Care",
+  ]).map((name) => {
+    const categories: Record<string, string> = {
+      "Habesha Food": "Hospitality",
+      "Liya Cookies": "Bakery & Retail",
+      "Nazaret Market": "Grocery",
+      "Apex Wellness": "Healthcare",
+      "Nova Auto Care": "Automotive",
+    };
+    return { name, category: categories[name] ?? "Local Business" };
+  });
 
   const STATS = [
     { value: "250k+", label: "Messages handled" },
