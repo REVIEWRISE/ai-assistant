@@ -126,6 +126,7 @@ model RefundRequest {
   notes             String    @default("")
   amountCents       Int?      @map("amount_cents")
   currency          String?
+  billingRefundId   String?   @map("billing_refund_id")
   adminNote         String?   @map("admin_note")
   reviewedByUserId  String?   @map("reviewed_by_user_id") @db.Uuid
   reviewedAt        DateTime? @map("reviewed_at") @db.Timestamptz(6)
