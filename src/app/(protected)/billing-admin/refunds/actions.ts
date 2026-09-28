@@ -38,6 +38,7 @@ export async function approveRefundRequest(input: {
     where: { id: refundRequestId },
     select: {
       id: true,
+      billingRefundId: true,
       status: true,
       organizationId: true,
       reason: true,
@@ -60,9 +61,10 @@ export async function approveRefundRequest(input: {
 
   let billingHandled = false;
   if (isBillingConfigured()) {
+    const targetRefundId = request.billingRefundId || request.id;
     try {
-      // 1. Try approving via the standard approve endpoint
-      await approveBillingRefund(request.id, {
+      // 1. Try approving via the standard approve endpoint using Billing's refund ID
+      await approveBillingRefund(targetRefundId, {
         refundMethod,
         internalNotes,
       });
@@ -87,8 +89,9 @@ export async function approveRefundRequest(input: {
             ? "store_credit"
             : requestedRefundType;
 
-        await createDirectBillingRefund({
+        const directResult = await createDirectBillingRefund({
           organizationId: request.organizationId,
+          customerId,
           subscriptionId,
           type,
           amountCents: request.amountCents ?? undefined,
@@ -96,6 +99,14 @@ export async function approveRefundRequest(input: {
           description: internalNotes || request.notes || undefined,
           refundMethod,
         });
+        if (directResult.id && !request.billingRefundId) {
+          await prisma.refundRequest
+            .update({
+              where: { id: request.id },
+              data: { billingRefundId: directResult.id },
+            })
+            .catch(() => undefined);
+        }
         billingHandled = true;
       } catch (directErr) {
         // If the remote billing microservice does not have refund endpoints deployed (e.g. 404),
@@ -180,6 +191,7 @@ export async function rejectRefundRequest(input: {
     where: { id: refundRequestId },
     select: {
       id: true,
+      billingRefundId: true,
       status: true,
       organizationId: true,
     },
@@ -195,8 +207,9 @@ export async function rejectRefundRequest(input: {
   const internalNotes = String(input.internalNotes || "").trim().slice(0, 1000) || undefined;
 
   if (isBillingConfigured()) {
+    const targetRefundId = request.billingRefundId || request.id;
     try {
-      await rejectBillingRefund(request.id, {
+      await rejectBillingRefund(targetRefundId, {
         reason: rejectionReason,
         internalNotes,
       });
@@ -289,8 +302,10 @@ export async function createDirectRefund(input: DirectRefundInput): Promise<
 
   if (isBillingConfigured()) {
     try {
+      const customerId = org.billingCustomerId || (await getOrganizationBillingCustomerId(organizationId));
       const result = await createDirectBillingRefund({
         organizationId,
+        customerId,
         subscriptionId: input.subscriptionId,
         type,
         amountCents,
@@ -323,6 +338,7 @@ export async function createDirectRefund(input: DirectRefundInput): Promise<
       notes: description || `Direct ${type} refund issued by admin`,
       amountCents: amountCents ?? null,
       currency: "USD",
+      billingRefundId: externalRefundId || null,
       adminNote: `Refund method: ${refundMethod}. ${description || ""}`.trim(),
     },
   });

@@ -1,4 +1,5 @@
 import "server-only";
+import { createHmac } from "crypto";
 
 import { prisma } from "@/lib/prisma";
 
@@ -96,11 +97,13 @@ export async function billingFetch(
         `[billing] → ${method} ${normalizedPath}${attempt > 1 ? ` (retry ${attempt}/4)` : ""}`,
       );
 
+      const customAuth = options.headers && ("Authorization" in options.headers || "authorization" in options.headers);
       const res = await fetch(url, {
         ...options,
         headers: {
           "Content-Type": "application/json",
-          "X-Api-Key": apiKey,
+          ...(customAuth ? {} : { "X-Api-Key": apiKey }),
+          ...(customAuth ? {} : { Authorization: `Bearer ${apiKey}` }),
           ...options.headers,
         },
         cache: "no-store",
@@ -810,6 +813,7 @@ export type BillingRefundRejectResult = {
 
 export type BillingDirectRefundCreateInput = {
   organizationId: string;
+  customerId?: string | null;
   subscriptionId?: string | null;
   invoiceId?: string | null;
   type: BillingRefundType;
@@ -902,6 +906,7 @@ export async function createDirectBillingRefund(
     reason: input.reason.trim(),
     refundMethod: input.refundMethod ?? "store_credit",
   };
+  if (input.customerId) payload.customerId = input.customerId.trim();
   if (input.subscriptionId) payload.subscriptionId = input.subscriptionId.trim();
   if (input.invoiceId) payload.invoiceId = input.invoiceId.trim();
   if (typeof input.amountCents === "number") payload.amountCents = input.amountCents;
@@ -1034,6 +1039,37 @@ export async function getBillingOrganizationCredits(
 }
 
 /**
+ * Generate a signed Customer JWT on-the-fly for authenticating customer-scoped billing endpoints.
+ */
+export function generateCustomerBillingJwt(
+  customerId: string,
+  extraClaims: Record<string, unknown> = {},
+): string {
+  const secret = process.env.BILLING_JWT_SECRET?.trim() || getBillingApiKey() || "billing-secret";
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const claims = {
+    customerId,
+    sub: customerId,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 15 * 60, // 15 minutes
+    ...extraClaims,
+  };
+  const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
+
+  const signature = createHmac("sha256", secret)
+    .update(`${header}.${payload}`)
+    .digest("base64url");
+
+  const token = `${header}.${payload}.${signature}`;
+
+  console.info("[billing:jwt] Customer JWT Claims:", claims);
+  console.info("[billing:jwt] Signing Secret used:", process.env.BILLING_JWT_SECRET ? "BILLING_JWT_SECRET" : "BILLING_API_KEY");
+  console.info("[billing:jwt] Raw JWT Token:", token);
+
+  return token;
+}
+
+/**
  * Customer initiates refund request from product app.
  * POST /billing/refunds/request
  */
@@ -1043,6 +1079,7 @@ export async function requestCustomerBillingRefund(input: {
   amountCents?: number;
   reason: string;
   message?: string;
+  customerId?: string;
   customerJwt?: string;
 }): Promise<{
   id: string;
@@ -1050,9 +1087,12 @@ export async function requestCustomerBillingRefund(input: {
   amountCents?: number;
   requestedAt?: string;
 }> {
+  const customerToken =
+    input.customerJwt || (input.customerId ? generateCustomerBillingJwt(input.customerId) : null);
+
   const headers: Record<string, string> = {};
-  if (input.customerJwt) {
-    headers["Authorization"] = `Bearer ${input.customerJwt}`;
+  if (customerToken) {
+    headers["Authorization"] = `Bearer ${customerToken}`;
   }
 
   const remoteType =
@@ -1060,24 +1100,43 @@ export async function requestCustomerBillingRefund(input: {
       ? "partial"
       : "full";
 
+  const payload: Record<string, unknown> = {
+    subscriptionId: input.subscriptionId.trim(),
+    type: remoteType,
+    reason: input.reason.trim(),
+  };
+
+  if (remoteType === "partial" && typeof input.amountCents === "number" && input.amountCents > 0) {
+    payload.amountCents = input.amountCents;
+  }
+
+  if (input.message && input.message.trim()) {
+    payload.message = input.message.trim();
+  }
+
+  console.info(
+    "[billing:refund_request] Outgoing POST /billing/refunds/request payload:",
+    JSON.stringify(payload, null, 2),
+    customerToken ? "(with generated customer JWT)" : "(using default auth)",
+  );
+
   const res = await billingFetch("/billing/refunds/request", {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      subscriptionId: input.subscriptionId.trim(),
-      type: remoteType,
-      amountCents: input.amountCents ?? undefined,
-      reason: input.reason.trim(),
-      message: input.message?.trim() || undefined,
-    }),
+    body: JSON.stringify(payload),
   });
 
-  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const rawBody = (await res.json().catch(() => ({}))) as unknown;
+  console.info("[billing:refund_request] Received response:", JSON.stringify(rawBody, null, 2));
+
+  const bodyRecord = asRecord(rawBody) ?? {};
+  const root = asRecord(bodyRecord.refund) ?? asRecord(bodyRecord.data) ?? bodyRecord;
+
   return {
-    id: asString(body.id) ?? "",
-    status: asString(body.status) ?? "pending_review",
-    amountCents: typeof body.amountCents === "number" ? body.amountCents : undefined,
-    requestedAt: asString(body.requestedAt) ?? undefined,
+    id: asString(root.id) ?? asString(root.refundId) ?? "",
+    status: asString(root.status) ?? "pending_review",
+    amountCents: typeof root.amountCents === "number" ? root.amountCents : undefined,
+    requestedAt: asString(root.requestedAt) ?? undefined,
   };
 }
 

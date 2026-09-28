@@ -136,6 +136,39 @@ export async function requestWorkspaceRefund(
           : "";
 
   try {
+    let billingRefundId: string | null = null;
+
+    // 1. Notify remote Billing API first if customer subscription exists
+    if (isBillingConfigured()) {
+      const customerId = org.billingCustomerId || (await getOrganizationBillingCustomerId(organizationId));
+      if (customerId) {
+        const subs = await listBillingSubscriptions({
+          customerId,
+          status: ["active", "trialing", "past_due"],
+          limit: 5,
+        });
+        const activeSub = subs[0];
+        if (activeSub?.id) {
+          const result = await requestCustomerBillingRefund({
+            subscriptionId: activeSub.id,
+            type,
+            amountCents: amountCents ?? undefined,
+            reason,
+            message: notes || `Refund requested for workspace ${org.name}`,
+            customerId,
+          });
+          console.info("[requestCustomerBillingRefund] Remote billing success:", result);
+          if (result?.id) {
+            billingRefundId = result.id;
+          }
+          if (typeof result?.amountCents === "number") {
+            amountCents = result.amountCents;
+          }
+        }
+      }
+    }
+
+    // 2. Only save to local database if remote billing call succeeded or billing is not configured
     const created = await prisma.refundRequest.create({
       data: {
         organizationId,
@@ -145,35 +178,10 @@ export async function requestWorkspaceRefund(
         notes,
         amountCents,
         currency: "USD",
+        billingRefundId,
       },
       select: { id: true },
     });
-
-    // Optionally notify Billing API if customer subscription is found
-    if (isBillingConfigured()) {
-      try {
-        const customerId = org.billingCustomerId || (await getOrganizationBillingCustomerId(organizationId));
-        if (customerId) {
-          const subs = await listBillingSubscriptions({
-            customerId,
-            status: ["active", "trialing", "past_due"],
-            limit: 5,
-          });
-          const activeSub = subs[0];
-          if (activeSub?.id) {
-            await requestCustomerBillingRefund({
-              subscriptionId: activeSub.id,
-              type,
-              amountCents: amountCents ?? undefined,
-              reason,
-              message: notes || `Refund requested for workspace ${org.name}`,
-            }).catch(() => undefined);
-          }
-        }
-      } catch {
-        // Log & proceed; local database record is already created safely
-      }
-    }
 
     await prisma.auditEvent
       .create({
@@ -202,7 +210,9 @@ export async function requestWorkspaceRefund(
     if (code === "P2002") {
       return { ok: false, error: "A refund request is already under review for this workspace." };
     }
-    return { ok: false, error: "Could not submit the refund request. Please try again." };
+    const message = error instanceof Error ? error.message : String(error);
+    const cleanMessage = message.replace(/^Billing API error \d+ on POST [^:]+:\s*/, "");
+    return { ok: false, error: cleanMessage || "Could not submit the refund request. Please try again." };
   }
 }
 
