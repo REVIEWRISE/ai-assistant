@@ -24,7 +24,7 @@ export default async function SubscriptionPage() {
     redirect("/appointments/organization");
   }
 
-  const [billing, membership, organization, latestRefund, customerId] = await Promise.all([
+  const [billing, membership, organization, refundRequests, customerId] = await Promise.all([
     getOrgBilling(organizationId),
     prisma.organizationMember.findFirst({
       where: { userId: session.userId, organizationId },
@@ -34,7 +34,7 @@ export default async function SubscriptionPage() {
       where: { id: organizationId },
       select: { name: true, paidAt: true, billingCustomerId: true },
     }),
-    prisma.refundRequest.findFirst({
+    prisma.refundRequest.findMany({
       where: { organizationId },
       orderBy: { createdAt: "desc" },
       select: {
@@ -190,17 +190,28 @@ export default async function SubscriptionPage() {
                   expiring: credits.expiring,
                 }
               : null,
-            latest: latestRefund
+            requests: refundRequests.map((r) => ({
+              id: r.id,
+              status: r.status,
+              reason: r.reason,
+              notes: r.notes,
+              amountCents: r.amountCents,
+              currency: r.currency ?? "USD",
+              adminNote: r.adminNote,
+              createdAt: r.createdAt.toISOString(),
+              reviewedAt: r.reviewedAt?.toISOString() ?? null,
+            })),
+            latest: refundRequests[0]
               ? {
-                  id: latestRefund.id,
-                  status: latestRefund.status,
-                  reason: latestRefund.reason,
-                  notes: latestRefund.notes,
-                  amountCents: latestRefund.amountCents,
-                  currency: latestRefund.currency ?? "USD",
-                  adminNote: latestRefund.adminNote,
-                  createdAt: latestRefund.createdAt.toISOString(),
-                  reviewedAt: latestRefund.reviewedAt?.toISOString() ?? null,
+                  id: refundRequests[0].id,
+                  status: refundRequests[0].status,
+                  reason: refundRequests[0].reason,
+                  notes: refundRequests[0].notes,
+                  amountCents: refundRequests[0].amountCents,
+                  currency: refundRequests[0].currency ?? "USD",
+                  adminNote: refundRequests[0].adminNote,
+                  createdAt: refundRequests[0].createdAt.toISOString(),
+                  reviewedAt: refundRequests[0].reviewedAt?.toISOString() ?? null,
                 }
               : null,
           },

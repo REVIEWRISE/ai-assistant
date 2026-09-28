@@ -3,10 +3,21 @@
 import { useState } from "react";
 import { CustomerRefundSheet } from "@/components/customer-refund-sheet";
 import {
-  REFUND_TYPES,
   formatCents,
   labelForRefundReason,
 } from "@/lib/refund-reasons";
+
+export type CustomerRefundRequestItem = {
+  id: string;
+  status: string;
+  reason: string;
+  notes: string;
+  amountCents?: number | null;
+  currency?: string | null;
+  adminNote: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+};
 
 export type SubscriptionRefundView = {
   canRequest: boolean;
@@ -16,17 +27,8 @@ export type SubscriptionRefundView = {
     totalBalanceCents: number;
     expiring?: string | null;
   } | null;
-  latest: {
-    id: string;
-    status: string;
-    reason: string;
-    notes: string;
-    amountCents?: number | null;
-    currency?: string | null;
-    adminNote: string | null;
-    createdAt: string;
-    reviewedAt: string | null;
-  } | null;
+  requests?: CustomerRefundRequestItem[];
+  latest: CustomerRefundRequestItem | null;
 };
 
 export type SubscriptionViewModel = {
@@ -122,6 +124,7 @@ function MetricCard({
 export function SubscriptionPanel({ subscription }: { subscription: SubscriptionViewModel }) {
   const [isRefundSheetOpen, setIsRefundSheetOpen] = useState(false);
   const [sheetMode, setSheetMode] = useState<"create" | "view">("create");
+  const [selectedRequest, setSelectedRequest] = useState<CustomerRefundRequestItem | null>(null);
 
   const tone = statusMeta(subscription.billingStatus);
   const isTrialing = subscription.billingStatus === "trialing";
@@ -129,8 +132,9 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
     ? subscription.billingInterval.charAt(0).toUpperCase() + subscription.billingInterval.slice(1)
     : null;
 
-  const latestRefund = subscription.refund.latest;
-  const refundUnderReview = latestRefund?.status === "pending";
+  const requests = subscription.refund.requests ?? (subscription.refund.latest ? [subscription.refund.latest] : []);
+  const pendingRefund = requests.find((r) => r.status === "pending");
+  const refundUnderReview = Boolean(pendingRefund);
   const creditsBalance = subscription.refund.credits?.totalBalanceCents ?? 0;
 
   const facts = [
@@ -165,6 +169,18 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
       hint: "Active organization",
     },
   ];
+
+  function openCreateSheet() {
+    setSelectedRequest(null);
+    setSheetMode("create");
+    setIsRefundSheetOpen(true);
+  }
+
+  function openViewSheet(request: CustomerRefundRequestItem) {
+    setSelectedRequest(request);
+    setSheetMode("view");
+    setIsRefundSheetOpen(true);
+  }
 
   return (
     <div className="space-y-4">
@@ -236,13 +252,10 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
           </div>
 
           <div>
-            {refundUnderReview ? (
+            {refundUnderReview && pendingRefund ? (
               <button
                 type="button"
-                onClick={() => {
-                  setSheetMode("view");
-                  setIsRefundSheetOpen(true);
-                }}
+                onClick={() => openViewSheet(pendingRefund)}
                 className="inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-3.5 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-500/25 [[data-theme=dark]_&]:text-amber-300"
               >
                 <span>⏳</span>
@@ -251,10 +264,7 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
             ) : subscription.refund.canRequest && subscription.isOwner ? (
               <button
                 type="button"
-                onClick={() => {
-                  setSheetMode("create");
-                  setIsRefundSheetOpen(true);
-                }}
+                onClick={openCreateSheet}
                 className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--color-primary-h)]"
               >
                 <span>↺</span>
@@ -265,93 +275,122 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
         </div>
 
         <div className="space-y-4 p-5 sm:p-6">
-          {/* Policy summary table */}
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-            {REFUND_TYPES.map((t) => (
-              <div
-                key={t.value}
-                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[var(--color-text)]">{t.label}</span>
-                  {t.windowDays ? (
-                    <span className="rounded-full bg-[var(--color-raised)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">
-                      {t.windowDays}d window
+          {/* Active Pending Request Card */}
+          {pendingRefund ? (
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 [[data-theme=dark]_&]:text-amber-300">
+                      ⏳ Pending Review
                     </span>
-                  ) : (
-                    <span className="rounded-full bg-[var(--color-raised)] px-2 py-0.5 text-[10px] font-medium text-emerald-600 [[data-theme=dark]_&]:text-emerald-400">
-                      Anytime
+                    <span className="text-xs font-semibold text-[var(--color-text)]">
+                      {labelForRefundReason(pendingRefund.reason.replace(/^\[[^\]]+\]\s*/, ""))}
                     </span>
-                  )}
-                </div>
-                <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-                  {t.description}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* Active / Latest Refund Request Card */}
-          {latestRefund ? (
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                      latestRefund.status === "pending"
-                        ? "bg-amber-500/15 text-amber-600 [[data-theme=dark]_&]:text-amber-400"
-                        : latestRefund.status === "approved"
-                          ? "bg-emerald-500/15 text-emerald-600 [[data-theme=dark]_&]:text-emerald-400"
-                          : "bg-rose-500/15 text-rose-600 [[data-theme=dark]_&]:text-rose-400"
-                    }`}
-                  >
-                    {latestRefund.status === "pending"
-                      ? "Under review"
-                      : latestRefund.status === "approved"
-                        ? "Approved"
-                        : "Rejected"}
-                  </span>
-                  <span className="text-xs font-semibold text-[var(--color-text)]">
-                    {labelForRefundReason(latestRefund.reason.replace(/^\[[^\]]+\]\s*/, ""))}
-                  </span>
-                  {latestRefund.amountCents != null && latestRefund.amountCents > 0 ? (
-                    <span className="text-xs text-[var(--color-text-muted)]">
-                      ({formatCents(latestRefund.amountCents, latestRefund.currency ?? "USD")})
-                    </span>
-                  ) : null}
-                </div>
-                <p className="text-[11px] text-[var(--color-text-muted)]">
-                  Submitted {formatDate(latestRefund.createdAt)}
-                  {latestRefund.reviewedAt ? ` · Reviewed ${formatDate(latestRefund.reviewedAt)}` : ""}
-                </p>
-                {latestRefund.adminNote ? (
-                  <p className="mt-1 text-xs text-[var(--color-text)]">
-                    <span className="font-semibold text-[var(--color-text-muted)]">Admin note: </span>
-                    {latestRefund.adminNote}
+                    {pendingRefund.amountCents != null && pendingRefund.amountCents > 0 ? (
+                      <span className="text-xs font-bold text-[var(--color-text)]">
+                        ({formatCents(pendingRefund.amountCents, pendingRefund.currency ?? "USD")})
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="text-[11px] text-[var(--color-text-muted)]">
+                    Submitted on {formatDate(pendingRefund.createdAt)}. Our billing team is reviewing your request.
                   </p>
-                ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openViewSheet(pendingRefund)}
+                  className="rounded-xl border border-amber-500/40 bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+                >
+                  View Details ➔
+                </button>
               </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setSheetMode("view");
-                  setIsRefundSheetOpen(true);
-                }}
-                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] hover:shadow-sm"
-              >
-                View full status ➔
-              </button>
             </div>
           ) : null}
 
-          {!subscription.refund.canRequest && !latestRefund ? (
+          {/* Refund Requests History List */}
+          {requests.length > 0 ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                  Refund & Credit History ({requests.length})
+                </p>
+              </div>
+
+              <div className="divide-y divide-[var(--color-border)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+                {requests.map((req) => {
+                  const isPending = req.status === "pending";
+                  const isApproved = req.status === "approved";
+                  return (
+                    <div
+                      key={req.id}
+                      className="flex flex-wrap items-center justify-between gap-3 p-4 transition hover:bg-[var(--color-surface)]/50"
+                    >
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                              isPending
+                                ? "bg-amber-500/15 text-amber-600 [[data-theme=dark]_&]:text-amber-400"
+                                : isApproved
+                                  ? "bg-emerald-500/15 text-emerald-600 [[data-theme=dark]_&]:text-emerald-400"
+                                  : "bg-rose-500/15 text-rose-600 [[data-theme=dark]_&]:text-rose-400"
+                            }`}
+                          >
+                            {isPending
+                              ? "Under review"
+                              : isApproved
+                                ? "Approved"
+                                : "Rejected"}
+                          </span>
+                          <span className="text-xs font-semibold text-[var(--color-text)]">
+                            {labelForRefundReason(req.reason.replace(/^\[[^\]]+\]\s*/, ""))}
+                          </span>
+                          {req.amountCents != null && req.amountCents > 0 ? (
+                            <span className="text-xs font-bold text-[var(--color-text)]">
+                              {formatCents(req.amountCents, req.currency ?? "USD")}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-[var(--color-text-muted)]">
+                              (Full)
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-[11px] text-[var(--color-text-muted)]">
+                          Submitted {formatDate(req.createdAt)}
+                          {req.reviewedAt ? ` · Reviewed ${formatDate(req.reviewedAt)}` : ""}
+                        </p>
+
+                        {req.adminNote ? (
+                          <p className="text-xs text-[var(--color-text)]">
+                            <span className="font-semibold text-[var(--color-text-muted)]">Note: </span>
+                            {req.adminNote}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => openViewSheet(req)}
+                        className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] hover:shadow-sm"
+                      >
+                        View Details ➔
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {!subscription.refund.canRequest && requests.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] p-4 text-xs leading-relaxed text-[var(--color-text-muted)]">
               💡 <span className="font-semibold text-[var(--color-text)]">Trial Active:</span> Refunds are available after a paid billing cycle. Because this workspace is on a free trial, no payment has occurred yet. You can cancel anytime without being charged.
             </div>
           ) : null}
 
-          {!subscription.isOwner && subscription.refund.canRequest && !latestRefund ? (
+          {!subscription.isOwner && subscription.refund.canRequest && requests.length === 0 ? (
             <p className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
               Ask a workspace owner if you need to submit a refund request.
             </p>
@@ -361,9 +400,12 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
 
       {/* Customer Refund Slide-over Sheet */}
       <CustomerRefundSheet
-        key={`${isRefundSheetOpen}-${sheetMode}`}
+        key={`${isRefundSheetOpen}-${sheetMode}-${selectedRequest?.id ?? "default"}`}
         isOpen={isRefundSheetOpen}
-        onClose={() => setIsRefundSheetOpen(false)}
+        onClose={() => {
+          setIsRefundSheetOpen(false);
+          setSelectedRequest(null);
+        }}
         initialMode={sheetMode}
         workspaceName={subscription.workspaceName}
         planName={subscription.planName}
@@ -371,7 +413,7 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
         paidAt={subscription.paidAt}
         planPriceCents={subscription.refund.planPriceCents}
         creditsBalance={creditsBalance}
-        existingRequest={latestRefund}
+        existingRequest={selectedRequest ?? pendingRefund ?? subscription.refund.latest}
       />
     </div>
   );

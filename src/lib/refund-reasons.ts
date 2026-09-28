@@ -2,25 +2,29 @@ export const REFUND_TYPES = [
   {
     value: "full",
     label: "Full Refund",
-    description: "Return entire payment (within 30 days of purchase)",
+    description: "Return entire payment",
+    whenToUse: "Within 30 days of purchase",
     windowDays: 30,
   },
   {
     value: "partial",
     label: "Partial Refund",
-    description: "Return portion of payment (service issues, overcharges)",
+    description: "Return portion of payment",
+    whenToUse: "Service issues, overcharges (anytime)",
     windowDays: null,
   },
   {
     value: "store_credit",
     label: "Store Credit",
-    description: "Instant account credit (faster than payment refund, no chargebacks)",
+    description: "Allocate account credit (instant)",
+    whenToUse: "Faster than payment refund, no chargebacks",
     windowDays: null,
   },
   {
     value: "pro_rata_cancel",
     label: "Pro-rata",
-    description: "Automatic credit for unused days on mid-cycle cancellation",
+    description: "Automatic credit for unused days",
+    whenToUse: "On mid-cycle subscription cancellation",
     windowDays: null,
   },
 ] as const;
@@ -123,6 +127,23 @@ export function labelForRefundType(type: string): string {
   return match ? match.label : type.replace(/_/g, " ");
 }
 
+export function extractRefundTypeFromReason(
+  reason: string,
+  amountCents?: number | null,
+): RefundType {
+  if (reason.startsWith("[store_credit]")) return "store_credit";
+  if (reason.startsWith("[pro_rata_cancel]") || reason.startsWith("[pro_rata]"))
+    return "pro_rata_cancel";
+  if (reason.startsWith("[partial]")) return "partial";
+  if (reason.startsWith("[full]")) return "full";
+  if (amountCents && amountCents > 0) return "partial";
+  return "full";
+}
+
+export function cleanRefundReason(reason: string): string {
+  return reason.replace(/^\[[^\]]+\]\s*/, "");
+}
+
 export function labelForRefundMethod(method: string): string {
   const match = REFUND_METHODS.find((m) => m.value === method);
   return match ? match.label : method.replace(/_/g, " ");
@@ -135,3 +156,4 @@ export function formatCents(cents: number | null | undefined, currency = "USD"):
     currency: currency || "USD",
   }).format(cents / 100);
 }
+

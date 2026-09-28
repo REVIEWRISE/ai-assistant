@@ -1039,7 +1039,7 @@ export async function getBillingOrganizationCredits(
  */
 export async function requestCustomerBillingRefund(input: {
   subscriptionId: string;
-  type: "full" | "partial";
+  type: BillingRefundType;
   amountCents?: number;
   reason: string;
   message?: string;
@@ -1055,13 +1055,18 @@ export async function requestCustomerBillingRefund(input: {
     headers["Authorization"] = `Bearer ${input.customerJwt}`;
   }
 
+  const remoteType =
+    input.type === "partial" || (input.type === "store_credit" && Boolean(input.amountCents))
+      ? "partial"
+      : "full";
+
   const res = await billingFetch("/billing/refunds/request", {
     method: "POST",
     headers,
     body: JSON.stringify({
       subscriptionId: input.subscriptionId.trim(),
-      type: input.type,
-      amountCents: input.type === "partial" ? input.amountCents : undefined,
+      type: remoteType,
+      amountCents: input.amountCents ?? undefined,
       reason: input.reason.trim(),
       message: input.message?.trim() || undefined,
     }),

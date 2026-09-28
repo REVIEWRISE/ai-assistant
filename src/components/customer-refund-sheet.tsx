@@ -6,9 +6,14 @@ import { requestWorkspaceRefund } from "@/app/(protected)/subscription/refund-ac
 import { CustomSelect } from "@/components/custom-select";
 import {
   CUSTOMER_REFUND_REASONS,
+  REFUND_TYPES,
+  cleanRefundReason,
+  extractRefundTypeFromReason,
   formatCents,
   labelForRefundReason,
+  labelForRefundType,
   type CustomerRefundReason,
+  type RefundType,
 } from "@/lib/refund-reasons";
 import { toast } from "@/lib/toast";
 
@@ -70,8 +75,8 @@ export function CustomerRefundSheet({
   const [entered, setEntered] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  const [mode, setMode] = useState<"create" | "view">(initialMode);
-  const [selectedType, setSelectedType] = useState<"full" | "partial">("full");
+  const mode = initialMode;
+  const [selectedType, setSelectedType] = useState<RefundType>("full");
   const [amountDollars, setAmountDollars] = useState("25.00");
   const [refundReason, setRefundReason] = useState<CustomerRefundReason>("not_using_service");
   const [refundNotes, setRefundNotes] = useState("");
@@ -80,7 +85,8 @@ export function CustomerRefundSheet({
 
   const daysRemaining = getDaysRemaining(paidAt);
   const fullEligible = daysRemaining === null || daysRemaining > 0;
-  const refundType = fullEligible ? selectedType : "partial";
+  const refundType: RefundType = !fullEligible && selectedType === "full" ? "store_credit" : selectedType;
+  const selectedRefundTypeDetail = REFUND_TYPES.find((t) => t.value === refundType);
 
   // Handle slide-in animation on mount
   useEffect(() => {
@@ -111,10 +117,12 @@ export function CustomerRefundSheet({
     const p25 = (planPriceCents * 0.25) / 100;
     const p50 = (planPriceCents * 0.5) / 100;
     const p75 = (planPriceCents * 0.75) / 100;
+    const p100 = planPriceCents / 100;
     presets.push(
       { label: `25% ($${p25.toFixed(2)})`, dollars: p25.toFixed(2) },
       { label: `50% ($${p50.toFixed(2)})`, dollars: p50.toFixed(2) },
       { label: `75% ($${p75.toFixed(2)})`, dollars: p75.toFixed(2) },
+      { label: `100% ($${p100.toFixed(2)})`, dollars: p100.toFixed(2) },
     );
   } else {
     presets.push(
@@ -134,6 +142,11 @@ export function CustomerRefundSheet({
         return;
       }
       amountCents = Math.round(parsed * 100);
+    } else if (refundType === "store_credit") {
+      const parsed = parseFloat(amountDollars);
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        amountCents = Math.round(parsed * 100);
+      }
     }
 
     startTransition(async () => {
@@ -221,40 +234,6 @@ export function CustomerRefundSheet({
 
         {/* Content Body */}
         <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
-          {/* Mode Switcher Tabs if there is a previous request */}
-          {existingRequest && !isSuccess ? (
-            <div className="flex rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
-              <button
-                type="button"
-                onClick={() => setMode("create")}
-                className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition ${
-                  mode === "create"
-                    ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] shadow-sm"
-                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-                }`}
-              >
-                + Request a Refund
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("view")}
-                className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition ${
-                  mode === "view"
-                    ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] shadow-sm"
-                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-                }`}
-              >
-                Previous Request (
-                {existingRequest.status === "pending"
-                  ? "In Review"
-                  : existingRequest.status === "approved"
-                    ? "Approved"
-                    : "Rejected"}
-                )
-              </button>
-            </div>
-          ) : null}
-
           {/* SUCCESS SCREEN */}
           {isSuccess ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -380,20 +359,30 @@ export function CustomerRefundSheet({
                 </div>
 
                 <div className="mt-4 space-y-3 text-xs">
-                  <div>
-                    <span className="text-[var(--color-text-muted)]">Reason: </span>
-                    <span className="font-semibold text-[var(--color-text)]">
-                      {labelForRefundReason(existingRequest.reason.replace(/^\[[^\]]+\]\s*/, ""))}
-                    </span>
-                  </div>
-                  {existingRequest.amountCents != null && existingRequest.amountCents > 0 ? (
+                  <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-[var(--color-text-muted)]">Requested Amount: </span>
+                      <span className="text-[var(--color-text-muted)]">Type: </span>
+                      <span className="font-semibold text-[var(--color-text)]">
+                        {labelForRefundType(
+                          extractRefundTypeFromReason(
+                            existingRequest.reason,
+                            existingRequest.amountCents,
+                          ),
+                        )}
+                      </span>
+                    </div>
+                    {existingRequest.amountCents != null && existingRequest.amountCents > 0 ? (
                       <span className="font-semibold text-[var(--color-text)]">
                         {formatCents(existingRequest.amountCents, existingRequest.currency ?? "USD")}
                       </span>
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </div>
+                  <div>
+                    <span className="text-[var(--color-text-muted)]">Reason: </span>
+                    <span className="font-semibold text-[var(--color-text)]">
+                      {labelForRefundReason(cleanRefundReason(existingRequest.reason))}
+                    </span>
+                  </div>
                   {existingRequest.notes ? (
                     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
@@ -440,8 +429,8 @@ export function CustomerRefundSheet({
                       Refund Policy & Window
                     </p>
                     <p className="mt-1 text-xs text-[var(--color-text)]">
-                      30-Day Money-Back Guarantee on full subscriptions. Partial refunds or store
-                      credits can be requested anytime for service downtime.
+                      30-Day Money-Back Guarantee on full subscriptions. Partial refunds, store credits,
+                      or pro-rata adjustments can be requested anytime.
                     </p>
                   </div>
                   {fullEligible && daysRemaining != null ? (
@@ -450,111 +439,90 @@ export function CustomerRefundSheet({
                     </span>
                   ) : (
                     <span className="shrink-0 rounded-full border border-amber-500/30 bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-700 [[data-theme=dark]_&]:text-amber-300">
-                      Partial / credit only
+                      Partial / credit / pro-rata only
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Step 1: Refund Type Cards */}
+              {/* Step 1: Refund Type Dropdown */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[var(--color-text)]">
-                  Step 1: Select refund type
-                </label>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {/* Full Refund Card */}
-                  <button
-                    type="button"
-                    disabled={!fullEligible}
-                    onClick={() => setSelectedType("full")}
-                    className={`relative flex flex-col justify-between rounded-2xl border p-4 text-left transition ${
-                      refundType === "full"
-                        ? "border-[var(--color-primary)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] ring-2 ring-[var(--color-primary)]/20"
-                        : "border-[var(--color-border)] bg-[var(--color-bg)] opacity-90 hover:border-[var(--color-text-muted)] hover:opacity-100"
-                    } ${!fullEligible ? "cursor-not-allowed opacity-50" : ""}`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="flex size-7 items-center justify-center rounded-xl bg-[var(--color-raised)] text-sm">
-                          🛡️
-                        </span>
-                        <span
-                          className={`size-4 rounded-full border flex items-center justify-center ${
-                            refundType === "full"
-                              ? "border-[var(--color-primary)] bg-[var(--color-primary)]"
-                              : "border-[var(--color-border)]"
-                          }`}
-                        >
-                          {refundType === "full" ? (
-                            <span className="size-1.5 rounded-full bg-white" />
-                          ) : null}
-                        </span>
-                      </div>
-                      <h3 className="mt-2 text-sm font-bold text-[var(--color-text)]">
-                        Full Refund
-                      </h3>
-                      <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-                        Return the entire subscription charge. Access ends upon approval.
-                      </p>
-                    </div>
-
-                    <div className="mt-3 border-t border-[var(--color-border)] pt-2.5">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 [[data-theme=dark]_&]:text-emerald-400">
-                        {fullEligible ? "Within 30-day window" : "30-day window expired"}
-                      </span>
-                    </div>
-                  </button>
-
-                  {/* Partial Refund Card */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedType("partial")}
-                    className={`relative flex flex-col justify-between rounded-2xl border p-4 text-left transition ${
-                      refundType === "partial"
-                        ? "border-[var(--color-primary)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] ring-2 ring-[var(--color-primary)]/20"
-                        : "border-[var(--color-border)] bg-[var(--color-bg)] opacity-90 hover:border-[var(--color-text-muted)] hover:opacity-100"
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="flex size-7 items-center justify-center rounded-xl bg-[var(--color-raised)] text-sm">
-                          🪙
-                        </span>
-                        <span
-                          className={`size-4 rounded-full border flex items-center justify-center ${
-                            refundType === "partial"
-                              ? "border-[var(--color-primary)] bg-[var(--color-primary)]"
-                              : "border-[var(--color-border)]"
-                          }`}
-                        >
-                          {refundType === "partial" ? (
-                            <span className="size-1.5 rounded-full bg-white" />
-                          ) : null}
-                        </span>
-                      </div>
-                      <h3 className="mt-2 text-sm font-bold text-[var(--color-text)]">
-                        Partial / Store Credit
-                      </h3>
-                      <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-                        Request a custom amount or credit for downtime while keeping active access.
-                      </p>
-                    </div>
-
-                    <div className="mt-3 border-t border-[var(--color-border)] pt-2.5">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-sky-600 [[data-theme=dark]_&]:text-sky-400">
-                        Available Anytime
-                      </span>
-                    </div>
-                  </button>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-[var(--color-text)]">
+                    Step 1: Select refund type
+                  </label>
+                  {selectedRefundTypeDetail ? (
+                    <span className="text-[10px] font-semibold text-[var(--color-text-muted)]">
+                      {selectedRefundTypeDetail.whenToUse}
+                    </span>
+                  ) : null}
                 </div>
+
+                <CustomSelect
+                  value={refundType}
+                  onChange={(val) => setSelectedType(val as RefundType)}
+                  options={REFUND_TYPES.map((t) => ({
+                    value: t.value,
+                    label: `${t.label}${t.windowDays ? ` (${t.windowDays}d window)` : ""}`,
+                    description: `${t.description} — ${t.whenToUse}`,
+                    disabled: t.value === "full" && !fullEligible,
+                  }))}
+                  aria-label="Select refund type"
+                  disabled={pending}
+                  className="mt-1"
+                />
+
+                {/* Selected Refund Type Context Card */}
+                {selectedRefundTypeDetail ? (
+                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-xs shadow-[var(--shadow-sm)]">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="flex size-6 items-center justify-center rounded-lg bg-[var(--color-raised)] text-xs">
+                          {refundType === "full"
+                            ? "🛡️"
+                            : refundType === "partial"
+                              ? "🪙"
+                              : refundType === "store_credit"
+                                ? "⚡"
+                                : "⏱️"}
+                        </span>
+                        <span className="font-bold text-[var(--color-text)]">
+                          {selectedRefundTypeDetail.label}
+                        </span>
+                      </div>
+                      {refundType === "full" ? (
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            fullEligible
+                              ? "bg-emerald-500/15 text-emerald-600 [[data-theme=dark]_&]:text-emerald-400"
+                              : "bg-amber-500/15 text-amber-600 [[data-theme=dark]_&]:text-amber-400"
+                          }`}
+                        >
+                          {fullEligible ? "Within 30-day window" : "30-day window expired"}
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-[var(--color-raised)] px-2 py-0.5 text-[10px] font-semibold text-emerald-600 [[data-theme=dark]_&]:text-emerald-400">
+                          Available Anytime
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                      {selectedRefundTypeDetail.description}
+                    </p>
+                    <p className="mt-1 text-[11px] font-medium text-[var(--color-text)]">
+                      <span className="text-[var(--color-text-muted)]">When to use: </span>
+                      {selectedRefundTypeDetail.whenToUse}
+                    </p>
+                  </div>
+                ) : null}
               </div>
 
-              {/* Amount Inputs for Partial Refund */}
-              {refundType === "partial" ? (
+              {/* Amount Inputs for Partial Refund & Store Credit */}
+              {refundType === "partial" || refundType === "store_credit" ? (
                 <div className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-[var(--color-text)]">
-                      Partial Amount (USD)
+                      {refundType === "partial" ? "Partial Refund Amount (USD)" : "Store Credit Amount (USD)"}
                     </label>
                     <span className="text-[11px] text-[var(--color-text-muted)]">
                       Quick presets:
@@ -595,6 +563,14 @@ export function CustomerRefundSheet({
                       className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] py-2.5 pl-8 pr-3 text-sm font-semibold text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                     />
                   </div>
+                </div>
+              ) : refundType === "pro_rata_cancel" ? (
+                <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-4 text-xs text-purple-900 [[data-theme=dark]_&]:text-purple-200">
+                  <p className="font-bold">⏱️ Mid-cycle Pro-rata Credit</p>
+                  <p className="mt-1 leading-relaxed text-[11px] text-[var(--color-text-muted)]">
+                    The exact refund/credit amount will be automatically calculated based on the number
+                    of unused days remaining in your current billing cycle when cancellation takes effect.
+                  </p>
                 </div>
               ) : null}
 
@@ -637,31 +613,6 @@ export function CustomerRefundSheet({
                   className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-xs text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)]/60 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                 />
               </div>
-
-              {/* Summary / Reassurance Box */}
-              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-raised)] p-4 text-xs">
-                <p className="font-bold text-[var(--color-text)]">Summary Preview</p>
-                <div className="mt-2 space-y-1.5 text-[11px] text-[var(--color-text-muted)]">
-                  <div className="flex justify-between">
-                    <span>Requested Type:</span>
-                    <span className="font-semibold text-[var(--color-text)]">
-                      {refundType === "full" ? "Full Refund (100%)" : `Partial Refund ($${amountDollars})`}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Target method:</span>
-                    <span className="font-semibold text-[var(--color-text)]">
-                      Original Card or Instant Store Credit
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Expected Review:</span>
-                    <span className="font-semibold text-emerald-600 [[data-theme=dark]_&]:text-emerald-400">
-                      ⚡ 24–48 Business Hours
-                    </span>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
         </div>
@@ -697,22 +648,13 @@ export function CustomerRefundSheet({
           </footer>
         ) : !isSuccess && mode === "view" ? (
           <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-4">
-            <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("create")}
-                className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
-              >
-                + Request Another Refund or Credit
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+            >
+              Close
+            </button>
           </footer>
         ) : null}
       </div>
