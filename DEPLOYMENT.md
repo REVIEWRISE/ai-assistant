@@ -161,6 +161,7 @@ Registration happens on workspace create / plan select, and again as a safety ne
 | `BILLING_API_KEY` | Service API key from Billing Admin → API Keys (`vbk_…`) |
 | `BILLING_PRODUCT_NAME` | Optional. Product slug (default `agents`) |
 | `BILLING_ADMIN_URL` | Optional. Billing Admin portal URL (default `https://billing.vyntrise.com`) |
+| `BILLING_JWT_SECRET` | Secret key used to sign on-the-fly customer JWTs for customer-scoped endpoints (e.g. refund requests) |
 | `VYNTRISE_WEBHOOK_SECRET` | Platform webhook signing secret (`whsec_vbk_…`) from Billing Admin → Platform Webhooks |
 | `APP_URL` | Optional public app origin for Checkout success/cancel URLs (falls back to `NEXT_PUBLIC_APP_URL`) |
 
