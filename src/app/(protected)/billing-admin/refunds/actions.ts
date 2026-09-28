@@ -14,6 +14,7 @@ import {
   type BillingRefundMethod,
   type BillingRefundType,
 } from "@/lib/billing-client";
+import { cleanRefundReason, extractRefundTypeFromReason } from "@/lib/refund-reasons";
 import { cancelOrganizationBillingSubscription } from "@/lib/billing-subscription-cancel";
 import { markOrgUnpaid } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
@@ -54,6 +55,8 @@ export async function approveRefundRequest(input: {
   const refundMethod: BillingRefundMethod =
     input.refundMethod === "payment_method" ? "payment_method" : "store_credit";
   const internalNotes = String(input.internalNotes || "").trim().slice(0, 1000) || undefined;
+  const requestedRefundType = extractRefundTypeFromReason(request.reason, request.amountCents);
+  const cleanReason = cleanRefundReason(request.reason);
 
   let billingHandled = false;
   if (isBillingConfigured()) {
@@ -79,20 +82,17 @@ export async function approveRefundRequest(input: {
           subscriptionId = subs[0]?.id ?? null;
         }
 
-        const isPartial = request.reason.startsWith("[partial]") || Boolean(request.amountCents);
         const type: BillingRefundType =
           refundMethod === "store_credit"
             ? "store_credit"
-            : isPartial
-              ? "partial"
-              : "full";
+            : requestedRefundType;
 
         await createDirectBillingRefund({
           organizationId: request.organizationId,
           subscriptionId,
           type,
           amountCents: request.amountCents ?? undefined,
-          reason: request.reason.replace(/^\[partial\]\s*/, ""),
+          reason: cleanReason,
           description: internalNotes || request.notes || undefined,
           refundMethod,
         });
@@ -112,11 +112,12 @@ export async function approveRefundRequest(input: {
     }
   }
 
-  // If full refund via payment method, cancel subscription and end access immediately
+  // If full refund or pro-rata cancel via payment method, cancel subscription and end access immediately
   let cancelResult = null;
-  const isFullPaymentRefund =
-    refundMethod === "payment_method" && !request.reason.startsWith("[partial]");
-  if (isFullPaymentRefund) {
+  const isCancellationRefund =
+    refundMethod === "payment_method" &&
+    (requestedRefundType === "full" || requestedRefundType === "pro_rata_cancel");
+  if (isCancellationRefund) {
     cancelResult = await cancelOrganizationBillingSubscription({
       organizationId: request.organizationId,
       mode: "now",
@@ -149,7 +150,7 @@ export async function approveRefundRequest(input: {
           refundRequestId: request.id,
           refundMethod,
           billingHandled,
-          accessEnded: isFullPaymentRefund,
+          accessEnded: isCancellationRefund,
           subscriptionCanceled: Boolean(cancelResult?.ok && !cancelResult?.localOnly),
         },
       },

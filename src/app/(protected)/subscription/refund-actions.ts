@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth-session";
 import { userHasAdminRole } from "@/lib/admin-view-only";
-import { isRefundReasonCode } from "@/lib/refund-reasons";
+import { isRefundReasonCode, type RefundType } from "@/lib/refund-reasons";
 import {
   getBillingOrganizationCredits,
   getOrganizationBillingCustomerId,
@@ -39,7 +39,7 @@ async function assertCanManageRefunds(userId: string, organizationId: string): P
 }
 
 export type RequestWorkspaceRefundInput = {
-  type?: "full" | "partial";
+  type?: RefundType;
   amountCents?: number;
   reason: string;
   notes?: string;
@@ -57,15 +57,23 @@ export async function requestWorkspaceRefund(
   const access = await assertCanManageRefunds(session.userId, organizationId);
   if (!access.ok) return access;
 
-  const type = input.type === "partial" ? "partial" : "full";
+  const validTypes: RefundType[] = ["full", "partial", "store_credit", "pro_rata_cancel"];
+  const type: RefundType = validTypes.includes(input.type as RefundType)
+    ? (input.type as RefundType)
+    : "full";
 
   let amountCents: number | null = null;
-  if (type === "partial") {
-    const rawAmount = Number(input.amountCents);
-    if (!Number.isFinite(rawAmount) || rawAmount <= 0) {
-      return { ok: false, error: "Please enter a valid partial refund amount greater than $0.00." };
+  if (type === "partial" || type === "store_credit") {
+    if (input.amountCents != null) {
+      const rawAmount = Number(input.amountCents);
+      if (Number.isFinite(rawAmount) && rawAmount > 0) {
+        amountCents = Math.round(rawAmount);
+      } else if (type === "partial") {
+        return { ok: false, error: "Please enter a valid partial refund amount greater than $0.00." };
+      }
+    } else if (type === "partial") {
+      return { ok: false, error: "Please enter a valid partial refund amount." };
     }
-    amountCents = Math.round(rawAmount);
   }
 
   const reason = String(input.reason || "").trim();
@@ -104,7 +112,8 @@ export async function requestWorkspaceRefund(
     if (org.paidAt.getTime() < thirtyDaysAgo) {
       return {
         ok: false,
-        error: "Full refunds must be requested within 30 days of purchase. For service issues or partial refund, please choose 'Partial Refund'.",
+        error:
+          "Full refunds must be requested within 30 days of purchase. For service issues, store credit, or partial refund, please choose another option.",
       };
     }
   }
@@ -117,13 +126,22 @@ export async function requestWorkspaceRefund(
     return { ok: false, error: "A refund request is already under review for this workspace." };
   }
 
+  const reasonPrefix =
+    type === "partial"
+      ? "[partial] "
+      : type === "store_credit"
+        ? "[store_credit] "
+        : type === "pro_rata_cancel"
+          ? "[pro_rata_cancel] "
+          : "";
+
   try {
     const created = await prisma.refundRequest.create({
       data: {
         organizationId,
         requestedByUserId: session.userId,
         status: "pending",
-        reason: type === "partial" ? `[partial] ${reason}` : reason,
+        reason: `${reasonPrefix}${reason}`,
         notes,
         amountCents,
         currency: "USD",

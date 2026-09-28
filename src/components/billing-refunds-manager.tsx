@@ -13,9 +13,11 @@ import { DataTablePagination } from "@/components/data-table";
 import {
   ADMIN_REJECT_REASONS,
   REFUND_METHODS,
+  cleanRefundReason,
+  extractRefundTypeFromReason,
   formatCents,
-  labelForRefundMethod,
   labelForRefundReason,
+  labelForRefundType,
   type AdminRejectReason,
   type BillingOrganizationCreditsResult,
   type RefundMethod,
@@ -113,21 +115,7 @@ function statusTone(status: string): {
   }
 }
 
-function EyeIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      aria-hidden
-    >
-      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
+
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -148,10 +136,9 @@ function RefundReviewSheet({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [entered, setEntered] = useState(false);
+  const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
   const [refundMethod, setRefundMethod] = useState<RefundMethod>("store_credit");
   const [adminNote, setAdminNote] = useState(request.adminNote ?? "");
-  const [confirmApprove, setConfirmApprove] = useState(false);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState<AdminRejectReason>("outside_window");
   const [orgCredits, setOrgCredits] = useState<BillingOrganizationCreditsResult | null>(null);
   const [loadingCredits, setLoadingCredits] = useState(true);
@@ -159,8 +146,8 @@ function RefundReviewSheet({
   const tone = statusTone(request.status);
   const isPending = normalizeStatus(request.status) === "pending";
   const orgInitials = initialsFor(request.organization.name);
-  const isPartial = request.reason.startsWith("[partial]") || Boolean(request.amountCents);
-  const cleanReason = request.reason.replace(/^\[[^\]]+\]\s*/, "");
+  const refundType = extractRefundTypeFromReason(request.reason, request.amountCents);
+  const cleanReason = cleanRefundReason(request.reason);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setEntered(true));
@@ -209,7 +196,6 @@ function RefundReviewSheet({
       });
       if (!result.ok) {
         toast.error(result.error);
-        setConfirmApprove(false);
         return;
       }
       toast.success(
@@ -292,7 +278,7 @@ function RefundReviewSheet({
                     {tone.label}
                   </span>
                   <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
-                    {isPartial ? "Partial Refund" : "Full Refund"}
+                    {labelForRefundType(refundType)}
                   </span>
                   {request.amountCents != null && request.amountCents > 0 ? (
                     <span className="rounded-full border border-emerald-500/30 bg-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
@@ -385,65 +371,179 @@ function RefundReviewSheet({
 
           {isPending ? (
             <>
-              {/* Method Selection */}
+              {/* Upfront Decision Selector */}
               <section className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-                  Approval Refund Method
-                </p>
-                <div className="space-y-2">
-                  {REFUND_METHODS.map((method) => {
-                    const selected = refundMethod === method.value;
-                    return (
-                      <label
-                        key={method.value}
-                        className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${
-                          selected
-                            ? "border-[var(--color-primary)] bg-[var(--color-raised)] ring-1 ring-[var(--color-primary)]"
-                            : "border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[var(--color-text-muted)]"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="review-refund-method"
-                          value={method.value}
-                          checked={selected}
-                          onChange={() => setRefundMethod(method.value)}
-                          className="mt-1"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-[var(--color-text)]">
-                            {method.label}
-                          </p>
-                          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                            {method.hint}
-                          </p>
-                        </div>
-                      </label>
-                    );
-                  })}
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                    Admin Decision
+                  </p>
+                  <span className="text-[11px] text-[var(--color-text-muted)]">Select action</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => setDecision("approve")}
+                    className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${
+                      decision === "approve"
+                        ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-600 ring-1 ring-emerald-500/30 [[data-theme=dark]_&]:text-emerald-400"
+                        : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)] hover:border-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                    }`}
+                  >
+                    <span className="text-sm font-black">✓</span>
+                    Approve Refund
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => setDecision("reject")}
+                    className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${
+                      decision === "reject"
+                        ? "border-rose-500/50 bg-rose-500/15 text-rose-600 ring-1 ring-rose-500/30 [[data-theme=dark]_&]:text-rose-400"
+                        : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)] hover:border-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                    }`}
+                  >
+                    <span className="text-sm font-black">✕</span>
+                    Reject Request
+                  </button>
                 </div>
               </section>
 
-              {/* Internal Notes */}
-              <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
-                <label className="block space-y-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-                    Internal admin notes
-                  </span>
-                  <span className="block text-xs text-[var(--color-text-muted)]">
-                    Recorded with this review decision.
-                  </span>
-                  <textarea
-                    value={adminNote}
-                    onChange={(event) => setAdminNote(event.target.value)}
-                    rows={2}
-                    maxLength={1000}
-                    disabled={pending}
-                    className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]"
-                    placeholder="e.g. Approved for 2-hour downtime on 2026-09-23"
-                  />
-                </label>
-              </section>
+              {/* Conditional Fields Based on Decision */}
+              {decision === null ? (
+                <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)]/50 p-6 text-center">
+                  <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-[var(--color-raised)] text-base text-[var(--color-text-muted)]">
+                    ⚖️
+                  </div>
+                  <p className="mt-3 text-xs font-semibold text-[var(--color-text)]">
+                    Select a decision above
+                  </p>
+                  <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+                    Choose whether to approve this request (to set the refund method) or reject it with a reason.
+                  </p>
+                </div>
+              ) : decision === "approve" ? (
+                <>
+                  {/* Method Selection */}
+                  <section className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                      Approval Refund Method
+                    </p>
+                    <div className="space-y-2">
+                      {REFUND_METHODS.map((method) => {
+                        const selected = refundMethod === method.value;
+                        return (
+                          <label
+                            key={method.value}
+                            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${
+                              selected
+                                ? "border-[var(--color-primary)] bg-[var(--color-raised)] ring-1 ring-[var(--color-primary)]"
+                                : "border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[var(--color-text-muted)]"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="review-refund-method"
+                              value={method.value}
+                              checked={selected}
+                              onChange={() => setRefundMethod(method.value)}
+                              className="mt-1"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-[var(--color-text)]">
+                                {method.label}
+                              </p>
+                              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                                {method.hint}
+                              </p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    <div
+                      className={`rounded-xl border p-3 text-xs leading-relaxed ${
+                        refundMethod === "payment_method"
+                          ? "border-amber-500/30 bg-amber-500/10 text-amber-950 [[data-theme=dark]_&]:text-amber-100"
+                          : "border-emerald-500/30 bg-emerald-500/10 text-emerald-950 [[data-theme=dark]_&]:text-emerald-100"
+                      }`}
+                    >
+                      {refundMethod === "payment_method" ? (
+                        <>
+                          <strong>Notice:</strong> Refund will be sent to the original payment method (5-10 business days) and <strong>workspace access will end immediately</strong> upon approval.
+                        </>
+                      ) : (
+                        <>
+                          <strong>Notice:</strong> Account store credit will be issued instantly to the workspace balance, and <strong>active subscription access continues</strong>.
+                        </>
+                      )}
+                    </div>
+                  </section>
+
+                  {/* Internal Notes for Approval */}
+                  <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
+                    <label className="block space-y-1.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                        Internal admin notes (optional)
+                      </span>
+                      <span className="block text-xs text-[var(--color-text-muted)]">
+                        Recorded in audit log with this approval decision.
+                      </span>
+                      <textarea
+                        value={adminNote}
+                        onChange={(event) => setAdminNote(event.target.value)}
+                        rows={2}
+                        maxLength={1000}
+                        disabled={pending}
+                        className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]"
+                        placeholder="e.g. Approved for 2-hour downtime on 2026-09-23"
+                      />
+                    </label>
+                  </section>
+                </>
+              ) : (
+                <>
+                  {/* Rejection Reason Selector */}
+                  <section className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                      Rejection Reason
+                    </p>
+                    <CustomSelect
+                      value={rejectReason}
+                      onChange={(v) => setRejectReason(v as AdminRejectReason)}
+                      options={ADMIN_REJECT_REASONS.map((r) => ({ value: r.value, label: r.label }))}
+                      aria-label="Select rejection reason"
+                      disabled={pending}
+                    />
+
+                    <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs leading-relaxed text-rose-950 [[data-theme=dark]_&]:text-rose-100">
+                      <strong>Notice:</strong> The customer will be informed of this reason. The customer’s active subscription access will remain unaffected.
+                    </div>
+                  </section>
+
+                  {/* Rejection Internal / Context Notes */}
+                  <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
+                    <label className="block space-y-1.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                        Rejection Notes / Explanation (optional)
+                      </span>
+                      <span className="block text-xs text-[var(--color-text-muted)]">
+                        Reason details recorded with this rejection.
+                      </span>
+                      <textarea
+                        value={adminNote}
+                        onChange={(event) => setAdminNote(event.target.value)}
+                        rows={2}
+                        maxLength={1000}
+                        disabled={pending}
+                        className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
+                        placeholder="e.g. Refund requested past 30-day window per policy"
+                      />
+                    </label>
+                  </section>
+                </>
+              )}
             </>
           ) : (
             <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
@@ -467,23 +567,44 @@ function RefundReviewSheet({
 
         <footer className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           {isPending ? (
-            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <div className="flex gap-2">
               <button
                 type="button"
                 disabled={pending}
-                onClick={() => setShowRejectDialog(true)}
-                className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] disabled:opacity-50"
+                onClick={onClose}
+                className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] disabled:opacity-50"
               >
-                Reject request…
+                Cancel
               </button>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => setConfirmApprove(true)}
-                className="flex-1 rounded-xl bg-[var(--color-primary)] px-3 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:opacity-50"
-              >
-                Approve ({refundMethod === "store_credit" ? "Store Credit" : "Payment Method"})…
-              </button>
+              {decision === null ? (
+                <button
+                  type="button"
+                  disabled
+                  className="flex-1 cursor-not-allowed rounded-xl border border-transparent bg-[var(--color-raised)] px-3 py-2.5 text-xs font-semibold text-[var(--color-text-muted)] opacity-60"
+                >
+                  Select Decision Above
+                </button>
+              ) : decision === "approve" ? (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={onApprove}
+                  className="flex-1 rounded-xl bg-[var(--color-primary)] px-3 py-2.5 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:opacity-50"
+                >
+                  {pending
+                    ? "Approving…"
+                    : `Approve (${refundMethod === "store_credit" ? "Store Credit" : "Payment Method"})`}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={onReject}
+                  className="flex-1 rounded-xl bg-rose-600 px-3 py-2.5 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:opacity-50"
+                >
+                  {pending ? "Rejecting…" : "Confirm Rejection"}
+                </button>
+              )}
             </div>
           ) : (
             <button
@@ -496,151 +617,6 @@ function RefundReviewSheet({
           )}
         </footer>
       </aside>
-
-      {/* Confirmation Modal for Approval */}
-      {confirmApprove ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="approve-confirm-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        >
-          <div
-            onClick={() => setConfirmApprove(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-            aria-hidden
-          />
-          <div className="relative w-full max-w-md space-y-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-6 shadow-2xl">
-            <div className="flex items-start gap-3">
-              <span
-                className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-lg ${
-                  refundMethod === "payment_method"
-                    ? "bg-amber-500/15 text-amber-600 [[data-theme=dark]_&]:text-amber-400"
-                    : "bg-emerald-500/15 text-emerald-600 [[data-theme=dark]_&]:text-emerald-400"
-                }`}
-              >
-                {refundMethod === "payment_method" ? "⚠️" : "🪙"}
-              </span>
-              <div className="space-y-0.5">
-                <h3
-                  id="approve-confirm-title"
-                  className="text-base font-bold text-[var(--color-text)]"
-                >
-                  Approve Refund as {labelForRefundMethod(refundMethod)}?
-                </h3>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  Workspace: <strong className="text-[var(--color-text)]">{request.organization.name}</strong>
-                </p>
-              </div>
-            </div>
-
-            <div
-              className={`rounded-xl border p-3.5 text-xs leading-relaxed ${
-                refundMethod === "payment_method"
-                  ? "border-amber-500/30 bg-amber-500/10 text-amber-950 [[data-theme=dark]_&]:text-amber-100"
-                  : "border-emerald-500/30 bg-emerald-500/10 text-emerald-950 [[data-theme=dark]_&]:text-emerald-100"
-              }`}
-            >
-              {refundMethod === "payment_method" ? (
-                <>
-                  <strong>Notice:</strong> The charge will be returned to the customer’s original payment method, and <strong>workspace access will end immediately</strong> upon approval.
-                </>
-              ) : (
-                <>
-                  <strong>Notice:</strong> Account store credit will be issued to the workspace balance instantly without chargebacks, and <strong>active subscription access continues</strong>.
-                </>
-              )}
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => setConfirmApprove(false)}
-                className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={onApprove}
-                className="flex-1 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:opacity-50"
-              >
-                {pending ? "Approving…" : "Confirm Approval"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Confirmation Modal for Rejection */}
-      {showRejectDialog ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="reject-dialog-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        >
-          <div
-            onClick={() => setShowRejectDialog(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-            aria-hidden
-          />
-          <div className="relative w-full max-w-md space-y-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-6 shadow-2xl">
-            <div className="flex items-start gap-3">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-lg text-rose-600 [[data-theme=dark]_&]:text-rose-400">
-                ✕
-              </span>
-              <div className="space-y-0.5">
-                <h3 id="reject-dialog-title" className="text-base font-bold text-[var(--color-text)]">
-                  Reject Refund Request
-                </h3>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  Workspace: <strong className="text-[var(--color-text)]">{request.organization.name}</strong>
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[var(--color-text)]">
-                Select Rejection Reason
-              </label>
-              <CustomSelect
-                value={rejectReason}
-                onChange={setRejectReason}
-                options={ADMIN_REJECT_REASONS.map((r) => ({ value: r.value, label: r.label }))}
-                aria-label="Select rejection reason"
-                disabled={pending}
-                className="mt-1"
-              />
-            </div>
-
-            <p className="text-[11px] text-[var(--color-text-muted)]">
-              The customer will be notified of this reason. The active subscription access will remain unaffected.
-            </p>
-
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => setShowRejectDialog(false)}
-                className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={onReject}
-                className="flex-1 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:opacity-50"
-              >
-                {pending ? "Rejecting…" : "Confirm Rejection"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -785,14 +761,14 @@ export function BillingRefundsManager({ requests }: { requests: AdminRefundReque
               ) : (
                 rows.map((row) => {
                   const tone = statusTone(row.status);
-                  const isPartial =
-                    row.reason.startsWith("[partial]") || Boolean(row.amountCents);
-                  const cleanReason = row.reason.replace(/^\[[^\]]+\]\s*/, "");
+                  const refundType = extractRefundTypeFromReason(row.reason, row.amountCents);
+                  const cleanReason = cleanRefundReason(row.reason);
 
                   return (
                     <tr
                       key={row.id}
-                      className="border-b border-[var(--color-border)] align-middle last:border-0"
+                      onClick={() => setSelectedId(row.id)}
+                      className="cursor-pointer border-b border-[var(--color-border)] align-middle transition hover:bg-[var(--color-surface)] last:border-0"
                     >
                       <td className="px-4 py-3.5">
                         <div className="flex min-w-0 items-center gap-3">
@@ -833,10 +809,12 @@ export function BillingRefundsManager({ requests }: { requests: AdminRefundReque
                           <span className="text-xs font-semibold text-[var(--color-text)]">
                             {row.amountCents != null && row.amountCents > 0
                               ? formatCents(row.amountCents, row.currency)
-                              : "Full Refund"}
+                              : refundType === "full"
+                                ? "Full Refund"
+                                : labelForRefundType(refundType)}
                           </span>
                           <span className="text-[10px] text-[var(--color-text-muted)]">
-                            {isPartial ? "Partial request" : "Full payment"}
+                            {labelForRefundType(refundType)}
                           </span>
                         </div>
                       </td>
@@ -862,12 +840,15 @@ export function BillingRefundsManager({ requests }: { requests: AdminRefundReque
                       <td className="px-4 py-3.5 text-right">
                         <button
                           type="button"
-                          onClick={() => setSelectedId(row.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedId(row.id);
+                          }}
                           aria-label={`Review refund for ${row.organization.name}`}
-                          title="Review request"
-                          className="inline-flex size-9 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] hover:shadow-sm"
                         >
-                          <EyeIcon className="size-4" />
+                          <span>{normalizeStatus(row.status) === "pending" ? "Review" : "View"}</span>
+                          <span className="text-[10px]">➔</span>
                         </button>
                       </td>
                     </tr>

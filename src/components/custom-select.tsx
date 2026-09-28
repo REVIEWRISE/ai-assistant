@@ -6,6 +6,8 @@ import { createPortal } from "react-dom";
 export type CustomSelectOption<T extends string = string> = {
   value: T;
   label: string;
+  description?: string;
+  disabled?: boolean;
 };
 
 type CustomSelectProps<T extends string> = {
@@ -29,10 +31,10 @@ type MenuPosition = {
 
 function computeMenuPosition(rect: DOMRect): MenuPosition {
   const gap = 4;
-  const maxHeight = 208; // max-h-52
+  const maxHeight = 280; // max-h-70
   const spaceBelow = window.innerHeight - rect.bottom - gap;
   const spaceAbove = rect.top - gap;
-  const openUpward = spaceBelow < Math.min(maxHeight, 160) && spaceAbove > spaceBelow;
+  const openUpward = spaceBelow < Math.min(maxHeight, 180) && spaceAbove > spaceBelow;
 
   return {
     left: rect.left,
@@ -162,30 +164,43 @@ export function CustomSelect<T extends string>({
                 left: menuPosition.left,
                 width: menuPosition.width,
               }}
-              className={`fixed z-[140] max-h-52 overflow-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1 shadow-[var(--shadow-lg)] ${menuClassName}`}
+              className={`fixed z-[140] max-h-72 overflow-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1 shadow-[var(--shadow-lg)] ${menuClassName}`}
             >
               {options.map((option) => {
                 const isSelected = option.value === value;
+                const isOptionDisabled = Boolean(option.disabled);
                 return (
                   <li key={option.value} role="presentation">
                     <button
                       type="button"
                       role="option"
                       aria-selected={isSelected}
+                      aria-disabled={isOptionDisabled}
+                      disabled={isOptionDisabled}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => {
+                        if (isOptionDisabled) return;
                         onChange(option.value);
                         closeMenu();
                       }}
                       className={`flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition ${
-                        isSelected
-                          ? "bg-[var(--color-primary-soft)] font-semibold text-[var(--color-primary-h)]"
-                          : "text-[var(--color-text)] hover:bg-[var(--color-surface)]"
+                        isOptionDisabled
+                          ? "cursor-not-allowed opacity-40 hover:bg-transparent"
+                          : isSelected
+                            ? "bg-[var(--color-primary-soft)] font-semibold text-[var(--color-primary-h)]"
+                            : "text-[var(--color-text)] hover:bg-[var(--color-surface)]"
                       }`}
                     >
-                      <span className="min-w-0 flex-1 truncate" title={option.label}>
-                        {option.label}
-                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className={`truncate ${isSelected ? "font-semibold" : "font-medium"}`} title={option.label}>
+                          {option.label}
+                        </p>
+                        {option.description ? (
+                          <p className="mt-0.5 truncate text-[11px] font-normal text-[var(--color-text-muted)]">
+                            {option.description}
+                          </p>
+                        ) : null}
+                      </div>
                       {isSelected ? (
                         <svg
                           viewBox="0 0 24 24"
@@ -209,3 +224,4 @@ export function CustomSelect<T extends string>({
     </div>
   );
 }
+
