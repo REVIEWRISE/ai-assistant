@@ -123,11 +123,10 @@ export async function approveRefundRequest(input: {
     }
   }
 
-  // If full refund or pro-rata cancel via payment method, cancel subscription and end access immediately
+  // If refund approved to original payment method, cancel subscription in Billing and end access immediately
   let cancelResult = null;
   const isCancellationRefund =
-    refundMethod === "payment_method" &&
-    (requestedRefundType === "full" || requestedRefundType === "pro_rata_cancel");
+    refundMethod === "payment_method" && requestedRefundType !== "partial";
   if (isCancellationRefund) {
     cancelResult = await cancelOrganizationBillingSubscription({
       organizationId: request.organizationId,

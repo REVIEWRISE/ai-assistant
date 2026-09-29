@@ -57,8 +57,9 @@ export async function requestWorkspaceRefund(
   const access = await assertCanManageRefunds(session.userId, organizationId);
   if (!access.ok) return access;
 
+  const hasExplicitType = Boolean(input.type);
   const validTypes: RefundType[] = ["full", "partial", "store_credit", "pro_rata_cancel"];
-  const type: RefundType = validTypes.includes(input.type as RefundType)
+  const type: RefundType = hasExplicitType && validTypes.includes(input.type as RefundType)
     ? (input.type as RefundType)
     : "full";
 
@@ -106,14 +107,14 @@ export async function requestWorkspaceRefund(
     };
   }
 
-  // 30-day window check for full refunds
-  if (type === "full" && org.paidAt) {
+  // 30-day window check for explicit full refund requests
+  if (hasExplicitType && type === "full" && org.paidAt) {
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     if (org.paidAt.getTime() < thirtyDaysAgo) {
       return {
         ok: false,
         error:
-          "Full refunds must be requested within 30 days of purchase. For service issues, store credit, or partial refund, please choose another option.",
+          "Full refunds must be requested within 30 days of purchase.",
       };
     }
   }
@@ -126,14 +127,15 @@ export async function requestWorkspaceRefund(
     return { ok: false, error: "A refund request is already under review for this workspace." };
   }
 
-  const reasonPrefix =
-    type === "partial"
+  const reasonPrefix = hasExplicitType
+    ? type === "partial"
       ? "[partial] "
       : type === "store_credit"
         ? "[store_credit] "
         : type === "pro_rata_cancel"
           ? "[pro_rata_cancel] "
-          : "";
+          : ""
+    : "";
 
   try {
     let billingRefundId: string | null = null;

@@ -241,13 +241,13 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border)] px-5 py-4 sm:px-6">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-              Refunds & Store Credit Guarantee
+              Refunds & Guarantee
             </p>
             <h3 className="mt-1 text-base font-semibold tracking-tight text-[var(--color-text)]">
-              Money-back guarantee & credit options
+              Money-back guarantee
             </h3>
             <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-              Full refunds within 30 days of purchase · Flexible partial refunds and store credit anytime
+              30-Day Money-Back Guarantee on paid subscriptions · Reviewed promptly by our billing team
             </p>
           </div>
 
@@ -268,7 +268,7 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
                 className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--color-primary-h)]"
               >
                 <span>↺</span>
-                <span>Request a refund or credit</span>
+                <span>Request a refund</span>
               </button>
             ) : null}
           </div>

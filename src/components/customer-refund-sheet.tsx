@@ -6,14 +6,12 @@ import { requestWorkspaceRefund } from "@/app/(protected)/subscription/refund-ac
 import { CustomSelect } from "@/components/custom-select";
 import {
   CUSTOMER_REFUND_REASONS,
-  REFUND_TYPES,
   cleanRefundReason,
   extractRefundTypeFromReason,
   formatCents,
   labelForRefundReason,
   labelForRefundType,
   type CustomerRefundReason,
-  type RefundType,
 } from "@/lib/refund-reasons";
 import { toast } from "@/lib/toast";
 
@@ -76,8 +74,6 @@ export function CustomerRefundSheet({
   const [pending, startTransition] = useTransition();
 
   const mode = initialMode;
-  const [selectedType, setSelectedType] = useState<RefundType>("full");
-  const [amountDollars, setAmountDollars] = useState("25.00");
   const [refundReason, setRefundReason] = useState<CustomerRefundReason>("not_using_service");
   const [refundNotes, setRefundNotes] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
@@ -85,8 +81,6 @@ export function CustomerRefundSheet({
 
   const daysRemaining = getDaysRemaining(paidAt);
   const fullEligible = daysRemaining === null || daysRemaining > 0;
-  const refundType: RefundType = !fullEligible && selectedType === "full" ? "store_credit" : selectedType;
-  const selectedRefundTypeDetail = REFUND_TYPES.find((t) => t.value === refundType);
 
   // Handle slide-in animation on mount
   useEffect(() => {
@@ -111,48 +105,9 @@ export function CustomerRefundSheet({
 
   if (!isOpen) return null;
 
-  // Quick preset chips calculation
-  const presets: Array<{ label: string; dollars: string }> = [];
-  if (planPriceCents && planPriceCents > 0) {
-    const p25 = (planPriceCents * 0.25) / 100;
-    const p50 = (planPriceCents * 0.5) / 100;
-    const p75 = (planPriceCents * 0.75) / 100;
-    const p100 = planPriceCents / 100;
-    presets.push(
-      { label: `25% ($${p25.toFixed(2)})`, dollars: p25.toFixed(2) },
-      { label: `50% ($${p50.toFixed(2)})`, dollars: p50.toFixed(2) },
-      { label: `75% ($${p75.toFixed(2)})`, dollars: p75.toFixed(2) },
-      { label: `100% ($${p100.toFixed(2)})`, dollars: p100.toFixed(2) },
-    );
-  } else {
-    presets.push(
-      { label: "$15.00", dollars: "15.00" },
-      { label: "$25.00", dollars: "25.00" },
-      { label: "$50.00", dollars: "50.00" },
-      { label: "$100.00", dollars: "100.00" },
-    );
-  }
-
   function handleSubmit() {
-    let amountCents: number | undefined;
-    if (refundType === "partial") {
-      const parsed = parseFloat(amountDollars);
-      if (Number.isNaN(parsed) || parsed <= 0) {
-        toast.error("Please enter a valid partial refund amount greater than $0.00");
-        return;
-      }
-      amountCents = Math.round(parsed * 100);
-    } else if (refundType === "store_credit") {
-      const parsed = parseFloat(amountDollars);
-      if (!Number.isNaN(parsed) && parsed > 0) {
-        amountCents = Math.round(parsed * 100);
-      }
-    }
-
     startTransition(async () => {
       const res = await requestWorkspaceRefund({
-        type: refundType,
-        amountCents,
         reason: refundReason,
         notes: refundNotes,
       });
@@ -214,7 +169,7 @@ export function CustomerRefundSheet({
               >
                 {mode === "view" && existingRequest
                   ? "Your Refund Request"
-                  : "Request a Refund or Credit"}
+                  : "Request a Refund"}
               </h2>
               <p className="text-xs text-[var(--color-text-muted)]">
                 {workspaceName} · {planName}
@@ -421,163 +376,34 @@ export function CustomerRefundSheet({
           ) : (
             /* CREATE REFUND REQUEST SCREEN */
             <div className="space-y-6">
-              {/* Policy Banner with 30-day countdown */}
+              {/* Policy Banner */}
               <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-                      Refund Policy & Window
+                      Refund Policy
                     </p>
                     <p className="mt-1 text-xs text-[var(--color-text)]">
-                      30-Day Money-Back Guarantee on full subscriptions. Partial refunds, store credits,
-                      or pro-rata adjustments can be requested anytime.
+                      30-Day Money-Back Guarantee for subscriptions. Our team reviews all requests and
+                      will issue a refund or store credit based on your account status.
                     </p>
                   </div>
                   {fullEligible && daysRemaining != null ? (
                     <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 [[data-theme=dark]_&]:text-emerald-300">
-                      {daysRemaining} {daysRemaining === 1 ? "day" : "days"} left
+                      {daysRemaining} {daysRemaining === 1 ? "day" : "days"} left in 30d window
                     </span>
                   ) : (
-                    <span className="shrink-0 rounded-full border border-amber-500/30 bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-700 [[data-theme=dark]_&]:text-amber-300">
-                      Partial / credit / pro-rata only
+                    <span className="shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
+                      Standard Review
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Step 1: Refund Type Dropdown */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-[var(--color-text)]">
-                    Step 1: Select refund type
-                  </label>
-                  {selectedRefundTypeDetail ? (
-                    <span className="text-[10px] font-semibold text-[var(--color-text-muted)]">
-                      {selectedRefundTypeDetail.whenToUse}
-                    </span>
-                  ) : null}
-                </div>
-
-                <CustomSelect
-                  value={refundType}
-                  onChange={(val) => setSelectedType(val as RefundType)}
-                  options={REFUND_TYPES.map((t) => ({
-                    value: t.value,
-                    label: `${t.label}${t.windowDays ? ` (${t.windowDays}d window)` : ""}`,
-                    description: `${t.description} — ${t.whenToUse}`,
-                    disabled: t.value === "full" && !fullEligible,
-                  }))}
-                  aria-label="Select refund type"
-                  disabled={pending}
-                  className="mt-1"
-                />
-
-                {/* Selected Refund Type Context Card */}
-                {selectedRefundTypeDetail ? (
-                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-xs shadow-[var(--shadow-sm)]">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="flex size-6 items-center justify-center rounded-lg bg-[var(--color-raised)] text-xs">
-                          {refundType === "full"
-                            ? "🛡️"
-                            : refundType === "partial"
-                              ? "🪙"
-                              : refundType === "store_credit"
-                                ? "⚡"
-                                : "⏱️"}
-                        </span>
-                        <span className="font-bold text-[var(--color-text)]">
-                          {selectedRefundTypeDetail.label}
-                        </span>
-                      </div>
-                      {refundType === "full" ? (
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                            fullEligible
-                              ? "bg-emerald-500/15 text-emerald-600 [[data-theme=dark]_&]:text-emerald-400"
-                              : "bg-amber-500/15 text-amber-600 [[data-theme=dark]_&]:text-amber-400"
-                          }`}
-                        >
-                          {fullEligible ? "Within 30-day window" : "30-day window expired"}
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-[var(--color-raised)] px-2 py-0.5 text-[10px] font-semibold text-emerald-600 [[data-theme=dark]_&]:text-emerald-400">
-                          Available Anytime
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-                      {selectedRefundTypeDetail.description}
-                    </p>
-                    <p className="mt-1 text-[11px] font-medium text-[var(--color-text)]">
-                      <span className="text-[var(--color-text-muted)]">When to use: </span>
-                      {selectedRefundTypeDetail.whenToUse}
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-
-              {/* Amount Inputs for Partial Refund & Store Credit */}
-              {refundType === "partial" || refundType === "store_credit" ? (
-                <div className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-[var(--color-text)]">
-                      {refundType === "partial" ? "Partial Refund Amount (USD)" : "Store Credit Amount (USD)"}
-                    </label>
-                    <span className="text-[11px] text-[var(--color-text-muted)]">
-                      Quick presets:
-                    </span>
-                  </div>
-
-                  {/* Preset chips */}
-                  <div className="flex flex-wrap gap-2">
-                    {presets.map((p) => (
-                      <button
-                        key={p.label}
-                        type="button"
-                        onClick={() => setAmountDollars(p.dollars)}
-                        className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
-                          amountDollars === p.dollars
-                            ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
-                            : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:border-[var(--color-text-muted)]"
-                        }`}
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Custom dollar input */}
-                  <div className="relative mt-2">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-[var(--color-text-muted)]">
-                      $
-                    </span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      value={amountDollars}
-                      onChange={(e) => setAmountDollars(e.target.value)}
-                      disabled={pending}
-                      placeholder="25.00"
-                      className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] py-2.5 pl-8 pr-3 text-sm font-semibold text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
-                    />
-                  </div>
-                </div>
-              ) : refundType === "pro_rata_cancel" ? (
-                <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-4 text-xs text-purple-900 [[data-theme=dark]_&]:text-purple-200">
-                  <p className="font-bold">⏱️ Mid-cycle Pro-rata Credit</p>
-                  <p className="mt-1 leading-relaxed text-[11px] text-[var(--color-text-muted)]">
-                    The exact refund/credit amount will be automatically calculated based on the number
-                    of unused days remaining in your current billing cycle when cancellation takes effect.
-                  </p>
-                </div>
-              ) : null}
-
-              {/* Step 2: Reason Dropdown */}
+              {/* Step 1: Reason Dropdown */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[var(--color-text)]">
-                  Step 2: Tell us why
+                  Step 1: Reason for refund
                 </label>
                 <CustomSelect
                   value={refundReason}
@@ -592,11 +418,11 @@ export function CustomerRefundSheet({
                 />
               </div>
 
-              {/* Step 3: Message / Notes */}
+              {/* Step 2: Message / Notes */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-[var(--color-text)]">
-                    Step 3: Additional details{" "}
+                    Step 2: Additional details{" "}
                     <span className="font-normal text-[var(--color-text-muted)]">(optional)</span>
                   </label>
                   <span className="text-[10px] text-[var(--color-text-muted)]">
@@ -606,7 +432,7 @@ export function CustomerRefundSheet({
                 <textarea
                   value={refundNotes}
                   onChange={(e) => setRefundNotes(e.target.value)}
-                  rows={3}
+                  rows={4}
                   maxLength={1000}
                   disabled={pending}
                   placeholder="Tell us what happened so we can assist or improve the service..."
