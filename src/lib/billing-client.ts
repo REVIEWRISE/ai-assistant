@@ -718,9 +718,16 @@ export async function listBillingSubscriptions(options?: {
   const res = await billingFetch(`/billing/admin/subscriptions?${params.toString()}`);
   const body = (await res.json()) as { data?: unknown };
   const rows = Array.isArray(body.data) ? body.data : Array.isArray(body) ? (body as unknown[]) : [];
-  return rows
+  let parsed = rows
     .map(parseBillingSubscription)
     .filter((item): item is BillingSubscriptionSummary => Boolean(item));
+
+  if (options?.customerId?.trim()) {
+    const targetCid = options.customerId.trim().toLowerCase();
+    parsed = parsed.filter((item) => (item.customerId ?? "").toLowerCase() === targetCid);
+  }
+
+  return parsed;
 }
 
 export async function cancelBillingSubscription(
