@@ -38,15 +38,6 @@ export async function loginUser(formData: FormData) {
     redirect("/login?error=invalid");
   }
 
-  if (user.accountStatus === "suspended") {
-    await writePlatformAudit({
-      actorId: user.id,
-      action: "auth.login_blocked_suspended",
-      metadata: { email: user.email },
-    });
-    redirect("/login?error=suspended");
-  }
-
   if (!user.passwordHash) {
     redirect("/login?error=oauth_password");
   }

@@ -218,14 +218,6 @@ export async function completeGoogleAuthLogin(
     return { redirectTo: "/login?error=oauth_failed" };
   }
 
-  if (user.accountStatus === "suspended") {
-    return { redirectTo: "/login?error=suspended" };
-  }
-
-  if (user.accountStatus !== "active") {
-    return { redirectTo: "/login?error=oauth_failed" };
-  }
-
   let activeOrganizationId =
     (
       await prisma.organizationMember.findFirst({
