@@ -708,6 +708,10 @@ export type BillingSubscriptionSummary = {
   customerId: string | null;
   productId: string | null;
   planId: string | null;
+  currentPeriodStart?: string | null;
+  currentPeriodEnd?: string | null;
+  trialEndDate?: string | null;
+  cancelAtPeriodEnd?: boolean;
 };
 
 function parseBillingSubscription(raw: unknown): BillingSubscriptionSummary | null {
@@ -732,6 +736,10 @@ function parseBillingSubscription(raw: unknown): BillingSubscriptionSummary | nu
       asString(row.planId) ??
       asString(asRecord(row.plan)?.id) ??
       null,
+    currentPeriodStart: asString(row.currentPeriodStart) ?? null,
+    currentPeriodEnd: asString(row.currentPeriodEnd) ?? null,
+    trialEndDate: asString(row.trialEndDate) ?? null,
+    cancelAtPeriodEnd: Boolean(row.cancelAtPeriodEnd),
   };
 }
 

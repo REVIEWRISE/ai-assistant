@@ -2,13 +2,13 @@ import {
   getOrganizationBillingCustomerId,
   listBillingSubscriptions,
 } from "@/lib/billing-client";
+import { resolvePlanSlugFromBillingPlanId } from "@/lib/billing-checkout";
 import { markOrgUnpaid } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 
 /**
  * Reconciles local workspace subscription status with remote Billing service state.
- * If the subscription was canceled directly by an admin in the Billing Service,
- * marks the local workspace unpaid/expired so the user is prompted to pick a plan.
+ * Syncs trialing and active statuses, period dates, or marks unpaid if canceled.
  */
 export async function reconcileOrganizationSubscriptionWithBilling(
   organizationId: string,
@@ -36,7 +36,93 @@ export async function reconcileOrganizationSubscriptionWithBilling(
         await markOrgUnpaid(organizationId);
         return true;
       }
+      return false;
     }
+
+    if (activeSubs.length > 0) {
+      const sub = activeSubs[0];
+      const org = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: {
+          billingStatus: true,
+          planSlug: true,
+          billingInterval: true,
+          trialEndsAt: true,
+          currentPeriodEndsAt: true,
+          paidAt: true,
+          billingAdminOverride: true,
+        },
+      });
+
+      if (org && !org.billingAdminOverride) {
+        let planSlug = org.planSlug;
+        let billingInterval = org.billingInterval;
+        if (sub.planId) {
+          const resolved = await resolvePlanSlugFromBillingPlanId(sub.planId);
+          if (resolved) {
+            planSlug = resolved.planSlug;
+            billingInterval = resolved.billingInterval;
+          }
+        }
+
+        if (sub.status === "trialing") {
+          const trialEndsAt = sub.trialEndDate
+            ? new Date(sub.trialEndDate)
+            : sub.currentPeriodEnd
+              ? new Date(sub.currentPeriodEnd)
+              : null;
+          const trialStartsAt = sub.currentPeriodStart
+            ? new Date(sub.currentPeriodStart)
+            : new Date();
+
+          if (
+            org.billingStatus !== "trialing" ||
+            org.paidAt !== null ||
+            (trialEndsAt && org.trialEndsAt?.getTime() !== trialEndsAt.getTime()) ||
+            org.planSlug !== planSlug
+          ) {
+            await prisma.organization.update({
+              where: { id: organizationId },
+              data: {
+                billingStatus: "trialing",
+                planSlug: (planSlug as any) || "pro_voice",
+                billingInterval: (billingInterval as any) || "monthly",
+                paidAt: null,
+                trialStartsAt,
+                trialEndsAt,
+                currentPeriodEndsAt: null,
+                cancelAtPeriodEnd: false,
+              },
+            });
+            return true;
+          }
+        } else if (sub.status === "active") {
+          const periodEndsAt = sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : null;
+          const paidAt = sub.currentPeriodStart ? new Date(sub.currentPeriodStart) : new Date();
+
+          if (
+            org.billingStatus !== "active" ||
+            !org.paidAt ||
+            (periodEndsAt && org.currentPeriodEndsAt?.getTime() !== periodEndsAt.getTime()) ||
+            org.planSlug !== planSlug
+          ) {
+            await prisma.organization.update({
+              where: { id: organizationId },
+              data: {
+                billingStatus: "active",
+                planSlug: (planSlug as any) || "pro_voice",
+                billingInterval: (billingInterval as any) || "monthly",
+                paidAt,
+                currentPeriodEndsAt: periodEndsAt,
+                cancelAtPeriodEnd: Boolean(sub.cancelAtPeriodEnd),
+              },
+            });
+            return true;
+          }
+        }
+      }
+    }
+
     return false;
   } catch (err) {
     console.error("[billing-sync] Failed to reconcile org subscription with billing:", err);
