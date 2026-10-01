@@ -73,9 +73,11 @@ export default async function OnboardingPlanPage({ searchParams }: PageProps) {
       ? "Choose a valid plan to continue."
       : params.error === "organization_required"
         ? "Create or select a workspace first."
-        : catalog.length === 0
-          ? "Plans are unavailable from Billing right now. Try again shortly."
-          : null;
+        : params.error
+          ? decodeURIComponent(params.error)
+          : catalog.length === 0
+            ? "Plans are unavailable from Billing right now. Try again shortly."
+            : null;
 
   return (
     <div className="relative min-h-[100dvh] bg-[var(--color-bg)] text-[var(--color-text)]">
@@ -116,7 +118,7 @@ export default async function OnboardingPlanPage({ searchParams }: PageProps) {
             </h1>
             <p className="mt-5 text-base leading-7 text-[var(--color-text-muted)]">
               {trialAvailable
-                ? `Every plan includes a ${BILLING_RULES.trialDays}-day trial. No credit card. You can change plans later from billing.`
+                ? `Every plan includes a ${BILLING_RULES.trialDays}-day free trial with full access. $0 due today, cancel anytime.`
                 : "A free trial is no longer available on this account. Choose a plan and subscribe to unlock the workspace."}
             </p>
 
