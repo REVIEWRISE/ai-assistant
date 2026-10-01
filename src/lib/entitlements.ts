@@ -213,7 +213,7 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
   }
 
   // Periodically verify with the remote Billing Service if the subscription is still active remotely
-  if (isPaid && !org.billingAdminOverride && org.billingCustomerId) {
+  if ((isPaid || billingStatus === "trialing") && !org.billingAdminOverride && org.billingCustomerId) {
     const lastCheck = lastRemoteSyncTime.get(organizationId) ?? 0;
     if (Date.now() - lastCheck > 30_000) {
       lastRemoteSyncTime.set(organizationId, Date.now());
@@ -230,9 +230,8 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
     }
   }
 
-  // Unpaid trial access expires with the 14-day window. Never revive an expired
-  // workspace back to trialing (e.g. after a subscription cancel).
-  if (!isPaid && billingStatus === "trialing" && isTrialExpiredByCreatedAt(trialStartsAt)) {
+  // Local fallback trial without Billing customer expires with the 14-day window.
+  if (!isPaid && !org.billingCustomerId && billingStatus === "trialing" && isTrialExpiredByCreatedAt(trialStartsAt)) {
     await prisma.organization.update({
       where: { id: organizationId },
       data: {

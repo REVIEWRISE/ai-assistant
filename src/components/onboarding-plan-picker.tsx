@@ -219,8 +219,8 @@ export function OnboardingPlanPicker({
             <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">
               {trialAvailable
                 ? interval === "yearly"
-                  ? `${active.yearlyTotal === "Custom" ? "Custom yearly pricing" : `${active.yearlyTotal}/year after trial`} · ${trialDays}-day free trial`
-                  : `${trialDays}-day free trial · no card required`
+                  ? `${active.yearlyTotal === "Custom" ? "Custom yearly pricing" : `${active.yearlyTotal}/year after trial`} · ${trialDays}-day free trial ($0 today)`
+                  : `${trialDays}-day free trial · $0 due today · cancel anytime`
                 : "A free trial is not available after canceling. You’ll subscribe next."}
             </p>
           </div>
@@ -232,11 +232,11 @@ export function OnboardingPlanPicker({
           >
             {pending
               ? trialAvailable
-                ? "Starting trial…"
+                ? "Starting checkout…"
                 : "Continuing…"
               : trialAvailable
                 ? `Start ${trialDays}-day trial`
-                : "Continue to subscribe"}
+                : "Continue to checkout"}
           </button>
         </div>
       </div>

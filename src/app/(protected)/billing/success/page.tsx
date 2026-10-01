@@ -22,7 +22,7 @@ export default async function BillingSuccessPage({ searchParams }: PageProps) {
   }
 
   const billing = await getOrgBilling(organizationId);
-  if (billing && isBillingAccessAllowed(billing.billingStatus) && billing.billingStatus === "active") {
+  if (billing && isBillingAccessAllowed(billing.billingStatus)) {
     redirect("/dashboard?success=subscription_active");
   }
 
