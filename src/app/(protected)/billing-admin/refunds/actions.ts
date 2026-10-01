@@ -44,6 +44,7 @@ export async function approveRefundRequest(input: {
       reason: true,
       notes: true,
       amountCents: true,
+      requestedByUserId: true,
     },
   });
   if (!request) {
@@ -123,7 +124,7 @@ export async function approveRefundRequest(input: {
     }
   }
 
-  // If refund approved to original payment method, cancel subscription in Billing and end access immediately
+  // If refund approved to original payment method, cancel subscription in Billing, end access immediately, and log out the user
   let cancelResult = null;
   const isCancellationRefund =
     refundMethod === "payment_method" && requestedRefundType !== "partial";
@@ -134,6 +135,38 @@ export async function approveRefundRequest(input: {
     });
     if (!cancelResult.ok) {
       await markOrgUnpaid(request.organizationId);
+    }
+    // Invalidate active authentication sessions so the customer is logged out
+    const members = await prisma.organizationMember.findMany({
+      where: { organizationId: request.organizationId },
+      select: { userId: true },
+    });
+    const targetUserIds = Array.from(
+      new Set([
+        ...(request.requestedByUserId ? [request.requestedByUserId] : []),
+        ...members.map((m) => m.userId),
+      ]),
+    );
+
+    if (targetUserIds.length > 0) {
+      // Exclude platform admins from being force logged out
+      const adminUsers = await prisma.userRole.findMany({
+        where: {
+          userId: { in: targetUserIds },
+          role: { name: "Admin" },
+        },
+        select: { userId: true },
+      });
+      const adminUserIds = new Set(adminUsers.map((a) => a.userId));
+      const userIdsToLogOut = targetUserIds.filter((uid) => !adminUserIds.has(uid));
+
+      if (userIdsToLogOut.length > 0) {
+        await prisma.session
+          .deleteMany({
+            where: { userId: { in: userIdsToLogOut } },
+          })
+          .catch(() => undefined);
+      }
     }
   }
 
