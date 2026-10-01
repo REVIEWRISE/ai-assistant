@@ -64,7 +64,6 @@ export function CustomerRefundSheet({
   planName,
   billingInterval,
   paidAt,
-  planPriceCents,
   creditsBalance = 0,
   initialMode = "create",
   existingRequest,

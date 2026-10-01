@@ -129,13 +129,14 @@ export function labelForRefundType(type: string): string {
 
 export function extractRefundTypeFromReason(
   reason: string,
-  _amountCents?: number | null,
+  amountCents?: number | null,
 ): RefundType {
   if (reason.startsWith("[store_credit]")) return "store_credit";
   if (reason.startsWith("[pro_rata_cancel]") || reason.startsWith("[pro_rata]"))
     return "pro_rata_cancel";
   if (reason.startsWith("[partial]")) return "partial";
   if (reason.startsWith("[full]")) return "full";
+  if (amountCents != null && amountCents > 0) return "full";
   return "full";
 }
 
