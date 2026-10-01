@@ -1,7 +1,48 @@
-import "server-only";
-
-import { listBillingSubscriptions } from "@/lib/billing-client";
+import {
+  getOrganizationBillingCustomerId,
+  listBillingSubscriptions,
+} from "@/lib/billing-client";
+import { markOrgUnpaid } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
+
+/**
+ * Reconciles local workspace subscription status with remote Billing service state.
+ * If the subscription was canceled directly by an admin in the Billing Service,
+ * marks the local workspace unpaid/expired so the user is prompted to pick a plan.
+ */
+export async function reconcileOrganizationSubscriptionWithBilling(
+  organizationId: string,
+): Promise<boolean> {
+  try {
+    const customerId = await getOrganizationBillingCustomerId(organizationId);
+    if (!customerId) return false;
+
+    const subs = await listBillingSubscriptions({
+      customerId,
+      limit: 20,
+    }).catch(() => []);
+
+    const activeSubs = subs.filter((s) => s.status === "active" || s.status === "trialing");
+    const hasCanceledSub = subs.some((s) => s.status === "canceled");
+
+    // If all subscriptions are canceled in the Billing service and local org is still marked paid/active
+    if (activeSubs.length === 0 && (hasCanceledSub || subs.length === 0)) {
+      const org = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { paidAt: true, billingStatus: true, billingAdminOverride: true },
+      });
+
+      if (org && (org.paidAt || org.billingStatus === "active") && !org.billingAdminOverride) {
+        await markOrgUnpaid(organizationId);
+        return true;
+      }
+    }
+    return false;
+  } catch (err) {
+    console.error("[billing-sync] Failed to reconcile org subscription with billing:", err);
+    return false;
+  }
+}
 
 /**
  * Reconciles local pending refund requests with remote Billing service state.
