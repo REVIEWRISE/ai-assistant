@@ -2,11 +2,15 @@ import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { BillingRefundsManager } from "@/components/billing-refunds-manager";
 import { requireAdminSession } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
+import { syncPendingRefundRequests } from "@/lib/refund-sync";
 
 export const dynamic = "force-dynamic";
 
 export default async function BillingAdminRefundsPage() {
   await requireAdminSession();
+
+  // Reconcile pending requests with live Billing service status
+  await syncPendingRefundRequests();
 
   const [rows, totalCount] = await Promise.all([
     prisma.refundRequest.findMany({
