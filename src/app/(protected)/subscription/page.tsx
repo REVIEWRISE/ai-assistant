@@ -10,6 +10,7 @@ import {
 import { getOrgBilling, isBillingAccessAllowed } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { canUpgradePlan, getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
+import { syncPendingRefundRequests } from "@/lib/refund-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,8 @@ export default async function SubscriptionPage() {
   if (!organizationId) {
     redirect("/appointments/organization");
   }
+
+  await syncPendingRefundRequests(organizationId);
 
   const [billing, membership, organization, refundRequests, customerId] = await Promise.all([
     getOrgBilling(organizationId),
