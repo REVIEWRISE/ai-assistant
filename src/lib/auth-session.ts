@@ -110,8 +110,11 @@ export const requireSession = cache(async (): Promise<AppSession> => {
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { email: true, emailVerified: true },
+    select: { email: true, emailVerified: true, accountStatus: true },
   });
+  if (user && user.accountStatus === "suspended") {
+    redirect("/login?error=suspended");
+  }
   if (user && !user.emailVerified) {
     redirect(`/verify-email/pending?email=${encodeURIComponent(user.email)}`);
   }

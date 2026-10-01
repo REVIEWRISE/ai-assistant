@@ -49,6 +49,7 @@ function LoginPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean })
     const messages: Record<string, string> = {
       missing: "Please provide both email and password.",
       invalid: "Invalid email or password.",
+      suspended: "This account has been suspended. Please contact support.",
       oauth_denied: "Google sign-in was cancelled.",
       oauth_failed: "Google sign-in failed. Please try again.",
       oauth_email: "Your Google account email must be verified to continue.",

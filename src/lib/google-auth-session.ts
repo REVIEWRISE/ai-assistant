@@ -214,7 +214,15 @@ export async function completeGoogleAuthLogin(
     select: { id: true, emailVerified: true, accountStatus: true },
   });
 
-  if (!user || user.accountStatus !== "active") {
+  if (!user) {
+    return { redirectTo: "/login?error=oauth_failed" };
+  }
+
+  if (user.accountStatus === "suspended") {
+    return { redirectTo: "/login?error=suspended" };
+  }
+
+  if (user.accountStatus !== "active") {
     return { redirectTo: "/login?error=oauth_failed" };
   }
 
