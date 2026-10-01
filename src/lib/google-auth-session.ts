@@ -214,7 +214,7 @@ export async function completeGoogleAuthLogin(
     select: { id: true, emailVerified: true, accountStatus: true },
   });
 
-  if (!user || user.accountStatus !== "active") {
+  if (!user) {
     return { redirectTo: "/login?error=oauth_failed" };
   }
 
