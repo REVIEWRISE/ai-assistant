@@ -85,8 +85,8 @@ export async function reconcileOrganizationSubscriptionWithBilling(
               where: { id: organizationId },
               data: {
                 billingStatus: "trialing",
-                planSlug: (planSlug as any) || "pro_voice",
-                billingInterval: (billingInterval as any) || "monthly",
+                planSlug: planSlug ?? "pro_voice",
+                billingInterval: billingInterval ?? "monthly",
                 paidAt: null,
                 trialStartsAt,
                 trialEndsAt,
@@ -110,8 +110,8 @@ export async function reconcileOrganizationSubscriptionWithBilling(
               where: { id: organizationId },
               data: {
                 billingStatus: "active",
-                planSlug: (planSlug as any) || "pro_voice",
-                billingInterval: (billingInterval as any) || "monthly",
+                planSlug: planSlug ?? "pro_voice",
+                billingInterval: billingInterval ?? "monthly",
                 paidAt,
                 currentPeriodEndsAt: periodEndsAt,
                 cancelAtPeriodEnd: Boolean(sub.cancelAtPeriodEnd),
