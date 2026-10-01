@@ -40,7 +40,7 @@ export default async function BillingAdminRefundsPage() {
         variant="command"
         eyebrow="Billing"
         title="Refund requests"
-        description="Review customer refund requests and approve via store credit or original payment method."
+        description="View customer refund requests and submission history. Financial refunds and subscription adjustments are processed directly in the Billing service."
         status={`${pendingCount} pending`}
         statusTone={pendingCount > 0 ? "warning" : "success"}
         actions={[{ href: "/billing-admin", label: "Billing overview" }]}
