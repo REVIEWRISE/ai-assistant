@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { VoiceAgentPageAlerts } from "@/components/voice-agent-page-alerts";
 import { VoiceAgentTabs } from "@/components/voice-agent-tabs";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth-session";
 import { isRetellApiConfigured } from "@/lib/retell-api";
 import {
   fetchRetellVoiceAgentConfig,
@@ -36,25 +36,23 @@ import { getOrgVoiceMinutesUsage } from "@/lib/voice-minutes";
 export const dynamic = "force-dynamic";
 
 export default async function VoiceAgentPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
+  const authSession = await requireSession();
 
-  const session = await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
+  const user = await prisma.user.findUnique({
+    where: { id: authSession.userId },
     select: {
-      user: {
-        select: {
-          id: true,
-          email: true,
-          fullName: true,
-        },
-      },
-      activeOrganizationId: true,
+      id: true,
+      email: true,
+      fullName: true,
     },
   });
 
-  if (!session) redirect("/login");
+  if (!user) redirect("/login");
+
+  const session = {
+    user,
+    activeOrganizationId: authSession.activeOrganizationId,
+  };
 
   let org = null;
   if (session.activeOrganizationId) {

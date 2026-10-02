@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { ensureSessionHasActiveOrganization } from "@/lib/auth-session";
+import { ensureSessionHasActiveOrganization, getValidSession } from "@/lib/auth-session";
 import {
   getAllowedMenuPathsForUser,
   displayRoleFromUserRoles,
@@ -10,15 +9,13 @@ import {
 import { getOrgBilling } from "@/lib/entitlements";
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-
-  if (!token) {
+  const validSession = await getValidSession();
+  if (!validSession) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const rawSession = await prisma.session.findUnique({
-    where: { token },
+    where: { id: validSession.id },
     include: {
       user: {
         include: {

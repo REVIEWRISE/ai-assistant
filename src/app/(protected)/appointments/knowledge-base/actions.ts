@@ -1,8 +1,8 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { requireSession } from "@/lib/auth-session";
 import {
   KNOWLEDGE_APPEND_SECTION_MARKER,
   sanitizeKnowledgeValueForPostgres,
@@ -253,16 +253,7 @@ ${truncateKnowledgeRawTextForPrompt(rawText, KNOWLEDGE_LLM_PROMPT_SOURCE_MAX_CHA
 }
 
 async function requireActiveOrganization() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
-
-  const session = (await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
-    select: { activeOrganizationId: true },
-  })) as { activeOrganizationId: string | null } | null;
-
-  if (!session) redirect("/login");
+  const session = await requireSession();
   if (!session.activeOrganizationId) redirect(`${KB_ROUTE}?error=organization_required`);
 
   await requireOrgFeature(session.activeOrganizationId, "knowledge_base");

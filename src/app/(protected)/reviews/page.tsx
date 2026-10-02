@@ -11,8 +11,8 @@ import {
   type ReviewIntegrationKind,
 } from "@/lib/review-provider-integration";
 import { yelpPartnerRepliesEnabled } from "@/lib/yelp-fusion";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { requireSession } from "@/lib/auth-session";
 import { connectReviewProvider, publishReviewReply, saveReviewDraft, saveReviewRoutingRules, saveReviewSyncCron, syncReviewProvider } from "./actions";
 import {
   inboxToneForStatus,
@@ -142,32 +142,17 @@ function readString(v: unknown): string {
 }
 
 export default async function ReviewsPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
-
-  const session = await prisma.session.findFirst({
-    where: {
-      token,
-      expiresAt: { gt: new Date() },
-    },
-    select: {
-      userId: true,
-      activeOrganizationId: true,
-      user: {
-        select: {
-          organizationMembers: {
-            select: { organizationId: true },
-            orderBy: { createdAt: "asc" },
-            take: 1,
-          },
-        },
-      },
-    },
-  });
-  if (!session) redirect("/login");
+  const session = await requireSession();
   const organizationId =
-    session.activeOrganizationId ?? session.user.organizationMembers[0]?.organizationId ?? null;
+    session.activeOrganizationId ??
+    (
+      await prisma.organizationMember.findFirst({
+        where: { userId: session.userId },
+        select: { organizationId: true },
+        orderBy: { createdAt: "asc" },
+      })
+    )?.organizationId ??
+    null;
   if (!organizationId) redirect("/appointments/organization");
 
   const [reviewSettingsRow, organization] = await Promise.all([

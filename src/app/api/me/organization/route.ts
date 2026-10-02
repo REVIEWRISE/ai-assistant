@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { getValidSession } from "@/lib/auth-session";
 import { userHasAdminRole } from "@/lib/admin-view-only";
 
 export async function POST(req: Request) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) {
+  const session = await getValidSession();
+  if (!session) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -14,14 +13,6 @@ export async function POST(req: Request) {
   const organizationId = typeof body.organizationId === "string" ? body.organizationId.trim() : "";
   if (!organizationId) {
     return NextResponse.json({ error: "organization_required" }, { status: 400 });
-  }
-
-  const session = await prisma.session.findUnique({
-    where: { token },
-    select: { id: true, userId: true, expiresAt: true },
-  });
-  if (!session || session.expiresAt < new Date()) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const isAdmin = await userHasAdminRole(session.userId);

@@ -13,6 +13,7 @@ import { checkRegisterRateLimit } from "@/lib/rate-limit";
 import { getRequestIp } from "@/lib/request-ip";
 import { createLogger } from "@/lib/logger";
 import { validatePasswordStrength } from "@/lib/password-policy";
+import { generateSessionToken } from "@/lib/session-token";
 import { isSmtpConfigured } from "@/lib/smtp-mail";
 
 const log = createLogger("register");
@@ -188,18 +189,18 @@ export async function registerUser(formData: FormData) {
     }
   }
 
-  const sessionToken = crypto.randomUUID();
+  const { rawToken, tokenHash } = generateSessionToken();
   await prisma.session.create({
     data: {
       userId,
       activeOrganizationId: organizationId,
-      token: sessionToken,
+      token: tokenHash,
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
     },
   });
 
   const cookieStore = await cookies();
-  cookieStore.set("ai_session", sessionToken, {
+  cookieStore.set("ai_session", rawToken, {
     path: "/",
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

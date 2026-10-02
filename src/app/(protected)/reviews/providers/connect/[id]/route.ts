@@ -1,29 +1,20 @@
 import crypto from "crypto";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import {
   asOAuthProviderConfig,
   buildAuthUrl,
   parseOAuthScopes,
 } from "@/lib/google-oauth";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { getValidSession } from "@/lib/auth-session";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-
-  if (!token) {
-    redirect("/login");
-  }
-
-  const session = await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
-    select: { userId: true, activeOrganizationId: true },
-  });
+  const session = await getValidSession();
 
   if (!session) {
     redirect("/login");
@@ -32,6 +23,8 @@ export async function GET(
   if (!session.activeOrganizationId) {
     redirect("/reviews?error=organization_required");
   }
+
+  const cookieStore = await cookies();
 
   const provider = await prisma.provider.findFirst({
     where: { id, type: "review", status: "enabled" },

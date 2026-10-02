@@ -11,6 +11,7 @@ import { isLocked, lockoutRetryAfterMs, recordFailedLogin, resetFailedLogins } f
 import { writePlatformAudit } from "@/lib/platform-audit";
 import { userHasAdminRole } from "@/lib/admin-view-only";
 import { getOrgBilling, billingRedirectForStatus } from "@/lib/entitlements";
+import { generateSessionToken } from "@/lib/session-token";
 
 export async function loginUser(formData: FormData) {
   const ip = await getRequestIp();
@@ -80,12 +81,12 @@ export async function loginUser(formData: FormData) {
     activeOrganizationId = await resolveDefaultOrganizationId(user.id);
   }
 
-  const sessionToken = crypto.randomUUID();
+  const { rawToken, tokenHash } = generateSessionToken();
   await prisma.session.create({
     data: {
       userId: user.id,
       activeOrganizationId,
-      token: sessionToken,
+      token: tokenHash,
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
     },
   });
@@ -107,7 +108,7 @@ export async function loginUser(formData: FormData) {
   await resetFailedLogins(user.id);
 
   const cookieStore = await cookies();
-  cookieStore.set("ai_session", sessionToken, {
+  cookieStore.set("ai_session", rawToken, {
     path: "/",
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

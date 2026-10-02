@@ -1,8 +1,8 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth-session";
 import { listOrgCalendarRoutes } from "@/lib/booking-org-gate";
 import { retryAppointmentCrmWebhookDelivery } from "@/lib/booking-crm-webhook";
 import { crmIntegrationIsDispatchReady, resolveCrmIntegrationConfig } from "@/lib/crm-integration";
@@ -16,16 +16,7 @@ const OVERVIEW_ROUTE = "/appointments/overview";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function requireActiveOrganizationId(): Promise<string> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
-
-  const session = await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
-    select: { activeOrganizationId: true },
-  });
-
-  if (!session) redirect("/login");
+  const session = await requireSession();
   if (!session.activeOrganizationId) {
     redirect("/appointments/organization");
   }
