@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { consumeEmailVerificationToken } from "@/lib/email-verification";
-import { resolveDefaultOrganizationId } from "@/lib/auth-session";
+import { getValidSession, resolveDefaultOrganizationId } from "@/lib/auth-session";
+import { generateSessionToken } from "@/lib/session-token";
 import { prisma } from "@/lib/prisma";
 import { writePlatformAudit } from "@/lib/platform-audit";
 
@@ -37,33 +38,21 @@ export async function GET(request: NextRequest) {
   const responseNextPath = safePostVerifyPath(cookieStore.get("post_verify_next")?.value);
   const redirectResponse = NextResponse.redirect(new URL(responseNextPath, origin));
 
-  const existingSession = cookieStore.get("ai_session")?.value;
-  let hasValidSession = false;
-
-  if (existingSession) {
-    const session = await prisma.session.findFirst({
-      where: {
-        token: existingSession,
-        userId: result.userId,
-        expiresAt: { gt: new Date() },
-      },
-      select: { id: true },
-    });
-    hasValidSession = Boolean(session);
-  }
+  const existingSession = await getValidSession();
+  const hasValidSession = Boolean(existingSession && existingSession.userId === result.userId);
 
   if (!hasValidSession) {
     const activeOrganizationId = await resolveDefaultOrganizationId(result.userId);
-    const sessionToken = crypto.randomUUID();
+    const { rawToken, tokenHash } = generateSessionToken();
     await prisma.session.create({
       data: {
         userId: result.userId,
         activeOrganizationId,
-        token: sessionToken,
+        token: tokenHash,
         expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
       },
     });
-    redirectResponse.cookies.set("ai_session", sessionToken, {
+    redirectResponse.cookies.set("ai_session", rawToken, {
       path: "/",
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

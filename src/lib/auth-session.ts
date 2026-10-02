@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { userHasAdminRole } from "@/lib/admin-view-only";
 import { prisma } from "@/lib/prisma";
+import { hashSessionToken } from "@/lib/session-token";
 
 const sessionSelect = {
   id: true,
@@ -98,8 +99,13 @@ export const getValidSession = cache(async () => {
   const token = cookieStore.get("ai_session")?.value;
   if (!token) return null;
 
+  const tokenHash = hashSessionToken(token);
+
   return prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
+    where: {
+      OR: [{ token: tokenHash }, { token }],
+      expiresAt: { gt: new Date() },
+    },
     select: sessionSelect,
   });
 });

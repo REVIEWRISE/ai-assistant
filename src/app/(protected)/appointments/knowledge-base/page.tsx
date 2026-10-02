@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
+import { requireSession } from "@/lib/auth-session";
 import { redirect } from "next/navigation";
 import { KnowledgeBaseToasts } from "@/components/knowledge-base-toasts";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
@@ -17,17 +17,11 @@ import { KNOWLEDGE_UI_PREVIEW_MAX_CHARS } from "@/lib/knowledge-base-limits";
 export const maxDuration = 60;
 
 export default async function AppointmentKnowledgeBasePage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
+  const authSession = await requireSession();
 
-  if (!token) {
-    redirect("/login");
-  }
-
-  const session = await prisma.session.findFirst({
+  const session = await prisma.session.findUnique({
     where: {
-      token,
-      expiresAt: { gt: new Date() },
+      id: authSession.id,
     },
     select: {
       activeOrganization: {

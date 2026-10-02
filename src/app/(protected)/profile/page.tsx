@@ -7,7 +7,7 @@ import { getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
 import { getOrgBilling } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { isHrefAllowedForNav, redirectPathWhenMenuForbidden } from "@/lib/nav-access";
-import { cookies } from "next/headers";
+import { requireSession } from "@/lib/auth-session";
 import { redirect } from "next/navigation";
 import {
   updatePassword,
@@ -17,48 +17,40 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function ProfileSettingsPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
+  const authSession = await requireSession();
 
-  if (!token) {
-    redirect("/login");
-  }
-
-  const session = await prisma.session.findFirst({
-    where: {
-      token,
-      expiresAt: { gt: new Date() },
-    },
+  const user = await prisma.user.findUnique({
+    where: { id: authSession.userId },
     select: {
-      userId: true,
-      activeOrganizationId: true,
-      user: {
+      fullName: true,
+      email: true,
+      accountStatus: true,
+      emailVerified: true,
+      passwordHash: true,
+      userRoles: {
         select: {
-          fullName: true,
-          email: true,
-          accountStatus: true,
-          emailVerified: true,
-          passwordHash: true,
-          userRoles: {
-            select: {
-              role: { select: { name: true } },
-            },
-            take: 1,
-          },
-          organizationMembers: {
-            select: {
-              organization: { select: { id: true, name: true } },
-            },
-            orderBy: { createdAt: "asc" },
-          },
+          role: { select: { name: true } },
         },
+        take: 1,
+      },
+      organizationMembers: {
+        select: {
+          organization: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: "asc" },
       },
     },
   });
 
-  if (!session) {
+  if (!user) {
     redirect("/login");
   }
+
+  const session = {
+    userId: authSession.userId,
+    activeOrganizationId: authSession.activeOrganizationId,
+    user,
+  };
 
   const allowedPaths = await getAllowedMenuPathsForUser(
     session.userId,
@@ -68,7 +60,6 @@ export default async function ProfileSettingsPage() {
     redirect(redirectPathWhenMenuForbidden(allowedPaths));
   }
 
-  const user = session.user;
   const roleName = user.userRoles[0]?.role?.name ?? "Member";
   const orgOptions = user.organizationMembers.map((member) => member.organization);
   const activeOrg =

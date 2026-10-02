@@ -1,8 +1,8 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { requireSession } from "@/lib/auth-session";
 import type { Prisma } from "@prisma/client";
 import {
   buildDefaultBookingFlow,
@@ -75,20 +75,7 @@ type ChatbotConfig = {
 };
 
 async function requireSessionForChatbot() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
-
-  const session = await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
-    select: {
-      id: true,
-      userId: true,
-    },
-  });
-
-  if (!session) redirect("/login");
-  return session;
+  return requireSession();
 }
 
 async function requireChatbotOrganization(organizationId: string) {

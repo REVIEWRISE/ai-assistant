@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
+import { requireSession } from "@/lib/auth-session";
 import { redirect } from "next/navigation";
 import { ProfileToasts } from "@/components/profile-toasts";
 import { OrganizationsManager } from "@/components/organizations-manager";
@@ -13,17 +13,11 @@ import {
 } from "@/app/(protected)/profile/actions";
 
 export default async function AppointmentOrganizationPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
+  const authSession = await requireSession();
 
-  if (!token) {
-    redirect("/login");
-  }
-
-  const session = await prisma.session.findFirst({
+  const session = await prisma.session.findUnique({
     where: {
-      token,
-      expiresAt: { gt: new Date() },
+      id: authSession.id,
     },
     select: {
       userId: true,

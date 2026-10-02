@@ -1,9 +1,9 @@
 "use server";
 
 import type { Prisma } from "@prisma/client";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth-session";
 import { parseRequiredFieldRules, syncSingleConnectedReviewProvider } from "@/lib/review-sync";
 import { parseReviewRoutingForm } from "@/lib/review-routing";
 import { parseReviewSyncCronForm } from "@/lib/review-sync-cron";
@@ -25,15 +25,7 @@ function readTokenRecord(raw: unknown): Record<string, unknown> {
 }
 
 async function requireReviewOrgSession(organizationId: string) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
-
-  const session = await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
-    select: { userId: true, activeOrganizationId: true },
-  });
-  if (!session) redirect("/login");
+  const session = await requireSession();
   if (!session.activeOrganizationId || session.activeOrganizationId !== organizationId) {
     return null;
   }
@@ -62,15 +54,7 @@ export async function completeReviewProviderLocation(formData: FormData) {
     redirect(`${REVIEWS_ROUTE}?error=missing_required_connection_fields`);
   }
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
-
-  const session = await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
-    select: { userId: true, activeOrganizationId: true },
-  });
-  if (!session) redirect("/login");
+  const session = await requireSession();
   if (!session.activeOrganizationId) redirect(`${REVIEWS_ROUTE}?error=organization_required`);
 
   await requireOrgFeature(session.activeOrganizationId, "review_channels");
@@ -143,15 +127,7 @@ export async function connectReviewProvider(formData: FormData) {
     redirect(`${REVIEWS_ROUTE}?error=provider_missing`);
   }
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
-
-  const session = await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
-    select: { userId: true },
-  });
-  if (!session) redirect("/login");
+  const session = await requireSession();
 
   const provider = await prisma.provider.findFirst({
     where: { id: providerId, type: "review", status: "enabled" },
@@ -245,29 +221,17 @@ export async function syncReviewProvider(formData: FormData) {
     redirect(`${REVIEWS_ROUTE}?error=provider_missing`);
   }
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
-
-  const session = await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
-    select: {
-      userId: true,
-      activeOrganizationId: true,
-      user: {
-        select: {
-          organizationMembers: {
-            select: { organizationId: true },
-            orderBy: { createdAt: "asc" },
-            take: 1,
-          },
-        },
-      },
-    },
-  });
-  if (!session) redirect("/login");
+  const session = await requireSession();
   const organizationId =
-    session.activeOrganizationId ?? session.user.organizationMembers[0]?.organizationId ?? null;
+    session.activeOrganizationId ??
+    (
+      await prisma.organizationMember.findFirst({
+        where: { userId: session.userId },
+        select: { organizationId: true },
+        orderBy: { createdAt: "asc" },
+      })
+    )?.organizationId ??
+    null;
   if (!organizationId) {
     redirect("/appointments/organization");
   }
@@ -307,15 +271,7 @@ export async function saveReviewRoutingRules(formData: FormData) {
     redirect(`${REVIEWS_ROUTE}?error=organization_required`);
   }
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
-
-  const session = await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
-    select: { userId: true, activeOrganizationId: true },
-  });
-  if (!session) redirect("/login");
+  const session = await requireSession();
   if (!session.activeOrganizationId || session.activeOrganizationId !== organizationId) {
     redirect(`${REVIEWS_ROUTE}?error=organization_required`);
   }
@@ -355,15 +311,7 @@ export async function saveReviewSyncCron(formData: FormData) {
     redirect(`${REVIEWS_ROUTE}?error=organization_required`);
   }
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
-
-  const session = await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
-    select: { userId: true, activeOrganizationId: true },
-  });
-  if (!session) redirect("/login");
+  const session = await requireSession();
   if (!session.activeOrganizationId || session.activeOrganizationId !== organizationId) {
     redirect(`${REVIEWS_ROUTE}?error=organization_required`);
   }
