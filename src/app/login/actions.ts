@@ -28,7 +28,14 @@ export async function loginUser(formData: FormData) {
     redirect("/login?error=missing");
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({
+    where: { email },
+    include: {
+      authIdentities: {
+        select: { provider: true },
+      },
+    },
+  });
 
   if (!user) {
     // Audit failed login attempt (no user found — use null actor/org)
@@ -39,8 +46,9 @@ export async function loginUser(formData: FormData) {
     redirect("/login?error=invalid");
   }
 
-  if (!user.passwordHash) {
-    redirect("/login?error=oauth_password");
+  const hasGoogleAuth = user.authIdentities.some((i) => i.provider === "google");
+  if (!user.passwordHash || hasGoogleAuth) {
+    redirect(`/login?error=oauth_password&email=${encodeURIComponent(email)}`);
   }
 
   if (isLocked(user)) {
@@ -113,6 +121,13 @@ export async function loginUser(formData: FormData) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 24 * 7,
+    sameSite: "lax",
+  });
+  cookieStore.set("last_auth_provider", "credentials", {
+    path: "/",
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 30, // 30 days
     sameSite: "lax",
   });
 

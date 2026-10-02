@@ -28,11 +28,15 @@ export function GoogleAuthButton({
   label = "Continue with Google",
   plan,
   interval,
+  badge,
+  highlight,
 }: {
   enabled: boolean;
   label?: string;
   plan?: string;
   interval?: string;
+  badge?: string;
+  highlight?: boolean;
 }) {
   if (!enabled) return null;
 
@@ -43,13 +47,25 @@ export function GoogleAuthButton({
 
   return (
     <div className="space-y-5">
-      <Link
-        href={href}
-        className="inline-flex min-h-12 w-full items-center justify-center gap-2.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-6 text-sm font-semibold text-[var(--color-text)] shadow-sm transition hover:border-[var(--color-border-hover)] hover:bg-[var(--color-raised)]"
-      >
-        <GoogleIcon />
-        {label}
-      </Link>
+      <div className="relative">
+        <Link
+          href={href}
+          className={`relative inline-flex min-h-12 w-full items-center justify-center gap-2.5 rounded-full border px-6 text-sm font-semibold transition shadow-sm ${
+            highlight
+              ? "border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_8%,var(--color-surface))] text-[var(--color-text)] ring-2 ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--color-surface))]"
+              : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-raised)]"
+          }`}
+        >
+          <GoogleIcon />
+          <span>{label}</span>
+          {badge && (
+            <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--color-primary)_15%,var(--color-surface))] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-primary-h)]">
+              <span className="size-1.5 rounded-full bg-[var(--color-primary)] animate-pulse" />
+              {badge}
+            </span>
+          )}
+        </Link>
+      </div>
       <div className="flex items-center gap-3" aria-hidden>
         <span className="h-px flex-1 bg-[var(--color-border)]" />
         <span className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">or</span>

@@ -134,6 +134,13 @@ export async function registerUser(formData: FormData) {
     if (typeof error === "object" && error && "code" in error) {
       const code = (error as { code?: string }).code;
       if (code === "P2002") {
+        const existing = await prisma.user.findUnique({
+          where: { email },
+          include: { authIdentities: { select: { provider: true } } },
+        });
+        if (existing?.authIdentities.some((i) => i.provider === "google") || !existing?.passwordHash) {
+          redirectRegisterError("oauth_exists", preserved);
+        }
         redirectRegisterError("exists", preserved);
       }
     }

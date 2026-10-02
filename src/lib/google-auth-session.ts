@@ -59,6 +59,13 @@ async function createSessionForUser(userId: string, activeOrganizationId: string
     maxAge: 60 * 60 * 24 * 7,
     sameSite: "lax",
   });
+  cookieStore.set("last_auth_provider", "google", {
+    path: "/",
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+    sameSite: "lax",
+  });
 }
 
 async function ensureGoogleIdentity(userId: string, profile: GoogleAuthProfile) {
