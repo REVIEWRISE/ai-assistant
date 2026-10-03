@@ -47,7 +47,7 @@ export async function loginUser(formData: FormData) {
   }
 
   const hasGoogleAuth = user.authIdentities.some((i) => i.provider === "google");
-  if (!user.passwordHash || hasGoogleAuth) {
+  if (!user.passwordHash) {
     redirect(`/login?error=oauth_password&email=${encodeURIComponent(email)}`);
   }
 
