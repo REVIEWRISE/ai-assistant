@@ -48,10 +48,10 @@ function ResetPasswordContent() {
         sideDescription="Choose a strong, secure password to protect your VyntRise workspace."
       >
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-500">Invalid Link</p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-[var(--color-text)]">Reset Link Missing</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Account recovery</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-[var(--color-text)]">Link invalid or expired</h2>
           <p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
-            This password reset link is invalid or has already been used.
+            This password reset link is invalid or has already expired. Request a new link to set your password.
           </p>
         </div>
 
@@ -60,7 +60,7 @@ function ResetPasswordContent() {
             href="/forgot-password"
             className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] shadow-sm transition hover:bg-[var(--color-primary-h)]"
           >
-            Request a new reset link
+            Request new reset link
             <span aria-hidden>→</span>
           </Link>
         </div>

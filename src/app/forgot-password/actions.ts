@@ -53,15 +53,8 @@ export async function requestPasswordReset(formData: FormData) {
   });
 
   let redirectUrl = `/forgot-password?status=sent&email=${encodeURIComponent(email)}`;
-  if (result.sent) {
-    redirectUrl += "&delivered=true";
-  } else if (result.error) {
-    redirectUrl += `&smtpError=${encodeURIComponent(result.error)}`;
-  }
-
-  // In development, also provide the reset link in query params so it can be previewed/tested immediately
-  if (process.env.NODE_ENV !== "production" && result.resetUrl) {
-    redirectUrl += `&devUrl=${encodeURIComponent(result.resetUrl)}`;
+  if (!result.sent && result.error) {
+    redirectUrl += `&error=send_failed`;
   }
 
   redirect(redirectUrl);

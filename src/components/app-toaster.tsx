@@ -55,7 +55,7 @@ const toastIcons = {
 export function AppToaster() {
   return (
     <Toaster
-      position="top-right"
+      position="bottom-right"
       closeButton
       offset={20}
       gap={10}
