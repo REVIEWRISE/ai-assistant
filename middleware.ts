@@ -2,7 +2,13 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 const AUTH_COOKIE = "ai_session";
-const AUTH_ROUTES = new Set(["/login", "/register", "/logout"]);
+const AUTH_ROUTES = new Set([
+  "/login",
+  "/register",
+  "/logout",
+  "/forgot-password",
+  "/reset-password",
+]);
 
 function isPublicAuthFlowPath(pathname: string): boolean {
   return (
@@ -10,7 +16,11 @@ function isPublicAuthFlowPath(pathname: string): boolean {
     pathname === "/verify-email" ||
     pathname.startsWith("/verify-email/") ||
     pathname === "/auth/google" ||
-    pathname.startsWith("/auth/google/")
+    pathname.startsWith("/auth/google/") ||
+    pathname === "/forgot-password" ||
+    pathname.startsWith("/forgot-password/") ||
+    pathname === "/reset-password" ||
+    pathname.startsWith("/reset-password/")
   );
 }
 

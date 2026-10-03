@@ -73,6 +73,8 @@ function LoginPageContent({
     const success = searchParams?.get("success");
     if (success === "already_verified") {
       toast.success("Your email is already verified. You can sign in.");
+    } else if (success === "password_reset") {
+      toast.success("Your password has been updated. You can now sign in.");
     }
   }, [searchParams]);
 
@@ -125,15 +127,38 @@ function LoginPageContent({
             />
           </label>
 
-          <label className="block">
-            <span className="mb-2 block text-sm font-semibold text-[var(--color-text)]">Password</span>
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <label htmlFor="password" className="text-sm font-semibold text-[var(--color-text)]">
+                Password
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-xs font-semibold text-[var(--color-primary-h)] hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <span className="relative block">
-              <input id="password" name="password" type={showPassword ? "text" : "password"} required placeholder="Enter your password" autoComplete="current-password" className={`${INPUT_CLASS} pr-11`} />
-              <button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-2 text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                required
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                className={`${INPUT_CLASS} pr-11`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-2 text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
+              >
                 <PasswordIcon hidden={showPassword} />
               </button>
             </span>
-          </label>
+          </div>
 
           <button type="submit" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] shadow-sm transition hover:bg-[var(--color-primary-h)]">
             Sign in
