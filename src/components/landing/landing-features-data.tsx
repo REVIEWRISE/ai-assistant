@@ -5,34 +5,53 @@ export type LandingFeature = {
   title: string;
   desc: string;
   icon: ReactNode;
-  className: string;
-  label: string;
+  tag: string;
+  badge: string;
+  previewType: "reviews" | "calendar" | "leads" | "guardrails";
   highlights: string[];
 };
 
 export const LANDING_FEATURES: LandingFeature[] = [
   {
-    title: "Review Response Agent",
-    desc: "Auto-drafts high-quality responses in your exact tone, with escalation rules for sensitive feedback.",
+    title: "Autonomous Review & Reputation Agent",
+    desc: "Drafts hyper-personalized replies on Google and Yelp matching your brand voice, with smart escalation rules for sensitive feedback.",
     icon: <IconReviews />,
-    className: "",
-    label: "Reputation",
-    highlights: ["Voice & tone matching", "Escalation on sensitive topics", "Multi-channel inbox"],
+    tag: "Reputation Intelligence",
+    badge: "5x Faster Responses",
+    previewType: "reviews",
+    highlights: [
+      "Custom brand voice & tone matching",
+      "Instant sentiment & star-rating classification",
+      "Automatic escalation for low reviews & critical keywords",
+      "Multi-channel inbox with 1-click publishing",
+    ],
   },
   {
-    title: "Scheduling & appointments",
-    desc: "Syncs calendar providers, prevents double-bookings, and routes edge cases to your team instantly.",
+    title: "Zero-Conflict Smart Booking & Scheduling",
+    desc: "Connects directly to your Google, Outlook, and Calendly calendars. Books qualified clients without double-booking or manual email back-and-forth.",
     icon: <IconCalendar />,
-    className: "",
-    label: "Scheduling",
-    highlights: ["Real-time calendar sync", "Double-booking guardrails", "Staff handoff when needed"],
+    tag: "Scheduling Autopilot",
+    badge: "0 Double Bookings",
+    previewType: "calendar",
+    highlights: [
+      "Bi-directional calendar synchronization",
+      "Timezone-aware conflict detection",
+      "Automated SMS/Email confirmations & reminders",
+      "Intelligent staff routing based on service type",
+    ],
   },
   {
-    title: "Lead Capture Agent",
-    desc: "Captures web and social inquiries, qualifies intent, and turns prospects into confirmed appointments.",
+    title: "24/7 High-Intent Lead Capture & Pipeline",
+    desc: "Captures visitors from website forms and social channels, qualifies buyer intent in seconds, and converts questions into scheduled appointments.",
     icon: <IconLeads />,
-    className: "md:col-span-2 lg:col-span-1",
-    label: "Pipeline",
-    highlights: ["Intent qualification", "Instant follow-up drafts", "Booking-ready handoff"],
+    tag: "Conversion Engine",
+    badge: "100% Inbound Coverage",
+    previewType: "leads",
+    highlights: [
+      "Sub-minute initial response SLA",
+      "Automated qualification & budget scoring",
+      "Seamless CRM & webhook data dispatch",
+      "Automated follow-up sequences for warm prospects",
+    ],
   },
 ];

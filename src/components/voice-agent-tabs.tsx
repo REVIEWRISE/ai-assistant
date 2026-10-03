@@ -41,10 +41,10 @@ function parseTabKey(raw: string | null): TabKey | null {
 function resolveDefaultTab(
   canManageAgent: boolean,
   canManagePhone: boolean,
-  hasPhoneNumber: boolean,
 ): TabKey {
-  if (!hasPhoneNumber && canManagePhone) return "phone";
-  if (canManagePhone && !canManageAgent) return "phone";
+  // Agent must be saved before a number can be linked, so prefer Agent setup first.
+  if (canManageAgent) return "agent";
+  if (canManagePhone) return "phone";
   return "agent";
 }
 
@@ -109,9 +109,7 @@ export function VoiceAgentTabs({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const hasPhoneNumber =
-    phones.length > 0 || Boolean(phoneConfig.twilioPhoneNumber.trim());
-  const defaultTab = resolveDefaultTab(canManageAgent, canManagePhone, hasPhoneNumber);
+  const defaultTab = resolveDefaultTab(canManageAgent, canManagePhone);
   const tabs = allTabs.filter((tab) => tabAllowed(tab.key, canManageAgent, canManagePhone));
   const requestedTab = parseTabKey(searchParams.get("tab"));
   const activeTab =
@@ -158,9 +156,6 @@ export function VoiceAgentTabs({
                 }`}
               >
                 {tab.label}
-                {tab.key === "agent" && !hasPhoneNumber ? (
-                  <span className="ml-1.5 text-[11px] font-medium opacity-80">· phone first</span>
-                ) : null}
               </button>
             );
           })}

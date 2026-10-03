@@ -1,10 +1,12 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { requireSession } from "@/lib/auth-session";
 import {
   KNOWLEDGE_APPEND_SECTION_MARKER,
+  sanitizeKnowledgeValueForPostgres,
+  stripNullBytes,
   truncateKnowledgeRawTextForPrompt,
 } from "@/lib/knowledge-base-raw-truncate";
 import {
@@ -70,8 +72,10 @@ async function crawlWebsite(seedUrl: URL): Promise<{
   const visited = new Set<string>();
   const textBlocks: string[] = [];
   let primaryTitle = "";
+  const deadline = Date.now() + 40_000;
 
   while (queue.length > 0 && visited.size < maxPages) {
+    if (Date.now() > deadline) break;
     const nextUrl = queue.shift()!;
     if (visited.has(nextUrl)) continue;
     visited.add(nextUrl);
@@ -81,6 +85,7 @@ async function crawlWebsite(seedUrl: URL): Promise<{
       const response = await fetch(nextUrl, {
         headers: { "User-Agent": "VyntRise-Agent-Knowledge-Importer/1.0" },
         cache: "no-store",
+        signal: AbortSignal.timeout(8_000),
       });
       if (!response.ok) continue;
       html = await response.text();
@@ -115,7 +120,9 @@ async function crawlWebsite(seedUrl: URL): Promise<{
 }
 
 function buildFormattedPreview(input: string): string {
-  const sentences = collapseWhitespace(input)
+  // Never split the full crawl — a 2MB scrape can hang or 500 the import.
+  const source = collapseWhitespace(input).slice(0, KNOWLEDGE_LLM_FORMATTED_PREVIEW_MAX_CHARS * 3);
+  const sentences = source
     .split(/(?<=[.!?])\s+/)
     .map((line) => line.trim())
     .filter(Boolean)
@@ -246,16 +253,7 @@ ${truncateKnowledgeRawTextForPrompt(rawText, KNOWLEDGE_LLM_PROMPT_SOURCE_MAX_CHA
 }
 
 async function requireActiveOrganization() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
-
-  const session = (await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
-    select: { activeOrganizationId: true },
-  })) as { activeOrganizationId: string | null } | null;
-
-  if (!session) redirect("/login");
+  const session = await requireSession();
   if (!session.activeOrganizationId) redirect(`${KB_ROUTE}?error=organization_required`);
 
   await requireOrgFeature(session.activeOrganizationId, "knowledge_base");
@@ -281,7 +279,10 @@ async function upsertKnowledgeBase(args: {
   sourceFileName?: string | null;
   metadata?: Record<string, string>;
 }) {
-  const parsedData = await buildParsedData(args.rawText, args.sourceType, args.metadata);
+  const rawText = stripNullBytes(args.rawText);
+  const parsedData = sanitizeKnowledgeValueForPostgres(
+    await buildParsedData(rawText, args.sourceType, args.metadata),
+  );
   await prisma.organizationKnowledgeBase.upsert({
     where: { organizationId: args.organizationId },
     create: {
@@ -290,7 +291,7 @@ async function upsertKnowledgeBase(args: {
       sourceUrl: args.sourceUrl ?? null,
       sourceFileName: args.sourceFileName ?? null,
       status: "draft",
-      rawText: args.rawText,
+      rawText,
       parsedData,
       lastImportedAt: new Date(),
     },
@@ -299,7 +300,7 @@ async function upsertKnowledgeBase(args: {
       sourceUrl: args.sourceUrl ?? null,
       sourceFileName: args.sourceFileName ?? null,
       status: "draft",
-      rawText: args.rawText,
+      rawText,
       parsedData,
       lastImportedAt: new Date(),
       updatedAt: new Date(),
@@ -336,17 +337,21 @@ export async function importFromWebsite(formData: FormData) {
   const rawText = (crawlResult?.combinedText ?? "").slice(0, KNOWLEDGE_STORED_RAW_TEXT_MAX_CHARS);
   if (!rawText) redirect(`${KB_ROUTE}?error=kb_website_empty`);
 
-  await upsertKnowledgeBase({
-    organizationId,
-    sourceType: "website",
-    rawText,
-    sourceUrl: url.toString(),
-    metadata: {
-      title,
-      pageCount: String(crawlResult?.pageCount ?? 1),
-      crawlOrigin: url.origin,
-    },
-  });
+  try {
+    await upsertKnowledgeBase({
+      organizationId,
+      sourceType: "website",
+      rawText,
+      sourceUrl: url.toString(),
+      metadata: {
+        title,
+        pageCount: String(crawlResult?.pageCount ?? 1),
+        crawlOrigin: url.origin,
+      },
+    });
+  } catch {
+    redirect(`${KB_ROUTE}?error=kb_import_failed`);
+  }
 
   redirect(`${KB_ROUTE}?success=kb_imported_website`);
 }
@@ -387,10 +392,12 @@ export async function appendKnowledgeBaseNotes(formData: FormData) {
   });
   if (!existing) redirect(`${KB_ROUTE}?error=kb_missing`);
 
-  const base = String(existing.rawText ?? "").trim();
-  const combined = (base ? `${base}${KNOWLEDGE_APPEND_SECTION_MARKER}${supplement}` : supplement).slice(
-    0,
-    KNOWLEDGE_STORED_RAW_TEXT_MAX_CHARS,
+  const base = stripNullBytes(String(existing.rawText ?? "").trim());
+  const combined = stripNullBytes(
+    (base ? `${base}${KNOWLEDGE_APPEND_SECTION_MARKER}${supplement}` : supplement).slice(
+      0,
+      KNOWLEDGE_STORED_RAW_TEXT_MAX_CHARS,
+    ),
   );
 
   const prevParsed = existing.parsedData as Record<string, unknown> | null;
@@ -402,20 +409,26 @@ export async function appendKnowledgeBaseNotes(formData: FormData) {
       ? { ...(prevParsed.metadata as Record<string, string>) }
       : {};
 
-  const parsedData = await buildParsedData(combined, String(existing.sourceType || "text"), {
-    ...prevMeta,
-    lastSupplementedAt: new Date().toISOString(),
-  });
+  const parsedData = sanitizeKnowledgeValueForPostgres(
+    await buildParsedData(combined, String(existing.sourceType || "text"), {
+      ...prevMeta,
+      lastSupplementedAt: new Date().toISOString(),
+    }),
+  );
 
-  await prisma.organizationKnowledgeBase.update({
-    where: { organizationId },
-    data: {
-      rawText: combined,
-      parsedData,
-      status: "draft",
-      updatedAt: new Date(),
-    },
-  });
+  try {
+    await prisma.organizationKnowledgeBase.update({
+      where: { organizationId },
+      data: {
+        rawText: combined,
+        parsedData,
+        status: "draft",
+        updatedAt: new Date(),
+      },
+    });
+  } catch {
+    redirect(`${KB_ROUTE}?error=kb_import_failed`);
+  }
 
   redirect(`${KB_ROUTE}?success=kb_appended`);
 }

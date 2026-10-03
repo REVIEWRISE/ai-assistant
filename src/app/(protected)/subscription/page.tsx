@@ -3,9 +3,17 @@ import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { SubscriptionPanel } from "@/components/subscription-panel";
 import { requireSession } from "@/lib/auth-session";
 import { userHasAdminRole } from "@/lib/admin-view-only";
+import {
+  getBillingOrganizationCredits,
+  getOrganizationBillingCustomerId,
+} from "@/lib/billing-client";
 import { getOrgBilling, isBillingAccessAllowed } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { canUpgradePlan, getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
+import {
+  reconcileOrganizationSubscriptionWithBilling,
+  syncPendingRefundRequests,
+} from "@/lib/refund-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +28,12 @@ export default async function SubscriptionPage() {
     redirect("/appointments/organization");
   }
 
-  const [billing, membership, organization, latestRefund] = await Promise.all([
+  await Promise.all([
+    syncPendingRefundRequests(organizationId),
+    reconcileOrganizationSubscriptionWithBilling(organizationId),
+  ]);
+
+  const [billing, membership, organization, refundRequests, customerId] = await Promise.all([
     getOrgBilling(organizationId),
     prisma.organizationMember.findFirst({
       where: { userId: session.userId, organizationId },
@@ -28,9 +41,9 @@ export default async function SubscriptionPage() {
     }),
     prisma.organization.findUnique({
       where: { id: organizationId },
-      select: { name: true, paidAt: true },
+      select: { name: true, paidAt: true, billingCustomerId: true },
     }),
-    prisma.refundRequest.findFirst({
+    prisma.refundRequest.findMany({
       where: { organizationId },
       orderBy: { createdAt: "desc" },
       select: {
@@ -38,11 +51,14 @@ export default async function SubscriptionPage() {
         status: true,
         reason: true,
         notes: true,
+        amountCents: true,
+        currency: true,
         adminNote: true,
         createdAt: true,
         reviewedAt: true,
       },
     }),
+    getOrganizationBillingCustomerId(organizationId).catch(() => null),
   ]);
 
   if (!billing || !organization) {
@@ -51,6 +67,12 @@ export default async function SubscriptionPage() {
 
   if (billing.billingStatus === "expired") {
     redirect("/billing/expired");
+  }
+
+  let credits = null;
+  const resolvedCustomerId = organization.billingCustomerId || customerId;
+  if (resolvedCustomerId) {
+    credits = await getBillingOrganizationCredits(resolvedCustomerId).catch(() => null);
   }
 
   const isOwner = membership?.role === "owner";
@@ -165,15 +187,40 @@ export default async function SubscriptionPage() {
           isOwner: Boolean(isOwner),
           refund: {
             canRequest: canRequestRefund,
-            latest: latestRefund
+            paidAt: organization.paidAt?.toISOString() ?? billing.paidAt?.toISOString() ?? null,
+            planPriceCents: plan
+              ? billing.billingInterval === "yearly"
+                ? plan.yearlyPriceCents
+                : plan.monthlyPriceCents
+              : null,
+            credits: credits
               ? {
-                  id: latestRefund.id,
-                  status: latestRefund.status,
-                  reason: latestRefund.reason,
-                  notes: latestRefund.notes,
-                  adminNote: latestRefund.adminNote,
-                  createdAt: latestRefund.createdAt.toISOString(),
-                  reviewedAt: latestRefund.reviewedAt?.toISOString() ?? null,
+                  totalBalanceCents: credits.totalBalanceCents,
+                  expiring: credits.expiring,
+                }
+              : null,
+            requests: refundRequests.map((r) => ({
+              id: r.id,
+              status: r.status,
+              reason: r.reason,
+              notes: r.notes,
+              amountCents: r.amountCents,
+              currency: r.currency ?? "USD",
+              adminNote: r.adminNote,
+              createdAt: r.createdAt.toISOString(),
+              reviewedAt: r.reviewedAt?.toISOString() ?? null,
+            })),
+            latest: refundRequests[0]
+              ? {
+                  id: refundRequests[0].id,
+                  status: refundRequests[0].status,
+                  reason: refundRequests[0].reason,
+                  notes: refundRequests[0].notes,
+                  amountCents: refundRequests[0].amountCents,
+                  currency: refundRequests[0].currency ?? "USD",
+                  adminNote: refundRequests[0].adminNote,
+                  createdAt: refundRequests[0].createdAt.toISOString(),
+                  reviewedAt: refundRequests[0].reviewedAt?.toISOString() ?? null,
                 }
               : null,
           },

@@ -1,6 +1,27 @@
 /** Must match the separator used when merging manual notes in knowledge-base actions. */
 export const KNOWLEDGE_APPEND_SECTION_MARKER = "\n\n--- Additional information ---\n\n";
 
+/** Postgres rejects U+0000 in text/json; scraped HTML/PDF often includes it. */
+export function stripNullBytes(text: string): string {
+  return text.replace(/\u0000/g, "");
+}
+
+/** Deep-sanitize strings so Prisma JSON/text columns stay valid UTF-8 for Postgres. */
+export function sanitizeKnowledgeValueForPostgres<T>(value: T): T {
+  if (typeof value === "string") return stripNullBytes(value) as T;
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeKnowledgeValueForPostgres(item)) as T;
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      out[stripNullBytes(key)] = sanitizeKnowledgeValueForPostgres(entry);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 /** Shown between excerpt windows so the model knows text was omitted (not real page content). */
 const PROMPT_EXCERPT_GAP = "\n\n[… omitted portion of source …]\n\n";
 

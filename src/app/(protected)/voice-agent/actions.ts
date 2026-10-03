@@ -2,9 +2,9 @@
 
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth-session";
 import { isRetellApiConfigured } from "@/lib/retell-api";
 import {
   createVoiceAgentInRetell,
@@ -35,18 +35,7 @@ import { requireOrgFeature } from "@/lib/entitlements";
 const VOICE_AGENT_ROUTE = "/voice-agent";
 
 async function requireVoiceAgentOrgSession(organizationId: string) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
-
-  const session = await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
-    select: {
-      userId: true,
-      activeOrganizationId: true,
-    },
-  });
-  if (!session) redirect("/login");
+  const session = await requireSession();
   if (!session.activeOrganizationId || session.activeOrganizationId !== organizationId) {
     redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
   }

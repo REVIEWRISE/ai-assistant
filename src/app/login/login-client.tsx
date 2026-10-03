@@ -24,11 +24,21 @@ function PasswordIcon({ hidden }: { hidden: boolean }) {
   );
 }
 
-function LoginPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean }) {
+function LoginPageContent({
+  googleAuthEnabled,
+  lastAuthProvider,
+}: {
+  googleAuthEnabled: boolean;
+  lastAuthProvider?: string | null;
+}) {
   const searchParams = useSearchParams();
   const error = searchParams?.get("error") ?? undefined;
   const retry = searchParams?.get("retry") ?? undefined;
+  const emailParam = searchParams?.get("email") ?? "";
   const [showPassword, setShowPassword] = useState(false);
+
+  const isGoogleAccountError = error === "oauth_password";
+  const isGoogleLastUsed = lastAuthProvider === "google";
 
   useEffect(() => {
     if (!error) return;
@@ -49,11 +59,12 @@ function LoginPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean })
     const messages: Record<string, string> = {
       missing: "Please provide both email and password.",
       invalid: "Invalid email or password.",
+      suspended: "This account has been suspended. Please contact support.",
       oauth_denied: "Google sign-in was cancelled.",
       oauth_failed: "Google sign-in failed. Please try again.",
       oauth_email: "Your Google account email must be verified to continue.",
       oauth_not_configured: "Google sign-in is not configured yet.",
-      oauth_password: "This account uses Google sign-in. Continue with Google instead.",
+      oauth_password: "This account is linked to Google Sign-In. Please continue with Google.",
     };
     toast.error(messages[error] ?? "Unable to sign in. Please try again.");
   }, [error, retry]);
@@ -73,16 +84,45 @@ function LoginPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean })
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Welcome back</p>
         <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-[var(--color-text)]">Sign in to VyntRise</h2>
-        <p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">Use your work email to access your operations workspace.</p>
+        <p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">Use your work email or Google account to access your workspace.</p>
       </div>
 
       <div className="mt-8 space-y-5">
-        <GoogleAuthButton enabled={googleAuthEnabled} />
+        {isGoogleAccountError && (
+          <div className="flex items-start gap-3 rounded-2xl border border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_10%,var(--color-surface))] p-4 text-sm text-[var(--color-text)]">
+            <span className="mt-0.5 text-base leading-none">ℹ️</span>
+            <div>
+              <p className="font-semibold text-[var(--color-primary-h)]">Google Sign-In Required</p>
+              <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+                {emailParam ? (
+                  <>The account for <strong className="font-semibold text-[var(--color-text)]">{emailParam}</strong> was registered with Google. Click below to sign in directly with Google.</>
+                ) : (
+                  "This account was registered with Google. Click below to sign in directly with Google."
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <GoogleAuthButton
+          enabled={googleAuthEnabled}
+          badge={isGoogleAccountError ? "Required" : isGoogleLastUsed ? "Last used" : undefined}
+          highlight={isGoogleAccountError || isGoogleLastUsed}
+        />
 
         <form className="space-y-5" action={loginUser}>
           <label className="block">
             <span className="mb-2 block text-sm font-semibold text-[var(--color-text)]">Work email</span>
-            <input id="email" name="email" type="email" required placeholder="you@company.com" autoComplete="email" className={INPUT_CLASS} />
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              defaultValue={emailParam}
+              placeholder="you@company.com"
+              autoComplete="email"
+              className={INPUT_CLASS}
+            />
           </label>
 
           <label className="block">
@@ -113,10 +153,19 @@ function LoginPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean })
   );
 }
 
-export function LoginPageClient({ googleAuthEnabled }: { googleAuthEnabled: boolean }) {
+export function LoginPageClient({
+  googleAuthEnabled,
+  lastAuthProvider,
+}: {
+  googleAuthEnabled: boolean;
+  lastAuthProvider?: string | null;
+}) {
   return (
     <Suspense fallback={null}>
-      <LoginPageContent googleAuthEnabled={googleAuthEnabled} />
+      <LoginPageContent
+        googleAuthEnabled={googleAuthEnabled}
+        lastAuthProvider={lastAuthProvider}
+      />
     </Suspense>
   );
 }

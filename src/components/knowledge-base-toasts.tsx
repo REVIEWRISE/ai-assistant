@@ -27,6 +27,7 @@ const errorMessages: Record<string, string> = {
   kb_file_read: "File could not be read.",
   kb_file_empty: "Uploaded file has no readable text.",
   kb_missing: "No knowledge base draft found.",
+  kb_import_failed: "Import failed while saving knowledge. Try a smaller site or add notes instead.",
 };
 
 export function KnowledgeBaseToasts() {

@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/auth-session";
+import { requireAdminSession, requireSession } from "@/lib/auth-session";
+import { userHasAdminRole } from "@/lib/admin-view-only";
 import { writePlatformAudit } from "@/lib/platform-audit";
 
 const PERMISSIONS_PATH = "/settings/access/permissions";
@@ -12,6 +13,19 @@ function refreshPermissions() {
   revalidatePath(PERMISSIONS_PATH);
   revalidatePath("/settings/access");
   revalidatePath("/dashboard");
+}
+
+async function assertCanManageOrgPermissions(organizationId: string, actorId: string) {
+  const isAdmin = await userHasAdminRole(actorId);
+  if (isAdmin) return;
+
+  const membership = await prisma.organizationMember.findFirst({
+    where: { organizationId, userId: actorId },
+    select: { role: true },
+  });
+  if (!membership || membership.role !== "owner") {
+    redirect("/settings/access/permissions?error=unauthorized");
+  }
 }
 
 async function assertOrganizationMember(organizationId: string, userId: string) {
@@ -34,6 +48,7 @@ export async function createMemberMenuAccess(formData: FormData) {
     redirect("/settings/access/permissions?error=missing");
   }
 
+  await assertCanManageOrgPermissions(organizationId, session.userId);
   await assertOrganizationMember(organizationId, userId);
 
   try {
@@ -71,19 +86,25 @@ export async function deleteMemberMenuAccess(formData: FormData) {
     redirect("/settings/access/permissions?error=missing");
   }
 
+  const row = await prisma.organizationMemberMenuAccess.findUnique({
+    where: { id },
+    select: { organizationId: true, userId: true, menuItemId: true },
+  });
+  if (!row) {
+    redirect("/settings/access/permissions?error=not_found");
+  }
+
+  await assertCanManageOrgPermissions(row.organizationId, session.userId);
+
   try {
-    const row = await prisma.organizationMemberMenuAccess.findUnique({
-      where: { id },
-      select: { organizationId: true, userId: true, menuItemId: true },
-    });
     await prisma.organizationMemberMenuAccess.delete({ where: { id } });
     await writePlatformAudit({
       actorId: session.userId,
-      organizationId: row?.organizationId ?? session.activeOrganizationId,
+      organizationId: row.organizationId,
       action: "access.member_menu_revoked",
       metadata: {
-        targetUserId: row?.userId ?? null,
-        menuItemId: row?.menuItemId ?? null,
+        targetUserId: row.userId,
+        menuItemId: row.menuItemId,
       },
     });
   } catch {
@@ -95,7 +116,7 @@ export async function deleteMemberMenuAccess(formData: FormData) {
 }
 
 export async function createRoleMenuAccess(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireAdminSession();
   const roleId = String(formData.get("role_id") || "");
   const menuItemId = String(formData.get("menu_item_id") || "");
 
@@ -128,7 +149,7 @@ export async function createRoleMenuAccess(formData: FormData) {
 }
 
 export async function deleteRoleMenuAccess(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireAdminSession();
   const id = String(formData.get("id") || "");
   if (!id) {
     redirect("/settings/access/permissions?error=missing");

@@ -1,4 +1,5 @@
 import "server-only";
+import { createHmac } from "crypto";
 
 import { prisma } from "@/lib/prisma";
 
@@ -71,9 +72,13 @@ export function isBillingConfigured(): boolean {
   return Boolean(getBillingApiKey());
 }
 
+export type BillingFetchOptions = RequestInit & {
+  silent404?: boolean;
+};
+
 export async function billingFetch(
   path: string,
-  options: RequestInit = {},
+  options: BillingFetchOptions = {},
 ): Promise<Response> {
   const apiKey = getBillingApiKey();
   if (!apiKey) {
@@ -85,18 +90,23 @@ export async function billingFetch(
   const url = `${getBillingApiUrl()}${normalizedPath}`;
   let lastError: Error | null = null;
 
-  for (let attempt = 1; attempt <= 4; attempt += 1) {
+  const maxAttempts = method === "GET" ? 2 : 1;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const startedAt = Date.now();
     try {
       billingLog(
-        `[billing] → ${method} ${normalizedPath}${attempt > 1 ? ` (retry ${attempt}/4)` : ""}`,
+        `[billing] → ${method} ${normalizedPath}${attempt > 1 ? ` (retry ${attempt}/${maxAttempts})` : ""}`,
       );
 
+      const customAuth = options.headers && ("Authorization" in options.headers || "authorization" in options.headers);
       const res = await fetch(url, {
         ...options,
+        signal: options.signal ?? AbortSignal.timeout(5000),
         headers: {
           "Content-Type": "application/json",
-          "X-Api-Key": apiKey,
+          ...(customAuth ? {} : { "X-Api-Key": apiKey }),
+          ...(customAuth ? {} : { Authorization: `Bearer ${apiKey}` }),
           ...options.headers,
         },
         cache: "no-store",
@@ -132,23 +142,27 @@ export async function billingFetch(
         "Unknown";
       const message = `Billing API error ${res.status} on ${method} ${normalizedPath}: ${detail}`;
 
-      billingLogError(`[billing] ← ${res.status} ${method} ${normalizedPath} (${elapsedMs}ms) error response`, {
-        status: res.status,
-        statusText: res.statusText,
-        path: normalizedPath,
-        method,
-        attempt,
-        elapsedMs,
-        body: errorBody,
-        raw: rawText || null,
-      });
+      if (res.status === 404 && options.silent404) {
+        billingLog(`[billing] ← 404 ${method} ${normalizedPath} (${elapsedMs}ms) (not found)`);
+      } else {
+        billingLogError(`[billing] ← ${res.status} ${method} ${normalizedPath} (${elapsedMs}ms) error response`, {
+          status: res.status,
+          statusText: res.statusText,
+          path: normalizedPath,
+          method,
+          attempt,
+          elapsedMs,
+          body: errorBody,
+          raw: rawText || null,
+        });
+      }
 
       const retryable =
-        attempt < 4 &&
+        attempt < maxAttempts &&
         (res.status === 429 || (res.status >= 500 && method === "GET"));
       if (retryable) {
         lastError = new Error(message);
-        await new Promise((resolve) => setTimeout(resolve, attempt * 650));
+        await new Promise((resolve) => setTimeout(resolve, 300));
         continue;
       }
       throw new Error(message);
@@ -161,16 +175,20 @@ export async function billingFetch(
           elapsedMs: Date.now() - startedAt,
         });
       }
-      if (attempt >= 4 || /Billing API error (4\d\d)/.test(lastError.message)) {
+      if (attempt >= maxAttempts || /Billing API error (4\d\d)/.test(lastError.message)) {
         break;
       }
-      await new Promise((resolve) => setTimeout(resolve, attempt * 650));
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
   }
 
-  billingLogError(`[billing] giving up on ${method} ${normalizedPath}`, {
-    error: lastError?.message ?? "Billing API request failed.",
-  });
+  if (options.silent404 && lastError?.message.includes("Billing API error 404 ")) {
+    billingLog(`[billing] (not found) ${method} ${normalizedPath}`);
+  } else {
+    billingLogError(`[billing] giving up on ${method} ${normalizedPath}`, {
+      error: lastError?.message ?? "Billing API request failed.",
+    });
+  }
   throw lastError ?? new Error("Billing API request failed.");
 }
 
@@ -230,34 +248,53 @@ function normalizePlan(raw: unknown): BillingRemotePlan | null {
   };
 }
 
-export async function listBillingProducts(): Promise<BillingProduct[]> {
-  const res = await billingFetch("/billing/admin/products");
-  const body = (await res.json()) as { data?: unknown };
-  const rows = Array.isArray(body.data) ? body.data : [];
-  const products: BillingProduct[] = [];
+let cachedProducts: { items: BillingProduct[]; expiresAt: number } | null = null;
+const productDetailCache = new Map<string, { detail: BillingProductDetail; expiresAt: number }>();
 
-  for (const item of rows) {
-    const row = asRecord(item);
-    if (!row) continue;
-    const id = asString(row.id);
-    const name = asString(row.name);
-    if (!id || !name) continue;
-    products.push({
-      id,
-      name,
-      displayName: asString(row.displayName) ?? name,
-      description: asString(row.description),
-      isActive: asBoolean(row.isActive, true),
-    });
+export async function listBillingProducts(): Promise<BillingProduct[]> {
+  const now = Date.now();
+  if (cachedProducts && cachedProducts.expiresAt > now) {
+    return cachedProducts.items;
   }
 
-  return products;
+  try {
+    const res = await billingFetch("/billing/admin/products");
+    const body = (await res.json()) as { data?: unknown };
+    const rows = Array.isArray(body.data) ? body.data : [];
+    const products: BillingProduct[] = [];
+
+    for (const item of rows) {
+      const row = asRecord(item);
+      if (!row) continue;
+      const id = asString(row.id);
+      const name = asString(row.name);
+      if (!id || !name) continue;
+      products.push({
+        id,
+        name,
+        displayName: asString(row.displayName) ?? name,
+        description: asString(row.description),
+        isActive: asBoolean(row.isActive, true),
+      });
+    }
+
+    if (products.length > 0) {
+      cachedProducts = { items: products, expiresAt: now + 30_000 };
+    }
+    return products;
+  } catch (err) {
+    if (cachedProducts?.items?.length) {
+      billingLog("[billing] Serving cached products following fetch failure");
+      return cachedProducts.items;
+    }
+    throw err;
+  }
 }
 
 export async function resolveBillingProduct(
   productName = getBillingProductName(),
 ): Promise<BillingProduct | null> {
-  const products = await listBillingProducts();
+  const products = await listBillingProducts().catch(() => []);
   const needle = productName.trim().toLowerCase();
   return (
     products.find((product) => product.name.toLowerCase() === needle) ??
@@ -269,29 +306,50 @@ export async function resolveBillingProduct(
 export async function getBillingProductDetail(
   productId: string,
 ): Promise<BillingProductDetail> {
-  const res = await billingFetch(`/billing/admin/products/${productId}/detail`);
-  const body = (await res.json()) as {
-    product?: unknown;
-    plans?: unknown;
-    stats?: Record<string, unknown>;
-  };
+  const now = Date.now();
+  const cached = productDetailCache.get(productId);
+  if (cached && cached.expiresAt > now) {
+    return cached.detail;
+  }
 
-  const productRow = asRecord(body.product);
-  const productIdResolved = asString(productRow?.id) ?? productId;
-  const productName = asString(productRow?.name) ?? "unknown";
-  const product: BillingProduct = {
-    id: productIdResolved,
-    name: productName,
-    displayName: asString(productRow?.displayName) ?? productName,
-    description: asString(productRow?.description),
-    isActive: asBoolean(productRow?.isActive, true),
-  };
+  try {
+    const res = await billingFetch(`/billing/admin/products/${productId}/detail`);
+    const body = (await res.json()) as {
+      product?: unknown;
+      plans?: unknown;
+      stats?: Record<string, unknown>;
+    };
 
-  const plans = (Array.isArray(body.plans) ? body.plans : [])
-    .map(normalizePlan)
-    .filter((plan): plan is BillingRemotePlan => Boolean(plan));
+    const productRow = asRecord(body.product);
+    const productIdResolved = asString(productRow?.id) ?? productId;
+    const productName = asString(productRow?.name) ?? "unknown";
+    const product: BillingProduct = {
+      id: productIdResolved,
+      name: productName,
+      displayName: asString(productRow?.displayName) ?? productName,
+      description: asString(productRow?.description),
+      isActive: asBoolean(productRow?.isActive, true),
+    };
 
-  return { product, plans, stats: body.stats };
+    const plans = (Array.isArray(body.plans) ? body.plans : [])
+      .map(normalizePlan)
+      .filter((plan): plan is BillingRemotePlan => Boolean(plan));
+
+    const detail = {
+      product,
+      plans,
+      stats: asRecord(body.stats) ?? undefined,
+    };
+
+    productDetailCache.set(productId, { detail, expiresAt: now + 30_000 });
+    return detail;
+  } catch (err) {
+    if (cached?.detail) {
+      billingLog(`[billing] Serving cached product detail for ${productId} following fetch failure`);
+      return cached.detail;
+    }
+    throw err;
+  }
 }
 
 export async function getAgentBillingCatalog(options?: {
@@ -650,6 +708,10 @@ export type BillingSubscriptionSummary = {
   customerId: string | null;
   productId: string | null;
   planId: string | null;
+  currentPeriodStart?: string | null;
+  currentPeriodEnd?: string | null;
+  trialEndDate?: string | null;
+  cancelAtPeriodEnd?: boolean;
 };
 
 function parseBillingSubscription(raw: unknown): BillingSubscriptionSummary | null {
@@ -674,6 +736,10 @@ function parseBillingSubscription(raw: unknown): BillingSubscriptionSummary | nu
       asString(row.planId) ??
       asString(asRecord(row.plan)?.id) ??
       null,
+    currentPeriodStart: asString(row.currentPeriodStart) ?? null,
+    currentPeriodEnd: asString(row.currentPeriodEnd) ?? null,
+    trialEndDate: asString(row.trialEndDate) ?? null,
+    cancelAtPeriodEnd: Boolean(row.cancelAtPeriodEnd),
   };
 }
 
@@ -703,9 +769,16 @@ export async function listBillingSubscriptions(options?: {
   const res = await billingFetch(`/billing/admin/subscriptions?${params.toString()}`);
   const body = (await res.json()) as { data?: unknown };
   const rows = Array.isArray(body.data) ? body.data : Array.isArray(body) ? (body as unknown[]) : [];
-  return rows
+  let parsed = rows
     .map(parseBillingSubscription)
     .filter((item): item is BillingSubscriptionSummary => Boolean(item));
+
+  if (options?.customerId?.trim()) {
+    const targetCid = options.customerId.trim().toLowerCase();
+    parsed = parsed.filter((item) => (item.customerId ?? "").toLowerCase() === targetCid);
+  }
+
+  return parsed;
 }
 
 export async function cancelBillingSubscription(
@@ -731,6 +804,7 @@ export async function resumeBillingSubscription(subscriptionId: string): Promise
     await billingFetch(`${path}/resume`, {
       method: "PATCH",
       body: JSON.stringify({}),
+      silent404: true,
     });
     return;
   } catch (error) {
@@ -764,35 +838,363 @@ export async function updateBillingSubscription(
   });
 }
 
+export type BillingRefundMethod = "store_credit" | "payment_method";
+export type BillingRefundType = "full" | "partial" | "store_credit" | "pro_rata_cancel";
+
 export type BillingRefundResult = {
   id: string | null;
+  status?: string;
+  executionStatus?: string;
+};
+
+export type BillingRefundApproveInput = {
+  refundMethod?: BillingRefundMethod;
+  internalNotes?: string;
+};
+
+export type BillingRefundApproveResult = {
+  status: string;
+  executionStatus?: string;
+  raw?: unknown;
+};
+
+export type BillingRefundRejectInput = {
+  reason: "outside_window" | "insufficient_funds" | "duplicate" | "other" | string;
+  internalNotes?: string;
+};
+
+export type BillingRefundRejectResult = {
+  status: string;
+  rejectionReason?: string;
+  raw?: unknown;
+};
+
+export type BillingDirectRefundCreateInput = {
+  organizationId: string;
+  customerId?: string | null;
+  subscriptionId?: string | null;
+  invoiceId?: string | null;
+  type: BillingRefundType;
+  amountCents?: number | null;
+  reason: string;
+  description?: string;
+  refundMethod?: BillingRefundMethod;
+};
+
+export type BillingDirectRefundCreateResult = {
+  id: string;
+  status: string;
+  executionStatus?: string;
+};
+
+export type BillingCustomerCreditItem = {
+  id: string;
+  amountCents: number;
+  balanceCents: number;
+  source: "refund" | "promotion" | "adjustment" | string;
+  expiresAt: string | null;
+  refundRequestId?: string | null;
+};
+
+export type BillingOrganizationCreditsResult = {
+  organizationId: string;
+  totalBalanceCents: number;
+  credits: BillingCustomerCreditItem[];
+  expiring?: string | null;
 };
 
 /**
- * Request a money-side refund in Billing for a customer.
- * POST /billing/admin/refunds
+ * Approve a pending refund request in Billing.
+ * POST /admin/refunds/:refundRequestId/approve
  */
-export async function createBillingRefund(input: {
-  customerId: string;
-  organizationId: string;
-  reason: string;
-  notes?: string;
-}): Promise<BillingRefundResult> {
-  const res = await billingFetch("/billing/admin/refunds", {
+export async function approveBillingRefund(
+  refundRequestId: string,
+  input: BillingRefundApproveInput = {},
+): Promise<BillingRefundApproveResult> {
+  const res = await billingFetch(`/admin/refunds/${encodeURIComponent(refundRequestId)}/approve`, {
     method: "POST",
     body: JSON.stringify({
-      customerId: input.customerId.trim(),
-      organizationId: input.organizationId.trim(),
-      reason: input.reason.trim(),
-      notes: input.notes?.trim() || undefined,
+      refundMethod: input.refundMethod ?? "store_credit",
+      internalNotes: input.internalNotes?.trim() || undefined,
     }),
   });
 
-  const body = (await res.json().catch(() => null)) as unknown;
-  const root = asRecord(body);
-  const nested = asRecord(root?.refund) ?? asRecord(root?.data) ?? root;
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   return {
-    id: nested ? asString(nested.id) : null,
+    status: asString(body.status) ?? "approved",
+    executionStatus: asString(body.executionStatus) ?? undefined,
+    raw: body,
+  };
+}
+
+/**
+ * Reject a pending refund request in Billing.
+ * POST /admin/refunds/:refundRequestId/reject
+ */
+export async function rejectBillingRefund(
+  refundRequestId: string,
+  input: BillingRefundRejectInput,
+): Promise<BillingRefundRejectResult> {
+  const res = await billingFetch(`/admin/refunds/${encodeURIComponent(refundRequestId)}/reject`, {
+    method: "POST",
+    body: JSON.stringify({
+      reason: input.reason.trim(),
+      internalNotes: input.internalNotes?.trim() || undefined,
+    }),
+  });
+
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  return {
+    status: asString(body.status) ?? "rejected",
+    rejectionReason: asString(body.rejectionReason) ?? asString(body.reason) ?? undefined,
+    raw: body,
+  };
+}
+
+/**
+ * Directly create and issue a refund or credit from the Admin portal.
+ * POST /admin/refunds/create
+ */
+export async function createDirectBillingRefund(
+  input: BillingDirectRefundCreateInput,
+): Promise<BillingDirectRefundCreateResult> {
+  const payload: Record<string, unknown> = {
+    organizationId: input.organizationId.trim(),
+    type: input.type,
+    reason: input.reason.trim(),
+    refundMethod: input.refundMethod ?? "store_credit",
+  };
+  if (input.customerId) payload.customerId = input.customerId.trim();
+  if (input.subscriptionId) payload.subscriptionId = input.subscriptionId.trim();
+  if (input.invoiceId) payload.invoiceId = input.invoiceId.trim();
+  if (typeof input.amountCents === "number") payload.amountCents = input.amountCents;
+  if (input.description) payload.description = input.description.trim();
+
+  const res = await billingFetch("/admin/refunds/create", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const id = asString(body.id) ?? asString(body.refundId) ?? "";
+  const status = asString(body.status) ?? "approved";
+  const executionStatus = asString(body.executionStatus) ?? undefined;
+
+  return { id, status, executionStatus };
+}
+
+/**
+ * Legacy wrapper for createDirectBillingRefund or fallback.
+ * POST /billing/admin/refunds or POST /admin/refunds/create
+ */
+export async function createBillingRefund(input: {
+  customerId?: string;
+  organizationId: string;
+  subscriptionId?: string;
+  reason: string;
+  notes?: string;
+  type?: BillingRefundType;
+  amountCents?: number;
+  refundMethod?: BillingRefundMethod;
+}): Promise<BillingRefundResult> {
+  try {
+    const direct = await createDirectBillingRefund({
+      organizationId: input.organizationId,
+      subscriptionId: input.subscriptionId,
+      type: input.type ?? "full",
+      amountCents: input.amountCents,
+      reason: input.reason,
+      description: input.notes,
+      refundMethod: input.refundMethod ?? "store_credit",
+    });
+    return {
+      id: direct.id,
+      status: direct.status,
+      executionStatus: direct.executionStatus,
+    };
+  } catch {
+    // Fallback to legacy endpoint if /admin/refunds/create is not supported
+    const res = await billingFetch("/billing/admin/refunds", {
+      method: "POST",
+      body: JSON.stringify({
+        customerId: input.customerId?.trim(),
+        organizationId: input.organizationId.trim(),
+        reason: input.reason.trim(),
+        notes: input.notes?.trim() || undefined,
+      }),
+    });
+    const body = (await res.json().catch(() => null)) as unknown;
+    const root = asRecord(body);
+    const nested = asRecord(root?.refund) ?? asRecord(root?.data) ?? root;
+    return {
+      id: nested ? asString(nested.id) : null,
+    };
+  }
+}
+
+const unmountedCreditPaths = new Set<string>();
+
+/**
+ * Fetch store credits and balance for an organization/customer.
+ * GET /admin/organizations/:customerId/credits
+ */
+export async function getBillingOrganizationCredits(
+  customerIdOrOrgId: string,
+): Promise<BillingOrganizationCreditsResult | null> {
+  const targetId = customerIdOrOrgId?.trim();
+  if (!targetId) return null;
+
+  const candidatePaths = [
+    `/admin/organizations/${encodeURIComponent(targetId)}/credits`,
+    `/billing/admin/organizations/${encodeURIComponent(targetId)}/credits`,
+  ].filter((p) => !unmountedCreditPaths.has(p));
+
+  if (candidatePaths.length === 0) return null;
+
+  for (const path of candidatePaths) {
+    try {
+      const res = await billingFetch(path, { silent404: true });
+      const body = (await res.json().catch(() => null)) as unknown;
+      const root = asRecord(body);
+      if (!root) continue;
+
+      const rawCredits = Array.isArray(root.credits) ? root.credits : [];
+      const credits: BillingCustomerCreditItem[] = [];
+      for (const item of rawCredits) {
+        const row = asRecord(item);
+        if (!row) continue;
+        const id = asString(row.id);
+        if (!id) continue;
+        credits.push({
+          id,
+          amountCents: asNumber(row.amountCents),
+          balanceCents: asNumber(row.balanceCents),
+          source: asString(row.source) ?? "refund",
+          expiresAt: asString(row.expiresAt),
+          refundRequestId: asString(row.refundRequestId),
+        });
+      }
+
+      return {
+        organizationId: asString(root.organizationId) ?? targetId,
+        totalBalanceCents: asNumber(root.totalBalanceCents),
+        credits,
+        expiring: asString(root.expiring),
+      };
+    } catch (error) {
+      if (isBillingHttpError(error, 404)) {
+        if (error instanceof Error && error.message.includes("Cannot GET /api/")) {
+          unmountedCreditPaths.add(path);
+        }
+        continue;
+      }
+      billingLog(`[billing] getBillingOrganizationCredits for ${targetId} on ${path}:`, error);
+      return null;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Generate a signed Customer JWT on-the-fly for authenticating customer-scoped billing endpoints.
+ */
+export function generateCustomerBillingJwt(
+  customerId: string,
+  extraClaims: Record<string, unknown> = {},
+): string {
+  const secret = process.env.BILLING_JWT_SECRET?.trim() || getBillingApiKey() || "billing-secret";
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const claims = {
+    customerId,
+    sub: customerId,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 15 * 60, // 15 minutes
+    ...extraClaims,
+  };
+  const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
+
+  const signature = createHmac("sha256", secret)
+    .update(`${header}.${payload}`)
+    .digest("base64url");
+
+  const token = `${header}.${payload}.${signature}`;
+
+  console.info("[billing:jwt] Customer JWT Claims:", claims);
+  console.info("[billing:jwt] Signing Secret used:", process.env.BILLING_JWT_SECRET ? "BILLING_JWT_SECRET" : "BILLING_API_KEY");
+  console.info("[billing:jwt] Raw JWT Token:", token);
+
+  return token;
+}
+
+/**
+ * Customer initiates refund request from product app.
+ * POST /billing/refunds/request
+ */
+export async function requestCustomerBillingRefund(input: {
+  subscriptionId: string;
+  type: BillingRefundType;
+  amountCents?: number;
+  reason: string;
+  message?: string;
+  customerId?: string;
+  customerJwt?: string;
+}): Promise<{
+  id: string;
+  status: string;
+  amountCents?: number;
+  requestedAt?: string;
+}> {
+  const customerToken =
+    input.customerJwt || (input.customerId ? generateCustomerBillingJwt(input.customerId) : null);
+
+  const headers: Record<string, string> = {};
+  if (customerToken) {
+    headers["Authorization"] = `Bearer ${customerToken}`;
+  }
+
+  const remoteType =
+    input.type === "partial" || (input.type === "store_credit" && Boolean(input.amountCents))
+      ? "partial"
+      : "full";
+
+  const payload: Record<string, unknown> = {
+    subscriptionId: input.subscriptionId.trim(),
+    type: remoteType,
+    reason: input.reason.trim(),
+  };
+
+  if (remoteType === "partial" && typeof input.amountCents === "number" && input.amountCents > 0) {
+    payload.amountCents = input.amountCents;
+  }
+
+  if (input.message && input.message.trim()) {
+    payload.message = input.message.trim();
+  }
+
+  console.info(
+    "[billing:refund_request] Outgoing POST /billing/refunds/request payload:",
+    JSON.stringify(payload, null, 2),
+    customerToken ? "(with generated customer JWT)" : "(using default auth)",
+  );
+
+  const res = await billingFetch("/billing/refunds/request", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+
+  const rawBody = (await res.json().catch(() => ({}))) as unknown;
+  console.info("[billing:refund_request] Received response:", JSON.stringify(rawBody, null, 2));
+
+  const bodyRecord = asRecord(rawBody) ?? {};
+  const root = asRecord(bodyRecord.refund) ?? asRecord(bodyRecord.data) ?? bodyRecord;
+
+  return {
+    id: asString(root.id) ?? asString(root.refundId) ?? "",
+    status: asString(root.status) ?? "pending_review",
+    amountCents: typeof root.amountCents === "number" ? root.amountCents : undefined,
+    requestedAt: asString(root.requestedAt) ?? undefined,
   };
 }
 

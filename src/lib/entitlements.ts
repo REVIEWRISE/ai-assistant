@@ -7,6 +7,7 @@ import {
   getBillingCustomerEntitlements,
   getOrganizationBillingCustomerId,
   isBillingConfigured,
+  listBillingSubscriptions,
 } from "@/lib/billing-client";
 import { prisma } from "@/lib/prisma";
 import {
@@ -42,7 +43,11 @@ const ORG_BILLING_SELECT = {
   currentPeriodEndsAt: true,
   trialEndsAt: true,
   cancelAtPeriodEnd: true,
+  billingCustomerId: true,
+  billingAdminOverride: true,
 } as const;
+
+const lastRemoteSyncTime = new Map<string, number>();
 
 /** Route prefixes that require a given feature when billing access is allowed. */
 export const FEATURE_ROUTE_GATES: Array<{ feature: PlanFeatureKey; prefixes: string[] }> = [
@@ -207,9 +212,26 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
     };
   }
 
-  // Unpaid trial access expires with the 14-day window. Never revive an expired
-  // workspace back to trialing (e.g. after a subscription cancel).
-  if (!isPaid && billingStatus === "trialing" && isTrialExpiredByCreatedAt(trialStartsAt)) {
+  // Periodically verify with the remote Billing Service if the subscription is still active remotely
+  if ((isPaid || billingStatus === "trialing") && !org.billingAdminOverride && org.billingCustomerId) {
+    const lastCheck = lastRemoteSyncTime.get(organizationId) ?? 0;
+    if (Date.now() - lastCheck > 30_000) {
+      lastRemoteSyncTime.set(organizationId, Date.now());
+      const subs = await listBillingSubscriptions({
+        customerId: org.billingCustomerId,
+        limit: 10,
+      }).catch(() => []);
+      const activeSubs = subs.filter((s) => s.status === "active" || s.status === "trialing");
+      const hasCanceled = subs.some((s) => s.status === "canceled");
+      if (activeSubs.length === 0 && (hasCanceled || subs.length === 0)) {
+        await markOrgUnpaid(organizationId);
+        billingStatus = "expired";
+      }
+    }
+  }
+
+  // Local fallback trial without Billing customer expires with the 14-day window.
+  if (!isPaid && !org.billingCustomerId && billingStatus === "trialing" && isTrialExpiredByCreatedAt(trialStartsAt)) {
     await prisma.organization.update({
       where: { id: organizationId },
       data: {

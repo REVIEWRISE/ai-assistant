@@ -16,6 +16,10 @@ import {
 } from "@/lib/retell-voice-llm-prompt";
 import { findVoiceAgentOrgByRetellAgentId } from "@/lib/voice-retell-booking";
 import type { RetellVoiceAgentConfig } from "@/lib/retell-voice-agent";
+import {
+  getOrgVoiceMinutesUsage,
+  voiceCallBlockMessage,
+} from "@/lib/voice-minutes";
 
 const DEFAULT_MODEL = "gpt-4o-mini";
 
@@ -118,6 +122,17 @@ export class RetellCustomLlmSession {
       request.interaction_type === "reminder_required"
     ) {
       if (!this.context) return;
+      const usage = await getOrgVoiceMinutesUsage(this.context.organizationId);
+      if (usage.callsBlocked) {
+        sendJson(this.ws, {
+          response_type: "response",
+          response_id: request.response_id,
+          content: voiceCallBlockMessage(usage),
+          content_complete: true,
+          end_call: true,
+        });
+        return;
+      }
       await this.draftResponse(request, this.context);
     }
   }
@@ -162,6 +177,18 @@ export class RetellCustomLlmSession {
       tools: buildOpenAiVoiceBookingTools(orgMatch.knowledge),
     };
     this.initialized = true;
+
+    const usage = await getOrgVoiceMinutesUsage(orgMatch.organizationId);
+    if (usage.callsBlocked) {
+      sendJson(this.ws, {
+        response_type: "response",
+        response_id: 0,
+        content: voiceCallBlockMessage(usage),
+        content_complete: true,
+        end_call: true,
+      });
+      return;
+    }
 
     if (openingMessage) {
       sendJson(this.ws, {

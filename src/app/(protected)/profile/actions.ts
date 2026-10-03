@@ -1,9 +1,10 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth-session";
+import { invalidateUserSessions } from "@/lib/session-token";
 import { saveOrganizationLogo } from "@/lib/organization-logo";
 import { getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
 import { isHrefAllowedForNav, redirectPathWhenMenuForbidden } from "@/lib/nav-access";
@@ -22,29 +23,6 @@ function resolveReturnTo(formData: FormData, fallback: string): string {
     return returnTo;
   }
   return fallback;
-}
-
-async function requireSession() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-
-  if (!token) {
-    redirect("/login");
-  }
-
-  const session = await prisma.session.findFirst({
-    where: {
-      token,
-      expiresAt: { gt: new Date() },
-    },
-    select: { id: true, userId: true, activeOrganizationId: true },
-  });
-
-  if (!session) {
-    redirect("/login");
-  }
-
-  return session;
 }
 
 async function assertProfileMenuAccess(userId: string, organizationId?: string | null) {
@@ -124,6 +102,9 @@ export async function updatePassword(formData: FormData) {
     where: { id: session.userId },
     data: { passwordHash, updatedAt: new Date() },
   });
+
+  // Security Hardening: Invalidate all other active sessions for this user across other browsers/devices.
+  await invalidateUserSessions(session.userId, session.id);
 
   await writePlatformAudit({
     actorId: session.userId,

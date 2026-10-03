@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth-session";
 import { listGoogleBusinessProfileLocationsWithResult } from "@/lib/google-business-profile";
 import {
   asOAuthProviderConfig,
@@ -20,15 +20,7 @@ export default async function SelectReviewProviderLocationPage({
   const providerId = String(params.providerId ?? "").trim();
   if (!providerId) redirect("/reviews?error=provider_missing");
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
-
-  const session = await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
-    select: { userId: true, activeOrganizationId: true },
-  });
-  if (!session) redirect("/login");
+  const session = await requireSession();
   if (!session.activeOrganizationId) redirect("/reviews?error=organization_required");
 
   const provider = await prisma.provider.findFirst({

@@ -69,6 +69,8 @@ export type LandingPlan = {
   yearlyPrice: string | null;
   /** Monthly equivalent of the yearly total, or null when yearly is unset. */
   yearlyMonthlyPrice: string | null;
+  /** Percent saved vs 12× monthly, or null when yearly isn’t cheaper. */
+  yearlySavingsPercent: number | null;
   isCustomPricing: boolean;
   trialDays: number;
   includedLocations: number;

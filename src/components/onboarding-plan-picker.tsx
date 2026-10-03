@@ -10,6 +10,8 @@ export type OnboardingPlanCard = {
   description: string;
   monthlyPrice: string;
   yearlyTotal: string;
+  yearlyMonthlyPrice: string;
+  yearlySavingsPercent: number | null;
   featured: boolean;
   highlights: string[];
   includedLocations: number;
@@ -21,13 +23,18 @@ function planDisplayPrice(
   plan: OnboardingPlanCard,
   interval: "monthly" | "yearly",
 ): { amount: string; suffix: string } {
-  const amount = interval === "yearly" ? plan.yearlyTotal : plan.monthlyPrice;
+  const amount =
+    interval === "yearly"
+      ? plan.yearlyTotal === "Custom" || plan.yearlyTotal === "—"
+        ? plan.yearlyTotal
+        : plan.yearlyMonthlyPrice || plan.yearlyTotal
+      : plan.monthlyPrice;
   if (amount === "Custom" || amount === "—") {
     return { amount, suffix: "" };
   }
   return {
     amount,
-    suffix: interval === "yearly" ? "/year" : "/month",
+    suffix: "/mo",
   };
 }
 
@@ -72,13 +79,13 @@ export function OnboardingPlanPicker({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-5">
       <div
-        className="flex rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1"
+        className="flex shrink-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1"
         role="group"
         aria-label="Billing interval"
       >
-        {(["yearly", "monthly"] as const).map((value) => (
+        {(["monthly", "yearly"] as const).map((value) => (
           <button
             key={value}
             type="button"
@@ -100,7 +107,7 @@ export function OnboardingPlanPicker({
         ))}
       </div>
 
-      <div className="space-y-3" role="radiogroup" aria-label="Plans">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1" role="radiogroup" aria-label="Plans">
         {plans.map((plan) => {
           const isSelected = selected === plan.slug;
           const planPrice = planDisplayPrice(plan, interval);
@@ -171,8 +178,8 @@ export function OnboardingPlanPicker({
                   ) : null}
                 </div>
 
-                <div className="shrink-0 whitespace-nowrap text-right">
-                  <p className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
+                <div className="shrink-0 text-right">
+                  <p className="whitespace-nowrap text-2xl font-semibold tracking-tight text-[var(--color-text)]">
                     {planPrice.amount}
                     {planPrice.suffix ? (
                       <span className="ml-1 text-xs font-medium text-[var(--color-text-muted)]">
@@ -180,6 +187,21 @@ export function OnboardingPlanPicker({
                       </span>
                     ) : null}
                   </p>
+                  {interval === "yearly" &&
+                  plan.yearlyTotal !== "Custom" &&
+                  plan.yearlyTotal !== "—" ? (
+                    <p className="mt-1 max-w-[14rem] text-[10px] font-medium leading-4 text-[var(--color-text-muted)]">
+                      Billed yearly at {plan.yearlyTotal}/year
+                      {plan.yearlySavingsPercent != null ? (
+                        <>
+                          {" · "}
+                          <span className="font-semibold text-emerald-600">
+                            Save {plan.yearlySavingsPercent}%
+                          </span>
+                        </>
+                      ) : null}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </button>
@@ -187,9 +209,9 @@ export function OnboardingPlanPicker({
         })}
       </div>
 
-      <div className="sticky bottom-4 z-10 rounded-[1.35rem] border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-4 shadow-[var(--shadow-lg)] backdrop-blur-xl sm:p-5">
+      <div className="shrink-0 rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)] sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-[var(--color-text)]">
               {active.title}
               {price.amount !== "—" ? ` · ${price.amount}${price.suffix}` : ""}
@@ -197,8 +219,8 @@ export function OnboardingPlanPicker({
             <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">
               {trialAvailable
                 ? interval === "yearly"
-                  ? `${active.yearlyTotal === "Custom" ? "Custom yearly pricing" : `${active.yearlyTotal}/year after trial`} · ${trialDays}-day free trial`
-                  : `${trialDays}-day free trial · no card required`
+                  ? `${active.yearlyTotal === "Custom" ? "Custom yearly pricing" : `${active.yearlyTotal}/year after trial`} · ${trialDays}-day free trial ($0 today)`
+                  : `${trialDays}-day free trial · $0 due today · cancel anytime`
                 : "A free trial is not available after canceling. You’ll subscribe next."}
             </p>
           </div>
@@ -206,15 +228,15 @@ export function OnboardingPlanPicker({
             type="button"
             disabled={pending}
             onClick={submit}
-            className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-12 w-full shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             {pending
               ? trialAvailable
-                ? "Starting trial…"
+                ? "Starting checkout…"
                 : "Continuing…"
               : trialAvailable
                 ? `Start ${trialDays}-day trial`
-                : "Continue to subscribe"}
+                : "Continue to checkout"}
           </button>
         </div>
       </div>

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import { getRetellApiKey } from "@/lib/retell-api";
+import { getRetellApiKey, stopRetellCall } from "@/lib/retell-api";
 import { verifyRetellWebhookSignature } from "@/lib/retell-webhook-verify";
 import { findVoiceAgentOrgByRetellAgentId } from "@/lib/voice-retell-booking";
+import { getOrgVoiceMinutesUsage } from "@/lib/voice-minutes";
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
@@ -30,15 +31,42 @@ export async function POST(request: Request) {
   }
 
   const event = typeof payload.event === "string" ? payload.event.trim() : "";
+  const call = payload.call && typeof payload.call === "object" && !Array.isArray(payload.call)
+    ? (payload.call as Record<string, unknown>)
+    : null;
+
+  if (event === "call_started" && call) {
+    const callId = typeof call.call_id === "string" ? call.call_id.trim() : "";
+    const agentId = typeof call.agent_id === "string" ? call.agent_id.trim() : "";
+    if (callId && agentId) {
+      const orgMatch = await findVoiceAgentOrgByRetellAgentId(agentId);
+      if (orgMatch) {
+        const usage = await getOrgVoiceMinutesUsage(orgMatch.organizationId);
+        if (usage.callsBlocked) {
+          const stopped = await stopRetellCall(callId);
+          console.warn(
+            `[retell-webhook] Stopped call ${callId} for org ${orgMatch.organizationId}: ${usage.blockReason} (used ${usage.usedMinutes}/${usage.includedMinutes}). stop_ok=${stopped.ok}`,
+          );
+          return NextResponse.json(
+            {
+              success: true,
+              callId,
+              stopped: stopped.ok,
+              reason: usage.blockReason,
+            },
+            { status: 200 },
+          );
+        }
+      }
+    }
+    return NextResponse.json({ received: true, skippedEvent: event }, { status: 200 });
+  }
+
   if (event !== "call_analyzed") {
     // Retell sends call_started, call_ended, and call_analyzed.
     // We only process call_analyzed because it has the complete summary, sentiment, and cost.
     return NextResponse.json({ received: true, skippedEvent: event }, { status: 200 });
   }
-
-  const call = payload.call && typeof payload.call === "object" && !Array.isArray(payload.call)
-    ? (payload.call as Record<string, unknown>)
-    : null;
 
   if (!call) {
     return NextResponse.json({ error: "Missing call object in payload" }, { status: 400 });

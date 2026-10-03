@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { VoiceAgentPageAlerts } from "@/components/voice-agent-page-alerts";
 import { VoiceAgentTabs } from "@/components/voice-agent-tabs";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth-session";
 import { isRetellApiConfigured } from "@/lib/retell-api";
 import {
   fetchRetellVoiceAgentConfig,
@@ -31,29 +31,28 @@ import {
   ensureLegacyPrimaryPhoneImported,
   listOrgRetellPhoneNumbers,
 } from "@/lib/retell-phone-numbers";
+import { getOrgVoiceMinutesUsage } from "@/lib/voice-minutes";
 
 export const dynamic = "force-dynamic";
 
 export default async function VoiceAgentPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
-  if (!token) redirect("/login");
+  const authSession = await requireSession();
 
-  const session = await prisma.session.findFirst({
-    where: { token, expiresAt: { gt: new Date() } },
+  const user = await prisma.user.findUnique({
+    where: { id: authSession.userId },
     select: {
-      user: {
-        select: {
-          id: true,
-          email: true,
-          fullName: true,
-        },
-      },
-      activeOrganizationId: true,
+      id: true,
+      email: true,
+      fullName: true,
     },
   });
 
-  if (!session) redirect("/login");
+  if (!user) redirect("/login");
+
+  const session = {
+    user,
+    activeOrganizationId: authSession.activeOrganizationId,
+  };
 
   let org = null;
   if (session.activeOrganizationId) {
@@ -161,10 +160,15 @@ export default async function VoiceAgentPage() {
   }));
   const callsReceived = phoneStats.reduce((sum, phone) => sum + phone.callsReceived, 0);
   const phoneBookings = phoneStats.reduce((sum, phone) => sum + phone.bookingsCount, 0);
+  const voiceMinutes = await getOrgVoiceMinutesUsage(org.id);
   const agentReady =
     Boolean(localSettings.retell.retellAgentId.trim()) && !remoteAgentMissing;
   const voiceStatus = !retellApiConfigured
     ? "Voice service setup required"
+    : !voiceMinutes.voiceIncluded
+      ? "Upgrade required for voice"
+    : voiceMinutes.minutesExhausted
+      ? "Calling minutes exhausted"
     : phones.length === 0
       ? "Phone line required"
       : remoteAgentMissing
@@ -173,16 +177,26 @@ export default async function VoiceAgentPage() {
         ? "Voice agent operational"
         : "Agent setup required";
   const voiceStatusTone: "success" | "warning" =
-    retellApiConfigured && phones.length > 0 && agentReady ? "success" : "warning";
+    retellApiConfigured &&
+    voiceMinutes.voiceIncluded &&
+    phones.length > 0 &&
+    agentReady &&
+    !voiceMinutes.minutesExhausted
+      ? "success"
+      : "warning";
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
       <Suspense fallback={null}>
         <VoiceAgentPageAlerts
           statusMessage={
-            retellRemoteStatus && !retellRemoteStatus.startsWith("Live")
-              ? retellRemoteStatus
-              : null
+            !voiceMinutes.voiceIncluded
+              ? "Voice calling is included on Pro Voice only. Starter and Growth do not include the AI phone agent."
+              : voiceMinutes.minutesExhausted
+                ? `Included calling minutes are used up for this billing period (${voiceMinutes.usedMinutes}/${voiceMinutes.includedMinutes} min). New inbound calls will be ended until the period renews.`
+                : retellRemoteStatus && !retellRemoteStatus.startsWith("Live")
+                  ? retellRemoteStatus
+                  : null
           }
         />
       </Suspense>
@@ -195,19 +209,35 @@ export default async function VoiceAgentPage() {
         status={voiceStatus}
         statusTone={voiceStatusTone}
         actions={[
-          { href: "/voice-agent?tab=agent", label: "Configure agent" },
-          { href: "/voice-agent?tab=phone", label: phones.length > 0 ? "Manage phone lines" : "Set up phone line", primary: true },
+          {
+            href: "/voice-agent?tab=agent",
+            label: agentReady ? "Configure agent" : "Set up agent",
+            primary: !agentReady || phones.length > 0,
+          },
+          {
+            href: "/voice-agent?tab=phone",
+            label: phones.length > 0 ? "Manage phone lines" : "Add phone line",
+            primary: agentReady && phones.length === 0,
+          },
         ]}
         metrics={[
           { label: "Phone lines", value: phones.length, hint: primaryPhone ? "primary line active" : "no primary line" },
           { label: "Calls received", value: callsReceived, hint: "last 30 days" },
           { label: "Bookings by phone", value: phoneBookings, hint: "last 30 days" },
           {
-            label: "Voice booking",
-            value: localSettings.knowledge.enablePhoneBooking ? "On" : "Off",
-            hint: localSettings.knowledge.enablePhoneBooking
-              ? "Callers can book on this line"
-              : "Hidden until enabled in Agent setup",
+            label: "Calling minutes",
+            value: voiceMinutes.voiceIncluded
+              ? voiceMinutes.enforced
+                ? `${voiceMinutes.usedMinutes}/${voiceMinutes.includedMinutes}`
+                : voiceMinutes.usedMinutes
+              : "Not included",
+            hint: !voiceMinutes.voiceIncluded
+              ? "Pro Voice plan required"
+              : voiceMinutes.enforced
+                ? voiceMinutes.minutesExhausted
+                  ? "limit reached this period"
+                  : `${voiceMinutes.remainingMinutes} min left this period`
+                : "no minute cap on this plan",
           },
         ]}
       />

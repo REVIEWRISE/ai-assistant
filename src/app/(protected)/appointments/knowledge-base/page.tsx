@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
+import { requireSession } from "@/lib/auth-session";
 import { redirect } from "next/navigation";
 import { KnowledgeBaseToasts } from "@/components/knowledge-base-toasts";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
@@ -12,26 +12,33 @@ import {
   clearKnowledgeBase,
   importFromWebsite,
 } from "./actions";
+import { KNOWLEDGE_UI_PREVIEW_MAX_CHARS } from "@/lib/knowledge-base-limits";
+
+export const maxDuration = 60;
 
 export default async function AppointmentKnowledgeBasePage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
+  const authSession = await requireSession();
 
-  if (!token) {
-    redirect("/login");
-  }
-
-  const session = await prisma.session.findFirst({
+  const session = await prisma.session.findUnique({
     where: {
-      token,
-      expiresAt: { gt: new Date() },
+      id: authSession.id,
     },
     select: {
       activeOrganization: {
         select: {
           id: true,
           name: true,
-          knowledgeBase: true,
+          knowledgeBase: {
+            select: {
+              status: true,
+              sourceType: true,
+              sourceUrl: true,
+              sourceFileName: true,
+              lastImportedAt: true,
+              parsedData: true,
+              rawText: true,
+            },
+          },
         },
       },
     },
@@ -59,7 +66,9 @@ export default async function AppointmentKnowledgeBasePage() {
   const lastImported = knowledgeBase?.lastImportedAt
     ? new Date(knowledgeBase.lastImportedAt).toLocaleDateString()
     : "Never";
-  const knowledgeCharacters = String(knowledgeBase?.rawText ?? "").length;
+  const storedRawText = String(knowledgeBase?.rawText ?? "");
+  const knowledgeCharacters = storedRawText.length;
+  const rawTextPreview = storedRawText.slice(0, KNOWLEDGE_UI_PREVIEW_MAX_CHARS);
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
@@ -210,7 +219,8 @@ export default async function AppointmentKnowledgeBasePage() {
             </div>
 
             <KnowledgePreview
-              rawText={String(session.activeOrganization.knowledgeBase.rawText ?? "")}
+              rawText={rawTextPreview}
+              rawTextLength={knowledgeCharacters}
               formattedPreview={formattedPreview}
             />
 

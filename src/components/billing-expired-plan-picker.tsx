@@ -5,7 +5,7 @@ import { createBillingCheckoutSession } from "@/app/(protected)/billing/actions"
 import { CONTACT_EMAIL } from "@/lib/brand";
 import type { CheckoutPlanOption } from "@/lib/billing-checkout-types";
 import { planIntervalAllowsSelfServeCheckout } from "@/lib/billing-checkout-types";
-import { formatUsd, type PlanSlug } from "@/lib/pricing-plans";
+import { formatUsd, yearlySavingsPercent, type PlanSlug } from "@/lib/pricing-plans";
 import { toast } from "@/lib/toast";
 
 type BillingExpiredPlanPickerProps = {
@@ -19,14 +19,19 @@ function displayPrice(
   plan: CheckoutPlanOption,
   interval: "monthly" | "yearly",
 ): { amount: string; suffix: string } {
-  const cents = interval === "yearly" ? plan.yearlyPriceCents : plan.monthlyPriceCents;
+  const cents =
+    interval === "yearly"
+      ? plan.yearlyPriceCents != null
+        ? Math.round(plan.yearlyPriceCents / 12)
+        : null
+      : plan.monthlyPriceCents;
   if (plan.isCustomPricing && (cents === null || cents === 0)) {
     return { amount: "Custom", suffix: "" };
   }
   if (cents == null) return { amount: "—", suffix: "" };
   return {
     amount: formatUsd(cents),
-    suffix: interval === "yearly" ? "/year" : "/month",
+    suffix: "/mo",
   };
 }
 
@@ -110,7 +115,7 @@ export function BillingExpiredPlanPicker({
         role="group"
         aria-label="Billing interval"
       >
-        {(["yearly", "monthly"] as const).map((value) => (
+        {(["monthly", "yearly"] as const).map((value) => (
           <button
             key={value}
             type="button"
@@ -137,6 +142,10 @@ export function BillingExpiredPlanPicker({
           const isSelected = selected === plan.slug;
           const planPrice = displayPrice(plan, interval);
           const planAvailable = planIntervalAllowsSelfServeCheckout(plan, interval);
+          const savingsPercent =
+            interval === "yearly"
+              ? yearlySavingsPercent(plan.monthlyPriceCents, plan.yearlyPriceCents)
+              : null;
 
           return (
             <button
@@ -211,8 +220,8 @@ export function BillingExpiredPlanPicker({
                   ) : null}
                 </div>
 
-                <div className="shrink-0 whitespace-nowrap text-right">
-                  <p className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
+                <div className="shrink-0 text-right">
+                  <p className="whitespace-nowrap text-2xl font-semibold tracking-tight text-[var(--color-text)]">
                     {planPrice.amount}
                     {planPrice.suffix ? (
                       <span className="ml-1 text-xs font-medium text-[var(--color-text-muted)]">
@@ -220,6 +229,19 @@ export function BillingExpiredPlanPicker({
                       </span>
                     ) : null}
                   </p>
+                  {interval === "yearly" && plan.yearlyPriceCents != null ? (
+                    <p className="mt-1 max-w-[14rem] text-[10px] font-medium leading-4 text-[var(--color-text-muted)]">
+                      Billed yearly at {formatUsd(plan.yearlyPriceCents)}/year
+                      {savingsPercent != null ? (
+                        <>
+                          {" · "}
+                          <span className="font-semibold text-emerald-600">
+                            Save {savingsPercent}%
+                          </span>
+                        </>
+                      ) : null}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </button>

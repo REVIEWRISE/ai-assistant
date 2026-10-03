@@ -63,7 +63,7 @@ export function BillingSuccessClient({
       setAttempts(nextAttempt);
       try {
         const result = await getBillingStatusForActiveOrg();
-        if (result.billingStatus === "active") {
+        if (result.billingStatus === "active" || result.billingStatus === "trialing") {
           setStatus("active");
           timer = setTimeout(() => router.replace("/dashboard?success=subscription_active"), 1200);
           return;

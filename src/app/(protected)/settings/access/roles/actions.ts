@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/auth-session";
+import { requireAdminSession } from "@/lib/auth-session";
 import { writePlatformAudit } from "@/lib/platform-audit";
 
 function normalizeName(input: string): string {
@@ -10,7 +10,7 @@ function normalizeName(input: string): string {
 }
 
 export async function createRole(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireAdminSession();
   const name = normalizeName(String(formData.get("name") || ""));
   if (!name) {
     redirect("/settings/access/roles?error=missing");
@@ -38,7 +38,7 @@ export async function createRole(formData: FormData) {
 }
 
 export async function updateRole(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireAdminSession();
   const id = String(formData.get("id") || "");
   const name = normalizeName(String(formData.get("name") || ""));
 
@@ -68,7 +68,7 @@ export async function updateRole(formData: FormData) {
 }
 
 export async function deleteRole(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireAdminSession();
   const id = String(formData.get("id") || "");
   if (!id) {
     redirect("/settings/access/roles?error=missing");

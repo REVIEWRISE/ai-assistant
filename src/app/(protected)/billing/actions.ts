@@ -84,10 +84,38 @@ async function syncOrgFromActiveBillingSubscription(input: {
     }
   }
 
+  if (match.status === "trialing") {
+    const trialEndsAt = match.trialEndDate
+      ? new Date(match.trialEndDate)
+      : match.currentPeriodEnd
+        ? new Date(match.currentPeriodEnd)
+        : null;
+    const trialStartsAt = match.currentPeriodStart
+      ? new Date(match.currentPeriodStart)
+      : new Date();
+
+    await prisma.organization.update({
+      where: { id: input.organizationId },
+      data: {
+        ...(planSlug ? { planSlug } : {}),
+        ...(billingInterval ? { billingInterval } : {}),
+        billingStatus: "trialing",
+        paidAt: null,
+        trialStartsAt,
+        trialEndsAt,
+        currentPeriodEndsAt: null,
+        cancelAtPeriodEnd: false,
+        billingAdminOverride: false,
+      },
+    });
+    return true;
+  }
+
   await markOrgPaid({
     organizationId: input.organizationId,
     ...(planSlug ? { planSlug } : {}),
     ...(billingInterval ? { billingInterval } : {}),
+    ...(match.currentPeriodEnd ? { currentPeriodEndsAt: new Date(match.currentPeriodEnd) } : {}),
   });
   return true;
 }

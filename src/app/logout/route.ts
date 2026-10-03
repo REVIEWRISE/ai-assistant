@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getAppOrigin } from "@/lib/app-origin";
 import { prisma } from "@/lib/prisma";
+import { hashSessionToken } from "@/lib/session-token";
 
 function loginRedirectTarget(request: Request, appOrigin: string): URL {
   if (appOrigin) {
@@ -31,8 +32,11 @@ export async function POST(request: Request) {
   const token = cookieStore.get("ai_session")?.value;
 
   if (token) {
+    const tokenHash = hashSessionToken(token);
     const session = await prisma.session.findFirst({
-      where: { token },
+      where: {
+        OR: [{ token: tokenHash }, { token }],
+      },
       select: { id: true, userId: true, activeOrganizationId: true },
     });
 

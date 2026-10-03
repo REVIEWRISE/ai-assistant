@@ -286,7 +286,53 @@ export async function POST(req: NextRequest) {
       case "subscription.canceled":
       case "subscription.paused":
         await revokeAccess(event);
+        {
+          const orgId = await resolveOrganizationId(event);
+          if (orgId) {
+            await prisma.refundRequest.updateMany({
+              where: { organizationId: orgId, status: "pending" },
+              data: {
+                status: "approved",
+                reviewedAt: new Date(),
+                adminNote: "Approved and synced with Billing service",
+              },
+            }).catch(() => undefined);
+          }
+        }
         break;
+      case "refund.approved":
+      case "refund.processed":
+      case "refund.completed":
+      case "refund.created": {
+        const orgId = await resolveOrganizationId(event);
+        if (orgId) {
+          await prisma.refundRequest.updateMany({
+            where: { organizationId: orgId, status: "pending" },
+            data: {
+              status: "approved",
+              reviewedAt: new Date(),
+              adminNote: "Approved via Billing service webhook",
+            },
+          }).catch(() => undefined);
+          await markOrgUnpaid(orgId);
+        }
+        break;
+      }
+      case "refund.rejected":
+      case "refund.declined": {
+        const orgId = await resolveOrganizationId(event);
+        if (orgId) {
+          await prisma.refundRequest.updateMany({
+            where: { organizationId: orgId, status: "pending" },
+            data: {
+              status: "rejected",
+              reviewedAt: new Date(),
+              adminNote: "Rejected via Billing service webhook",
+            },
+          }).catch(() => undefined);
+        }
+        break;
+      }
       case "invoice.paid":
         await markRenewal(event);
         break;

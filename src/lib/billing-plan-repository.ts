@@ -10,7 +10,7 @@ import {
   type BillingPlanModule,
   type BillingRemotePlan,
 } from "@/lib/billing-client";
-import { BILLING_RULES, formatUsd, PLAN_SLUGS, type PlanSlug } from "@/lib/pricing-plans";
+import { BILLING_RULES, formatUsd, PLAN_SLUGS, yearlySavingsPercent, type PlanSlug } from "@/lib/pricing-plans";
 import type { BillingCatalogError } from "@/lib/billing-catalog-types";
 
 export type { BillingCatalogError } from "@/lib/billing-catalog-types";
@@ -353,10 +353,8 @@ function toLandingPlan(plan: CatalogPlanView): LandingPlan {
     price: listedPrice(monthlyCents, plan.isCustomPricing),
     period: "/mo",
     yearlyPrice: listedPrice(yearlyTotalCents, plan.isCustomPricing),
-    yearlyMonthlyPrice:
-      yearlyMonthlyCents != null && !plan.isCustomPricing
-        ? formatUsd(yearlyMonthlyCents)
-        : null,
+    yearlyMonthlyPrice: listedPrice(yearlyMonthlyCents, plan.isCustomPricing),
+    yearlySavingsPercent: yearlySavingsPercent(monthlyCents, yearlyTotalCents),
     isCustomPricing: plan.isCustomPricing,
     trialDays: plan.trialPeriodDays || BILLING_RULES.trialDays,
     includedLocations: plan.includedLocations,

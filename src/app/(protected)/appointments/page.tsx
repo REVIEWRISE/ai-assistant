@@ -1,22 +1,13 @@
 import Link from "next/link";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { requireSession } from "@/lib/auth-session";
 
 export default async function AppointmentsPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ai_session")?.value;
+  const authSession = await requireSession();
 
-  if (!token) {
-    redirect("/login");
-  }
-
-  const session = await prisma.session.findFirst({
-    where: {
-      token,
-      expiresAt: { gt: new Date() },
-    },
+  const session = await prisma.session.findUnique({
+    where: { id: authSession.id },
     select: {
       activeOrganization: {
         select: {
@@ -29,11 +20,7 @@ export default async function AppointmentsPage() {
     },
   });
 
-  if (!session) {
-    redirect("/login");
-  }
-
-  const activeOrganization = session.activeOrganization;
+  const activeOrganization = session?.activeOrganization;
   const modules = [
     {
       href: "/appointments/overview",

@@ -4,6 +4,7 @@ import {
   isBillingConfigured,
 } from "@/lib/billing-client";
 import { resolveDefaultOrganizationId } from "@/lib/auth-session";
+import { generateSessionToken } from "@/lib/session-token";
 import {
   defaultWorkspaceName,
   GOOGLE_AUTH_PROVIDER,
@@ -40,22 +41,29 @@ export function decodeGoogleAuthState(state: string): GoogleAuthIntent | null {
 }
 
 async function createSessionForUser(userId: string, activeOrganizationId: string | null) {
-  const sessionToken = crypto.randomUUID();
+  const { rawToken, tokenHash } = generateSessionToken();
   await prisma.session.create({
     data: {
       userId,
       activeOrganizationId,
-      token: sessionToken,
+      token: tokenHash,
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
     },
   });
 
   const cookieStore = await cookies();
-  cookieStore.set("ai_session", sessionToken, {
+  cookieStore.set("ai_session", rawToken, {
     path: "/",
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 24 * 7,
+    sameSite: "lax",
+  });
+  cookieStore.set("last_auth_provider", "google", {
+    path: "/",
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 30, // 30 days
     sameSite: "lax",
   });
 }
@@ -214,7 +222,7 @@ export async function completeGoogleAuthLogin(
     select: { id: true, emailVerified: true, accountStatus: true },
   });
 
-  if (!user || user.accountStatus !== "active") {
+  if (!user) {
     return { redirectTo: "/login?error=oauth_failed" };
   }
 
@@ -253,7 +261,7 @@ export async function completeGoogleAuthLogin(
     if (intent.plan) onboardingQs.set("plan", intent.plan);
     onboardingQs.set(
       "interval",
-      intent.interval === "monthly" || intent.interval === "yearly" ? intent.interval : "yearly",
+      intent.interval === "monthly" || intent.interval === "yearly" ? intent.interval : "monthly",
     );
     return { redirectTo: `/onboarding/plan?${onboardingQs.toString()}` };
   }

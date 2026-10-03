@@ -40,7 +40,7 @@ function RegisterPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean
   const selectedPlanSlug = searchParams?.get("plan") ?? "";
   const selectedPlan = PLAN_LABELS[selectedPlanSlug];
   const selectedInterval =
-    searchParams?.get("interval") === "monthly" ? "monthly" : "yearly";
+    searchParams?.get("interval") === "yearly" ? "yearly" : "monthly";
   const preservedName = searchParams?.get("name") ?? "";
   const preservedEmail = searchParams?.get("email") ?? "";
   const preservedOrganization = searchParams?.get("organization_name") ?? "";
@@ -57,6 +57,7 @@ function RegisterPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean
         "Password must be at least 12 characters and include an uppercase letter, a lowercase letter, a number, and a symbol.",
       weak_password_personal: "Password must not contain your name or email address.",
       exists: "An account with this email already exists.",
+      oauth_exists: "An account with this email uses Google Sign-In. Please sign in with Google instead.",
       rate_limited: "Too many registration attempts. Please try again later.",
     };
     toast.error(messages[error] ?? "Unable to create account. Please try again.");

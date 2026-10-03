@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/auth-session";
+import { requireAdminSession } from "@/lib/auth-session";
 import { writePlatformAudit } from "@/lib/platform-audit";
 
 function normalizeText(input: string): string {
@@ -10,7 +10,7 @@ function normalizeText(input: string): string {
 }
 
 export async function createMenuItem(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireAdminSession();
   const label = normalizeText(String(formData.get("label") || ""));
   const path = normalizeText(String(formData.get("path") || ""));
   const description = normalizeText(String(formData.get("description") || ""));
@@ -52,7 +52,7 @@ export async function createMenuItem(formData: FormData) {
 }
 
 export async function updateMenuItem(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireAdminSession();
   const id = String(formData.get("id") || "");
   const label = normalizeText(String(formData.get("label") || ""));
   const path = normalizeText(String(formData.get("path") || ""));
@@ -96,7 +96,7 @@ export async function updateMenuItem(formData: FormData) {
 }
 
 export async function deleteMenuItem(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireAdminSession();
   const id = String(formData.get("id") || "");
   if (!id) {
     redirect("/settings/access/menus?error=missing");

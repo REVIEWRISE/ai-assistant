@@ -184,7 +184,7 @@ export function GettingStartedStepper({
               ) : null}
             </span>
           </span>
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary-fg)]">
             Continue
           </span>
         </button>
@@ -262,7 +262,7 @@ export function GettingStartedStepper({
                               <span
                                 className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
                                   isNext
-                                    ? "bg-[var(--color-primary)] text-white"
+                                    ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
                                     : "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]"
                                 }`}
                                 aria-hidden
@@ -335,7 +335,7 @@ export function GettingStartedStepper({
                       {nextStep ? (
                         <Link
                           href={nextStep.href}
-                          className="inline-flex items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110"
+                          className="inline-flex items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
                         >
                           Continue
                         </Link>

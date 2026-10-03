@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requireAdminSession } from "@/lib/auth-session";
 import { userHasAdminRole } from "@/lib/admin-view-only";
 import { validatePasswordStrength } from "@/lib/password-policy";
+import { invalidateUserSessions } from "@/lib/session-token";
 import { writePlatformAudit } from "@/lib/platform-audit";
 
 function organizationFields(formData: FormData) {
@@ -206,6 +207,10 @@ export async function updateUser(formData: FormData) {
       }
     });
 
+    if (accountStatus === "suspended" || accountStatus === "inactive") {
+      await invalidateUserSessions(id);
+    }
+
     await writePlatformAudit({
       actorId: session.userId,
       organizationId: session.activeOrganizationId,
@@ -252,6 +257,7 @@ export async function deleteUser(formData: FormData) {
   }
 
   try {
+    await invalidateUserSessions(id);
     await prisma.user.delete({ where: { id } });
 
     await writePlatformAudit({

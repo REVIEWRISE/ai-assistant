@@ -3,7 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth-session";
 import { userHasAdminRole } from "@/lib/admin-view-only";
-import { isRefundReasonCode } from "@/lib/refund-reasons";
+import { isRefundReasonCode, type RefundType } from "@/lib/refund-reasons";
+import {
+  getBillingOrganizationCredits,
+  getOrganizationBillingCustomerId,
+  isBillingConfigured,
+  listBillingSubscriptions,
+  requestCustomerBillingRefund,
+  type BillingOrganizationCreditsResult,
+} from "@/lib/billing-client";
 import { prisma } from "@/lib/prisma";
 
 export type RequestRefundResult =
@@ -30,10 +38,16 @@ async function assertCanManageRefunds(userId: string, organizationId: string): P
   return { ok: true };
 }
 
-export async function requestWorkspaceRefund(input: {
+export type RequestWorkspaceRefundInput = {
+  type?: RefundType;
+  amountCents?: number;
   reason: string;
   notes?: string;
-}): Promise<RequestRefundResult> {
+};
+
+export async function requestWorkspaceRefund(
+  input: RequestWorkspaceRefundInput,
+): Promise<RequestRefundResult> {
   const session = await requireSession();
   const organizationId = session.activeOrganizationId;
   if (!organizationId) {
@@ -42,6 +56,26 @@ export async function requestWorkspaceRefund(input: {
 
   const access = await assertCanManageRefunds(session.userId, organizationId);
   if (!access.ok) return access;
+
+  const hasExplicitType = Boolean(input.type);
+  const validTypes: RefundType[] = ["full", "partial", "store_credit", "pro_rata_cancel"];
+  const type: RefundType = hasExplicitType && validTypes.includes(input.type as RefundType)
+    ? (input.type as RefundType)
+    : "full";
+
+  let amountCents: number | null = null;
+  if (type === "partial" || type === "store_credit") {
+    if (input.amountCents != null) {
+      const rawAmount = Number(input.amountCents);
+      if (Number.isFinite(rawAmount) && rawAmount > 0) {
+        amountCents = Math.round(rawAmount);
+      } else if (type === "partial") {
+        return { ok: false, error: "Please enter a valid partial refund amount greater than $0.00." };
+      }
+    } else if (type === "partial") {
+      return { ok: false, error: "Please enter a valid partial refund amount." };
+    }
+  }
 
   const reason = String(input.reason || "").trim();
   if (!isRefundReasonCode(reason)) {
@@ -56,6 +90,7 @@ export async function requestWorkspaceRefund(input: {
       billingStatus: true,
       paidAt: true,
       name: true,
+      billingCustomerId: true,
     },
   });
   if (!org) {
@@ -72,6 +107,18 @@ export async function requestWorkspaceRefund(input: {
     };
   }
 
+  // 30-day window check for explicit full refund requests
+  if (hasExplicitType && type === "full" && org.paidAt) {
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    if (org.paidAt.getTime() < thirtyDaysAgo) {
+      return {
+        ok: false,
+        error:
+          "Full refunds must be requested within 30 days of purchase.",
+      };
+    }
+  }
+
   const existingPending = await prisma.refundRequest.findFirst({
     where: { organizationId, status: "pending" },
     select: { id: true },
@@ -80,14 +127,60 @@ export async function requestWorkspaceRefund(input: {
     return { ok: false, error: "A refund request is already under review for this workspace." };
   }
 
+  const reasonPrefix = hasExplicitType
+    ? type === "partial"
+      ? "[partial] "
+      : type === "store_credit"
+        ? "[store_credit] "
+        : type === "pro_rata_cancel"
+          ? "[pro_rata_cancel] "
+          : ""
+    : "";
+
   try {
+    let billingRefundId: string | null = null;
+
+    // 1. Notify remote Billing API first if customer subscription exists
+    if (isBillingConfigured()) {
+      const customerId = org.billingCustomerId || (await getOrganizationBillingCustomerId(organizationId));
+      if (customerId) {
+        const subs = await listBillingSubscriptions({
+          customerId,
+          status: ["active", "trialing", "past_due"],
+          limit: 5,
+        });
+        const activeSub = subs[0];
+        if (activeSub?.id) {
+          const result = await requestCustomerBillingRefund({
+            subscriptionId: activeSub.id,
+            type,
+            amountCents: amountCents ?? undefined,
+            reason,
+            message: notes || `Refund requested for workspace ${org.name}`,
+            customerId,
+          });
+          console.info("[requestCustomerBillingRefund] Remote billing success:", result);
+          if (result?.id) {
+            billingRefundId = result.id;
+          }
+          if (typeof result?.amountCents === "number") {
+            amountCents = result.amountCents;
+          }
+        }
+      }
+    }
+
+    // 2. Only save to local database if remote billing call succeeded or billing is not configured
     const created = await prisma.refundRequest.create({
       data: {
         organizationId,
         requestedByUserId: session.userId,
         status: "pending",
-        reason,
+        reason: `${reasonPrefix}${reason}`,
         notes,
+        amountCents,
+        currency: "USD",
+        billingRefundId,
       },
       select: { id: true },
     });
@@ -98,7 +191,12 @@ export async function requestWorkspaceRefund(input: {
           organizationId,
           actorId: session.userId,
           action: "billing.refund_requested",
-          metadata: { refundRequestId: created.id, reason },
+          metadata: {
+            refundRequestId: created.id,
+            reason,
+            type,
+            amountCents,
+          },
         },
       })
       .catch(() => undefined);
@@ -114,6 +212,24 @@ export async function requestWorkspaceRefund(input: {
     if (code === "P2002") {
       return { ok: false, error: "A refund request is already under review for this workspace." };
     }
-    return { ok: false, error: "Could not submit the refund request. Please try again." };
+    const message = error instanceof Error ? error.message : String(error);
+    const cleanMessage = message.replace(/^Billing API error \d+ on POST [^:]+:\s*/, "");
+    return { ok: false, error: cleanMessage || "Could not submit the refund request. Please try again." };
   }
+}
+
+/**
+ * Retrieve credits balance for the active workspace.
+ */
+export async function getWorkspaceCredits(): Promise<BillingOrganizationCreditsResult | null> {
+  const session = await requireSession();
+  const organizationId = session.activeOrganizationId;
+  if (!organizationId) return null;
+
+  if (!isBillingConfigured()) return null;
+
+  const customerId = await getOrganizationBillingCustomerId(organizationId);
+  if (!customerId) return null;
+
+  return getBillingOrganizationCredits(customerId);
 }
