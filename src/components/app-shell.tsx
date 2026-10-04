@@ -56,7 +56,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname === "/register" ||
     pathname === "/logout" ||
     pathname === "/verify-email" ||
-    pathname.startsWith("/verify-email/");
+    pathname.startsWith("/verify-email/") ||
+    pathname === "/forgot-password" ||
+    pathname.startsWith("/forgot-password/") ||
+    pathname === "/reset-password" ||
+    pathname.startsWith("/reset-password/");
   const isPublicLanding = pathname === "/";
   const isEmbedRoute = pathname.startsWith("/embed");
   const isOnboardingPlan =
