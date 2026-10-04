@@ -46,6 +46,7 @@ export function VoiceAgentPhoneManager({
   retellApiConfigured,
   phones,
   phoneStats,
+  onBuy,
   onAssign,
   onLink,
   onSetPrimary,
@@ -68,7 +69,7 @@ export function VoiceAgentPhoneManager({
   const bookings = phoneStats.reduce((sum, stat) => sum + stat.bookingsCount, 0);
   const linkedLines = phones.filter((phone) => phone.retellAgentId === retellAgentId).length;
 
-  const [mode, setMode] = useState<"buy" | "link">("link");
+  const [mode, setMode] = useState<"buy" | "link">("buy");
 
   return (
     <section className="space-y-4">
@@ -135,8 +136,8 @@ export function VoiceAgentPhoneManager({
             <p className="mx-auto mt-1 max-w-lg text-xs leading-relaxed">
               {retellApiConfigured
                 ? agentReady
-                  ? "Add an existing support number below to start receiving calls. Buying a new number is coming soon."
-                  : "Save your voice agent on the Agent setup tab first — then return here to add a number."
+                  ? "Purchase a new phone number or link an existing support number below to start receiving calls."
+                  : "Save your voice agent on the Agent setup tab first — then return here to buy or add a number."
                 : "Phone service must be configured before you can add a support line."}
             </p>
             </div>
@@ -214,17 +215,17 @@ export function VoiceAgentPhoneManager({
                 <div className="mt-2 inline-flex rounded-xl bg-white/10 p-0.5">
                   <button
                     type="button"
-                    onClick={() => setMode("link")}
-                    className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "link" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
-                  >
-                    Add number
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setMode("buy")}
                     className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "buy" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
                   >
                     Buy a number
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode("link")}
+                    className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "link" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
+                  >
+                    Link existing number
                   </button>
                 </div>
               </div>
@@ -237,7 +238,7 @@ export function VoiceAgentPhoneManager({
                 <p className="text-sm font-semibold text-[var(--color-text)]">Voice agent required</p>
                 <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
                   Finish Agent setup and save so we can route inbound calls to your AI agent. Then come back to
-                  add or buy a number.
+                  buy or add a number.
                 </p>
               </div>
               <Link
@@ -248,27 +249,27 @@ export function VoiceAgentPhoneManager({
               </Link>
             </div>
           ) : mode === "buy" ? (
-            <div className="grid gap-0 lg:grid-cols-2">
-              <div className="space-y-4 border-b border-[var(--color-border)] p-5 lg:border-b-0 lg:border-r lg:p-6" aria-disabled="true">
+            <form action={onBuy} className="grid gap-0 lg:grid-cols-2">
+              <div className="space-y-4 border-b border-[var(--color-border)] p-5 lg:border-b-0 lg:border-r lg:p-6">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-                  What happens next
+                  How purchasing works
                 </p>
                 <ol className="space-y-3">
                   {[
                     {
                       step: "1",
-                      title: "Number is reserved",
-                      body: "We pick the next available US or Canada support number.",
+                      title: "Instant provisioning",
+                      body: "We provision a dedicated US/Canada support number for your organization.",
                     },
                     {
                       step: "2",
-                      title: "Agent is linked",
-                      body: "Inbound calls route to your current voice agent right away.",
+                      title: "Voice agent linked",
+                      body: "Incoming calls route automatically to your current voice agent.",
                     },
                     {
                       step: "3",
-                      title: "Ready for callers",
-                      body: "The line appears in your directory and can be set as primary.",
+                      title: "Primary line configured",
+                      body: "The number is immediately added to your directory and set as your primary line.",
                     },
                   ].map((item) => (
                     <li key={item.step} className="flex gap-3">
@@ -284,49 +285,81 @@ export function VoiceAgentPhoneManager({
                 </ol>
               </div>
 
-              <div className="relative flex flex-col gap-5 p-5 lg:p-6" aria-disabled="true">
-                <div
-                  className="pointer-events-none absolute inset-0 z-10 bg-[color-mix(in_srgb,var(--color-surface)_45%,transparent)]"
-                  aria-hidden
-                />
+              <div className="flex flex-col gap-5 p-5 lg:p-6">
+                <input type="hidden" name="organization_id" value={organizationId} />
+                <input type="hidden" name="retell_agent_id" value={retellAgentId} />
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block space-y-1.5">
-                    <span className="text-xs font-semibold text-[var(--color-text)]">Area code</span>
-                    <input
-                      disabled
-                      className="w-full cursor-not-allowed rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 font-mono text-sm text-[var(--color-text-muted)] opacity-70"
-                      placeholder="Any"
-                    />
+                    <span className="text-xs font-semibold text-[var(--color-text)]">
+                      Preferred area code <span className="font-normal text-[var(--color-text-muted)]">(optional)</span>
+                    </span>
+                    <div className="flex items-center overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] transition focus-within:border-[var(--color-primary)] focus-within:ring-1 focus-within:ring-[var(--color-primary)]">
+                      <span className="flex select-none items-center border-r border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-3 font-mono text-xs font-semibold text-[var(--color-text-muted)]">
+                        +1
+                      </span>
+                      <input
+                        name="area_code"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]{3}"
+                        maxLength={3}
+                        className="w-full bg-transparent px-3 py-3 font-mono text-sm text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none"
+                        placeholder="e.g. 415"
+                      />
+                    </div>
+                    <span className="block text-[11px] text-[var(--color-text-muted)]">
+                      3-digit US or Canada area code. Leave blank for any available region.
+                    </span>
                   </label>
                   <label className="block space-y-1.5">
-                    <span className="text-xs font-semibold text-[var(--color-text)]">Nickname</span>
+                    <span className="text-xs font-semibold text-[var(--color-text)]">
+                      Line nickname <span className="font-normal text-[var(--color-text-muted)]">(optional)</span>
+                    </span>
                     <input
-                      disabled
-                      className="w-full cursor-not-allowed rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 text-sm text-[var(--color-text-muted)] opacity-70"
+                      name="nickname"
+                      maxLength={80}
+                      className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 text-sm text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
                       placeholder="e.g. Front desk"
                     />
+                    <span className="block text-[11px] text-[var(--color-text-muted)]">
+                      Friendly label for this line.
+                    </span>
                   </label>
                 </div>
 
-                <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-                  Self-serve purchasing is not available yet. You can still link an existing number.
-                </p>
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5 text-xs leading-relaxed text-[var(--color-text-muted)]">
+                  <div className="flex items-start gap-2.5">
+                    <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center text-[var(--color-primary-h)]" aria-hidden>
+                      <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="16" x2="12" y2="12" />
+                        <line x1="12" y1="8" x2="12.01" y2="8" />
+                      </svg>
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[var(--color-text)]">US &amp; Canada (+1) Only</p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed">
+                        Direct number purchases through Retell are restricted to US &amp; Canada (+1). If you require an international number (e.g. UK, EU, or Australia), please bring your own carrier number and use the{" "}
+                        <button
+                          type="button"
+                          onClick={() => setMode("link")}
+                          className="font-semibold text-[var(--color-primary)] underline hover:text-[var(--color-primary-h)]"
+                        >
+                          Link existing number
+                        </button>{" "}
+                        tab.
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="mt-auto flex flex-col gap-3 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-[var(--color-text-muted)]">We’ll notify you when buying goes live.</p>
-                  <button
-                    type="button"
-                    disabled
-                    className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] opacity-50"
-                  >
-                    <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.81.36 1.6.7 2.35a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.75.34 1.54.57 2.35.7A2 2 0 0 1 22 16.92z" />
-                    </svg>
-                    Coming soon
-                  </button>
+                  <p className="text-xs text-[var(--color-text-muted)]">Will be set as your primary number.</p>
+                  <BuyPhoneSubmitButton />
                 </div>
               </div>
-            </div>
+            </form>
           ) : (
             <form action={onLink} className="grid gap-0 lg:grid-cols-2">
               <div className="space-y-4 border-b border-[var(--color-border)] p-5 lg:border-b-0 lg:border-r lg:p-6">
@@ -423,6 +456,35 @@ function LinkPhoneSubmitButton() {
         </>
       ) : (
         "Link phone number"
+      )}
+    </button>
+  );
+}
+
+function BuyPhoneSubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
+    >
+      {pending ? (
+        <>
+          <svg className="size-4 animate-spin text-current" fill="none" viewBox="0 0 24 24" aria-hidden>
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          Purchasing number...
+        </>
+      ) : (
+        <>
+          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.81.36 1.6.7 2.35a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.75.34 1.54.57 2.35.7A2 2 0 0 1 22 16.92z" />
+          </svg>
+          Buy phone number
+        </>
       )}
     </button>
   );

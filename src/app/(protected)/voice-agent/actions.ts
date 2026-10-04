@@ -211,15 +211,34 @@ export async function buyRetellPhoneNumberAction(formData: FormData) {
   await requireVoiceAgentOrgSession(organizationId);
   if (!isRetellApiConfigured()) redirectRetellSyncFailure("phone", "Voice service is not configured.");
 
-  const retellAgentId = String(formData.get("retell_agent_id") || "").trim();
+  let retellAgentId = String(formData.get("retell_agent_id") || "").trim();
+  if (!retellAgentId) {
+    const row = await prisma.organizationVoiceAgentSettings.findUnique({
+      where: { organizationId },
+      select: { retellConfig: true },
+    });
+    const fromConfig =
+      row?.retellConfig && typeof row.retellConfig === "object" && !Array.isArray(row.retellConfig)
+        ? String((row.retellConfig as Record<string, unknown>).retellAgentId || "")
+        : "";
+    retellAgentId = fromConfig.trim();
+  }
+
   const areaCodeRaw = String(formData.get("area_code") || "").trim();
-  const areaCode = areaCodeRaw ? Number(areaCodeRaw) : undefined;
+  let areaCode: number | undefined;
+  if (areaCodeRaw) {
+    const parsed = Number(areaCodeRaw);
+    if (!Number.isInteger(parsed) || parsed < 200 || parsed > 999) {
+      redirectRetellSyncFailure("phone", "Area code must be a valid 3-digit number (e.g. 415).");
+    }
+    areaCode = parsed;
+  }
   const nickname = String(formData.get("nickname") || "").trim();
 
   const result = await buyOrgRetellPhoneNumber({
     organizationId,
     retellAgentId,
-    areaCode: Number.isFinite(areaCode) ? areaCode : undefined,
+    areaCode,
     nickname: nickname || undefined,
     makePrimary: true,
   });

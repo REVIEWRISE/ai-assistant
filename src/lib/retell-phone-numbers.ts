@@ -201,19 +201,24 @@ export async function buyOrgRetellPhoneNumber(args: {
     });
   }
 
-  const phone = await upsertPhoneFromRetellRecord({
-    organizationId: args.organizationId,
-    record: created.data,
-    retellAgentId: agentId,
-    isPrimary: makePrimary,
-    areaCode: args.areaCode ?? null,
-  });
+  try {
+    const phone = await upsertPhoneFromRetellRecord({
+      organizationId: args.organizationId,
+      record: created.data,
+      retellAgentId: agentId,
+      isPrimary: makePrimary,
+      areaCode: args.areaCode ?? null,
+    });
 
-  if (makePrimary) {
-    await syncPrimaryPhoneConfig(args.organizationId, phone.phoneNumber);
+    if (makePrimary) {
+      await syncPrimaryPhoneConfig(args.organizationId, phone.phoneNumber);
+    }
+
+    return { ok: true, phone };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: `Failed to save purchased phone line: ${message}` };
   }
-
-  return { ok: true, phone };
 }
 
 export async function linkOrgRetellPhoneNumber(args: {
