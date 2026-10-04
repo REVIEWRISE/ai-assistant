@@ -32,6 +32,7 @@ export function VerifyEmailPendingClient({
       expired: "That verification link has expired. Request a new one below.",
       rate_limited: "Too many resend attempts. Please try again later.",
       missing: "Enter the email you used to register.",
+      invalid_email: "Please enter a valid email address.",
       unverified: "Please verify your email before signing in.",
       smtp_unavailable: "Email sending is not configured. Contact support.",
       send_failed: "We couldn’t send the verification email. Please try again.",
@@ -78,6 +79,7 @@ export function VerifyEmailPendingClient({
             name="email"
             type="email"
             required
+            maxLength={254}
             defaultValue={email}
             placeholder="you@company.com"
             autoComplete="email"

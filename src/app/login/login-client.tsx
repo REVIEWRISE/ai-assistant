@@ -58,6 +58,7 @@ function LoginPageContent({
     }
     const messages: Record<string, string> = {
       missing: "Please provide both email and password.",
+      invalid_email: "Please enter a valid email address.",
       invalid: "Invalid email or password.",
       suspended: "This account has been suspended. Please contact support.",
       oauth_denied: "Google sign-in was cancelled.",
@@ -120,6 +121,7 @@ function LoginPageContent({
               name="email"
               type="email"
               required
+              maxLength={254}
               defaultValue={emailParam}
               placeholder="you@company.com"
               autoComplete="email"

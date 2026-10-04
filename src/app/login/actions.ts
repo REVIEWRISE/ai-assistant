@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { resolveDefaultOrganizationId } from "@/lib/auth-session";
+import { isValidEmail } from "@/lib/email-policy";
 import { prisma } from "@/lib/prisma";
 import { checkLoginRateLimit, resetRateLimit } from "@/lib/rate-limit";
 import { getRequestIp } from "@/lib/request-ip";
@@ -28,6 +29,10 @@ export async function loginUser(formData: FormData) {
     redirect("/login?error=missing");
   }
 
+  if (!isValidEmail(email)) {
+    redirect("/login?error=invalid_email");
+  }
+
   const user = await prisma.user.findUnique({
     where: { email },
     include: {
@@ -46,7 +51,6 @@ export async function loginUser(formData: FormData) {
     redirect("/login?error=invalid");
   }
 
-  const hasGoogleAuth = user.authIdentities.some((i) => i.provider === "google");
   if (!user.passwordHash) {
     redirect(`/login?error=oauth_password&email=${encodeURIComponent(email)}`);
   }

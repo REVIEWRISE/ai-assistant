@@ -167,6 +167,7 @@ export function ProfileTabs({
                     defaultValue={email}
                     autoComplete="email"
                     required
+                    maxLength={254}
                     className={fieldClass}
                   />
                 </label>

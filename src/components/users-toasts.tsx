@@ -12,6 +12,7 @@ const successMessages: Record<string, string> = {
 
 const errorMessages: Record<string, string> = {
   missing: "Please fill in all required fields.",
+  invalid_email: "Please provide a valid email address.",
   exists: "That email is already in use.",
   cannot_delete_self: "You cannot delete your own account.",
   last_admin: "Keep at least one administrator.",

@@ -38,6 +38,10 @@ function ForgotPasswordContent() {
       toast.error("Please enter your work email address.");
       return;
     }
+    if (error === "invalid_email") {
+      toast.error("Please enter a valid work email address.");
+      return;
+    }
     if (error === "send_failed") {
       toast.error("We couldn't deliver the reset email. Please try again.");
       return;
@@ -123,6 +127,7 @@ function ForgotPasswordContent() {
             name="email"
             type="email"
             required
+            maxLength={254}
             defaultValue={emailParam}
             placeholder="you@company.com"
             autoComplete="email"

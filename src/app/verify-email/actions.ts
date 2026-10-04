@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { isValidEmail } from "@/lib/email-policy";
 import { sendEmailVerification } from "@/lib/email-verification";
 import { prisma } from "@/lib/prisma";
 import { checkVerificationResendRateLimit } from "@/lib/rate-limit";
@@ -16,6 +17,10 @@ export async function resendVerificationEmail(formData: FormData) {
   const email = String(formData.get("email") || "").trim().toLowerCase();
   if (!email) {
     redirect("/verify-email/pending?error=missing");
+  }
+
+  if (!isValidEmail(email)) {
+    redirect("/verify-email/pending?error=invalid_email");
   }
 
   const user = await prisma.user.findUnique({

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
+import { isValidEmail } from "@/lib/email-policy";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth-session";
 import { invalidateUserSessions } from "@/lib/session-token";
@@ -40,6 +41,10 @@ export async function updateProfile(formData: FormData) {
 
   if (!fullName || !email) {
     redirect("/profile?error=missing");
+  }
+
+  if (!isValidEmail(email)) {
+    redirect("/profile?error=invalid_email");
   }
 
   const existing = await prisma.user.findUnique({ where: { email } });
