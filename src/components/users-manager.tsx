@@ -668,6 +668,7 @@ export function UsersManager({
                           placeholder="jane@company.com"
                           autoComplete="email"
                           required
+                          maxLength={254}
                           className={fieldClass}
                         />
                       </label>

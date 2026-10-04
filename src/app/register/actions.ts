@@ -8,6 +8,7 @@ import {
   isBillingConfigured,
 } from "@/lib/billing-client";
 import { sendEmailVerification } from "@/lib/email-verification";
+import { isValidEmail } from "@/lib/email-policy";
 import { prisma } from "@/lib/prisma";
 import { checkRegisterRateLimit } from "@/lib/rate-limit";
 import { getRequestIp } from "@/lib/request-ip";
@@ -63,6 +64,10 @@ export async function registerUser(formData: FormData) {
 
   if (!fullName || !email || !password || !organizationNameInput) {
     redirectRegisterError("missing", preserved);
+  }
+
+  if (!isValidEmail(email)) {
+    redirectRegisterError("invalid_email", preserved);
   }
 
   if (organizationNameInput.length > 100) {

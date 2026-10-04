@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { isValidEmail } from "@/lib/email-policy";
 import { prisma } from "@/lib/prisma";
 import { checkLoginRateLimit } from "@/lib/rate-limit";
 import { getRequestIp } from "@/lib/request-ip";
@@ -19,6 +20,10 @@ export async function requestPasswordReset(formData: FormData) {
 
   if (!email) {
     redirect("/forgot-password?error=missing");
+  }
+
+  if (!isValidEmail(email)) {
+    redirect("/forgot-password?error=invalid_email");
   }
 
   const user = await prisma.user.findUnique({

@@ -51,6 +51,7 @@ function RegisterPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean
     if (!error) return;
     const messages: Record<string, string> = {
       missing: "Please fill in all required fields.",
+      invalid_email: "Please enter a valid work email address (e.g. you@company.com).",
       organization_name: "Workspace name must be 100 characters or fewer.",
       nomatch: "Passwords do not match.",
       weak_password:
@@ -113,6 +114,7 @@ function RegisterPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean
               name="email"
               type="email"
               required
+              maxLength={254}
               defaultValue={preservedEmail}
               placeholder="you@company.com"
               autoComplete="email"

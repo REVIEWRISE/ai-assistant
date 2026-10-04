@@ -17,6 +17,7 @@ const successMessages: Record<string, string> = {
 
 const errorMessages: Record<string, string> = {
   missing: "Please fill in all required profile fields.",
+  invalid_email: "Please provide a valid email address.",
   exists: "That email is already in use.",
   missing_password: "Please fill in all password fields.",
   nomatch_password: "Passwords do not match.",

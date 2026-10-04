@@ -1,6 +1,7 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import { isValidEmail } from "@/lib/email-policy";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { requireAdminSession } from "@/lib/auth-session";
@@ -38,6 +39,10 @@ export async function createUser(formData: FormData) {
 
   if (!fullName || !email || !password) {
     redirect("/users?error=missing");
+  }
+
+  if (!isValidEmail(email)) {
+    redirect("/users?error=invalid_email");
   }
 
   const passwordViolation = validatePasswordStrength(password, { email, fullName });
@@ -133,6 +138,10 @@ export async function updateUser(formData: FormData) {
 
   if (!id || !fullName || !email) {
     redirect("/users?error=missing");
+  }
+
+  if (!isValidEmail(email)) {
+    redirect("/users?error=invalid_email");
   }
 
   const existing = await prisma.user.findUnique({ where: { email } });
