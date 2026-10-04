@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { type ReactNode, useState } from "react";
 import type { RetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import type { OrgRetellPhoneNumber } from "@/lib/retell-phone-numbers";
+import { VoiceAgentForwardingGuide } from "@/components/voice-agent-forwarding-guide";
 
 function formatLineLabel(phone: OrgRetellPhoneNumber | RetellPhoneNumberStats): string {
   if (phone.nickname?.trim()) return phone.nickname.trim();
@@ -70,6 +71,7 @@ export function VoiceAgentPhoneManager({
   const linkedLines = phones.filter((phone) => phone.retellAgentId === retellAgentId).length;
 
   const [mode, setMode] = useState<"buy" | "link">("buy");
+  const [selectedForwardingPhone, setSelectedForwardingPhone] = useState<string | undefined>();
 
   return (
     <section className="space-y-4">
@@ -174,6 +176,19 @@ export function VoiceAgentPhoneManager({
                   </div>
 
                   <div className="flex flex-wrap items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedForwardingPhone(phone.phoneNumber);
+                        document.getElementById("call-forwarding-guide-section")?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] flex items-center gap-1.5"
+                    >
+                      <svg className="size-3.5 text-[var(--color-primary-h)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a5 5 0 0 1 5 5v3m0 0l-3-3m3 3l3-3M3 10l3-3M3 10l3 3" />
+                      </svg>
+                      Forwarding guide
+                    </button>
                     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${linkedToCurrentAgent ? "vr-app-status-success" : "vr-app-status-warning"}`}>
                       <span className={`size-1.5 rounded-full ${linkedToCurrentAgent ? "bg-[var(--color-success)]" : "bg-[var(--color-warning)]"}`} aria-hidden />
                       {linkedToCurrentAgent ? "Agent linked" : "Needs assignment"}
@@ -201,6 +216,13 @@ export function VoiceAgentPhoneManager({
           </div>
         )}
       </PhonePanel>
+
+      <div id="call-forwarding-guide-section">
+        <VoiceAgentForwardingGuide
+          phones={phones}
+          defaultSelectedNumber={selectedForwardingPhone}
+        />
+      </div>
 
       {retellApiConfigured ? (
         <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
