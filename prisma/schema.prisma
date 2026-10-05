@@ -17,6 +17,7 @@ model User {
   emailVerified Boolean  @default(false) @map("email_verified")
   failedLoginAttempts Int @default(0) @map("failed_login_attempts")
   lockedUntil   DateTime? @map("locked_until") @db.Timestamptz(6)
+  twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
 
@@ -30,6 +31,7 @@ model User {
   routedChatbotAppointments Appointment[] @relation("AppointmentRoutedUser")
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens PasswordResetToken[]
+  loginChallenges     LoginChallenge[]
   refundRequestsRequested RefundRequest[] @relation("RefundRequestRequester")
   refundRequestsReviewed  RefundRequest[] @relation("RefundRequestReviewer")
 
@@ -76,6 +78,21 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+model LoginChallenge {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @unique @map("token_hash")
+  codeHash  String   @map("code_hash")
+  attempts  Int      @default(0)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("login_challenges")
 }
 
 model Session {

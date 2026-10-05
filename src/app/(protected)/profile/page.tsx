@@ -10,6 +10,8 @@ import { isHrefAllowedForNav, redirectPathWhenMenuForbidden } from "@/lib/nav-ac
 import { requireSession } from "@/lib/auth-session";
 import { redirect } from "next/navigation";
 import {
+  disableTwoFactor,
+  enableTwoFactor,
   updatePassword,
   updateProfile,
 } from "./actions";
@@ -27,6 +29,7 @@ export default async function ProfileSettingsPage() {
       accountStatus: true,
       emailVerified: true,
       passwordHash: true,
+      twoFactorEnabled: true,
       userRoles: {
         select: {
           role: { select: { name: true } },
@@ -142,6 +145,9 @@ export default async function ProfileSettingsPage() {
         hasPassword={Boolean(user.passwordHash)}
         onUpdateProfile={updateProfile}
         onUpdatePassword={updatePassword}
+        twoFactorEnabled={user.twoFactorEnabled}
+        onEnableTwoFactor={enableTwoFactor}
+        onDisableTwoFactor={disableTwoFactor}
         billingClose={
           canCloseBilling && billing
             ? {

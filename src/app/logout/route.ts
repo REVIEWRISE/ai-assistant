@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const tokenHash = hashSessionToken(token);
     const session = await prisma.session.findFirst({
       where: {
-        OR: [{ token: tokenHash }, { token }],
+        token: tokenHash,
       },
       select: { id: true, userId: true, activeOrganizationId: true },
     });

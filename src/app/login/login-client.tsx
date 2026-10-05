@@ -66,6 +66,8 @@ function LoginPageContent({
       oauth_email: "Your Google account email must be verified to continue.",
       oauth_not_configured: "Google sign-in is not configured yet.",
       oauth_password: "This account is linked to Google Sign-In. Please continue with Google.",
+      "2fa_expired": "Your sign-in code expired. Please sign in again.",
+      "2fa_locked": "Too many incorrect codes. Please sign in again to get a new code.",
     };
     toast.error(messages[error] ?? "Unable to sign in. Please try again.");
   }, [error, retry]);

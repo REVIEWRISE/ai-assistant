@@ -54,13 +54,14 @@ export async function requestPasswordReset(formData: FormData) {
   await writePlatformAudit({
     actorId: user.id,
     action: "auth.password_reset_requested",
-    metadata: { email: user.email, skippedSmtp: result.skipped ?? false },
+    metadata: {
+      email: user.email,
+      skippedSmtp: result.skipped ?? false,
+      sendError: result.error ?? null,
+    },
   });
 
-  let redirectUrl = `/forgot-password?status=sent&email=${encodeURIComponent(email)}`;
-  if (!result.sent && result.error) {
-    redirectUrl += `&error=send_failed`;
-  }
-
-  redirect(redirectUrl);
+  // Same response as an unknown email so this form can't be used to discover accounts.
+  // Delivery failures are logged in sendPasswordResetEmail and recorded in the audit above.
+  redirect(`/forgot-password?status=sent&email=${encodeURIComponent(email)}`);
 }

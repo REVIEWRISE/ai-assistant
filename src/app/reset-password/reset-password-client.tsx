@@ -34,7 +34,9 @@ function ResetPasswordContent() {
     const messages: Record<string, string> = {
       missing: "Please enter both password fields.",
       mismatch: "Passwords do not match.",
-      short: "Password must be at least 8 characters long.",
+      weak_password:
+        "Password must be at least 12 characters and include an uppercase letter, a lowercase letter, a number, and a symbol.",
+      weak_password_personal: "Password must not contain your name or email address.",
       invalid: "Invalid or expired reset link. Please request a new one.",
       expired: "Your password reset link has expired. Please request a new one.",
     };
@@ -77,7 +79,7 @@ function ResetPasswordContent() {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Security</p>
         <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-[var(--color-text)]">Set new password</h2>
         <p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
-          Please enter your new password below. It must be at least 8 characters long.
+          Please enter your new password below. Use at least 12 characters, with an uppercase letter, a lowercase letter, a number, and a symbol.
         </p>
       </div>
 
@@ -93,8 +95,8 @@ function ResetPasswordContent() {
                 name="password"
                 type={showPassword ? "text" : "password"}
                 required
-                minLength={8}
-                placeholder="Enter at least 8 characters"
+                minLength={12}
+                placeholder="At least 12 characters"
                 autoComplete="new-password"
                 className={`${INPUT_CLASS} pr-11`}
               />
@@ -117,7 +119,7 @@ function ResetPasswordContent() {
                 name="confirmPassword"
                 type={showPassword ? "text" : "password"}
                 required
-                minLength={8}
+                minLength={12}
                 placeholder="Re-enter your new password"
                 autoComplete="new-password"
                 className={`${INPUT_CLASS} pr-11`}

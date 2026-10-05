@@ -120,6 +120,56 @@ export async function updatePassword(formData: FormData) {
   redirect("/profile?success=password");
 }
 
+async function setTwoFactorEnabled(formData: FormData, enabled: boolean) {
+  const session = await requireSession();
+  await assertProfileMenuAccess(session.userId, session.activeOrganizationId);
+  const currentPassword = String(formData.get("current_password") || "");
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { passwordHash: true },
+  });
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  // Two-step verification only guards email/password sign-in.
+  if (!user.passwordHash) {
+    redirect("/profile?error=2fa_requires_password");
+  }
+
+  if (!currentPassword) {
+    redirect("/profile?error=missing_password");
+  }
+
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) {
+    redirect("/profile?error=invalid_password");
+  }
+
+  await prisma.user.update({
+    where: { id: session.userId },
+    data: { twoFactorEnabled: enabled, updatedAt: new Date() },
+  });
+
+  await writePlatformAudit({
+    actorId: session.userId,
+    organizationId: session.activeOrganizationId,
+    action: enabled ? "auth.2fa_enabled" : "auth.2fa_disabled",
+  });
+
+  redirect(`/profile?success=${enabled ? "2fa_enabled" : "2fa_disabled"}`);
+}
+
+export async function enableTwoFactor(formData: FormData) {
+  await setTwoFactorEnabled(formData, true);
+}
+
+export async function disableTwoFactor(formData: FormData) {
+  await setTwoFactorEnabled(formData, false);
+}
+
 export async function createOrganization(formData: FormData) {
   const session = await requireSession();
   const destination = resolveReturnTo(formData, "/profile");
