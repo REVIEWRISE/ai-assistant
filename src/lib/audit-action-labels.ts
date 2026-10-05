@@ -5,6 +5,11 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   "auth.logout": "Signed out",
   "auth.register": "Created an account",
   "auth.email_verified": "Verified email address",
+  "auth.login_blocked_suspended": "Sign-in blocked (account suspended)",
+  "auth.2fa_challenge_sent": "Sent a two-step sign-in code",
+  "auth.2fa_failed": "Two-step sign-in code rejected",
+  "auth.2fa_enabled": "Turned on two-step verification",
+  "auth.2fa_disabled": "Turned off two-step verification",
 
   "admin.user_created": "Created a user",
   "admin.user_updated": "Updated a user",

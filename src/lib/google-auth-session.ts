@@ -1,10 +1,10 @@
-import { cookies } from "next/headers";
 import {
   ensureBillingCustomerForOrganization,
   isBillingConfigured,
 } from "@/lib/billing-client";
 import { resolveDefaultOrganizationId } from "@/lib/auth-session";
-import { generateSessionToken } from "@/lib/session-token";
+import { createUserSession } from "@/lib/session-token";
+import { isAccountBlocked } from "@/lib/login-completion";
 import {
   defaultWorkspaceName,
   GOOGLE_AUTH_PROVIDER,
@@ -38,34 +38,6 @@ export function decodeGoogleAuthState(state: string): GoogleAuthIntent | null {
   } catch {
     return null;
   }
-}
-
-async function createSessionForUser(userId: string, activeOrganizationId: string | null) {
-  const { rawToken, tokenHash } = generateSessionToken();
-  await prisma.session.create({
-    data: {
-      userId,
-      activeOrganizationId,
-      token: tokenHash,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
-    },
-  });
-
-  const cookieStore = await cookies();
-  cookieStore.set("ai_session", rawToken, {
-    path: "/",
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 7,
-    sameSite: "lax",
-  });
-  cookieStore.set("last_auth_provider", "google", {
-    path: "/",
-    httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 30, // 30 days
-    sameSite: "lax",
-  });
 }
 
 async function ensureGoogleIdentity(userId: string, profile: GoogleAuthProfile) {
@@ -226,6 +198,10 @@ export async function completeGoogleAuthLogin(
     return { redirectTo: "/login?error=oauth_failed" };
   }
 
+  if (isAccountBlocked(user.accountStatus)) {
+    return { redirectTo: "/login?error=suspended" };
+  }
+
   let activeOrganizationId =
     (
       await prisma.organizationMember.findFirst({
@@ -239,7 +215,7 @@ export async function completeGoogleAuthLogin(
     activeOrganizationId = await resolveDefaultOrganizationId(user.id);
   }
 
-  await createSessionForUser(user.id, activeOrganizationId);
+  await createUserSession(user.id, activeOrganizationId, "google");
 
   if (!isNewUser && activeOrganizationId) {
     await prisma.auditEvent

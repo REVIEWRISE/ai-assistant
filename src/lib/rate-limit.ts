@@ -137,3 +137,15 @@ export function checkChatbotRateLimit(ip: string): RateLimitResult {
     windowMs: 60 * 1000,
   });
 }
+
+/**
+ * Two-step sign-in code verify/resend: 10 attempts per 15 minutes per IP.
+ * Per-challenge attempts are separately capped in two-factor.ts.
+ */
+export function checkTwoFactorRateLimit(ip: string): RateLimitResult {
+  return checkRateLimit(`2fa:${ip}`, {
+    limit: 10,
+    windowMs: 15 * 60 * 1000,
+    blockMs: 15 * 60 * 1000,
+  });
+}
