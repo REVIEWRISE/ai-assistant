@@ -53,6 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const authRoute =
     pathname === "/login" ||
+    pathname.startsWith("/login/") ||
     pathname === "/register" ||
     pathname === "/logout" ||
     pathname === "/verify-email" ||
