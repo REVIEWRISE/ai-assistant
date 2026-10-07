@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useFormStatus } from "react-dom";
-import { type ReactNode, useState } from "react";
+import { createPortal, useFormStatus } from "react-dom";
+import { type ReactNode, useState, useEffect } from "react";
 import type { RetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import type { OrgRetellPhoneNumber } from "@/lib/retell-phone-numbers";
 import { VoiceAgentForwardingGuide } from "@/components/voice-agent-forwarding-guide";
@@ -72,6 +72,24 @@ export function VoiceAgentPhoneManager({
 
   const [mode, setMode] = useState<"buy" | "link">("buy");
   const [selectedForwardingPhone, setSelectedForwardingPhone] = useState<string | undefined>();
+  const [showLegalModal, setShowLegalModal] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (showLegalModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showLegalModal]);
 
   return (
     <section className="space-y-4">
@@ -305,6 +323,20 @@ export function VoiceAgentPhoneManager({
                     </li>
                   ))}
                 </ol>
+
+                <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] text-xs text-[var(--color-primary-h)]" aria-hidden>
+                      <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                      </svg>
+                    </span>
+                    <p className="text-xs font-semibold text-[var(--color-text)]">Regulatory &amp; Carrier Standards</p>
+                  </div>
+                  <p className="mt-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                    Provisioned numbers are assigned exclusively for legitimate inbound business reception. Strict adherence to TCPA, STIR/SHAKEN, and carrier anti-spam regulations is legally required.
+                  </p>
+                </div>
               </div>
 
               <div className="flex flex-col gap-5 p-5 lg:p-6">
@@ -350,34 +382,68 @@ export function VoiceAgentPhoneManager({
                   </label>
                 </div>
 
-                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5 text-xs leading-relaxed text-[var(--color-text-muted)]">
-                  <div className="flex items-start gap-2.5">
-                    <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center text-[var(--color-primary-h)]" aria-hidden>
-                      <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5 text-[11px] text-[var(--color-text-muted)]">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="flex size-4 shrink-0 items-center justify-center text-[var(--color-primary-h)]" aria-hidden>
+                      <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="10" />
                         <line x1="12" y1="16" x2="12" y2="12" />
                         <line x1="12" y1="8" x2="12.01" y2="8" />
                       </svg>
                     </span>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-[var(--color-text)]">US &amp; Canada (+1) Only</p>
-                      <p className="mt-0.5 text-[11px] leading-relaxed">
-                        Direct number purchases through Retell are restricted to US &amp; Canada (+1). If you require an international number (e.g. UK, EU, or Australia), please bring your own carrier number and use the{" "}
-                        <button
-                          type="button"
-                          onClick={() => setMode("link")}
-                          className="font-semibold text-[var(--color-primary)] underline hover:text-[var(--color-primary-h)]"
-                        >
-                          Link existing number
-                        </button>{" "}
-                        tab.
-                      </p>
-                    </div>
+                    <p className="truncate leading-tight">
+                      <strong className="text-[var(--color-text)]">US &amp; Canada (+1) only.</strong> For international lines,{" "}
+                      <button
+                        type="button"
+                        onClick={() => setMode("link")}
+                        className="font-semibold text-[var(--color-primary-h)] underline hover:opacity-80"
+                      >
+                        link an existing number
+                      </button>.
+                    </p>
                   </div>
                 </div>
 
+                {/* Compact Telephony Compliance Notice */}
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-amber-500 text-[11px]" aria-hidden>
+                        <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                      </span>
+                      <p className="truncate font-semibold text-[var(--color-text)] text-xs">
+                        Telephony Compliance &amp; Policy
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowLegalModal(true)}
+                      className="shrink-0 text-xs font-semibold text-[var(--color-primary-h)] underline hover:opacity-80"
+                    >
+                      Review policy
+                    </button>
+                  </div>
+
+                  <label className="mt-2.5 flex items-start gap-2.5 pt-2.5 border-t border-[var(--color-border)] cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      name="telephony_terms_accepted"
+                      id="telephony_terms_accepted"
+                      required
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                      className="mt-0.5 size-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)] shrink-0 cursor-pointer"
+                    />
+                    <span className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                      I agree to the <button type="button" onClick={() => setShowLegalModal(true)} className="font-semibold text-[var(--color-text)] underline hover:text-[var(--color-primary-h)]">Telephony &amp; TCPA Policy</button>: inbound business reception only, zero-tolerance revocation for spam, and full liability for carrier fines.
+                    </span>
+                  </label>
+                </div>
+
                 <div className="mt-auto flex flex-col gap-3 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-[var(--color-text-muted)]">Will be set as your primary number.</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">Will be set as your primary number upon agreement.</p>
                   <BuyPhoneSubmitButton />
                 </div>
               </div>
@@ -442,9 +508,21 @@ export function VoiceAgentPhoneManager({
                   </label>
                 </div>
 
-                <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-                  Make sure this number is configured in your phone provider account to route correctly.
-                </p>
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5 text-xs text-[var(--color-text-muted)]">
+                  <div className="flex items-start gap-2">
+                    <span className="mt-0.5 flex size-4 shrink-0 text-[var(--color-primary-h)]" aria-hidden>
+                      <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                      </svg>
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[var(--color-text)]">TCPA &amp; Telecom Compliance Notice</p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed">
+                        Calls processed by your AI agent through linked numbers remain strictly subject to TCPA compliance and acceptable use terms. Telemarketing scams, automated cold-calling, and harassment are strictly prohibited.
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="mt-auto flex flex-col gap-3 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-xs text-[var(--color-text-muted)]">This will set this number as primary.</p>
@@ -455,6 +533,113 @@ export function VoiceAgentPhoneManager({
           )}
         </section>
       ) : null}
+
+      {showLegalModal && mounted
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-md"
+              onClick={() => setShowLegalModal(false)}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="compliance-modal-title"
+            >
+              <div
+                className="relative flex w-full max-w-lg max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Modal Header */}
+                <div className="flex items-start justify-between border-b border-[var(--color-border)] p-4 sm:p-5 bg-[var(--color-raised)]">
+                  <div className="flex items-center gap-3">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-500">
+                      <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                      </svg>
+                    </span>
+                    <div>
+                      <h4 id="compliance-modal-title" className="text-base font-semibold text-[var(--color-text)]">
+                        Telephony Compliance &amp; Policy
+                      </h4>
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        Mandatory anti-abuse, TCPA, and carrier rules for phone lines
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowLegalModal(false)}
+                    className="rounded-lg p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition"
+                    aria-label="Close"
+                  >
+                    <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 text-xs">
+                  <div className="space-y-2.5">
+                    <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3">
+                      <p className="font-semibold text-[var(--color-text)] flex items-center gap-1.5">
+                        <span className="text-red-500 font-bold">•</span> Prohibited Conduct &amp; TCPA Compliance
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                        Telemarketing scams, automated robocalls, caller ID spoofing, debt harassment, or any violation of the Telephone Consumer Protection Act (TCPA, 47 U.S.C. § 227) are strictly forbidden.
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                      <p className="font-semibold text-[var(--color-text)] flex items-center gap-1.5">
+                        <span className="text-amber-500 font-bold">•</span> Immediate Revocation Without Refund
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                        We operate zero tolerance. Any line associated with spam reports, carrier traceback investigations, harassment, or unauthorized outbound calling will be revoked immediately without notice and without refund.
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
+                      <p className="font-semibold text-[var(--color-text)] flex items-center gap-1.5">
+                        <span className="text-blue-500 font-bold">•</span> Legal Indemnity &amp; Carrier Fines
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                        You legally agree to hold our company harmless and assume 100% financial liability for all carrier traceback fines ($500–$1,500+ per violation) or statutory regulatory penalties resulting from misuse.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5 space-y-2 text-[11px] text-[var(--color-text-muted)]">
+                    <p className="font-semibold text-[var(--color-text)]">Regulatory Addendum:</p>
+                    <p><strong>1. Permitted Purpose:</strong> Phone lines are assigned exclusively for legitimate inbound reception and appointment scheduling for your verified business.</p>
+                    <p><strong>2. Carrier Traceback:</strong> Telecommunications carriers actively traceback spam. Upstream carrier reports result in immediate permanent disconnection.</p>
+                    <p><strong>3. Hold Harmless:</strong> You agree to defend and indemnify the company against any legal fees, carrier fines, or government penalties arising from your number activity.</p>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="flex items-center justify-end gap-2 border-t border-[var(--color-border)] p-4 bg-[var(--color-raised)]">
+                  <button
+                    type="button"
+                    onClick={() => setShowLegalModal(false)}
+                    className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTermsAccepted(true);
+                      setShowLegalModal(false);
+                    }}
+                    className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] shadow-sm"
+                  >
+                    I Agree &amp; Accept Terms
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </section>
   );
 }
