@@ -56,6 +56,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   chatbot_crm_webhook_failed: "CRM webhook failed",
 
   voice_retell_booking_created: "Voice agent booked an appointment",
+  "telephony.phone_number_purchased": "Purchased phone number and agreed to TCPA compliance terms",
 };
 
 function titleizeToken(token: string) {
