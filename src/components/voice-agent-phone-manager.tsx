@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { createPortal, useFormStatus } from "react-dom";
-import { type ReactNode, useState, useEffect } from "react";
+import { type ReactNode, useState, useEffect, useSyncExternalStore } from "react";
 import type { RetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import type { OrgRetellPhoneNumber } from "@/lib/retell-phone-numbers";
 import { VoiceAgentForwardingGuide } from "@/components/voice-agent-forwarding-guide";
@@ -74,11 +74,11 @@ export function VoiceAgentPhoneManager({
   const [selectedForwardingPhone, setSelectedForwardingPhone] = useState<string | undefined>();
   const [showLegalModal, setShowLegalModal] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   useEffect(() => {
     if (showLegalModal) {
