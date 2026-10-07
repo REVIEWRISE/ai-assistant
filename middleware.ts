@@ -13,6 +13,7 @@ const AUTH_ROUTES = new Set([
 function isPublicAuthFlowPath(pathname: string): boolean {
   return (
     AUTH_ROUTES.has(pathname) ||
+    pathname === "/login/verify" ||
     pathname === "/verify-email" ||
     pathname.startsWith("/verify-email/") ||
     pathname === "/auth/google" ||

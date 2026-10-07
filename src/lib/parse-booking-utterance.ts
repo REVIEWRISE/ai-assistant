@@ -84,14 +84,14 @@ export function stepIdIndicatesCustomerEmail(id: string): boolean {
   return idSegments(id).some((s) => CUSTOMER_EMAIL_ID_TOKENS.has(s));
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+import { isValidEmail } from "@/lib/email-policy";
 
 export function normalizeCustomerEmail(raw: string | null | undefined): string | null {
   const email = String(raw ?? "")
     .trim()
     .toLowerCase()
-    .slice(0, 320);
-  if (!email || !EMAIL_RE.test(email)) return null;
+    .slice(0, 254);
+  if (!email || !isValidEmail(email)) return null;
   return email;
 }
 

@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useFormStatus } from "react-dom";
-import { type ReactNode, useState } from "react";
+import { createPortal, useFormStatus } from "react-dom";
+import { type ReactNode, useState, useEffect, useSyncExternalStore } from "react";
 import type { RetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import type { OrgRetellPhoneNumber } from "@/lib/retell-phone-numbers";
+import { VoiceAgentForwardingGuide } from "@/components/voice-agent-forwarding-guide";
 
 function formatLineLabel(phone: OrgRetellPhoneNumber | RetellPhoneNumberStats): string {
   if (phone.nickname?.trim()) return phone.nickname.trim();
@@ -46,6 +47,7 @@ export function VoiceAgentPhoneManager({
   retellApiConfigured,
   phones,
   phoneStats,
+  onBuy,
   onAssign,
   onLink,
   onSetPrimary,
@@ -68,7 +70,26 @@ export function VoiceAgentPhoneManager({
   const bookings = phoneStats.reduce((sum, stat) => sum + stat.bookingsCount, 0);
   const linkedLines = phones.filter((phone) => phone.retellAgentId === retellAgentId).length;
 
-  const [mode, setMode] = useState<"buy" | "link">("link");
+  const [mode, setMode] = useState<"buy" | "link">("buy");
+  const [selectedForwardingPhone, setSelectedForwardingPhone] = useState<string | undefined>();
+  const [showLegalModal, setShowLegalModal] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
+  useEffect(() => {
+    if (showLegalModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showLegalModal]);
 
   return (
     <section className="space-y-4">
@@ -135,8 +156,8 @@ export function VoiceAgentPhoneManager({
             <p className="mx-auto mt-1 max-w-lg text-xs leading-relaxed">
               {retellApiConfigured
                 ? agentReady
-                  ? "Add an existing support number below to start receiving calls. Buying a new number is coming soon."
-                  : "Save your voice agent on the Agent setup tab first — then return here to add a number."
+                  ? "Purchase a new phone number or link an existing support number below to start receiving calls."
+                  : "Save your voice agent on the Agent setup tab first — then return here to buy or add a number."
                 : "Phone service must be configured before you can add a support line."}
             </p>
             </div>
@@ -173,6 +194,19 @@ export function VoiceAgentPhoneManager({
                   </div>
 
                   <div className="flex flex-wrap items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedForwardingPhone(phone.phoneNumber);
+                        document.getElementById("call-forwarding-guide-section")?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] flex items-center gap-1.5"
+                    >
+                      <svg className="size-3.5 text-[var(--color-primary-h)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a5 5 0 0 1 5 5v3m0 0l-3-3m3 3l3-3M3 10l3-3M3 10l3 3" />
+                      </svg>
+                      Forwarding guide
+                    </button>
                     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${linkedToCurrentAgent ? "vr-app-status-success" : "vr-app-status-warning"}`}>
                       <span className={`size-1.5 rounded-full ${linkedToCurrentAgent ? "bg-[var(--color-success)]" : "bg-[var(--color-warning)]"}`} aria-hidden />
                       {linkedToCurrentAgent ? "Agent linked" : "Needs assignment"}
@@ -201,6 +235,13 @@ export function VoiceAgentPhoneManager({
         )}
       </PhonePanel>
 
+      <div id="call-forwarding-guide-section">
+        <VoiceAgentForwardingGuide
+          phones={phones}
+          defaultSelectedNumber={selectedForwardingPhone}
+        />
+      </div>
+
       {retellApiConfigured ? (
         <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
           <div className="relative overflow-hidden border-b border-[var(--color-border)] bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 py-6 text-white lg:px-6">
@@ -214,17 +255,17 @@ export function VoiceAgentPhoneManager({
                 <div className="mt-2 inline-flex rounded-xl bg-white/10 p-0.5">
                   <button
                     type="button"
-                    onClick={() => setMode("link")}
-                    className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "link" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
-                  >
-                    Add number
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setMode("buy")}
                     className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "buy" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
                   >
                     Buy a number
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode("link")}
+                    className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "link" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
+                  >
+                    Link existing number
                   </button>
                 </div>
               </div>
@@ -237,7 +278,7 @@ export function VoiceAgentPhoneManager({
                 <p className="text-sm font-semibold text-[var(--color-text)]">Voice agent required</p>
                 <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
                   Finish Agent setup and save so we can route inbound calls to your AI agent. Then come back to
-                  add or buy a number.
+                  buy or add a number.
                 </p>
               </div>
               <Link
@@ -248,27 +289,27 @@ export function VoiceAgentPhoneManager({
               </Link>
             </div>
           ) : mode === "buy" ? (
-            <div className="grid gap-0 lg:grid-cols-2">
-              <div className="space-y-4 border-b border-[var(--color-border)] p-5 lg:border-b-0 lg:border-r lg:p-6" aria-disabled="true">
+            <form action={onBuy} className="grid gap-0 lg:grid-cols-2">
+              <div className="space-y-4 border-b border-[var(--color-border)] p-5 lg:border-b-0 lg:border-r lg:p-6">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-                  What happens next
+                  How purchasing works
                 </p>
                 <ol className="space-y-3">
                   {[
                     {
                       step: "1",
-                      title: "Number is reserved",
-                      body: "We pick the next available US or Canada support number.",
+                      title: "Instant provisioning",
+                      body: "We provision a dedicated US/Canada support number for your organization.",
                     },
                     {
                       step: "2",
-                      title: "Agent is linked",
-                      body: "Inbound calls route to your current voice agent right away.",
+                      title: "Voice agent linked",
+                      body: "Incoming calls route automatically to your current voice agent.",
                     },
                     {
                       step: "3",
-                      title: "Ready for callers",
-                      body: "The line appears in your directory and can be set as primary.",
+                      title: "Primary line configured",
+                      body: "The number is immediately added to your directory and set as your primary line.",
                     },
                   ].map((item) => (
                     <li key={item.step} className="flex gap-3">
@@ -282,51 +323,131 @@ export function VoiceAgentPhoneManager({
                     </li>
                   ))}
                 </ol>
+
+                <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] text-xs text-[var(--color-primary-h)]" aria-hidden>
+                      <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                      </svg>
+                    </span>
+                    <p className="text-xs font-semibold text-[var(--color-text)]">Regulatory &amp; Carrier Standards</p>
+                  </div>
+                  <p className="mt-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                    Provisioned numbers are assigned exclusively for legitimate inbound business reception. Strict adherence to TCPA, STIR/SHAKEN, and carrier anti-spam regulations is legally required.
+                  </p>
+                </div>
               </div>
 
-              <div className="relative flex flex-col gap-5 p-5 lg:p-6" aria-disabled="true">
-                <div
-                  className="pointer-events-none absolute inset-0 z-10 bg-[color-mix(in_srgb,var(--color-surface)_45%,transparent)]"
-                  aria-hidden
-                />
+              <div className="flex flex-col gap-5 p-5 lg:p-6">
+                <input type="hidden" name="organization_id" value={organizationId} />
+                <input type="hidden" name="retell_agent_id" value={retellAgentId} />
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block space-y-1.5">
-                    <span className="text-xs font-semibold text-[var(--color-text)]">Area code</span>
-                    <input
-                      disabled
-                      className="w-full cursor-not-allowed rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 font-mono text-sm text-[var(--color-text-muted)] opacity-70"
-                      placeholder="Any"
-                    />
+                    <span className="text-xs font-semibold text-[var(--color-text)]">
+                      Preferred area code <span className="font-normal text-[var(--color-text-muted)]">(optional)</span>
+                    </span>
+                    <div className="flex items-center overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] transition focus-within:border-[var(--color-primary)] focus-within:ring-1 focus-within:ring-[var(--color-primary)]">
+                      <span className="flex select-none items-center border-r border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-3 font-mono text-xs font-semibold text-[var(--color-text-muted)]">
+                        +1
+                      </span>
+                      <input
+                        name="area_code"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]{3}"
+                        maxLength={3}
+                        className="w-full bg-transparent px-3 py-3 font-mono text-sm text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none"
+                        placeholder="e.g. 415"
+                      />
+                    </div>
+                    <span className="block text-[11px] text-[var(--color-text-muted)]">
+                      3-digit US or Canada area code. Leave blank for any available region.
+                    </span>
                   </label>
                   <label className="block space-y-1.5">
-                    <span className="text-xs font-semibold text-[var(--color-text)]">Nickname</span>
+                    <span className="text-xs font-semibold text-[var(--color-text)]">
+                      Line nickname <span className="font-normal text-[var(--color-text-muted)]">(optional)</span>
+                    </span>
                     <input
-                      disabled
-                      className="w-full cursor-not-allowed rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 text-sm text-[var(--color-text-muted)] opacity-70"
+                      name="nickname"
+                      maxLength={80}
+                      className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 text-sm text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
                       placeholder="e.g. Front desk"
                     />
+                    <span className="block text-[11px] text-[var(--color-text-muted)]">
+                      Friendly label for this line.
+                    </span>
                   </label>
                 </div>
 
-                <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-                  Self-serve purchasing is not available yet. You can still link an existing number.
-                </p>
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5 text-[11px] text-[var(--color-text-muted)]">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="flex size-4 shrink-0 items-center justify-center text-[var(--color-primary-h)]" aria-hidden>
+                      <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="16" x2="12" y2="12" />
+                        <line x1="12" y1="8" x2="12.01" y2="8" />
+                      </svg>
+                    </span>
+                    <p className="truncate leading-tight">
+                      <strong className="text-[var(--color-text)]">US &amp; Canada (+1) only.</strong> For international lines,{" "}
+                      <button
+                        type="button"
+                        onClick={() => setMode("link")}
+                        className="font-semibold text-[var(--color-primary-h)] underline hover:opacity-80"
+                      >
+                        link an existing number
+                      </button>.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Compact Telephony Compliance Notice */}
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-amber-500 text-[11px]" aria-hidden>
+                        <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                      </span>
+                      <p className="truncate font-semibold text-[var(--color-text)] text-xs">
+                        Telephony Compliance &amp; Policy
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowLegalModal(true)}
+                      className="shrink-0 text-xs font-semibold text-[var(--color-primary-h)] underline hover:opacity-80"
+                    >
+                      Review policy
+                    </button>
+                  </div>
+
+                  <label className="mt-2.5 flex items-start gap-2.5 pt-2.5 border-t border-[var(--color-border)] cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      name="telephony_terms_accepted"
+                      id="telephony_terms_accepted"
+                      required
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                      className="mt-0.5 size-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)] shrink-0 cursor-pointer"
+                    />
+                    <span className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                      I agree to the <button type="button" onClick={() => setShowLegalModal(true)} className="font-semibold text-[var(--color-text)] underline hover:text-[var(--color-primary-h)]">Telephony &amp; TCPA Policy</button>: inbound business reception only, zero-tolerance revocation for spam, and full liability for carrier fines.
+                    </span>
+                  </label>
+                </div>
 
                 <div className="mt-auto flex flex-col gap-3 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-[var(--color-text-muted)]">We’ll notify you when buying goes live.</p>
-                  <button
-                    type="button"
-                    disabled
-                    className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] opacity-50"
-                  >
-                    <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.81.36 1.6.7 2.35a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.75.34 1.54.57 2.35.7A2 2 0 0 1 22 16.92z" />
-                    </svg>
-                    Coming soon
-                  </button>
+                  <p className="text-xs text-[var(--color-text-muted)]">Will be set as your primary number upon agreement.</p>
+                  <BuyPhoneSubmitButton />
                 </div>
               </div>
-            </div>
+            </form>
           ) : (
             <form action={onLink} className="grid gap-0 lg:grid-cols-2">
               <div className="space-y-4 border-b border-[var(--color-border)] p-5 lg:border-b-0 lg:border-r lg:p-6">
@@ -387,9 +508,21 @@ export function VoiceAgentPhoneManager({
                   </label>
                 </div>
 
-                <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-                  Make sure this number is configured in your phone provider account to route correctly.
-                </p>
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5 text-xs text-[var(--color-text-muted)]">
+                  <div className="flex items-start gap-2">
+                    <span className="mt-0.5 flex size-4 shrink-0 text-[var(--color-primary-h)]" aria-hidden>
+                      <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                      </svg>
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[var(--color-text)]">TCPA &amp; Telecom Compliance Notice</p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed">
+                        Calls processed by your AI agent through linked numbers remain strictly subject to TCPA compliance and acceptable use terms. Telemarketing scams, automated cold-calling, and harassment are strictly prohibited.
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="mt-auto flex flex-col gap-3 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-xs text-[var(--color-text-muted)]">This will set this number as primary.</p>
@@ -400,6 +533,113 @@ export function VoiceAgentPhoneManager({
           )}
         </section>
       ) : null}
+
+      {showLegalModal && mounted
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-md"
+              onClick={() => setShowLegalModal(false)}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="compliance-modal-title"
+            >
+              <div
+                className="relative flex w-full max-w-lg max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Modal Header */}
+                <div className="flex items-start justify-between border-b border-[var(--color-border)] p-4 sm:p-5 bg-[var(--color-raised)]">
+                  <div className="flex items-center gap-3">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-500">
+                      <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                      </svg>
+                    </span>
+                    <div>
+                      <h4 id="compliance-modal-title" className="text-base font-semibold text-[var(--color-text)]">
+                        Telephony Compliance &amp; Policy
+                      </h4>
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        Mandatory anti-abuse, TCPA, and carrier rules for phone lines
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowLegalModal(false)}
+                    className="rounded-lg p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition"
+                    aria-label="Close"
+                  >
+                    <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 text-xs">
+                  <div className="space-y-2.5">
+                    <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3">
+                      <p className="font-semibold text-[var(--color-text)] flex items-center gap-1.5">
+                        <span className="text-red-500 font-bold">•</span> Prohibited Conduct &amp; TCPA Compliance
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                        Telemarketing scams, automated robocalls, caller ID spoofing, debt harassment, or any violation of the Telephone Consumer Protection Act (TCPA, 47 U.S.C. § 227) are strictly forbidden.
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                      <p className="font-semibold text-[var(--color-text)] flex items-center gap-1.5">
+                        <span className="text-amber-500 font-bold">•</span> Immediate Revocation Without Refund
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                        We operate zero tolerance. Any line associated with spam reports, carrier traceback investigations, harassment, or unauthorized outbound calling will be revoked immediately without notice and without refund.
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
+                      <p className="font-semibold text-[var(--color-text)] flex items-center gap-1.5">
+                        <span className="text-blue-500 font-bold">•</span> Legal Indemnity &amp; Carrier Fines
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                        You legally agree to hold our company harmless and assume 100% financial liability for all carrier traceback fines ($500–$1,500+ per violation) or statutory regulatory penalties resulting from misuse.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5 space-y-2 text-[11px] text-[var(--color-text-muted)]">
+                    <p className="font-semibold text-[var(--color-text)]">Regulatory Addendum:</p>
+                    <p><strong>1. Permitted Purpose:</strong> Phone lines are assigned exclusively for legitimate inbound reception and appointment scheduling for your verified business.</p>
+                    <p><strong>2. Carrier Traceback:</strong> Telecommunications carriers actively traceback spam. Upstream carrier reports result in immediate permanent disconnection.</p>
+                    <p><strong>3. Hold Harmless:</strong> You agree to defend and indemnify the company against any legal fees, carrier fines, or government penalties arising from your number activity.</p>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="flex items-center justify-end gap-2 border-t border-[var(--color-border)] p-4 bg-[var(--color-raised)]">
+                  <button
+                    type="button"
+                    onClick={() => setShowLegalModal(false)}
+                    className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTermsAccepted(true);
+                      setShowLegalModal(false);
+                    }}
+                    className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] shadow-sm"
+                  >
+                    I Agree &amp; Accept Terms
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </section>
   );
 }
@@ -423,6 +663,35 @@ function LinkPhoneSubmitButton() {
         </>
       ) : (
         "Link phone number"
+      )}
+    </button>
+  );
+}
+
+function BuyPhoneSubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
+    >
+      {pending ? (
+        <>
+          <svg className="size-4 animate-spin text-current" fill="none" viewBox="0 0 24 24" aria-hidden>
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          Purchasing number...
+        </>
+      ) : (
+        <>
+          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.81.36 1.6.7 2.35a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.75.34 1.54.57 2.35.7A2 2 0 0 1 22 16.92z" />
+          </svg>
+          Buy phone number
+        </>
       )}
     </button>
   );

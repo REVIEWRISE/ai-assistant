@@ -73,7 +73,7 @@ async function loadVoiceAgentSettings(organizationId: string) {
   };
 }
 
-function redirectRetellSyncFailure(tab: string, error: string) {
+function redirectRetellSyncFailure(tab: string, error: string): never {
   const params = new URLSearchParams({
     error: "retell_sync_failed",
     tab,
@@ -208,22 +208,72 @@ export async function saveVoiceAgentPhoneSettings(formData: FormData) {
 export async function buyRetellPhoneNumberAction(formData: FormData) {
   const organizationId = String(formData.get("organization_id") || "").trim();
   if (!organizationId) redirect(`${VOICE_AGENT_ROUTE}?error=organization_required`);
-  await requireVoiceAgentOrgSession(organizationId);
+  const session = await requireVoiceAgentOrgSession(organizationId);
   if (!isRetellApiConfigured()) redirectRetellSyncFailure("phone", "Voice service is not configured.");
 
-  const retellAgentId = String(formData.get("retell_agent_id") || "").trim();
+  const termsAccepted = formData.get("telephony_terms_accepted");
+  if (!termsAccepted || (termsAccepted !== "on" && termsAccepted !== "true")) {
+    redirectRetellSyncFailure(
+      "phone",
+      "You must read and agree to the Telephony Compliance & TCPA Acceptable Use Policy before purchasing a phone line.",
+    );
+  }
+
+  let retellAgentId = String(formData.get("retell_agent_id") || "").trim();
+  if (!retellAgentId) {
+    const row = await prisma.organizationVoiceAgentSettings.findUnique({
+      where: { organizationId },
+      select: { retellConfig: true },
+    });
+    const fromConfig =
+      row?.retellConfig && typeof row.retellConfig === "object" && !Array.isArray(row.retellConfig)
+        ? String((row.retellConfig as Record<string, unknown>).retellAgentId || "")
+        : "";
+    retellAgentId = fromConfig.trim();
+  }
+
   const areaCodeRaw = String(formData.get("area_code") || "").trim();
-  const areaCode = areaCodeRaw ? Number(areaCodeRaw) : undefined;
+  let areaCode: number | undefined;
+  if (areaCodeRaw) {
+    const parsed = Number(areaCodeRaw);
+    if (!Number.isInteger(parsed) || parsed < 200 || parsed > 999) {
+      redirectRetellSyncFailure("phone", "Area code must be a valid 3-digit number (e.g. 415).");
+    }
+    areaCode = parsed;
+  }
   const nickname = String(formData.get("nickname") || "").trim();
 
   const result = await buyOrgRetellPhoneNumber({
     organizationId,
     retellAgentId,
-    areaCode: Number.isFinite(areaCode) ? areaCode : undefined,
+    areaCode,
     nickname: nickname || undefined,
     makePrimary: true,
   });
   if (!result.ok) redirectRetellSyncFailure("phone", result.error);
+
+  if (session?.userId) {
+    try {
+      await prisma.auditEvent.create({
+        data: {
+          organizationId,
+          actorId: session.userId,
+          action: "telephony.phone_number_purchased",
+          metadata: {
+            phoneNumber: result.phone.phoneNumber,
+            areaCode: areaCode ?? null,
+            termsVersion: "2026-v1-tcpa",
+            tcpaProhibitionAgreed: true,
+            immediateRevocationAgreed: true,
+            indemnificationAgreed: true,
+            acceptedAt: new Date().toISOString(),
+          },
+        },
+      });
+    } catch (auditErr) {
+      console.warn("[voice-agent] Could not log telephony terms acceptance event:", auditErr);
+    }
+  }
 
   revalidatePath(VOICE_AGENT_ROUTE);
   redirect(`${VOICE_AGENT_ROUTE}?tab=phone&success=phone_bought`);

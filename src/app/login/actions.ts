@@ -1,17 +1,15 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
-import { resolveDefaultOrganizationId } from "@/lib/auth-session";
+import { isValidEmail } from "@/lib/email-policy";
 import { prisma } from "@/lib/prisma";
 import { checkLoginRateLimit, resetRateLimit } from "@/lib/rate-limit";
 import { getRequestIp } from "@/lib/request-ip";
 import { isLocked, lockoutRetryAfterMs, recordFailedLogin, resetFailedLogins } from "@/lib/account-lockout";
 import { writePlatformAudit } from "@/lib/platform-audit";
-import { userHasAdminRole } from "@/lib/admin-view-only";
-import { getOrgBilling, billingRedirectForStatus } from "@/lib/entitlements";
-import { generateSessionToken } from "@/lib/session-token";
+import { finishCredentialsLogin, isAccountBlocked } from "@/lib/login-completion";
+import { setTwoFactorCookie, startLoginChallenge } from "@/lib/two-factor";
 
 export async function loginUser(formData: FormData) {
   const ip = await getRequestIp();
@@ -28,6 +26,10 @@ export async function loginUser(formData: FormData) {
     redirect("/login?error=missing");
   }
 
+  if (!isValidEmail(email)) {
+    redirect("/login?error=invalid_email");
+  }
+
   const user = await prisma.user.findUnique({
     where: { email },
   });
@@ -42,7 +44,13 @@ export async function loginUser(formData: FormData) {
   }
 
   if (!user.passwordHash) {
-    redirect(`/login?error=oauth_password&email=${encodeURIComponent(email)}`);
+    // Same response as a wrong password so the form doesn't reveal which emails have accounts.
+    await writePlatformAudit({
+      actorId: user.id,
+      action: "auth.login_failed",
+      metadata: { reason: "no_password_set" },
+    });
+    redirect("/login?error=invalid");
   }
 
   if (isLocked(user)) {
@@ -72,70 +80,29 @@ export async function loginUser(formData: FormData) {
     redirect("/login?error=invalid");
   }
 
-  const membership = await prisma.organizationMember.findFirst({
-    where: { userId: user.id },
-    select: { organizationId: true },
-    orderBy: { createdAt: "asc" },
-  });
-
-  let activeOrganizationId = membership?.organizationId ?? null;
-  if (!activeOrganizationId) {
-    activeOrganizationId = await resolveDefaultOrganizationId(user.id);
-  }
-
-  const { rawToken, tokenHash } = generateSessionToken();
-  await prisma.session.create({
-    data: {
-      userId: user.id,
-      activeOrganizationId,
-      token: tokenHash,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
-    },
-  });
-
-  // Audit successful login
-  if (activeOrganizationId) {
-    await prisma.auditEvent.create({
-      data: {
-        organizationId: activeOrganizationId,
-        actorId: user.id,
-        action: "auth.login_success",
-        metadata: { emailVerified: user.emailVerified },
-      },
-    }).catch(() => {/* non-blocking */});
-  }
-
-  // Clear the rate limit counter and any lockout state on successful login
+  // Password is correct: clear the rate limit counter and any lockout state
   resetRateLimit(`login:${ip}`);
   await resetFailedLogins(user.id);
 
-  const cookieStore = await cookies();
-  cookieStore.set("ai_session", rawToken, {
-    path: "/",
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 7,
-    sameSite: "lax",
-  });
-  cookieStore.set("last_auth_provider", "credentials", {
-    path: "/",
-    httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 30, // 30 days
-    sameSite: "lax",
-  });
-
-  if (!user.emailVerified) {
-    redirect(
-      `/verify-email/pending?email=${encodeURIComponent(user.email)}&error=unverified`,
-    );
+  if (isAccountBlocked(user.accountStatus)) {
+    await writePlatformAudit({
+      actorId: user.id,
+      action: "auth.login_blocked_suspended",
+      metadata: { accountStatus: user.accountStatus },
+    });
+    redirect("/login?error=suspended");
   }
 
-  if (activeOrganizationId && !(await userHasAdminRole(user.id))) {
-    const billing = await getOrgBilling(activeOrganizationId);
-    const billingHome = billing ? billingRedirectForStatus(billing.billingStatus) : null;
-    if (billingHome) redirect(`${billingHome}?success=login`);
+  if (user.twoFactorEnabled) {
+    const challenge = await startLoginChallenge(user);
+    await setTwoFactorCookie(challenge.rawToken);
+    await writePlatformAudit({
+      actorId: user.id,
+      action: "auth.2fa_challenge_sent",
+      metadata: { delivered: challenge.sent },
+    });
+    redirect(challenge.sent ? "/login/verify" : "/login/verify?error=send_failed");
   }
 
-  redirect("/dashboard?success=login");
+  await finishCredentialsLogin(user);
 }

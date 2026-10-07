@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { isValidEmail } from "@/lib/email-policy";
 import { prisma } from "@/lib/prisma";
 import { checkLoginRateLimit } from "@/lib/rate-limit";
 import { getRequestIp } from "@/lib/request-ip";
@@ -19,6 +20,10 @@ export async function requestPasswordReset(formData: FormData) {
 
   if (!email) {
     redirect("/forgot-password?error=missing");
+  }
+
+  if (!isValidEmail(email)) {
+    redirect("/forgot-password?error=invalid_email");
   }
 
   const user = await prisma.user.findUnique({
@@ -49,13 +54,14 @@ export async function requestPasswordReset(formData: FormData) {
   await writePlatformAudit({
     actorId: user.id,
     action: "auth.password_reset_requested",
-    metadata: { email: user.email, skippedSmtp: result.skipped ?? false },
+    metadata: {
+      email: user.email,
+      skippedSmtp: result.skipped ?? false,
+      sendError: result.error ?? null,
+    },
   });
 
-  let redirectUrl = `/forgot-password?status=sent&email=${encodeURIComponent(email)}`;
-  if (!result.sent && result.error) {
-    redirectUrl += `&error=send_failed`;
-  }
-
-  redirect(redirectUrl);
+  // Same response as an unknown email so this form can't be used to discover accounts.
+  // Delivery failures are logged in sendPasswordResetEmail and recorded in the audit above.
+  redirect(`/forgot-password?status=sent&email=${encodeURIComponent(email)}`);
 }

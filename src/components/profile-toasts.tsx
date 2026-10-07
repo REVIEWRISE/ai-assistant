@@ -9,6 +9,8 @@ type ToastKey = string | null;
 const successMessages: Record<string, string> = {
   profile: "Profile updated successfully.",
   password: "Password updated successfully.",
+  "2fa_enabled": "Two-step verification is on. You'll get a code by email when you sign in.",
+  "2fa_disabled": "Two-step verification is off.",
   organization_created: "Organization created and activated.",
   organization_switched: "Active organization updated.",
   organization_updated: "Organization name updated.",
@@ -17,10 +19,12 @@ const successMessages: Record<string, string> = {
 
 const errorMessages: Record<string, string> = {
   missing: "Please fill in all required profile fields.",
+  invalid_email: "Please provide a valid email address.",
   exists: "That email is already in use.",
   missing_password: "Please fill in all password fields.",
   nomatch_password: "Passwords do not match.",
   invalid_password: "Current password is incorrect.",
+  "2fa_requires_password": "Set a password first — two-step verification protects email and password sign-in.",
   weak_password:
     "Password must be at least 12 characters and include an uppercase letter, a lowercase letter, a number, and a symbol.",
   weak_password_personal: "Password must not contain your name or email address.",

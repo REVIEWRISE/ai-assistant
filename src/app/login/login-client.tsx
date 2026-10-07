@@ -58,6 +58,7 @@ function LoginPageContent({
     }
     const messages: Record<string, string> = {
       missing: "Please provide both email and password.",
+      invalid_email: "Please enter a valid email address.",
       invalid: "Invalid email or password.",
       suspended: "This account has been suspended. Please contact support.",
       oauth_denied: "Google sign-in was cancelled.",
@@ -65,6 +66,8 @@ function LoginPageContent({
       oauth_email: "Your Google account email must be verified to continue.",
       oauth_not_configured: "Google sign-in is not configured yet.",
       oauth_password: "This account is linked to Google Sign-In. Please continue with Google.",
+      "2fa_expired": "Your sign-in code expired. Please sign in again.",
+      "2fa_locked": "Too many incorrect codes. Please sign in again to get a new code.",
     };
     toast.error(messages[error] ?? "Unable to sign in. Please try again.");
   }, [error, retry]);
@@ -120,6 +123,7 @@ function LoginPageContent({
               name="email"
               type="email"
               required
+              maxLength={254}
               defaultValue={emailParam}
               placeholder="you@company.com"
               autoComplete="email"

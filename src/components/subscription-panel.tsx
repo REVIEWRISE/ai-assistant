@@ -236,166 +236,158 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
         </div>
       </section>
 
-      {/* Refunds and Credits Section */}
-      <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border)] px-5 py-4 sm:px-6">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-              Refunds & Guarantee
-            </p>
-            <h3 className="mt-1 text-base font-semibold tracking-tight text-[var(--color-text)]">
-              Money-back guarantee
-            </h3>
-            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-              30-Day Money-Back Guarantee on paid subscriptions · Reviewed promptly by our billing team
-            </p>
-          </div>
-
-          <div>
-            {refundUnderReview && pendingRefund ? (
-              <button
-                type="button"
-                onClick={() => openViewSheet(pendingRefund)}
-                className="inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-3.5 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-500/25 [[data-theme=dark]_&]:text-amber-300"
-              >
-                <span>⏳</span>
-                <span>Request Under Review · View Details</span>
-              </button>
-            ) : subscription.refund.canRequest && subscription.isOwner ? (
-              <button
-                type="button"
-                onClick={openCreateSheet}
-                className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--color-primary-h)]"
-              >
-                <span>↺</span>
-                <span>Request a refund</span>
-              </button>
+      {/* Existing Refund / Credit History (Only shown if requests exist) */}
+      {requests.length > 0 ? (
+        <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border)] px-5 py-4 sm:px-6">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+                Billing Activity
+              </p>
+              <h3 className="mt-1 text-base font-semibold tracking-tight text-[var(--color-text)]">
+                Adjustment & Review History
+              </h3>
+            </div>
+            {pendingRefund ? (
+              <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-700 [[data-theme=dark]_&]:text-amber-300">
+                1 inquiry under review
+              </span>
             ) : null}
           </div>
-        </div>
 
-        <div className="space-y-4 p-5 sm:p-6">
-          {/* Active Pending Request Card */}
-          {pendingRefund ? (
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 [[data-theme=dark]_&]:text-amber-300">
-                      ⏳ Pending Review
-                    </span>
-                    <span className="text-xs font-semibold text-[var(--color-text)]">
-                      {labelForRefundReason(pendingRefund.reason.replace(/^\[[^\]]+\]\s*/, ""))}
-                    </span>
-                    {pendingRefund.amountCents != null && pendingRefund.amountCents > 0 ? (
-                      <span className="text-xs font-bold text-[var(--color-text)]">
-                        ({formatCents(pendingRefund.amountCents, pendingRefund.currency ?? "USD")})
+          <div className="space-y-4 p-5 sm:p-6">
+            {/* Active Pending Request Card */}
+            {pendingRefund ? (
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 [[data-theme=dark]_&]:text-amber-300">
+                        ⏳ Pending Review
                       </span>
-                    ) : null}
+                      <span className="text-xs font-semibold text-[var(--color-text)]">
+                        {labelForRefundReason(pendingRefund.reason.replace(/^\[[^\]]+\]\s*/, ""))}
+                      </span>
+                      {pendingRefund.amountCents != null && pendingRefund.amountCents > 0 ? (
+                        <span className="text-xs font-bold text-[var(--color-text)]">
+                          ({formatCents(pendingRefund.amountCents, pendingRefund.currency ?? "USD")})
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="text-[11px] text-[var(--color-text-muted)]">
+                      Submitted on {formatDate(pendingRefund.createdAt)}. Our billing team is reviewing your request.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-[var(--color-text-muted)]">
-                    Submitted on {formatDate(pendingRefund.createdAt)}. Our billing team is reviewing your request.
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => openViewSheet(pendingRefund)}
+                    className="rounded-xl border border-amber-500/40 bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+                  >
+                    View Details ➔
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => openViewSheet(pendingRefund)}
-                  className="rounded-xl border border-amber-500/40 bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
-                >
-                  View Details ➔
-                </button>
               </div>
-            </div>
-          ) : null}
+            ) : null}
 
-          {/* Refund Requests History List */}
-          {requests.length > 0 ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-                  Refund & Credit History ({requests.length})
-                </p>
-              </div>
-
-              <div className="divide-y divide-[var(--color-border)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-                {requests.map((req) => {
-                  const isPending = req.status === "pending";
-                  const isApproved = req.status === "approved";
-                  return (
-                    <div
-                      key={req.id}
-                      className="flex flex-wrap items-center justify-between gap-3 p-4 transition hover:bg-[var(--color-surface)]/50"
-                    >
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span
-                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                              isPending
-                                ? "bg-amber-500/15 text-amber-600 [[data-theme=dark]_&]:text-amber-400"
-                                : isApproved
-                                  ? "bg-emerald-500/15 text-emerald-600 [[data-theme=dark]_&]:text-emerald-400"
-                                  : "bg-rose-500/15 text-rose-600 [[data-theme=dark]_&]:text-rose-400"
-                            }`}
-                          >
-                            {isPending
-                              ? "Under review"
+            <div className="divide-y divide-[var(--color-border)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+              {requests.map((req) => {
+                const isPending = req.status === "pending";
+                const isApproved = req.status === "approved";
+                return (
+                  <div
+                    key={req.id}
+                    className="flex flex-wrap items-center justify-between gap-3 p-4 transition hover:bg-[var(--color-surface)]/50"
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                            isPending
+                              ? "bg-amber-500/15 text-amber-600 [[data-theme=dark]_&]:text-amber-400"
                               : isApproved
-                                ? "Approved"
-                                : "Rejected"}
+                                ? "bg-emerald-500/15 text-emerald-600 [[data-theme=dark]_&]:text-emerald-400"
+                                : "bg-rose-500/15 text-rose-600 [[data-theme=dark]_&]:text-rose-400"
+                          }`}
+                        >
+                          {isPending
+                            ? "Under review"
+                            : isApproved
+                              ? "Approved"
+                              : "Rejected"}
+                        </span>
+                        <span className="text-xs font-semibold text-[var(--color-text)]">
+                          {labelForRefundReason(req.reason.replace(/^\[[^\]]+\]\s*/, ""))}
+                        </span>
+                        {req.amountCents != null && req.amountCents > 0 ? (
+                          <span className="text-xs font-bold text-[var(--color-text)]">
+                            {formatCents(req.amountCents, req.currency ?? "USD")}
                           </span>
-                          <span className="text-xs font-semibold text-[var(--color-text)]">
-                            {labelForRefundReason(req.reason.replace(/^\[[^\]]+\]\s*/, ""))}
+                        ) : (
+                          <span className="text-xs text-[var(--color-text-muted)]">
+                            (Full)
                           </span>
-                          {req.amountCents != null && req.amountCents > 0 ? (
-                            <span className="text-xs font-bold text-[var(--color-text)]">
-                              {formatCents(req.amountCents, req.currency ?? "USD")}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-[var(--color-text-muted)]">
-                              (Full)
-                            </span>
-                          )}
-                        </div>
-
-                        <p className="text-[11px] text-[var(--color-text-muted)]">
-                          Submitted {formatDate(req.createdAt)}
-                          {req.reviewedAt ? ` · Reviewed ${formatDate(req.reviewedAt)}` : ""}
-                        </p>
-
-                        {req.adminNote ? (
-                          <p className="text-xs text-[var(--color-text)]">
-                            <span className="font-semibold text-[var(--color-text-muted)]">Note: </span>
-                            {req.adminNote}
-                          </p>
-                        ) : null}
+                        )}
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => openViewSheet(req)}
-                        className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] hover:shadow-sm"
-                      >
-                        View Details ➔
-                      </button>
+                      <p className="text-[11px] text-[var(--color-text-muted)]">
+                        Submitted {formatDate(req.createdAt)}
+                        {req.reviewedAt ? ` · Reviewed ${formatDate(req.reviewedAt)}` : ""}
+                      </p>
+
+                      {req.adminNote ? (
+                        <p className="text-xs text-[var(--color-text)]">
+                          <span className="font-semibold text-[var(--color-text-muted)]">Note: </span>
+                          {req.adminNote}
+                        </p>
+                      ) : null}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
 
-          {!subscription.refund.canRequest && requests.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] p-4 text-xs leading-relaxed text-[var(--color-text-muted)]">
-              💡 <span className="font-semibold text-[var(--color-text)]">Trial Active:</span> Refunds are available after a paid billing cycle. Because this workspace is on a free trial, no payment has occurred yet. You can cancel anytime without being charged.
+                    <button
+                      type="button"
+                      onClick={() => openViewSheet(req)}
+                      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] hover:shadow-sm"
+                    >
+                      View Details ➔
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-          ) : null}
+          </div>
+        </section>
+      ) : null}
 
-          {!subscription.isOwner && subscription.refund.canRequest && requests.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
-              Ask a workspace owner if you need to submit a refund request.
+      {/* Low-Visibility Collapsed Billing Terms & Inquiries Footer */}
+      <section className="rounded-xl border border-[var(--color-border)]/50 bg-[var(--color-surface)]/30 p-4">
+        <details className="group">
+          <summary className="flex cursor-pointer select-none items-center justify-between text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)]">
+            <span>Billing terms, recurring renewal & dispute disclosures</span>
+            <span className="text-[10px] text-[var(--color-text-subtle)] transition-transform group-open:rotate-180">
+              ▼
+            </span>
+          </summary>
+          <div className="mt-3 space-y-2 border-t border-[var(--color-border)]/40 pt-3 text-[11px] leading-relaxed text-[var(--color-text-subtle)]">
+            <p>
+              Subscriptions automatically renew at the close of each billing cycle unless cancellation is initiated prior to the renewal date. All payments are processed through secure billing infrastructure.
             </p>
-          ) : null}
-        </div>
+            <p>
+              Pursuant to our customer agreement, workspaces eligible for fee review or satisfaction dispute under Section 4.3 may initiate a formal review inquiry.
+            </p>
+            {subscription.refund.canRequest && subscription.isOwner && !refundUnderReview ? (
+              <p className="pt-1">
+                To submit an account evaluation, you may{" "}
+                <button
+                  type="button"
+                  onClick={openCreateSheet}
+                  className="text-[var(--color-text-muted)] underline decoration-[var(--color-border)] underline-offset-2 transition hover:text-[var(--color-text)]"
+                >
+                  submit a billing review request
+                </button>
+                .
+              </p>
+            ) : null}
+          </div>
+        </details>
       </section>
 
       {/* Customer Refund Slide-over Sheet */}
