@@ -31,9 +31,6 @@ export function LandingContactSection() {
                 <span className="text-emerald-500 font-bold">✓</span> 15-Minute Zero-Code Setup
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="text-emerald-500 font-bold">✓</span> No Credit Card Required
-              </span>
-              <span className="flex items-center gap-1.5">
                 <span className="text-emerald-500 font-bold">✓</span> Cancel Anytime
               </span>
             </div>
