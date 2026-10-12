@@ -72,7 +72,7 @@ export function LandingPricingSection({
             <span className="vr-gradient-text">business expands.</span>
           </h2>
           <p className="mt-4 max-w-xl text-base text-[var(--color-text-muted)] sm:text-lg">
-            Every plan includes a 14-day free trial. No credit card required to start.
+            Every plan includes a 14-day free trial.
           </p>
 
           {/* Billing Switcher Toggle */}
@@ -239,9 +239,6 @@ export function LandingPricingSection({
         <div className="mt-14 flex flex-wrap items-center justify-center gap-6 sm:gap-12 border-t border-[var(--color-border)] pt-8 text-xs font-medium text-[var(--color-text-muted)]">
           <span className="flex items-center gap-2">
             <span className="text-emerald-500 font-bold text-sm">✓</span> 14-Day Free Trial
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="text-emerald-500 font-bold text-sm">✓</span> No Credit Card Required
           </span>
           <span className="flex items-center gap-2">
             <span className="text-emerald-500 font-bold text-sm">✓</span> Cancel Anytime with 1-Click

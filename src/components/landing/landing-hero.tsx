@@ -105,12 +105,6 @@ export function LandingHero({ isLoggedIn }: { isLoggedIn: boolean }) {
                   <svg className="size-3.5 text-emerald-500" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  No credit card required
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <svg className="size-3.5 text-emerald-500" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
                   15-minute setup
                 </span>
                 <span className="flex items-center gap-1.5">
