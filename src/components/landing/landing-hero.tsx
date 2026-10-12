@@ -39,17 +39,15 @@ export function LandingHero({ isLoggedIn }: { isLoggedIn: boolean }) {
 
             {/* Headline */}
             <h1 className="mt-7 text-[2.25rem] font-semibold leading-[1.1] tracking-[-0.04em] text-[var(--color-text)] sm:text-[2.75rem] lg:text-[3.25rem]">
-              Every customer message,
-              <br />
-              turned into{" "}
+              Never lose another customer to{" "}
               <em className="vr-gradient-text not-italic">
-                instant action.
+                slow replies or missed calls.
               </em>
             </h1>
 
             {/* Subheading */}
             <p className="landing-animate-up landing-animate-delay-1 mt-6 text-[1.05rem] leading-[1.7] text-[var(--color-text-muted)]">
-              VyntRise handles review replies, appointment requests, and inbound leads from a single intelligent workspace — so your team responds in seconds, not hours.
+              AI that responds to Google reviews, books appointments, and captures local leads 24/7, built for busy operators.
             </p>
 
             {/* CTAs */}
