@@ -80,6 +80,7 @@ export function VoiceAgentTabs({
   onPullFromRetell,
   onGenerateOpeningMessage,
   onGenerateSystemPrompt,
+  twilioForwardingConfigured,
 }: {
   organizationId: string;
   organizationName: string;
@@ -87,6 +88,7 @@ export function VoiceAgentTabs({
   canManageAgent: boolean;
   canManagePhone: boolean;
   retellApiConfigured: boolean;
+  twilioForwardingConfigured: boolean;
   remoteAgentMissing: boolean;
   voiceOptions: RetellVoiceSelectOption[];
   voiceCatalog: RetellVoiceListItem[];
@@ -217,6 +219,7 @@ export function VoiceAgentTabs({
           onLink={onLinkPhone}
           onSetPrimary={onSetPrimaryPhone}
           onRefresh={onRefreshPhones}
+          twilioForwardingConfigured={twilioForwardingConfigured}
         />
         </fieldset>
       ) : null}
