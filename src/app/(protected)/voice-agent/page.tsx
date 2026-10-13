@@ -27,6 +27,7 @@ import {
   refreshRetellPhoneNumbersAction,
 } from "./actions";
 import { getOrgRetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
+import { isTwilioForwardingConfigured } from "@/lib/twilio-forwarding";
 import {
   ensureLegacyPrimaryPhoneImported,
   listOrgRetellPhoneNumbers,
@@ -90,6 +91,7 @@ export default async function VoiceAgentPage() {
   if (!org) redirect("/appointments/organization");
 
   const retellApiConfigured = isRetellApiConfigured();
+  const twilioForwardingConfigured = isTwilioForwardingConfigured();
   const retellVoices = retellApiConfigured ? await fetchRetellVoiceCatalog() : [];
   const localSettings = resolveVoiceAgentSettings(org.voiceAgentSettings, retellVoices);
   const voiceOptions = buildRetellVoiceSelectOptions(retellVoices, localSettings.retell.voiceId);
@@ -248,6 +250,7 @@ export default async function VoiceAgentPage() {
         canManageAgent
         canManagePhone
         retellApiConfigured={retellApiConfigured}
+        twilioForwardingConfigured={twilioForwardingConfigured}
         remoteAgentMissing={remoteAgentMissing}
         voiceOptions={voiceOptions}
         voiceCatalog={retellVoices}

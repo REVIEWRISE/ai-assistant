@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { createPortal, useFormStatus } from "react-dom";
-import { type ReactNode, useState, useEffect, useSyncExternalStore } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import type { RetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import type { OrgRetellPhoneNumber } from "@/lib/retell-phone-numbers";
 import { VoiceAgentForwardingGuide } from "@/components/voice-agent-forwarding-guide";
@@ -11,34 +11,6 @@ function formatLineLabel(phone: OrgRetellPhoneNumber | RetellPhoneNumberStats): 
   if (phone.nickname?.trim()) return phone.nickname.trim();
   if (phone.phoneNumberPretty?.trim()) return phone.phoneNumberPretty.trim();
   return phone.phoneNumber;
-}
-
-function PhonePanel({
-  eyebrow,
-  title,
-  description,
-  action,
-  children,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-      <div className="flex flex-col gap-3 border-b border-[var(--color-border)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between lg:px-6">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">{eyebrow}</p>
-          <h3 className="mt-1.5 text-lg font-semibold tracking-[-0.015em] text-[var(--color-text)]">{title}</h3>
-          <p className="mt-1 max-w-xl text-sm leading-6 text-[var(--color-text-muted)]">{description}</p>
-        </div>
-        {action ? <div className="shrink-0">{action}</div> : null}
-      </div>
-      <div className="p-4 lg:p-5">{children}</div>
-    </section>
-  );
 }
 
 export function VoiceAgentPhoneManager({
@@ -52,10 +24,12 @@ export function VoiceAgentPhoneManager({
   onLink,
   onSetPrimary,
   onRefresh,
+  twilioForwardingConfigured,
 }: {
   organizationId: string;
   retellAgentId: string;
   retellApiConfigured: boolean;
+  twilioForwardingConfigured: boolean;
   phones: OrgRetellPhoneNumber[];
   phoneStats: RetellPhoneNumberStats[];
   onBuy: (formData: FormData) => void | Promise<void>;
@@ -69,8 +43,9 @@ export function VoiceAgentPhoneManager({
   const callsReceived = phoneStats.reduce((sum, stat) => sum + stat.callsReceived, 0);
   const bookings = phoneStats.reduce((sum, stat) => sum + stat.bookingsCount, 0);
   const linkedLines = phones.filter((phone) => phone.retellAgentId === retellAgentId).length;
+  const canBuyNumber = phones.length === 0;
 
-  const [mode, setMode] = useState<"buy" | "link">("buy");
+  const [mode, setMode] = useState<"buy" | "link">(canBuyNumber ? "buy" : "link");
   const [selectedForwardingPhone, setSelectedForwardingPhone] = useState<string | undefined>();
   const [showLegalModal, setShowLegalModal] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -79,6 +54,10 @@ export function VoiceAgentPhoneManager({
     () => true,
     () => false,
   );
+
+  useEffect(() => {
+    if (!canBuyNumber && mode === "buy") setMode("link");
+  }, [canBuyNumber, mode]);
 
   useEffect(() => {
     if (showLegalModal) {
@@ -121,122 +100,193 @@ export function VoiceAgentPhoneManager({
           { label: "Calls received", value: callsReceived, hint: "last 30 days" },
           { label: "Bookings", value: bookings, hint: "completed by phone" },
         ].map((metric, index) => (
-          <div key={metric.label} className={`min-w-0 bg-[var(--color-bg)] px-5 py-5 ${index < 3 ? "border-b border-[var(--color-border)] sm:border-r lg:border-b-0" : ""}`}>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{metric.label}</p>
-            <p className="mt-2 text-3xl font-semibold tracking-[-0.03em] tabular-nums text-[var(--color-text)]">{metric.value}</p>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">{metric.hint}</p>
+          <div key={metric.label} className={`min-w-0 bg-[var(--color-bg)] px-4 py-3.5 ${index < 3 ? "border-b border-[var(--color-border)] sm:border-r lg:border-b-0" : ""}`}>
+            <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{metric.label}</p>
+            <p className="mt-1 text-xl font-semibold tracking-[-0.03em] tabular-nums text-[var(--color-text)]">{metric.value}</p>
+            <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">{metric.hint}</p>
           </div>
         ))}
       </div>
 
-      <PhonePanel
-        title="Active phone lines"
-        description="Each number routes inbound calls to a voice agent. Activity covers the last 30 days."
-        eyebrow="Line directory"
-        action={
-          retellApiConfigured && agentReady ? (
-            <form action={onRefresh}>
-              <input type="hidden" name="organization_id" value={organizationId} />
-              <input type="hidden" name="retell_agent_id" value={retellAgentId} />
-              <button
-                type="submit"
-                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
-              >
-                Refresh lines
-              </button>
-            </form>
-          ) : null
-        }
-      >
-        {phones.length === 0 ? (
-          <div className="flex min-h-40 items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] p-6 text-center text-sm text-[var(--color-text-muted)]">
-            <div>
-            <span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-lg text-[var(--color-primary-h)]" aria-hidden>☎</span>
-            <p className="mt-3 font-semibold text-[var(--color-text)]">No phone lines yet</p>
-            <p className="mx-auto mt-1 max-w-lg text-xs leading-relaxed">
-              {retellApiConfigured
-                ? agentReady
-                  ? "Purchase a new phone number or link an existing support number below to start receiving calls."
-                  : "Save your voice agent on the Agent setup tab first — then return here to buy or add a number."
-                : "Phone service must be configured before you can add a support line."}
-            </p>
+      <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+        <div className="relative overflow-hidden border-b border-[var(--color-border)] bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 py-4 text-white lg:px-6">
+          <div className="pointer-events-none absolute -right-12 -top-16 size-40 rounded-full bg-white/10 blur-3xl" aria-hidden />
+          <div className="relative flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-400">Line directory</p>
+              <h3 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">Active phone lines</h3>
+              <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-neutral-400">
+                Each number routes inbound calls to your voice agent. Activity covers the last 30 days.
+              </p>
             </div>
+            {retellApiConfigured && agentReady ? (
+              <form action={onRefresh} className="shrink-0">
+                <input type="hidden" name="organization_id" value={organizationId} />
+                <input type="hidden" name="retell_agent_id" value={retellAgentId} />
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-white/15"
+                >
+                  <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+                  </svg>
+                  Refresh lines
+                </button>
+              </form>
+            ) : null}
           </div>
-        ) : (
-          <div className="divide-y divide-[var(--color-border)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-            {phones.map((phone) => {
-              const stat = statsByNumber.get(phone.phoneNumber);
-              const linkedToCurrentAgent = phone.retellAgentId === retellAgentId;
-              return (
-                <div key={phone.id} className="flex flex-wrap items-center gap-4 px-4 py-4 transition hover:bg-[var(--color-surface)]">
-                  <div className="flex min-w-[13rem] flex-1 items-center gap-3">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm font-semibold text-[var(--color-primary-h)]" aria-hidden>☎</span>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-sm font-semibold text-[var(--color-text)]">{formatLineLabel(phone)}</p>
-                        {phone.isPrimary ? <span className="rounded-full vr-app-status-success px-2 py-0.5 text-[10px] font-semibold">Primary</span> : null}
+        </div>
+
+        <div className="p-3.5 lg:p-4">
+          {phones.length === 0 ? (
+            <div className="flex min-h-36 flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-8 text-center">
+              <span className="flex size-10 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]" aria-hidden>
+                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                </svg>
+              </span>
+              <p className="mt-3 text-xs font-semibold text-[var(--color-text)]">No phone lines yet</p>
+              <p className="mx-auto mt-1 max-w-md text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                {retellApiConfigured
+                  ? agentReady
+                    ? "Purchase a new phone number or link an existing support number below to start receiving calls."
+                    : "Save your voice agent on the Agent setup tab first — then return here to buy or add a number."
+                  : "Phone service must be configured before you can add a support line."}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-2.5">
+              {phones.map((phone) => {
+                const stat = statsByNumber.get(phone.phoneNumber);
+                const linkedToCurrentAgent = phone.retellAgentId === retellAgentId;
+                return (
+                  <article
+                    key={phone.id}
+                    className={`overflow-hidden rounded-xl border bg-[var(--color-bg)] transition ${
+                      phone.isPrimary
+                        ? "border-[var(--color-primary)]/35 shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-primary)_12%,transparent)]"
+                        : "border-[var(--color-border)]"
+                    }`}
+                  >
+                    <div className="flex flex-col gap-3 p-3.5 lg:flex-row lg:items-center lg:gap-4 lg:p-4">
+                      <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                        <span
+                          className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${
+                            phone.isPrimary
+                              ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+                              : "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary-h)]"
+                          }`}
+                          aria-hidden
+                        >
+                          <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                          </svg>
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <p className="truncate text-xs font-semibold text-[var(--color-text)] sm:text-sm">
+                              {formatLineLabel(phone)}
+                            </p>
+                            {phone.isPrimary ? (
+                              <span className="rounded-full bg-[var(--color-primary-soft)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[var(--color-primary-h)]">
+                                Primary
+                              </span>
+                            ) : null}
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${
+                                linkedToCurrentAgent ? "vr-app-status-success" : "vr-app-status-warning"
+                              }`}
+                            >
+                              <span
+                                className={`size-1.5 rounded-full ${
+                                  linkedToCurrentAgent ? "bg-[var(--color-success)]" : "bg-[var(--color-warning)]"
+                                }`}
+                                aria-hidden
+                              />
+                              {linkedToCurrentAgent ? "Agent linked" : "Needs assignment"}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 font-mono text-[11px] text-[var(--color-text-muted)]">{phone.phoneNumber}</p>
+                          {phone.nickname?.trim() && phone.phoneNumberPretty?.trim() ? (
+                            <p className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">{phone.phoneNumberPretty}</p>
+                          ) : null}
+                        </div>
                       </div>
-                      <p className="mt-0.5 truncate font-mono text-[11px] text-[var(--color-text-muted)]">{phone.phoneNumber}</p>
+
+                      <div className="grid grid-cols-3 gap-1.5 sm:min-w-[14rem] lg:w-[15rem] lg:shrink-0">
+                        {[
+                          { label: "Received", value: stat?.callsReceived ?? 0 },
+                          { label: "Processed", value: stat?.callsProcessed ?? 0 },
+                          { label: "Booked", value: stat?.bookingsCount ?? 0 },
+                        ].map((item) => (
+                          <div
+                            key={item.label}
+                            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-center"
+                          >
+                            <p className="text-sm font-semibold tabular-nums tracking-tight text-[var(--color-text)]">
+                              {item.value}
+                            </p>
+                            <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+                              {item.label}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5 lg:justify-end lg:self-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedForwardingPhone(phone.phoneNumber);
+                            document.getElementById("call-forwarding-guide-section")?.scrollIntoView({ behavior: "smooth" });
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+                        >
+                          <svg className="size-3 text-[var(--color-primary-h)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                          </svg>
+                          Forwarding
+                        </button>
+                        {!phone.isPrimary ? (
+                          <form action={onSetPrimary}>
+                            <input type="hidden" name="organization_id" value={organizationId} />
+                            <input type="hidden" name="phone_number" value={phone.phoneNumber} />
+                            <input type="hidden" name="retell_agent_id" value={retellAgentId} />
+                            <button
+                              type="submit"
+                              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+                            >
+                              Set primary
+                            </button>
+                          </form>
+                        ) : null}
+                        {!linkedToCurrentAgent ? (
+                          <form action={onAssign}>
+                            <input type="hidden" name="organization_id" value={organizationId} />
+                            <input type="hidden" name="phone_number" value={phone.phoneNumber} />
+                            <input type="hidden" name="retell_agent_id" value={retellAgentId} />
+                            <button
+                              type="submit"
+                              className="rounded-lg bg-[var(--color-primary)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+                            >
+                              Assign agent
+                            </button>
+                          </form>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="grid min-w-[15rem] flex-1 grid-cols-3 divide-x divide-[var(--color-border)] rounded-xl bg-[var(--color-surface)] px-1 py-2 text-center">
-                    {[
-                      ["Received", stat?.callsReceived ?? 0],
-                      ["Processed", stat?.callsProcessed ?? 0],
-                      ["Booked", stat?.bookingsCount ?? 0],
-                    ].map(([label, value]) => (
-                      <div key={String(label)} className="px-2">
-                        <p className="text-sm font-semibold text-[var(--color-text)] tabular-nums">{value}</p>
-                        <p className="text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">{label}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedForwardingPhone(phone.phoneNumber);
-                        document.getElementById("call-forwarding-guide-section")?.scrollIntoView({ behavior: "smooth" });
-                      }}
-                      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] flex items-center gap-1.5"
-                    >
-                      <svg className="size-3.5 text-[var(--color-primary-h)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a5 5 0 0 1 5 5v3m0 0l-3-3m3 3l3-3M3 10l3-3M3 10l3 3" />
-                      </svg>
-                      Forwarding guide
-                    </button>
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${linkedToCurrentAgent ? "vr-app-status-success" : "vr-app-status-warning"}`}>
-                      <span className={`size-1.5 rounded-full ${linkedToCurrentAgent ? "bg-[var(--color-success)]" : "bg-[var(--color-warning)]"}`} aria-hidden />
-                      {linkedToCurrentAgent ? "Agent linked" : "Needs assignment"}
-                    </span>
-                    {!phone.isPrimary ? (
-                      <form action={onSetPrimary}>
-                        <input type="hidden" name="organization_id" value={organizationId} />
-                        <input type="hidden" name="phone_number" value={phone.phoneNumber} />
-                        <input type="hidden" name="retell_agent_id" value={retellAgentId} />
-                        <button type="submit" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]">Set primary</button>
-                      </form>
-                    ) : null}
-                    {!linkedToCurrentAgent ? (
-                      <form action={onAssign}>
-                        <input type="hidden" name="organization_id" value={organizationId} />
-                        <input type="hidden" name="phone_number" value={phone.phoneNumber} />
-                        <input type="hidden" name="retell_agent_id" value={retellAgentId} />
-                        <button type="submit" className="rounded-xl bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]">Assign agent</button>
-                      </form>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </PhonePanel>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
 
       <div id="call-forwarding-guide-section">
         <VoiceAgentForwardingGuide
+          organizationId={organizationId}
+          twilioConfigured={twilioForwardingConfigured}
           phones={phones}
           defaultSelectedNumber={selectedForwardingPhone}
         />
@@ -253,21 +303,28 @@ export function VoiceAgentPhoneManager({
                   New line
                 </p>
                 <div className="mt-2 inline-flex rounded-xl bg-white/10 p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setMode("buy")}
-                    className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "buy" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
-                  >
-                    Buy a number
-                  </button>
+                  {canBuyNumber ? (
+                    <button
+                      type="button"
+                      onClick={() => setMode("buy")}
+                      className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "buy" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
+                    >
+                      Buy a number
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => setMode("link")}
-                    className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "link" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
+                    className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "link" || !canBuyNumber ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
                   >
                     Link existing number
                   </button>
                 </div>
+                {!canBuyNumber ? (
+                  <p className="mt-3 max-w-md text-xs leading-relaxed text-neutral-400">
+                    This workspace already has a phone line. Additional number purchases aren&apos;t available.
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>
@@ -289,7 +346,15 @@ export function VoiceAgentPhoneManager({
               </Link>
             </div>
           ) : mode === "buy" ? (
-            <form action={onBuy} className="grid gap-0 lg:grid-cols-2">
+            <form
+              action={onBuy}
+              className="grid gap-0 lg:grid-cols-2"
+              onSubmit={(e) => {
+                if (!termsAccepted) {
+                  e.preventDefault();
+                }
+              }}
+            >
               <div className="space-y-4 border-b border-[var(--color-border)] p-5 lg:border-b-0 lg:border-r lg:p-6">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
                   How purchasing works
@@ -405,7 +470,13 @@ export function VoiceAgentPhoneManager({
                 </div>
 
                 {/* Compact Telephony Compliance Notice */}
-                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs">
+                <div
+                  className={`rounded-xl border bg-[var(--color-bg)] p-3 text-xs transition-colors ${
+                    termsAccepted
+                      ? "border-emerald-500/35 ring-1 ring-emerald-500/15"
+                      : "border-amber-500/40 ring-1 ring-amber-500/20"
+                  }`}
+                >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-amber-500 text-[11px]" aria-hidden>
@@ -415,6 +486,11 @@ export function VoiceAgentPhoneManager({
                       </span>
                       <p className="truncate font-semibold text-[var(--color-text)] text-xs">
                         Telephony Compliance &amp; Policy
+                        {!termsAccepted ? (
+                          <span className="ml-1.5 font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                            Required
+                          </span>
+                        ) : null}
                       </p>
                     </div>
                     <button
@@ -443,8 +519,12 @@ export function VoiceAgentPhoneManager({
                 </div>
 
                 <div className="mt-auto flex flex-col gap-3 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-[var(--color-text-muted)]">Will be set as your primary number upon agreement.</p>
-                  <BuyPhoneSubmitButton />
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    {termsAccepted
+                      ? "Will be set as your primary number once purchased."
+                      : "Check the agreement above to enable purchase."}
+                  </p>
+                  <BuyPhoneSubmitButton termsAccepted={termsAccepted} />
                 </div>
               </div>
             </form>
@@ -668,15 +748,38 @@ function LinkPhoneSubmitButton() {
   );
 }
 
-function BuyPhoneSubmitButton() {
+function BuyPhoneSubmitButton({ termsAccepted }: { termsAccepted: boolean }) {
   const { pending } = useFormStatus();
+  const buyLabel = (
+    <>
+      <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.81.36 1.6.7 2.35a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.75.34 1.54.57 2.35.7A2 2 0 0 1 22 16.92z" />
+      </svg>
+      Buy phone number
+    </>
+  );
+  const buttonClass =
+    "inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-50 shadow-sm";
+
+  if (!termsAccepted) {
+    return (
+      <button
+        type="button"
+        aria-disabled="true"
+        title="Accept the Telephony & TCPA Policy to continue"
+        onClick={() => {
+          document.getElementById("telephony_terms_accepted")?.focus();
+          document.getElementById("telephony_terms_accepted")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }}
+        className={`${buttonClass} cursor-not-allowed opacity-50 hover:bg-[var(--color-primary)]`}
+      >
+        {buyLabel}
+      </button>
+    );
+  }
 
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
-    >
+    <button type="submit" disabled={pending} className={buttonClass}>
       {pending ? (
         <>
           <svg className="size-4 animate-spin text-current" fill="none" viewBox="0 0 24 24" aria-hidden>
@@ -686,12 +789,7 @@ function BuyPhoneSubmitButton() {
           Purchasing number...
         </>
       ) : (
-        <>
-          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.81.36 1.6.7 2.35a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.75.34 1.54.57 2.35.7A2 2 0 0 1 22 16.92z" />
-          </svg>
-          Buy phone number
-        </>
+        buyLabel
       )}
     </button>
   );
