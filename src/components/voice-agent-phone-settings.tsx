@@ -15,10 +15,12 @@ export function VoiceAgentPhoneSettings({
   onLink,
   onSetPrimary,
   onRefresh,
+  twilioForwardingConfigured,
 }: {
   organizationId: string;
   retellAgentId?: string;
   retellApiConfigured: boolean;
+  twilioForwardingConfigured: boolean;
   phones: OrgRetellPhoneNumber[];
   phoneStats: RetellPhoneNumberStats[];
   onBuy: (formData: FormData) => void | Promise<void>;
@@ -40,6 +42,7 @@ export function VoiceAgentPhoneSettings({
         onLink={onLink}
         onSetPrimary={onSetPrimary}
         onRefresh={onRefresh}
+        twilioForwardingConfigured={twilioForwardingConfigured}
       />
     </section>
   );

@@ -177,6 +177,18 @@ export async function buyOrgRetellPhoneNumber(args: {
     return { ok: false, error: "Create or save a voice agent before buying a phone number." };
   }
 
+  const existingLine = await prisma.retellPhoneNumber.findFirst({
+    where: { organizationId: args.organizationId },
+    select: { id: true },
+  });
+  if (existingLine) {
+    return {
+      ok: false,
+      error:
+        "This workspace already has a phone number. Each plan includes one purchased line — additional buys aren't available.",
+    };
+  }
+
   const body: Record<string, unknown> = {
     inbound_agents: [{ agent_id: agentId, agent_version: "latest", weight: 1 }],
   };

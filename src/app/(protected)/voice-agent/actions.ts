@@ -31,6 +31,19 @@ import {
   resolveVoiceAgentSettings,
 } from "@/lib/retell-voice-agent";
 import { requireOrgFeature } from "@/lib/entitlements";
+import { isCarrierKey, type CarrierKey } from "@/lib/call-forwarding-carriers";
+import {
+  buildForwardingDialCodes,
+  buildForwardingSmsBody,
+  formatDisplayNumber,
+  toE164Us,
+} from "@/lib/call-forwarding-codes";
+import {
+  lookupLineTypeIntelligence,
+  sendTwilioSms,
+  type TwilioLineLookupResult,
+} from "@/lib/twilio-forwarding";
+import { getAppOrigin } from "@/lib/app-origin";
 
 const VOICE_AGENT_ROUTE = "/voice-agent";
 
@@ -419,4 +432,82 @@ export async function generateVoiceAgentSystemPromptAction(
     organizationName: org?.name ?? "",
     agentName: String(formData.get("agent_name") || "").trim(),
   });
+}
+
+export type ForwardingCarrierLookupActionResult =
+  | { ok: true; data: TwilioLineLookupResult }
+  | { ok: false; error: string };
+
+export async function lookupForwardingCarrierAction(input: {
+  organizationId: string;
+  businessPhone: string;
+}): Promise<ForwardingCarrierLookupActionResult> {
+  const organizationId = input.organizationId.trim();
+  if (!organizationId) return { ok: false, error: "Organization is required." };
+  await requireVoiceAgentOrgSession(organizationId);
+  return lookupLineTypeIntelligence(input.businessPhone.trim());
+}
+
+export type SendForwardingSmsActionResult = { ok: true } | { ok: false; error: string };
+
+export async function sendForwardingActivationSmsAction(input: {
+  organizationId: string;
+  businessPhone: string;
+  carrier: string;
+  ringSeconds: number;
+  aiLineNumber: string;
+}): Promise<SendForwardingSmsActionResult> {
+  const organizationId = input.organizationId.trim();
+  if (!organizationId) return { ok: false, error: "Organization is required." };
+  await requireVoiceAgentOrgSession(organizationId);
+
+  const carrier = input.carrier.trim();
+  if (!isCarrierKey(carrier)) {
+    return { ok: false, error: "Invalid carrier preset." };
+  }
+
+  const toE164 = toE164Us(input.businessPhone.trim());
+  if (!toE164) {
+    return { ok: false, error: "Enter a valid US or Canada number to receive the SMS." };
+  }
+
+  const ringSeconds = Number(input.ringSeconds);
+  if (!Number.isFinite(ringSeconds) || ringSeconds < 10 || ringSeconds > 60) {
+    return { ok: false, error: "Ring delay must be between 10 and 60 seconds." };
+  }
+
+  const aiLine = input.aiLineNumber.trim();
+  if (!aiLine) {
+    return { ok: false, error: "AI line number is required." };
+  }
+
+  const codes = buildForwardingDialCodes({
+    carrier: carrier as CarrierKey,
+    aiLineNumber: aiLine,
+    ringSeconds: Math.round(ringSeconds),
+  });
+
+  if (!codes.supportsDialCodes) {
+    return {
+      ok: false,
+      error: "This carrier uses portal setup — open the instructions above instead of SMS dial codes.",
+    };
+  }
+
+  const origin = await getAppOrigin();
+  const setupUrl = origin
+    ? `${origin}/voice-agent?tab=phone#call-forwarding-guide-section`
+    : "/voice-agent?tab=phone";
+
+  const body = buildForwardingSmsBody({
+    activationCode: codes.activationCode,
+    deactivationCode: codes.deactivationCode,
+    encodedTelUri: codes.encodedTelUri,
+    aiLineDisplay: formatDisplayNumber(aiLine),
+    setupUrl,
+  });
+
+  const sent = await sendTwilioSms({ toE164, body });
+  if (!sent.ok) return sent;
+  return { ok: true };
 }
