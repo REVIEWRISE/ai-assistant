@@ -45,7 +45,9 @@ export function VoiceAgentPhoneManager({
   const linkedLines = phones.filter((phone) => phone.retellAgentId === retellAgentId).length;
   const canBuyNumber = phones.length === 0;
 
-  const [mode, setMode] = useState<"buy" | "link">(canBuyNumber ? "buy" : "link");
+  const [modePreference, setMode] = useState<"buy" | "link">(canBuyNumber ? "buy" : "link");
+  // Once a line exists, buying is locked — always show link mode without syncing via effect.
+  const mode: "buy" | "link" = canBuyNumber ? modePreference : "link";
   const [selectedForwardingPhone, setSelectedForwardingPhone] = useState<string | undefined>();
   const [showLegalModal, setShowLegalModal] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -54,10 +56,6 @@ export function VoiceAgentPhoneManager({
     () => true,
     () => false,
   );
-
-  useEffect(() => {
-    if (!canBuyNumber && mode === "buy") setMode("link");
-  }, [canBuyNumber, mode]);
 
   useEffect(() => {
     if (showLegalModal) {
