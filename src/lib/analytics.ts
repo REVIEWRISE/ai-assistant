@@ -1,6 +1,6 @@
 // Google Analytics (GA4) utilities and event definitions
 export const GA_MEASUREMENT_ID =
-  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-81QRBJRLL9";
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-7PEP1NW298";
 
 declare global {
   interface Window {
