@@ -33,7 +33,7 @@ Generate with: `node -e "console.log(require('crypto').randomBytes(32).toString(
 | Secrets manager migration | High | Doppler recommended; away from `.env.production` on VPS |
 | ~~Security headers (HSTS, nosniff, frame-options, referrer-policy)~~ | ~~High~~ | ✅ Already done at the app layer — `next.config.ts` `headers()` — better than nginx since it's proxy-independent |
 | CSP enforcement (currently Report-Only) | Medium | `next.config.ts` — deliberately staged; needs browser verification across main flows (inline theme-initializer script needs `'unsafe-inline'` or a nonce) before flipping from `Content-Security-Policy-Report-Only` to enforced `Content-Security-Policy` |
-| Dependency vulnerability scanning in CI | High | ✅ `npm audit --audit-level=high` added to `build-and-test`, plus `.github/dependabot.yml` (npm/github-actions/docker, weekly). Currently `continue-on-error: true` — 4 high findings remain (`next`, `nodemailer` transitive deps) that need a tested major-version bump, not a forced fix in CI. Flip to blocking once those are cleared. Went from 15→5 findings (1 low, 4 high) via safe `npm audit fix`. |
+| Dependency vulnerability scanning in CI | High | ✅ `npm audit --audit-level=high` added to `build-and-test`, plus `.github/dependabot.yml` (npm/github-actions/docker, weekly). Currently `continue-on-error: true`. 2026-10-05: production deps at 0 findings (`next` 16.3.8, `nodemailer` 10.0.15, `deepmerge-ts` 8 via override for `@prisma/config`). 5 high remain, all dev-only via `eslint-config-next` → `fast-glob` → `micromatch` → `braces` (GHSA-vfj7-8cjw-p6xm, no patched release yet). To make the gate blocking, audit with `--omit=dev`. |
 
 ---
 

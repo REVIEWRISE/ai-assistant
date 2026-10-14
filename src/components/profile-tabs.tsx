@@ -28,6 +28,9 @@ type ProfileTabsProps = {
   hasPassword: boolean;
   onUpdateProfile: (formData: FormData) => void | Promise<void>;
   onUpdatePassword: (formData: FormData) => void | Promise<void>;
+  twoFactorEnabled: boolean;
+  onEnableTwoFactor: (formData: FormData) => void | Promise<void>;
+  onDisableTwoFactor: (formData: FormData) => void | Promise<void>;
   billingClose?: {
     workspaceName: string;
     cancelAtPeriodEnd: boolean;
@@ -72,6 +75,9 @@ export function ProfileTabs({
   hasPassword,
   onUpdateProfile,
   onUpdatePassword,
+  twoFactorEnabled,
+  onEnableTwoFactor,
+  onDisableTwoFactor,
   billingClose = null,
 }: ProfileTabsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("profile");
@@ -359,6 +365,57 @@ export function ProfileTabs({
               </div>
             </aside>
           </div>
+          <form
+            action={twoFactorEnabled ? onDisableTwoFactor : onEnableTwoFactor}
+            className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-border)] px-4 py-4 sm:px-5">
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold text-[var(--color-text)]">
+                  Two-step verification
+                </h3>
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                  {hasPassword
+                    ? "When on, signing in with your password also requires a 6-digit code sent to your email."
+                    : "Set a password above first. Two-step verification protects email and password sign-in."}
+                </p>
+              </div>
+              <span
+                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                  twoFactorEnabled
+                    ? "bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]"
+                    : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
+                }`}
+              >
+                {twoFactorEnabled ? "On" : "Off"}
+              </span>
+            </div>
+            {hasPassword ? (
+              <>
+                <div className="p-4 sm:p-5">
+                  <label className="block max-w-md text-xs font-semibold text-[var(--color-text)]">
+                    Current password
+                    <input
+                      type="password"
+                      name="current_password"
+                      placeholder="Confirm with your current password"
+                      autoComplete="current-password"
+                      required
+                      className={fieldClass}
+                    />
+                  </label>
+                </div>
+                <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 sm:px-5">
+                  <p className="text-[10px] text-[var(--color-text-muted)]">
+                    Codes are sent to {email}.
+                  </p>
+                  <SubmitButton>
+                    {twoFactorEnabled ? "Turn off two-step verification" : "Turn on two-step verification"}
+                  </SubmitButton>
+                </div>
+              </>
+            ) : null}
+          </form>
           {billingClose ? <WorkspaceBillingClosePanel billing={billingClose} /> : null}
           </div>
         ) : null}

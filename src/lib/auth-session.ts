@@ -103,7 +103,7 @@ export const getValidSession = cache(async () => {
 
   return prisma.session.findFirst({
     where: {
-      OR: [{ token: tokenHash }, { token }],
+      token: tokenHash,
       expiresAt: { gt: new Date() },
     },
     select: sessionSelect,

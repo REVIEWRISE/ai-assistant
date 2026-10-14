@@ -21,10 +21,6 @@ export async function performPasswordReset(formData: FormData) {
     redirect(`/reset-password?token=${encodeURIComponent(token)}&error=mismatch`);
   }
 
-  if (password.length < 8) {
-    redirect(`/reset-password?token=${encodeURIComponent(token)}&error=short`);
-  }
-
   const validateRes = await validatePasswordResetToken(token);
   if (!validateRes.ok) {
     redirect(`/forgot-password?error=${validateRes.reason}`);
@@ -32,8 +28,8 @@ export async function performPasswordReset(formData: FormData) {
 
   const result = await consumePasswordReset(token, password);
   if (!result.ok) {
-    if (result.reason === "weak_password") {
-      redirect(`/reset-password?token=${encodeURIComponent(token)}&error=short`);
+    if (result.reason === "weak_password" || result.reason === "weak_password_personal") {
+      redirect(`/reset-password?token=${encodeURIComponent(token)}&error=${result.reason}`);
     }
     redirect(`/forgot-password?error=${result.reason}`);
   }

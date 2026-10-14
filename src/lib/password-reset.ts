@@ -5,6 +5,7 @@ import { PRODUCT_NAME } from "@/lib/brand";
 import { getAppUrl } from "@/lib/stripe";
 import { createLogger } from "@/lib/logger";
 import { isSmtpConfigured, sendSmtpHtmlEmail } from "@/lib/smtp-mail";
+import { type PasswordPolicyViolation, validatePasswordStrength } from "@/lib/password-policy";
 
 const log = createLogger("password-reset");
 
@@ -95,7 +96,8 @@ export async function sendPasswordResetEmail(params: {
   if (!isSmtpConfigured()) {
     log.warn("SMTP not configured — password reset email skipped", {
       userId: params.userId,
-      resetUrl,
+      // The URL carries a live reset token; only log it for local development.
+      resetUrl: process.env.NODE_ENV === "production" ? undefined : resetUrl,
     });
     return { sent: false, skipped: true, resetUrl };
   }
@@ -147,13 +149,17 @@ export async function validatePasswordResetToken(
 export async function consumePasswordReset(
   rawToken: string,
   newPassword: string,
-): Promise<{ ok: true } | { ok: false; reason: "invalid" | "expired" | "weak_password" }> {
-  if (newPassword.length < 8) {
-    return { ok: false, reason: "weak_password" };
-  }
-
+): Promise<{ ok: true } | { ok: false; reason: "invalid" | "expired" | PasswordPolicyViolation }> {
   const validRes = await validatePasswordResetToken(rawToken);
   if (!validRes.ok) return validRes;
+
+  const passwordViolation = validatePasswordStrength(newPassword, {
+    email: validRes.user.email,
+    fullName: validRes.user.fullName,
+  });
+  if (passwordViolation) {
+    return { ok: false, reason: passwordViolation };
+  }
 
   const passwordHash = await bcrypt.hash(newPassword, 10);
 
