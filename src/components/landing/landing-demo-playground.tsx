@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackDemoPlayground } from "@/lib/analytics";
 
 type Scenario = { id: string; label: string; stars?: number; input: string; output: string };
 
@@ -41,23 +42,27 @@ export function LandingDemoPlayground() {
   const [copied, setCopied] = useState(false);
 
   const generate = () => {
+    trackDemoPlayground("generate", scenario.id);
     setLoading(true);
     setTimeout(() => { setOutput(scenario.output); setLoading(false); }, 380);
   };
 
   const handleScenario = (s: Scenario) => {
+    trackDemoPlayground("switch_scenario", s.id);
     setScenario(s);
     setOutput(s.output);
     setCopied(false);
   };
 
   const handleTone = (t: string) => {
+    trackDemoPlayground("switch_tone", t);
     setTone(t);
     setLoading(true);
     setTimeout(() => { setOutput(scenario.output); setLoading(false); }, 280);
   };
 
   const copy = () => {
+    trackDemoPlayground("copy", scenario.id);
     navigator.clipboard.writeText(output);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
