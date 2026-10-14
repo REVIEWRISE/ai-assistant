@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { trackLandingCta } from "@/lib/analytics";
 
 type IntegrationItem = {
   name: string;
@@ -223,6 +224,13 @@ export function LandingIntegrationsSection({
 
           <Link
             href={isLoggedIn ? "/dashboard" : registerHref}
+            onClick={() => {
+              trackLandingCta(
+                isLoggedIn ? "Manage Integrations" : "Connect Your Channels",
+                "integrations_bar",
+                isLoggedIn ? "/dashboard" : registerHref
+              );
+            }}
             className="vr-landing-btn-primary inline-flex shrink-0 items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold text-[var(--color-primary-fg)] shadow"
           >
             {isLoggedIn ? "Manage Integrations" : "Connect Your Channels"}

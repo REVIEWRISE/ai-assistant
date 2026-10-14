@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand-logo";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { PRODUCT_NAME } from "@/lib/brand";
+import { trackLandingNav, trackLandingCta } from "@/lib/analytics";
 
 const NAV = [
   { href: "#features", label: "Platform" },
@@ -86,6 +87,7 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
                 <a
                   key={item.href}
                   href={item.href}
+                  onClick={() => trackLandingNav(item.label, item.href)}
                   aria-current={active ? "location" : undefined}
                   className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
                     active
@@ -107,6 +109,7 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
               {isLoggedIn ? (
                 <Link
                   href="/dashboard"
+                  onClick={() => trackLandingCta("Header Dashboard", "header", "/dashboard")}
                   className="vr-landing-btn-primary inline-flex h-9 items-center rounded-full px-4 text-xs font-bold text-[var(--color-primary-fg)] shadow"
                 >
                   Dashboard
@@ -115,12 +118,14 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
                 <>
                   <Link
                     href="/login"
+                    onClick={() => trackLandingCta("Header Sign In", "header", "/login")}
                     className="text-xs font-bold text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
                   >
                     Sign In
                   </Link>
                   <Link
                     href="/register"
+                    onClick={() => trackLandingCta("Header Start Free", "header", "/register")}
                     className="vr-landing-btn-primary inline-flex h-9 items-center rounded-full px-4 text-xs font-bold text-[var(--color-primary-fg)] shadow"
                   >
                     Start Free
@@ -169,7 +174,10 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
                   <a
                     key={item.href}
                     href={item.href}
-                    onClick={() => setOpen(false)}
+                    onClick={() => {
+                      setOpen(false);
+                      trackLandingNav(item.label, item.href);
+                    }}
                     className={`flex items-center justify-between rounded-xl px-4 py-2.5 text-xs font-bold transition ${
                       active
                         ? "bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]"
@@ -185,7 +193,10 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
                 {isLoggedIn ? (
                   <Link
                     href="/dashboard"
-                    onClick={() => setOpen(false)}
+                    onClick={() => {
+                      setOpen(false);
+                      trackLandingCta("Mobile Dashboard", "mobile_header", "/dashboard");
+                    }}
                     className="vr-landing-btn-primary flex min-h-11 w-full items-center justify-center rounded-full text-xs font-bold text-[var(--color-primary-fg)] shadow"
                   >
                     Open dashboard
@@ -194,14 +205,20 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
                   <>
                     <Link
                       href="/register"
-                      onClick={() => setOpen(false)}
+                      onClick={() => {
+                        setOpen(false);
+                        trackLandingCta("Mobile Start Free Trial", "mobile_header", "/register");
+                      }}
                       className="vr-landing-btn-primary flex min-h-11 w-full items-center justify-center rounded-full text-xs font-bold text-[var(--color-primary-fg)] shadow"
                     >
                       Start 14-Day Free Trial
                     </Link>
                     <Link
                       href="/login"
-                      onClick={() => setOpen(false)}
+                      onClick={() => {
+                        setOpen(false);
+                        trackLandingCta("Mobile Sign In", "mobile_header", "/login");
+                      }}
                       className="flex min-h-10 w-full items-center justify-center text-xs font-bold text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
                     >
                       Sign In to Existing Account

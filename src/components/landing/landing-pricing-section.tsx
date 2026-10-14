@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { LandingPlan } from "@/lib/landing-data";
+import { trackLandingCta, trackPlanSelected } from "@/lib/analytics";
 
 type BillingInterval = "monthly" | "yearly";
 
@@ -22,12 +23,14 @@ function PricingPlaceholder() {
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
           <a
             href="#contact"
+            onClick={() => trackLandingCta("Talk with our team", "pricing_placeholder", "#contact")}
             className="vr-landing-btn-primary inline-flex min-h-11 items-center justify-center rounded-full px-6 text-sm font-semibold text-[var(--color-primary-fg)] shadow"
           >
             Talk with our team
           </a>
           <Link
             href="/register"
+            onClick={() => trackLandingCta("Start free trial", "pricing_placeholder", "/register")}
             className="vr-landing-btn-secondary inline-flex min-h-11 items-center justify-center rounded-full px-6 text-sm font-semibold"
           >
             Start free trial
@@ -80,7 +83,10 @@ export function LandingPricingSection({
             <div className="mt-8 inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] p-1.5 shadow-sm">
               <button
                 type="button"
-                onClick={() => setInterval("monthly")}
+                onClick={() => {
+                  setInterval("monthly");
+                  trackPlanSelected("all", "monthly");
+                }}
                 className={`rounded-full px-5 py-2 text-xs font-bold transition ${
                   interval === "monthly"
                     ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] shadow-sm"
@@ -91,7 +97,10 @@ export function LandingPricingSection({
               </button>
               <button
                 type="button"
-                onClick={() => setInterval("yearly")}
+                onClick={() => {
+                  setInterval("yearly");
+                  trackPlanSelected("all", "yearly");
+                }}
                 className={`flex items-center gap-2 rounded-full px-5 py-2 text-xs font-bold transition ${
                   interval === "yearly"
                     ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] shadow-sm"
@@ -216,6 +225,10 @@ export function LandingPricingSection({
                   <div className="mt-8 pt-4">
                     <Link
                       href={href}
+                      onClick={() => {
+                        trackPlanSelected(plan.title, interval);
+                        trackLandingCta(`plan_${plan.slug}`, "pricing_cards", href);
+                      }}
                       className={`inline-flex min-h-12 w-full items-center justify-center rounded-full text-xs font-bold transition shadow-sm ${
                         plan.featured
                           ? "vr-landing-btn-primary text-[var(--color-primary-fg)]"

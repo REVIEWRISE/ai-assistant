@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { CONTACT_EMAIL, CONTACT_PHONE, CONTACT_PHONE_TEL } from "@/lib/brand";
+import { trackContactClick, trackLandingCta } from "@/lib/analytics";
 
 export function LandingContactSection() {
   return (
@@ -51,6 +54,10 @@ export function LandingContactSection() {
             <div className="mt-6 space-y-3">
               <Link
                 href="/register"
+                onClick={() => {
+                  trackContactClick("trial", "/register");
+                  trackLandingCta("Start 14-Day Free Trial", "contact_box", "/register");
+                }}
                 className="vr-landing-btn-primary flex min-h-12 w-full items-center justify-center rounded-full text-sm font-bold text-[var(--color-primary-fg)] shadow"
               >
                 Start 14-Day Free Trial →
@@ -58,6 +65,10 @@ export function LandingContactSection() {
 
               <a
                 href={`mailto:${CONTACT_EMAIL}?subject=VyntRise%20Agent%20Demo%20Request`}
+                onClick={() => {
+                  trackContactClick("email", "demo_request");
+                  trackLandingCta("Schedule Operator Demo", "contact_box", "mailto");
+                }}
                 className="vr-landing-btn-secondary flex min-h-12 w-full items-center justify-center rounded-full text-sm font-bold text-[var(--color-text)]"
               >
                 Schedule Operator Demo
@@ -68,13 +79,21 @@ export function LandingContactSection() {
             <div className="mt-6 border-t border-[var(--color-border)] pt-5 space-y-2 text-xs text-[var(--color-text-muted)]">
               <div className="flex items-center justify-between">
                 <span>Direct Support:</span>
-                <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-[var(--color-primary-h)] hover:underline">
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  onClick={() => trackContactClick("email", CONTACT_EMAIL)}
+                  className="font-semibold text-[var(--color-primary-h)] hover:underline"
+                >
                   {CONTACT_EMAIL}
                 </a>
               </div>
               <div className="flex items-center justify-between">
                 <span>Phone / SMS:</span>
-                <a href={`tel:${CONTACT_PHONE_TEL}`} className="font-semibold text-[var(--color-text)] hover:underline">
+                <a
+                  href={`tel:${CONTACT_PHONE_TEL}`}
+                  onClick={() => trackContactClick("phone", CONTACT_PHONE_TEL)}
+                  className="font-semibold text-[var(--color-text)] hover:underline"
+                >
                   {CONTACT_PHONE}
                 </a>
               </div>
