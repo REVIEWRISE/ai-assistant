@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { trackLandingCta, sendGAEvent } from "@/lib/analytics";
 
 type AgentTab = "reviews" | "bookings" | "leads";
 
@@ -54,6 +55,13 @@ export function LandingHero({ isLoggedIn }: { isLoggedIn: boolean }) {
             <div className="landing-animate-up landing-animate-delay-2 mt-9 flex items-center gap-3">
               <Link
                 href={isLoggedIn ? "/dashboard" : "/register"}
+                onClick={() => {
+                  trackLandingCta(
+                    isLoggedIn ? "Open dashboard" : "Start free trial",
+                    "hero_primary",
+                    isLoggedIn ? "/dashboard" : "/register"
+                  );
+                }}
                 className="vr-landing-btn-primary group inline-flex h-11 items-center gap-2 px-6 text-sm"
               >
                 {isLoggedIn ? "Open dashboard" : "Start free trial"}
@@ -66,6 +74,9 @@ export function LandingHero({ isLoggedIn }: { isLoggedIn: boolean }) {
               </Link>
               <a
                 href="#features"
+                onClick={() => {
+                  trackLandingCta("See how it works", "hero_secondary", "#features");
+                }}
                 className="vr-landing-btn-secondary inline-flex h-11 items-center px-6 text-sm"
               >
                 See how it works
@@ -145,7 +156,11 @@ export function LandingHero({ isLoggedIn }: { isLoggedIn: boolean }) {
                     <button
                       key={tab.id}
                       type="button"
-                      onClick={() => { setActiveTab(tab.id); setApproved(false); }}
+                      onClick={() => {
+                        setActiveTab(tab.id);
+                        setApproved(false);
+                        sendGAEvent("hero_tab_switch", { tab_id: tab.id, tab_label: tab.label });
+                      }}
                       className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition ${
                         activeTab === tab.id
                           ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] shadow-sm"

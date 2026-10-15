@@ -59,6 +59,7 @@ The table below applies to the `staging` environment (and to the repo level, as 
 | `GHCR_USER` | GitHub username used to both push (CI) and pull (server) the built image | `your-github-username` |
 | `GHCR_PAT` | Personal access token, scoped to `read:packages` **and** `write:packages` | `ghp_…` |
 | `SENTRY_DSN` | Optional. Error tracking — safe to omit, the SDK no-ops without it. See "Error tracking (Sentry)" below | `https://…@…ingest.sentry.io/…` |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | Optional. Google Analytics 4 Measurement ID for landing page tracking (baked at build time in CI and passed to server) | `G-81QRBJRLL9` |
 
 #### Container registry (ghcr.io)
 

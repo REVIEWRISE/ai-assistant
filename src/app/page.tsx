@@ -10,6 +10,7 @@ import { LandingPricingSection } from "@/components/landing/landing-pricing-sect
 import { LandingTestimonialsSection } from "@/components/landing/landing-testimonials-section";
 import { LandingTrustedSection } from "@/components/landing/landing-trusted-section";
 import { LandingHeader } from "@/components/landing-header";
+import { GoogleAnalytics } from "@/components/google-analytics";
 import { hasValidSession } from "@/lib/has-valid-session";
 import { getPublicLandingPlans } from "@/lib/billing-plan-repository";
 import {
@@ -25,6 +26,7 @@ export default async function Home() {
 
   return (
     <div className="landing relative min-h-screen antialiased">
+      <GoogleAnalytics />
       <div className="landing-mesh pointer-events-none absolute inset-0" aria-hidden />
       <div className="landing-grid pointer-events-none absolute inset-0 opacity-[0.05]" aria-hidden />
 

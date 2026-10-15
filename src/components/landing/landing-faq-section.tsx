@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackFaqToggle, trackLandingCta } from "@/lib/analytics";
 
 type FaqItem = { readonly q: string; readonly paragraphs: readonly string[] };
 
@@ -8,7 +9,11 @@ export function LandingFaqSection({ faq }: { faq: readonly FaqItem[] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   const toggleIndex = (index: number) => {
-    setOpenIndex(openIndex === index ? null : index);
+    const isOpening = openIndex !== index;
+    setOpenIndex(isOpening ? index : null);
+    if (faq[index]) {
+      trackFaqToggle(faq[index].q, isOpening);
+    }
   };
 
   return (
@@ -32,6 +37,7 @@ export function LandingFaqSection({ faq }: { faq: readonly FaqItem[] }) {
               <p className="mt-1 text-xs text-[var(--color-text-muted)]">Our product engineering team is happy to walk through your exact technical architecture.</p>
               <a
                 href="#contact"
+                onClick={() => trackLandingCta("Talk with an engineer", "faq_sidebar", "#contact")}
                 className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-[var(--color-primary-h)] hover:underline"
               >
                 <span>Talk with an engineer</span>
