@@ -43,7 +43,7 @@ function WebsiteImportFields({ organizationId }: { organizationId: string }) {
     <>
       <input type="hidden" name="organization_id" value={organizationId} />
       <p className="text-xs text-[var(--color-text-muted)]">
-        Scrape public website content to generate a draft knowledge base.
+        Scrape public website content to generate a draft knowledge base. Sites behind Cloudflare or login walls may need pasted notes or a file upload instead.
       </p>
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
         <input

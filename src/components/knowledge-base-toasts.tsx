@@ -20,6 +20,8 @@ const errorMessages: Record<string, string> = {
   kb_missing_url: "Please provide a website URL.",
   kb_invalid_url: "Website URL is invalid.",
   kb_website_fetch: "Could not fetch website content.",
+  kb_website_blocked:
+    "This website blocks automated scrapers (e.g. Cloudflare). Paste notes or upload a file instead.",
   kb_website_empty: "Website content could not be extracted.",
   kb_missing_text: "Please paste business notes.",
   kb_missing_supplement: "Please enter notes to add before saving.",

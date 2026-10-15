@@ -60,6 +60,24 @@ function extractSameOriginLinks(html: string, currentUrl: URL, origin: string): 
   return out;
 }
 
+class CrawlBlockedError extends Error {
+  constructor(message = "Website blocked automated access") {
+    super(message);
+    this.name = "CrawlBlockedError";
+  }
+}
+
+function looksLikeBotChallenge(html: string, status: number): boolean {
+  if (status === 403 || status === 503) {
+    if (/cloudflare|cf-chl|just a moment|enable javascript and cookies|attention required/i.test(html)) {
+      return true;
+    }
+  }
+  if (/<title[^>]*>\s*just a moment/i.test(html)) return true;
+  if (/cdn-cgi\/challenge-platform/i.test(html)) return true;
+  return false;
+}
+
 async function crawlWebsite(seedUrl: URL): Promise<{
   combinedText: string;
   pageCount: number;
@@ -72,6 +90,7 @@ async function crawlWebsite(seedUrl: URL): Promise<{
   const visited = new Set<string>();
   const textBlocks: string[] = [];
   let primaryTitle = "";
+  let seedBlocked = false;
   const deadline = Date.now() + 40_000;
 
   while (queue.length > 0 && visited.size < maxPages) {
@@ -81,14 +100,24 @@ async function crawlWebsite(seedUrl: URL): Promise<{
     visited.add(nextUrl);
 
     let html = "";
+    let status = 0;
     try {
       const response = await fetch(nextUrl, {
-        headers: { "User-Agent": "VyntRise-Agent-Knowledge-Importer/1.0" },
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (compatible; VyntRiseBot/1.0; +https://vyntrise.com; knowledge-importer)",
+          Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+        },
         cache: "no-store",
         signal: AbortSignal.timeout(8_000),
       });
-      if (!response.ok) continue;
+      status = response.status;
       html = await response.text();
+      if (looksLikeBotChallenge(html, status)) {
+        if (visited.size === 1) seedBlocked = true;
+        continue;
+      }
+      if (!response.ok) continue;
     } catch {
       continue;
     }
@@ -112,8 +141,13 @@ async function crawlWebsite(seedUrl: URL): Promise<{
     if (combinedLength >= maxCombinedChars) break;
   }
 
+  const combinedText = textBlocks.join("\n\n").slice(0, maxCombinedChars);
+  if (!combinedText && seedBlocked) {
+    throw new CrawlBlockedError();
+  }
+
   return {
-    combinedText: textBlocks.join("\n\n").slice(0, maxCombinedChars),
+    combinedText,
     pageCount: visited.size,
     primaryTitle,
   };
@@ -330,7 +364,10 @@ export async function importFromWebsite(formData: FormData) {
     | undefined;
   try {
     crawlResult = await crawlWebsite(url);
-  } catch {
+  } catch (error) {
+    if (error instanceof CrawlBlockedError) {
+      redirect(`${KB_ROUTE}?error=kb_website_blocked`);
+    }
     redirect(`${KB_ROUTE}?error=kb_website_fetch`);
   }
   const title = crawlResult?.primaryTitle ?? "";
