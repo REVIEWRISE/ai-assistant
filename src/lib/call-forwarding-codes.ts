@@ -84,6 +84,7 @@ export function buildForwardingSmsBody(args: {
 
   lines.push(
     "",
+    "Important: Turn off Wi-Fi Calling (use cellular) before dialing, or the code may fail.",
     "iPhone: copy the dial code, paste into the Phone keypad, then Call.",
     `Guide: ${args.setupUrl}`,
     "",
