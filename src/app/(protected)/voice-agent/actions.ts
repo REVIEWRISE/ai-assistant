@@ -456,10 +456,15 @@ export async function sendForwardingActivationSmsAction(input: {
   carrier: string;
   ringSeconds: number;
   aiLineNumber: string;
+  smsConsent: boolean;
 }): Promise<SendForwardingSmsActionResult> {
   const organizationId = input.organizationId.trim();
   if (!organizationId) return { ok: false, error: "Organization is required." };
   await requireVoiceAgentOrgSession(organizationId);
+
+  if (!input.smsConsent) {
+    return { ok: false, error: "SMS consent is required before sending a text message." };
+  }
 
   const carrier = input.carrier.trim();
   if (!isCarrierKey(carrier)) {
