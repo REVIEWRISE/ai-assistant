@@ -495,7 +495,7 @@ export function VoiceAgentForwardingGuide({
                 <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5">
                   <p className="text-xs font-semibold text-[var(--color-text)]">Optional: text yourself the dial code</p>
                   <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
-                    We’ll SMS activation steps to the business phone you entered above.
+                    We’ll SMS activation steps (including a Wi‑Fi Calling tip) to the business phone you entered above.
                   </p>
 
                   <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5">
@@ -576,7 +576,7 @@ export function VoiceAgentForwardingGuide({
                   </h4>
                   <p className="text-xs text-[var(--color-text-muted)]">
                     {isDialCodeCarrier
-                      ? "Dial from the phone that receives business calls."
+                      ? "Dial from the phone that receives business calls, on cellular (not Wi‑Fi Calling)."
                       : "Use your provider admin or Google Voice settings."}
                   </p>
                 </div>
@@ -641,8 +641,17 @@ export function VoiceAgentForwardingGuide({
                     </button>
                   </div>
 
-                  <div className="border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-                    <span className="font-semibold text-[var(--color-text)]">iPhone:</span> Copy the code, paste into the Phone keypad, then call.
+                  <div className="space-y-2 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                    <p>
+                      <span className="font-semibold text-[var(--color-text)]">iPhone:</span> Copy the code, paste
+                      into the Phone keypad, then call.
+                    </p>
+                    <p>
+                      <span className="font-semibold text-[var(--color-text)]">Important:</span> Turn off{" "}
+                      <span className="font-semibold text-[var(--color-text)]">Wi‑Fi Calling</span> (or use cellular)
+                      before dialing. These codes often fail over Wi‑Fi and show “Error performing request” /
+                      “Setting Registration Failed.”
+                    </p>
                   </div>
                 </div>
               )}
@@ -677,12 +686,16 @@ export function VoiceAgentForwardingGuide({
                 </div>
               </div>
 
-              <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3.5 text-xs">
-                <p className="font-semibold text-[var(--color-text)]">Voicemail picking up first?</p>
-                <p className="mt-1 leading-relaxed text-[var(--color-text-muted)]">
-                  If carrier voicemail answers before the AI, shorten the ring delay (try 15s) or ask your carrier to delay voicemail pickup.
-                </p>
-              </div>
+              {isDialCodeCarrier ? (
+                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3.5 text-xs">
+                  <p className="font-semibold text-[var(--color-text)]">Dial code failing?</p>
+                  <p className="mt-1 leading-relaxed text-[var(--color-text-muted)]">
+                    Turn off <span className="font-semibold text-[var(--color-text)]">Wi‑Fi Calling</span> and dial on
+                    cellular. Also dial from the business phone line (not a personal line), then try the code again.
+                  </p>
+                </div>
+              ) : null}
+
             </div>
           </div>
         ) : null}
