@@ -64,25 +64,31 @@ export function buildForwardingDialCodes(args: {
 export function buildForwardingSmsBody(args: {
   activationCode: string;
   deactivationCode: string;
-  encodedTelUri: string;
   aiLineDisplay: string;
   setupUrl: string;
 }): string {
+  // Keep GSM-7 friendly (no em dashes / fancy unicode) so carriers
+  // stay on 160-char segments instead of falling back to UCS-2.
   const lines = [
-    "VyntRise — activate AI call forwarding for missed business calls.",
+    "VyntRise Technologies: Activate AI call forwarding",
     "",
-    `Dial from your business phone: ${args.activationCode}`,
+    "Dial this code from your business phone:",
+    args.activationCode,
+    "",
     `AI line: ${args.aiLineDisplay}`,
   ];
 
   if (args.deactivationCode) {
-    lines.push(`Turn off forwarding: ${args.deactivationCode}`);
+    lines.push("", "To turn off later, dial:", args.deactivationCode);
   }
 
-  if (args.encodedTelUri.startsWith("tel:")) {
-    lines.push("", `Android tap-to-dial: ${args.encodedTelUri}`);
-  }
+  lines.push(
+    "",
+    "iPhone: copy the dial code, paste into the Phone keypad, then Call.",
+    `Guide: ${args.setupUrl}`,
+    "",
+    "Msg & data rates may apply. Reply STOP to opt out, HELP for help.",
+  );
 
-  lines.push("", `Setup guide: ${args.setupUrl}`);
   return lines.join("\n");
 }

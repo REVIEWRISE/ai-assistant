@@ -507,7 +507,6 @@ export async function sendForwardingActivationSmsAction(input: {
   const body = buildForwardingSmsBody({
     activationCode: codes.activationCode,
     deactivationCode: codes.deactivationCode,
-    encodedTelUri: codes.encodedTelUri,
     aiLineDisplay: formatDisplayNumber(aiLine),
     setupUrl,
   });
