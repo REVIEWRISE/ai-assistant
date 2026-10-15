@@ -10,6 +10,7 @@ import {
   type CarrierKey,
 } from "@/lib/call-forwarding-carriers";
 import { buildForwardingDialCodes, formatDisplayNumber } from "@/lib/call-forwarding-codes";
+import { MAIN_SITE_URL } from "@/lib/brand";
 import { toast } from "@/lib/toast";
 import type { OrgRetellPhoneNumber } from "@/lib/retell-phone-numbers";
 
@@ -92,6 +93,7 @@ export function VoiceAgentForwardingGuide({
   } | null>(null);
   const [lookupPending, startLookup] = useTransition();
   const [smsPending, startSms] = useTransition();
+  const [smsConsent, setSmsConsent] = useState(false);
 
   const currentPhone = phones.find((p) => p.phoneNumber === selectedNumber) || primaryPhone;
   const rawNumber = isPreview ? "+15550192834" : currentPhone?.phoneNumber || "";
@@ -134,6 +136,7 @@ export function VoiceAgentForwardingGuide({
     setCarrierConfirmed(!twilioConfigured);
     setLookupMeta(null);
     setLookupSummary(null);
+    setSmsConsent(false);
   }
 
   function runCarrierLookup() {
@@ -168,6 +171,10 @@ export function VoiceAgentForwardingGuide({
       toast.error("Enter the number that should receive the activation SMS.");
       return;
     }
+    if (!smsConsent) {
+      toast.error("Please agree to receive SMS messages before continuing.");
+      return;
+    }
     startSms(async () => {
       const result = await sendForwardingActivationSmsAction({
         organizationId,
@@ -175,6 +182,7 @@ export function VoiceAgentForwardingGuide({
         carrier,
         ringSeconds,
         aiLineNumber: rawNumber,
+        smsConsent: true,
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -489,9 +497,65 @@ export function VoiceAgentForwardingGuide({
                   <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
                     We’ll SMS activation steps to the business phone you entered above.
                   </p>
+
+                  <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                      SMS Consent — VyntRise Technologies
+                    </p>
+                    <p className="mt-2 text-xs font-semibold text-[var(--color-text)]">
+                      SMS Notifications and Customer Communications
+                    </p>
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                      By checking the box below, you agree to receive text messages from VyntRise Technologies LLC
+                      related to your services, including AI receptionist notifications, missed-call alerts,
+                      appointment confirmations and reminders, and customer support updates.
+                    </p>
+                    <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                      <li>Message frequency varies.</li>
+                      <li>Message and data rates may apply.</li>
+                      <li>Reply STOP to opt out at any time.</li>
+                      <li>Reply HELP for assistance.</li>
+                      <li>Consent is not a condition of purchase.</li>
+                      <li>
+                        See our{" "}
+                        <a
+                          href={`${MAIN_SITE_URL}/privacy`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-[var(--color-text)] underline underline-offset-2 hover:text-[var(--color-primary-h)]"
+                        >
+                          Privacy Policy
+                        </a>{" "}
+                        and{" "}
+                        <a
+                          href={`${MAIN_SITE_URL}/terms`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-[var(--color-text)] underline underline-offset-2 hover:text-[var(--color-primary-h)]"
+                        >
+                          Terms of Service
+                        </a>{" "}
+                        for additional information.
+                      </li>
+                    </ul>
+
+                    <label className="mt-3 flex cursor-pointer select-none items-start gap-2.5 border-t border-[var(--color-border)] pt-3">
+                      <input
+                        type="checkbox"
+                        checked={smsConsent}
+                        onChange={(e) => setSmsConsent(e.target.checked)}
+                        className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                      />
+                      <span className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                        I agree to receive SMS messages from VyntRise Technologies LLC regarding the services I have
+                        requested.
+                      </span>
+                    </label>
+                  </div>
+
                   <button
                     type="button"
-                    disabled={smsPending || isPreview}
+                    disabled={smsPending || isPreview || !smsConsent}
                     onClick={sendActivationSms}
                     className="mt-3 inline-flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] disabled:cursor-not-allowed disabled:opacity-50"
                   >
