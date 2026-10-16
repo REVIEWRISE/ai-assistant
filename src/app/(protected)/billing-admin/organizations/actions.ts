@@ -19,6 +19,7 @@ import {
 } from "@/lib/billing-subscription-cancel";
 import { isBillingConfigured } from "@/lib/billing-client";
 import { fallbackOrganizationIdForAdmin, purgeOrganization } from "@/lib/organization-delete";
+import { notifyAdminsOfOrganizationPlanChange } from "@/lib/billing-admin-plan-change-email";
 import { writePlatformAudit } from "@/lib/platform-audit";
 
 const ADMIN_ORGS_PATH = "/billing-admin/organizations";
@@ -152,24 +153,37 @@ export async function adminUpdateOrganizationPlan(input: {
     },
   });
 
+  const fromSnapshot = {
+    planSlug: org.planSlug,
+    billingInterval: org.billingInterval,
+    billingStatus: org.billingStatus,
+  };
+  const toSnapshot = {
+    planSlug,
+    billingInterval,
+    billingStatus: nextStatus,
+  };
+
   await writePlatformAudit({
     actorId: session.userId,
     organizationId,
     action: "billing_admin.plan_overridden",
     metadata: {
       organizationName: org.name,
-      from: {
-        planSlug: org.planSlug,
-        billingInterval: org.billingInterval,
-        billingStatus: org.billingStatus,
-      },
-      to: {
-        planSlug,
-        billingInterval,
-        billingStatus: nextStatus,
-      },
+      from: fromSnapshot,
+      to: toSnapshot,
       billingSynced,
     },
+  });
+
+  // Notify other system admins (not the actor). Non-blocking.
+  void notifyAdminsOfOrganizationPlanChange({
+    actorUserId: session.userId,
+    organizationId,
+    organizationName: org.name,
+    from: fromSnapshot,
+    to: toSnapshot,
+    billingSynced,
   });
 
   revalidatePath(ADMIN_ORGS_PATH);
