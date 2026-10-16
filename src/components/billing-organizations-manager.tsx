@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { DataTablePagination } from "@/components/data-table";
@@ -90,7 +90,7 @@ function statusTone(status: StatusFilter): {
         label: "Trialing",
         className:
           "border-sky-200 bg-sky-50 text-sky-800 [[data-theme=dark]_&]:border-sky-500/30 [[data-theme=dark]_&]:bg-sky-500/15 [[data-theme=dark]_&]:text-sky-200",
-        dot: "bg-neutral-600 [[data-theme=dark]_&]:bg-neutral-300",
+        dot: "bg-sky-600 [[data-theme=dark]_&]:bg-sky-400",
       };
     case "expired":
       return {
@@ -173,10 +173,56 @@ const FILTERS: Array<{ id: StatusFilter; label: string }> = [
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] py-3 last:border-0">
-      <p className="text-xs font-semibold text-[var(--color-text-muted)]">{label}</p>
-      <p className="max-w-[60%] text-right text-sm font-medium text-[var(--color-text)]">{value}</p>
+    <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] py-2.5 last:border-0">
+      <p className="text-[11px] font-medium text-[var(--color-text-muted)]">{label}</p>
+      <p className="max-w-[62%] text-right text-sm font-semibold text-[var(--color-text)]">{value}</p>
     </div>
+  );
+}
+
+function SheetSection({
+  eyebrow,
+  title,
+  description,
+  children,
+  tone = "default",
+}: {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+  children: ReactNode;
+  tone?: "default" | "danger" | "success";
+}) {
+  const border =
+    tone === "danger"
+      ? "border-red-200 [[data-theme=dark]_&]:border-red-500/30"
+      : tone === "success"
+        ? "border-emerald-200 [[data-theme=dark]_&]:border-emerald-500/30"
+        : "border-[var(--color-border)]";
+  const eyebrowColor =
+    tone === "danger"
+      ? "text-red-700 [[data-theme=dark]_&]:text-red-300"
+      : tone === "success"
+        ? "text-emerald-800 [[data-theme=dark]_&]:text-emerald-300"
+        : "text-[var(--color-text-muted)]";
+
+  return (
+    <section
+      className={`rounded-2xl border bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)] ${border}`}
+    >
+      {eyebrow ? (
+        <p className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${eyebrowColor}`}>
+          {eyebrow}
+        </p>
+      ) : null}
+      <h4 className={`text-sm font-semibold text-[var(--color-text)] ${eyebrow ? "mt-1" : ""}`}>
+        {title}
+      </h4>
+      {description ? (
+        <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">{description}</p>
+      ) : null}
+      <div className={eyebrow || description || title ? "mt-4" : ""}>{children}</div>
+    </section>
   );
 }
 
@@ -264,6 +310,7 @@ function OrganizationBillingSheet({
           ? "Workspace plan updated in the app and Billing."
           : "Access updated in the app. Stripe was not changed, so this grant is protected from Billing cancel events.",
       );
+      onClose();
       router.refresh();
     });
   }
@@ -284,6 +331,7 @@ function OrganizationBillingSheet({
           ? "Subscription canceled. Access revoked."
           : "Subscription set to cancel at period end.",
       );
+      onClose();
       router.refresh();
     });
   }
@@ -303,6 +351,7 @@ function OrganizationBillingSheet({
           ? "Subscription will continue. The scheduled Billing cancel was cleared."
           : "Access restored in the app. Billing may still need a live subscription.",
       );
+      onClose();
       router.refresh();
     });
   }
@@ -326,9 +375,7 @@ function OrganizationBillingSheet({
   return (
     <div
       className={`fixed inset-0 z-50 flex justify-end transition-colors duration-200 ${
-        entered
-          ? "bg-[var(--color-overlay)]"
-          : "bg-transparent"
+        entered ? "bg-[var(--color-overlay)] backdrop-blur-[2px]" : "bg-transparent"
       }`}
     >
       <button
@@ -341,13 +388,19 @@ function OrganizationBillingSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="org-billing-title"
-        className={`relative flex h-full w-full max-w-md flex-col border-l border-[var(--color-border)] bg-[var(--color-bg)] transition-transform duration-300 ease-out sm:max-w-lg ${
+        className={`relative flex h-full w-full max-w-md flex-col border-l border-[var(--color-border)] bg-[var(--color-bg)] shadow-[-24px_0_60px_-28px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out sm:max-w-lg ${
           entered ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <header className="relative shrink-0 overflow-hidden border-b border-[var(--color-border)] bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 pb-5 pt-5 text-white">
-          <div className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-white/10 blur-3xl" aria-hidden />
-          <div className="pointer-events-none absolute -bottom-20 left-10 size-40 rounded-full bg-white/5 blur-3xl" aria-hidden />
+          <div
+            className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-white/10 blur-3xl"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -bottom-20 left-10 size-40 rounded-full bg-white/5 blur-3xl"
+            aria-hidden
+          />
 
           <div className="relative flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
@@ -364,12 +417,19 @@ function OrganizationBillingSheet({
                 >
                   {organization.name}
                 </h3>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
+                <p className="mt-1 text-xs text-neutral-400">
+                  {timeline.primary}
+                  {timeline.secondary ? ` · ${timeline.secondary}` : ""}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-1.5">
                   <span
                     className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${tone.className}`}
                   >
                     <span className={`size-1.5 rounded-full ${tone.dot}`} aria-hidden />
                     {tone.label}
+                  </span>
+                  <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
+                    {planLabel(organization.planSlug)} · {intervalLabel}
                   </span>
                   {organization.cancelAtPeriodEnd ? (
                     <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
@@ -381,71 +441,53 @@ function OrganizationBillingSheet({
                       Admin grant
                     </span>
                   ) : null}
-                  <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
-                    {planLabel(organization.planSlug)}
-                  </span>
                 </div>
               </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-2 py-1 text-lg leading-none text-slate-300 transition hover:bg-white/10 hover:text-white"
+              className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-sm text-slate-200 transition hover:bg-white/15 hover:text-white"
               aria-label="Close dialog"
             >
-              ×
+              ✕
             </button>
           </div>
         </header>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
           <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-            <div className="border-b border-[var(--color-border)] px-4 py-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-                Subscription
-              </p>
+            <div className="grid grid-cols-2 gap-px bg-[var(--color-border)] sm:grid-cols-4">
+              {[
+                { label: "Plan", value: planLabel(organization.planSlug) },
+                { label: "Interval", value: intervalLabel },
+                { label: "Status", value: tone.label },
+                { label: "Members", value: String(organization.memberCount) },
+              ].map((stat) => (
+                <div key={stat.label} className="bg-[var(--color-surface)] px-3.5 py-3.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                    {stat.label}
+                  </p>
+                  <p className="mt-1.5 truncate text-sm font-semibold text-[var(--color-text)]">
+                    {stat.value}
+                  </p>
+                </div>
+              ))}
             </div>
-            <div className="grid grid-cols-2 gap-px bg-[var(--color-border)]">
-              <div className="bg-[var(--color-surface)] px-4 py-3.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                  Plan
-                </p>
-                <p className="mt-1.5 text-sm font-semibold text-[var(--color-text)]">
-                  {planLabel(organization.planSlug)}
-                </p>
-              </div>
-              <div className="bg-[var(--color-surface)] px-4 py-3.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                  Interval
-                </p>
-                <p className="mt-1.5 text-sm font-semibold text-[var(--color-text)]">{intervalLabel}</p>
-              </div>
-              <div className="bg-[var(--color-surface)] px-4 py-3.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                  Status
-                </p>
-                <p className="mt-1.5 text-sm font-semibold text-[var(--color-text)]">{tone.label}</p>
-              </div>
-              <div className="bg-[var(--color-surface)] px-4 py-3.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                  Members
-                </p>
-                <p className="mt-1.5 text-sm font-semibold text-[var(--color-text)]">
-                  {organization.memberCount}
-                </p>
-              </div>
+            <div className="border-t border-[var(--color-border)] px-4 py-1">
+              <DetailRow label="Trial ends" value={formatDate(organization.trialEndsAt)} />
+              <DetailRow label="Paid at" value={formatDate(organization.paidAt)} />
+              <DetailRow label="Period ends" value={formatDate(organization.currentPeriodEndsAt)} />
+              <DetailRow label="Created" value={formatDate(organization.createdAt)} />
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-              Change plan
-            </p>
-            <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
-              Updates this workspace&apos;s entitlements. A matching Billing subscription is updated when one exists.
-            </p>
-
-            <div className="mt-4 space-y-3">
+          <SheetSection
+            eyebrow="Manage"
+            title="Change plan"
+            description="Updates entitlements for this workspace. Matching Billing subscriptions are updated when one exists."
+          >
+            <div className="space-y-3">
               <label className="block">
                 <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Plan</span>
                 <CustomSelect
@@ -457,27 +499,33 @@ function OrganizationBillingSheet({
                 />
               </label>
 
-              <label className="block">
-                <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Interval</span>
-                <CustomSelect
-                  value={billingInterval}
-                  onChange={setBillingInterval}
-                  options={INTERVAL_OPTIONS}
-                  aria-label="Select billing interval"
-                  className="mt-1.5"
-                />
-              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">
+                    Interval
+                  </span>
+                  <CustomSelect
+                    value={billingInterval}
+                    onChange={setBillingInterval}
+                    options={INTERVAL_OPTIONS}
+                    aria-label="Select billing interval"
+                    className="mt-1.5"
+                  />
+                </label>
 
-              <label className="block">
-                <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Status</span>
-                <CustomSelect
-                  value={billingStatus}
-                  onChange={setBillingStatus}
-                  options={STATUS_OPTIONS}
-                  aria-label="Select billing status"
-                  className="mt-1.5"
-                />
-              </label>
+                <label className="block">
+                  <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">
+                    Status
+                  </span>
+                  <CustomSelect
+                    value={billingStatus}
+                    onChange={setBillingStatus}
+                    options={STATUS_OPTIONS}
+                    aria-label="Select billing status"
+                    className="mt-1.5"
+                  />
+                </label>
+              </div>
 
               <label className="flex items-start gap-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5">
                 <input
@@ -495,29 +543,16 @@ function OrganizationBillingSheet({
                 </span>
               </label>
             </div>
-
-            <button
-              type="button"
-              disabled={!dirty || pending}
-              onClick={savePlan}
-              className="mt-4 w-full rounded-xl vr-btn-primary px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {pending ? "Saving…" : "Save plan changes"}
-            </button>
-          </section>
+          </SheetSection>
 
           {canCancel ? (
-            <section className="rounded-2xl border border-red-200 bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-red-500/30">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-red-700 [[data-theme=dark]_&]:text-red-300">
-                Cancel subscription
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
-                Calls Billing{" "}
-                <span className="font-mono text-[11px]">PATCH /billing/admin/subscriptions/:id/cancel</span>.
-                Local access is revoked immediately only when you choose cancel now.
-              </p>
-
-              <div className="mt-4 space-y-3">
+            <SheetSection
+              tone="danger"
+              eyebrow="Subscription"
+              title="Cancel subscription"
+              description="Cancel at period end to keep access until the current period finishes, or cancel now to revoke access immediately."
+            >
+              <div className="space-y-3">
                 <label className="block">
                   <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">
                     Cancel mode
@@ -541,7 +576,7 @@ function OrganizationBillingSheet({
                     onClick={() => setConfirmCancel(true)}
                     className="w-full rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800 transition hover:bg-red-100 disabled:opacity-50 [[data-theme=dark]_&]:border-red-500/40 [[data-theme=dark]_&]:bg-red-500/10 [[data-theme=dark]_&]:text-red-200 [[data-theme=dark]_&]:hover:bg-red-500/20"
                   >
-                    Cancel subscription…
+                    Cancel subscription
                   </button>
                 ) : (
                   <div className="space-y-2 rounded-xl border border-red-200 bg-red-50/80 p-3 [[data-theme=dark]_&]:border-red-500/30 [[data-theme=dark]_&]:bg-red-500/10">
@@ -565,36 +600,37 @@ function OrganizationBillingSheet({
                         onClick={cancelSubscription}
                         className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
                       >
-                        {pending ? "Canceling…" : "Confirm cancel"}
+                        {pending ? "Canceling" : "Confirm cancel"}
                       </button>
                     </div>
                   </div>
                 )}
               </div>
-            </section>
+            </SheetSection>
           ) : null}
 
           {canRestore ? (
-            <section className="rounded-2xl border border-emerald-200 bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-emerald-500/30">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-800 [[data-theme=dark]_&]:text-emerald-300">
-                Restore access
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
-                {organization.cancelAtPeriodEnd
+            <SheetSection
+              tone="success"
+              eyebrow="Subscription"
+              title="Restore access"
+              description={
+                organization.cancelAtPeriodEnd
                   ? "Keep the current subscription and clear the scheduled cancel in Billing when possible."
-                  : "Grant app access again. Billing is updated only if a live subscription still exists."}
-              </p>
+                  : "Grant app access again. Billing is updated only if a live subscription still exists."
+              }
+            >
               {!confirmRestore ? (
                 <button
                   type="button"
                   disabled={pending}
                   onClick={() => setConfirmRestore(true)}
-                  className="mt-4 w-full rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-100 disabled:opacity-50 [[data-theme=dark]_&]:border-emerald-500/40 [[data-theme=dark]_&]:bg-emerald-500/10 [[data-theme=dark]_&]:text-emerald-200 [[data-theme=dark]_&]:hover:bg-emerald-500/20"
+                  className="w-full rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-100 disabled:opacity-50 [[data-theme=dark]_&]:border-emerald-500/40 [[data-theme=dark]_&]:bg-emerald-500/10 [[data-theme=dark]_&]:text-emerald-200 [[data-theme=dark]_&]:hover:bg-emerald-500/20"
                 >
-                  Restore access…
+                  Restore access
                 </button>
               ) : (
-                <div className="mt-4 space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 [[data-theme=dark]_&]:border-emerald-500/30 [[data-theme=dark]_&]:bg-emerald-500/10">
+                <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 [[data-theme=dark]_&]:border-emerald-500/30 [[data-theme=dark]_&]:bg-emerald-500/10">
                   <p className="text-xs font-medium text-emerald-900 [[data-theme=dark]_&]:text-emerald-200">
                     Restore access for this workspace?
                   </p>
@@ -613,72 +649,33 @@ function OrganizationBillingSheet({
                       onClick={restoreSubscription}
                       className="flex-1 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
                     >
-                      {pending ? "Restoring…" : "Confirm restore"}
+                      {pending ? "Restoring" : "Confirm restore"}
                     </button>
                   </div>
                 </div>
               )}
-            </section>
+            </SheetSection>
           ) : null}
 
-          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-              Timeline
-            </p>
-            <p
-              className={`mt-3 text-base font-semibold ${
-                organization.paidAt
-                  ? "text-emerald-800 [[data-theme=dark]_&]:text-emerald-300"
-                  : "text-[var(--color-text)]"
-              }`}
-            >
-              {timeline.primary}
-            </p>
-            <p className="mt-1 text-sm text-[var(--color-text-muted)]">{timeline.secondary}</p>
-
-            <div className="mt-4 space-y-0 border-t border-[var(--color-border)]">
-              <DetailRow label="Trial ends" value={formatDate(organization.trialEndsAt)} />
-              <DetailRow label="Paid at" value={formatDate(organization.paidAt)} />
-              <DetailRow
-                label="Period ends"
-                value={formatDate(organization.currentPeriodEndsAt)}
-              />
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-              Workspace
-            </p>
-            <div className="mt-1">
-              <DetailRow label="Created" value={formatDate(organization.createdAt)} />
-              <DetailRow
-                label="Members"
-                value={`${organization.memberCount} member${organization.memberCount === 1 ? "" : "s"}`}
-              />
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-red-200 bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-red-500/30">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-red-700 [[data-theme=dark]_&]:text-red-300">
-              Delete workspace
-            </p>
-            <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
-              Permanently removes this organization and all of its data.
-            </p>
+          <SheetSection
+            tone="danger"
+            eyebrow="Danger zone"
+            title="Delete workspace"
+            description="Permanently removes this organization and all of its data. This cannot be undone."
+          >
             {!confirmDelete ? (
               <button
                 type="button"
                 disabled={pending}
                 onClick={() => setConfirmDelete(true)}
-                className="mt-4 w-full rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800 transition hover:bg-red-100 disabled:opacity-50 [[data-theme=dark]_&]:border-red-500/40 [[data-theme=dark]_&]:bg-red-500/10 [[data-theme=dark]_&]:text-red-200 [[data-theme=dark]_&]:hover:bg-red-500/20"
+                className="w-full rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800 transition hover:bg-red-100 disabled:opacity-50 [[data-theme=dark]_&]:border-red-500/40 [[data-theme=dark]_&]:bg-red-500/10 [[data-theme=dark]_&]:text-red-200 [[data-theme=dark]_&]:hover:bg-red-500/20"
               >
-                Delete workspace…
+                Delete workspace
               </button>
             ) : (
-              <div className="mt-4 space-y-2 rounded-xl border border-red-200 bg-red-50/80 p-3 [[data-theme=dark]_&]:border-red-500/30 [[data-theme=dark]_&]:bg-red-500/10">
+              <div className="space-y-2 rounded-xl border border-red-200 bg-red-50/80 p-3 [[data-theme=dark]_&]:border-red-500/30 [[data-theme=dark]_&]:bg-red-500/10">
                 <p className="text-xs font-medium text-red-800 [[data-theme=dark]_&]:text-red-200">
-                  Delete “{organization.name}” and all workspace data? This cannot be undone.
+                  Delete “{organization.name}” and all workspace data?
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -695,17 +692,44 @@ function OrganizationBillingSheet({
                     onClick={deleteWorkspace}
                     className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
                   >
-                    {pending ? "Deleting…" : "Delete workspace"}
+                    {pending ? "Deleting" : "Delete workspace"}
                   </button>
                 </div>
               </div>
             )}
-          </section>
+          </SheetSection>
         </div>
+
+        <footer className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={pending}
+              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] disabled:opacity-50"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              disabled={!dirty || pending}
+              onClick={savePlan}
+              className="flex-1 rounded-xl vr-btn-primary px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {pending ? "Saving" : dirty ? "Save plan changes" : "No changes"}
+            </button>
+          </div>
+          {dirty ? (
+            <p className="mt-2 text-[11px] text-[var(--color-text-muted)]">
+              Unsaved plan, interval, or status changes.
+            </p>
+          ) : null}
+        </footer>
       </aside>
     </div>
   );
 }
+
 
 export function BillingOrganizationsManager({
   organizations,

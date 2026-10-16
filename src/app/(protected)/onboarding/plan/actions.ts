@@ -9,6 +9,7 @@ import {
   getOrgBilling,
   type BillingInterval,
 } from "@/lib/entitlements";
+import { writePlatformAudit } from "@/lib/platform-audit";
 import { PLAN_SLUGS, type PlanSlug } from "@/lib/pricing-plans";
 
 function asPlanSlug(value: string): PlanSlug | null {
@@ -63,6 +64,13 @@ export async function selectPlanAction(formData: FormData) {
     organizationId,
     planSlug,
     billingInterval,
+  });
+
+  await writePlatformAudit({
+    actorId: session.userId,
+    organizationId,
+    action: "billing.trial_started",
+    metadata: { planSlug, billingInterval, source: "onboarding_plan" },
   });
 
   redirect("/dashboard?success=trial_started");

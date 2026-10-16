@@ -54,6 +54,7 @@ async function syncOrgFromActiveBillingSubscription(input: {
   customerId: string;
   preferredPlanSlug?: PlanSlug;
   preferredInterval?: BillingInterval;
+  actorId?: string | null;
 }): Promise<boolean> {
   const product = await resolveBillingProduct().catch(() => null);
 
@@ -108,6 +109,18 @@ async function syncOrgFromActiveBillingSubscription(input: {
         billingAdminOverride: false,
       },
     });
+    await writePlatformAudit({
+      actorId: input.actorId,
+      organizationId: input.organizationId,
+      action: "billing.subscription_synced",
+      metadata: {
+        source: "checkout_sync",
+        billingStatus: "trialing",
+        ...(planSlug ? { planSlug } : {}),
+        ...(billingInterval ? { billingInterval } : {}),
+        subscriptionId: match.id,
+      },
+    });
     return true;
   }
 
@@ -116,6 +129,18 @@ async function syncOrgFromActiveBillingSubscription(input: {
     ...(planSlug ? { planSlug } : {}),
     ...(billingInterval ? { billingInterval } : {}),
     ...(match.currentPeriodEnd ? { currentPeriodEndsAt: new Date(match.currentPeriodEnd) } : {}),
+  });
+  await writePlatformAudit({
+    actorId: input.actorId,
+    organizationId: input.organizationId,
+    action: "billing.subscription_synced",
+    metadata: {
+      source: "checkout_sync",
+      billingStatus: "active",
+      ...(planSlug ? { planSlug } : {}),
+      ...(billingInterval ? { billingInterval } : {}),
+      subscriptionId: match.id,
+    },
   });
   return true;
 }
@@ -191,6 +216,7 @@ export async function createBillingCheckoutSession(input: {
       customerId,
       preferredPlanSlug: planSlug,
       preferredInterval: billingInterval,
+      actorId: session.userId,
     });
     if (alreadySynced) {
       return { ok: true, alreadyActive: true };
@@ -226,6 +252,7 @@ export async function createBillingCheckoutSession(input: {
           customerId,
           preferredPlanSlug: planSlug,
           preferredInterval: billingInterval,
+          actorId: session.userId,
         });
         if (synced) return { ok: true, alreadyActive: true };
         return {
@@ -351,6 +378,7 @@ export async function getBillingStatusForActiveOrg(): Promise<{
       const synced = await syncOrgFromActiveBillingSubscription({
         organizationId,
         customerId,
+        actorId: session.userId,
       });
       if (synced) {
         billing = await getOrgBilling(organizationId);
