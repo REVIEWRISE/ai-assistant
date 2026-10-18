@@ -12,6 +12,8 @@ import {
   DataTableRow,
 } from "@/components/data-table";
 import { formatAuditAction } from "@/lib/audit-action-labels";
+import { toast } from "@/lib/toast";
+import * as XLSX from "xlsx";
 
 const PLATFORM_AUDIT_ORG_ID = "00000000-0000-0000-0000-000000000000";
 
@@ -38,6 +40,14 @@ type AuditEventsManagerProps = {
   totalInDatabase: number;
 };
 
+type Severity = {
+  label: string;
+  pill: string;
+  sheetPill: string;
+  sheetIcon: string;
+  sheetDot: string;
+};
+
 function formatWhen(value: string | Date, compact = false) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
@@ -61,57 +71,63 @@ function formatWhen(value: string | Date, compact = false) {
 
 function organizationLabel(organizationId: string, name: string | null, metadata: unknown) {
   if (organizationId === PLATFORM_AUDIT_ORG_ID) return "Platform";
-  const meta = metadata && typeof metadata === "object" && !Array.isArray(metadata)
-    ? (metadata as Record<string, unknown>)
-    : null;
+  const meta =
+    metadata && typeof metadata === "object" && !Array.isArray(metadata)
+      ? (metadata as Record<string, unknown>)
+      : null;
   if (meta?.scope === "platform") return name?.trim() ? `Platform · ${name.trim()}` : "Platform";
   return name?.trim() || "Unknown workspace";
 }
 
-function actionTone(action: string) {
+function actionSeverity(action: string): Severity {
   const normalized = action.toLowerCase();
-  if (normalized.includes("fail") || normalized.includes("delete") || normalized.includes("revoke")) {
-    return "bg-[var(--color-danger-soft)] text-[var(--color-danger)]";
-  }
-  if (normalized.includes("success") || normalized.includes("create") || normalized.includes("connect")) {
-    return "vr-app-status-success";
-  }
-  return "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)]";
-}
-
-function actionSeverity(action: string): {
-  label: string;
-  className: string;
-  dot: string;
-  iconBg: string;
-} {
-  const normalized = action.toLowerCase();
-  if (normalized.includes("fail") || normalized.includes("delete") || normalized.includes("revoke")) {
+  if (
+    normalized.includes("fail") ||
+    normalized.includes("delete") ||
+    normalized.includes("revoke") ||
+    normalized.includes("blocked") ||
+    normalized.includes("reject")
+  ) {
     return {
       label: "Attention",
-      className: "border-red-400/40 bg-red-500/15 text-red-100",
-      dot: "bg-red-300",
-      iconBg: "border-red-400/30 bg-red-500/20 text-red-100",
+      pill: "border-red-200 bg-red-50 text-red-800 [[data-theme=dark]_&]:border-red-500/30 [[data-theme=dark]_&]:bg-red-500/15 [[data-theme=dark]_&]:text-red-200",
+      sheetPill: "border-red-400/40 bg-red-500/15 text-red-100",
+      sheetIcon: "border-red-400/30 bg-red-500/20 text-red-100",
+      sheetDot: "bg-red-300",
     };
   }
   if (
     normalized.includes("success") ||
     normalized.includes("create") ||
     normalized.includes("connect") ||
-    normalized.includes("register")
+    normalized.includes("register") ||
+    normalized.includes("approved") ||
+    normalized.includes("activated") ||
+    normalized.includes("restored")
   ) {
     return {
       label: "Success",
-      className: "border-emerald-400/40 bg-emerald-500/15 text-emerald-100",
-      dot: "bg-emerald-300",
-      iconBg: "border-emerald-400/30 bg-emerald-500/20 text-emerald-100",
+      pill: "border-emerald-200 bg-emerald-50 text-emerald-800 [[data-theme=dark]_&]:border-emerald-500/30 [[data-theme=dark]_&]:bg-emerald-500/15 [[data-theme=dark]_&]:text-emerald-200",
+      sheetPill: "border-emerald-400/40 bg-emerald-500/15 text-emerald-100",
+      sheetIcon: "border-emerald-400/30 bg-emerald-500/20 text-emerald-100",
+      sheetDot: "bg-emerald-300",
+    };
+  }
+  if (normalized.startsWith("billing")) {
+    return {
+      label: "Billing",
+      pill: "border-violet-200 bg-violet-50 text-violet-800 [[data-theme=dark]_&]:border-violet-500/30 [[data-theme=dark]_&]:bg-violet-500/15 [[data-theme=dark]_&]:text-violet-200",
+      sheetPill: "border-violet-400/40 bg-violet-500/15 text-violet-100",
+      sheetIcon: "border-violet-400/30 bg-violet-500/20 text-violet-100",
+      sheetDot: "bg-violet-300",
     };
   }
   return {
     label: "Info",
-    className: "border-white/15 bg-white/10 text-slate-200",
-    dot: "bg-slate-300",
-    iconBg: "border-white/15 bg-white/10 text-white",
+    pill: "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)]",
+    sheetPill: "border-white/15 bg-white/10 text-slate-200",
+    sheetIcon: "border-white/15 bg-white/10 text-white",
+    sheetDot: "bg-slate-300",
   };
 }
 
@@ -126,7 +142,11 @@ function actorInitials(name: string | null, email: string | null) {
 
 function metadataPreview(metadata: unknown) {
   if (metadata == null) return "—";
-  if (typeof metadata === "object" && !Array.isArray(metadata) && Object.keys(metadata as object).length === 0) {
+  if (
+    typeof metadata === "object" &&
+    !Array.isArray(metadata) &&
+    Object.keys(metadata as object).length === 0
+  ) {
     return "No details";
   }
   try {
@@ -137,18 +157,25 @@ function metadataPreview(metadata: unknown) {
   }
 }
 
+function formatMetaValue(value: unknown): string {
+  if (value == null) return "—";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 function metadataEntries(metadata: unknown): Array<{ key: string; value: string }> | null {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
   const entries = Object.entries(metadata as Record<string, unknown>);
   if (entries.length === 0) return [];
   return entries.map(([key, value]) => ({
     key,
-    value:
-      value == null
-        ? "—"
-        : typeof value === "string" || typeof value === "number" || typeof value === "boolean"
-          ? String(value)
-          : JSON.stringify(value),
+    value: formatMetaValue(value),
   }));
 }
 
@@ -158,6 +185,83 @@ function prettyMetadata(metadata: unknown) {
   } catch {
     return String(metadata);
   }
+}
+
+function formatExportWhen(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function parseDateInputStart(value: string): Date | null {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parseDateInputEnd(value: string): Date | null {
+  if (!value) return null;
+  const date = new Date(`${value}T23:59:59.999`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function eventTime(value: string | Date): number {
+  const date = value instanceof Date ? value : new Date(value);
+  return date.getTime();
+}
+
+function downloadAuditExcel(rows: AuditEventRow[]) {
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const sheetRows = rows.map((event) => ({
+    When: formatExportWhen(event.createdAt),
+    Action: formatAuditAction(event.action),
+    "Action code": event.action,
+    "Actor name": event.actorName ?? "",
+    "Actor email": event.actorEmail ?? "",
+    Workspace: organizationLabel(event.organizationId, event.organizationName, event.metadata),
+    "Organization ID": event.organizationId,
+    "Event ID": event.id,
+    Metadata: prettyMetadata(event.metadata),
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(sheetRows);
+  worksheet["!cols"] = [
+    { wch: 24 },
+    { wch: 36 },
+    { wch: 40 },
+    { wch: 22 },
+    { wch: 28 },
+    { wch: 24 },
+    { wch: 36 },
+    { wch: 36 },
+    { wch: 48 },
+  ];
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Audit log");
+  XLSX.writeFile(workbook, `audit-log-${stamp}.xlsx`);
+}
+
+function EyeIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      aria-hidden
+    >
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
 }
 
 function AuditEventSheet({
@@ -171,7 +275,11 @@ function AuditEventSheet({
   const [showRawJson, setShowRawJson] = useState(false);
   const severity = actionSeverity(event.action);
   const actorLabel = event.actorName || event.actorEmail || "System";
-  const workspace = organizationLabel(event.organizationId, event.organizationName, event.metadata);
+  const workspace = organizationLabel(
+    event.organizationId,
+    event.organizationName,
+    event.metadata,
+  );
   const details = metadataEntries(event.metadata);
   const hasDetails = details !== null && details.length > 0;
 
@@ -196,7 +304,7 @@ function AuditEventSheet({
   return createPortal(
     <div
       className={`fixed inset-0 z-50 flex justify-end transition-colors duration-200 ${
-        entered ? "bg-[var(--color-overlay)]" : "bg-transparent"
+        entered ? "bg-[var(--color-overlay)] backdrop-blur-[2px]" : "bg-transparent"
       }`}
     >
       <button
@@ -209,20 +317,33 @@ function AuditEventSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="audit-event-title"
-        className={`relative flex h-full w-full max-w-md flex-col border-l border-[var(--color-border)] bg-[var(--color-bg)] transition-transform duration-300 ease-out sm:max-w-lg ${
+        className={`relative flex h-full w-full max-w-md flex-col border-l border-[var(--color-border)] bg-[var(--color-bg)] shadow-[-24px_0_60px_-28px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out sm:max-w-lg ${
           entered ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <header className="relative shrink-0 overflow-hidden border-b border-[var(--color-border)] bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 pb-5 pt-5 text-white">
-          <div className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-white/10 blur-3xl" aria-hidden />
-          <div className="pointer-events-none absolute -bottom-20 left-10 size-40 rounded-full bg-white/5 blur-3xl" aria-hidden />
+          <div
+            className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-white/10 blur-3xl"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -bottom-20 left-10 size-40 rounded-full bg-white/5 blur-3xl"
+            aria-hidden
+          />
 
           <div className="relative flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
               <span
-                className={`flex size-12 shrink-0 items-center justify-center rounded-2xl border backdrop-blur-sm ${severity.iconBg}`}
+                className={`flex size-12 shrink-0 items-center justify-center rounded-2xl border backdrop-blur-sm ${severity.sheetIcon}`}
               >
-                <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                <svg
+                  viewBox="0 0 24 24"
+                  className="size-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  aria-hidden
+                >
                   <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
                   <circle cx="12" cy="12" r="4" />
                 </svg>
@@ -237,15 +358,16 @@ function AuditEventSheet({
                 >
                   {formatAuditAction(event.action)}
                 </h3>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
+                <p className="mt-1 text-xs text-neutral-400">{formatWhen(event.createdAt)}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-1.5">
                   <span
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${severity.className}`}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${severity.sheetPill}`}
                   >
-                    <span className={`size-1.5 rounded-full ${severity.dot}`} aria-hidden />
+                    <span className={`size-1.5 rounded-full ${severity.sheetDot}`} aria-hidden />
                     {severity.label}
                   </span>
                   <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
-                    {formatWhen(event.createdAt)}
+                    {workspace}
                   </span>
                 </div>
               </div>
@@ -253,51 +375,46 @@ function AuditEventSheet({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-2 py-1 text-lg leading-none text-slate-300 transition hover:bg-white/10 hover:text-white"
+              className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-sm text-slate-200 transition hover:bg-white/15 hover:text-white"
               aria-label="Close dialog"
             >
-              ×
+              ✕
             </button>
           </div>
         </header>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
           <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-            <div className="border-b border-[var(--color-border)] px-4 py-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-                Who & where
-              </p>
-            </div>
-            <div className="divide-y divide-[var(--color-border)]">
-              <div className="flex items-center gap-3 px-4 py-3.5">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-semibold text-[var(--color-primary-h)]">
-                  {actorInitials(event.actorName, event.actorEmail)}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                    Actor
-                  </p>
-                  <p className="mt-0.5 truncate text-sm font-semibold text-[var(--color-text)]">{actorLabel}</p>
-                  <p className="mt-0.5 truncate text-xs text-[var(--color-text-muted)]">
-                    {event.actorEmail || (event.actorId ? "User account" : "Automated / system")}
-                  </p>
-                </div>
+            <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-3.5">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-semibold text-[var(--color-primary-h)]">
+                {actorInitials(event.actorName, event.actorEmail)}
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                  Actor
+                </p>
+                <p className="mt-0.5 truncate text-sm font-semibold text-[var(--color-text)]">
+                  {actorLabel}
+                </p>
+                <p className="mt-0.5 truncate text-xs text-[var(--color-text-muted)]">
+                  {event.actorEmail || (event.actorId ? "User account" : "Automated / system")}
+                </p>
               </div>
-              <div className="grid grid-cols-2 gap-px bg-[var(--color-border)]">
-                <div className="bg-[var(--color-surface)] px-4 py-3.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                    Workspace
-                  </p>
-                  <p className="mt-1.5 text-sm font-semibold text-[var(--color-text)]">{workspace}</p>
-                </div>
-                <div className="bg-[var(--color-surface)] px-4 py-3.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                    When
-                  </p>
-                  <p className="mt-1.5 text-sm font-semibold text-[var(--color-text)]">
-                    {formatWhen(event.createdAt)}
-                  </p>
-                </div>
+            </div>
+            <div className="grid grid-cols-2 gap-px bg-[var(--color-border)]">
+              <div className="bg-[var(--color-surface)] px-4 py-3.5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                  Workspace
+                </p>
+                <p className="mt-1.5 text-sm font-semibold text-[var(--color-text)]">{workspace}</p>
+              </div>
+              <div className="bg-[var(--color-surface)] px-4 py-3.5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                  When
+                </p>
+                <p className="mt-1.5 text-sm font-semibold text-[var(--color-text)]">
+                  {formatWhen(event.createdAt, true)}
+                </p>
               </div>
             </div>
           </section>
@@ -318,7 +435,7 @@ function AuditEventSheet({
                 <button
                   type="button"
                   onClick={() => setShowRawJson((current) => !current)}
-                  className="rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
                 >
                   {showRawJson ? "Formatted" : "Raw JSON"}
                 </button>
@@ -332,11 +449,16 @@ function AuditEventSheet({
             ) : hasDetails ? (
               <dl className="divide-y divide-[var(--color-border)]">
                 {details.map((entry) => (
-                  <div key={entry.key} className="grid gap-1 px-4 py-3 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3">
+                  <div
+                    key={entry.key}
+                    className="grid gap-1 px-4 py-3 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3"
+                  >
                     <dt className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
                       {entry.key.replace(/[_-]+/g, " ")}
                     </dt>
-                    <dd className="break-words text-sm font-medium text-[var(--color-text)]">{entry.value}</dd>
+                    <dd className="break-words text-sm font-medium text-[var(--color-text)]">
+                      {entry.value}
+                    </dd>
                   </div>
                 ))}
               </dl>
@@ -362,6 +484,16 @@ function AuditEventSheet({
             </p>
           </section>
         </div>
+
+        <footer className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+          >
+            Close
+          </button>
+        </footer>
       </aside>
     </div>,
     document.body,
@@ -376,6 +508,8 @@ export function AuditEventsManager({
   const [query, setQuery] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
   const [organizationFilter, setOrganizationFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [selected, setSelected] = useState<AuditEventRow | null>(null);
@@ -393,7 +527,10 @@ export function AuditEventsManager({
   const organizationOptions = useMemo(() => {
     const fromEvents = new Map<string, string>();
     for (const event of events) {
-      fromEvents.set(event.organizationId, organizationLabel(event.organizationId, event.organizationName, event.metadata));
+      fromEvents.set(
+        event.organizationId,
+        organizationLabel(event.organizationId, event.organizationName, event.metadata),
+      );
     }
     for (const org of organizations) {
       if (!fromEvents.has(org.id)) fromEvents.set(org.id, org.name);
@@ -429,6 +566,22 @@ export function AuditEventsManager({
     });
   }, [events, query, actionFilter, organizationFilter]);
 
+  const exportRows = useMemo(() => {
+    const fromDate = parseDateInputStart(dateFrom);
+    const toDate = parseDateInputEnd(dateTo);
+    if (!fromDate && !toDate) return filtered;
+    return filtered.filter((event) => {
+      const time = eventTime(event.createdAt);
+      if (Number.isNaN(time)) return false;
+      if (fromDate && time < fromDate.getTime()) return false;
+      if (toDate && time > toDate.getTime()) return false;
+      return true;
+    });
+  }, [filtered, dateFrom, dateTo]);
+
+  const filtersActive =
+    query.trim().length > 0 || actionFilter !== "all" || organizationFilter !== "all";
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const currentPage = Math.min(page, totalPages);
   const paged = useMemo(() => {
@@ -436,42 +589,125 @@ export function AuditEventsManager({
     return filtered.slice(start, start + perPage);
   }, [filtered, currentPage, perPage]);
 
+  function clearFilters() {
+    setQuery("");
+    setActionFilter("all");
+    setOrganizationFilter("all");
+    setPage(1);
+  }
+
+  function exportFiltered() {
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      toast.error("From date must be on or before To date.");
+      return;
+    }
+    if (!dateFrom && !dateTo) {
+      toast.error("Choose a from and/or to date before exporting.");
+      return;
+    }
+    if (exportRows.length === 0) {
+      toast.error("No events in that date range.");
+      return;
+    }
+    downloadAuditExcel(exportRows);
+    toast.success(
+      `Exported ${exportRows.length.toLocaleString()} event${exportRows.length === 1 ? "" : "s"} (${dateFrom || "…"} → ${dateTo || "…"}).`,
+    );
+  }
+
   return (
-    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-md)]">
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--color-border)] px-5 py-5 lg:px-6">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
-            Security trail
-          </p>
-          <h2 className="mt-1 text-lg font-semibold tracking-tight text-[var(--color-text)]">
-            Audit events
-          </h2>
-          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-[var(--color-text-muted)]">
-            Showing the {events.length.toLocaleString()} most recent events
-            {totalInDatabase > events.length
-              ? ` of ${totalInDatabase.toLocaleString()} stored`
-              : ""}
-            . Admin access only.
-          </p>
+    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+      <div className="border-b border-[var(--color-border)] px-4 py-4 lg:px-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+              Security trail
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-semibold text-[var(--color-text)]">Audit events</h2>
+              <span className="rounded-full bg-[var(--color-primary-soft)] px-2.5 py-1 text-[10px] font-semibold text-[var(--color-primary-h)]">
+                {filtered.length.toLocaleString()}
+                {filtered.length !== events.length
+                  ? ` of ${events.length.toLocaleString()}`
+                  : ""}{" "}
+                shown
+              </span>
+            </div>
+            <p className="mt-1 max-w-2xl text-sm text-[var(--color-text-muted)]">
+              Latest {events.length.toLocaleString()} events
+              {totalInDatabase > events.length
+                ? ` of ${totalInDatabase.toLocaleString()} stored`
+                : ""}
+              . Use the date range only when exporting to Excel.
+            </p>
+          </div>
+
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[22rem]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+              Export date range
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="min-w-0 flex-1">
+                <span className="sr-only">Export from date</span>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(event) => setDateFrom(event.target.value)}
+                  aria-label="Export from date"
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]"
+                />
+              </label>
+              <span className="text-xs text-[var(--color-text-muted)]">to</span>
+              <label className="min-w-0 flex-1">
+                <span className="sr-only">Export to date</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  min={dateFrom || undefined}
+                  onChange={(event) => setDateTo(event.target.value)}
+                  aria-label="Export to date"
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={exportFiltered}
+                className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="size-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  aria-hidden
+                >
+                  <path d="M12 3v12" />
+                  <path d="M7 10l5 5 5-5" />
+                  <path d="M5 21h14" />
+                </svg>
+                Export Excel
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] lg:px-6">
-        <label className="block">
-          <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Search</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(1);
-            }}
-            placeholder="Action, actor, workspace, or metadata"
-            className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]"
-          />
-        </label>
-        <label className="block">
-          <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Action</span>
+      <div className="flex flex-col gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 lg:px-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <label className="block min-w-0">
+            <span className="sr-only">Search</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search action, actor, workspace…"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]"
+            />
+          </label>
           <CustomSelect
             value={actionFilter}
             onChange={(value) => {
@@ -481,9 +717,6 @@ export function AuditEventsManager({
             options={actionOptions}
             aria-label="Filter by action"
           />
-        </label>
-        <label className="block sm:col-span-2 lg:col-span-1">
-          <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Workspace</span>
           <CustomSelect
             value={organizationFilter}
             onChange={(value) => {
@@ -493,16 +726,27 @@ export function AuditEventsManager({
             options={organizationOptions}
             aria-label="Filter by workspace"
           />
-        </label>
+          {filtersActive ? (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm font-semibold text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
+            >
+              Clear
+            </button>
+          ) : (
+            <div className="hidden lg:block" aria-hidden />
+          )}
+        </div>
       </div>
 
       <DataTable className="rounded-none border-x-0 border-b-0">
-        <DataTableHeader className="hidden grid-cols-[minmax(160px,1fr)_minmax(180px,1.2fr)_minmax(160px,1fr)_minmax(140px,0.9fr)_88px] lg:grid lg:px-5">
+        <DataTableHeader className="hidden grid-cols-[minmax(150px,0.95fr)_minmax(200px,1.35fr)_minmax(170px,1.1fr)_minmax(140px,0.95fr)_72px] lg:grid lg:px-5">
           <div>When</div>
           <div>Action</div>
           <div>Actor</div>
           <div>Workspace</div>
-          <div className="text-right">Details</div>
+          <div className="text-right">View</div>
         </DataTableHeader>
         <DataTableBody>
           {paged.length === 0 ? (
@@ -510,27 +754,46 @@ export function AuditEventsManager({
               title={events.length === 0 ? "No audit events yet" : "No matching events"}
               description={
                 events.length === 0
-                  ? "Login, admin, and system actions will appear here as they happen."
+                  ? "Sign-ins, billing changes, and admin actions will appear here as they happen."
                   : "Try a different search, action, or workspace filter."
+              }
+              action={
+                filtersActive ? (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+                  >
+                    Clear filters
+                  </button>
+                ) : null
               }
             />
           ) : null}
           {paged.map((event) => {
-            const orgName = organizationLabel(event.organizationId, event.organizationName, event.metadata);
+            const orgName = organizationLabel(
+              event.organizationId,
+              event.organizationName,
+              event.metadata,
+            );
             const actorLabel = event.actorName || event.actorEmail || "System";
             const actionLabel = formatAuditAction(event.action);
+            const severity = actionSeverity(event.action);
+
             return (
               <DataTableRow
                 key={event.id}
-                className="gap-0 p-0 hover:bg-transparent lg:grid-cols-[minmax(160px,1fr)_minmax(180px,1.2fr)_minmax(160px,1fr)_minmax(140px,0.9fr)_88px] lg:items-center lg:gap-3 lg:px-5 lg:py-3.5 lg:hover:bg-[var(--color-surface)]"
+                className="gap-0 p-0 hover:bg-transparent lg:grid-cols-[minmax(150px,0.95fr)_minmax(200px,1.35fr)_minmax(170px,1.1fr)_minmax(140px,0.95fr)_72px] lg:items-center lg:gap-3 lg:px-5 lg:py-3.5 lg:hover:bg-[var(--color-surface)]"
               >
-                {/* Mobile row */}
                 <button
                   type="button"
                   onClick={() => setSelected(event)}
                   className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition hover:bg-[var(--color-raised)] active:bg-[var(--color-raised)] lg:hidden"
                   aria-label={`View ${actionLabel}`}
                 >
+                  <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[10px] font-semibold text-[var(--color-primary-h)]">
+                    {actorInitials(event.actorName, event.actorEmail)}
+                  </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-[var(--color-text)]">{actionLabel}</p>
                     <p className="mt-1 text-xs text-[var(--color-text-muted)]">
@@ -543,36 +806,59 @@ export function AuditEventsManager({
                     </p>
                   </div>
                   <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center text-[var(--color-text-muted)]">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
+                    <EyeIcon className="size-4" />
                   </span>
                 </button>
 
-                {/* Desktop row */}
-                <div className="hidden text-sm font-semibold text-[var(--color-text-muted)] lg:block">
-                  {formatWhen(event.createdAt)}
-                </div>
-                <div className="hidden min-w-0 lg:block">
-                  <span
-                    className={`inline-flex max-w-full rounded-full px-2.5 py-1 text-[11px] font-semibold ${actionTone(event.action)}`}
-                  >
-                    <span className="truncate">{actionLabel}</span>
-                  </span>
-                  <p className="mt-1 truncate text-[10px] text-[var(--color-text-muted)]" title={event.action}>
-                    {event.action}
+                <div className="hidden text-sm text-[var(--color-text-muted)] lg:block">
+                  <p className="font-semibold text-[var(--color-text)]">
+                    {formatWhen(event.createdAt, true)}
+                  </p>
+                  <p className="mt-0.5 text-[11px] tabular-nums">
+                    {new Date(event.createdAt).toLocaleDateString(undefined, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </p>
                 </div>
                 <div className="hidden min-w-0 lg:block">
-                  <p className="truncate text-sm font-semibold text-[var(--color-text)]">{actorLabel}</p>
-                  {event.actorEmail ? (
-                    <p className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]">
-                      {event.actorEmail}
+                  <span
+                    className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${severity.pill}`}
+                  >
+                    <span
+                      className={`size-1.5 shrink-0 rounded-full ${
+                        severity.label === "Attention"
+                          ? "bg-red-500"
+                          : severity.label === "Success"
+                            ? "bg-emerald-500"
+                            : severity.label === "Billing"
+                              ? "bg-violet-500"
+                              : "bg-[var(--color-text-muted)]"
+                      }`}
+                      aria-hidden
+                    />
+                    <span className="truncate">{actionLabel}</span>
+                  </span>
+                  <p
+                    className="mt-1.5 truncate font-mono text-[10px] text-[var(--color-text-muted)]"
+                    title={event.action}
+                  >
+                    {event.action}
+                  </p>
+                </div>
+                <div className="hidden min-w-0 items-center gap-2.5 lg:flex">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[10px] font-semibold text-[var(--color-primary-h)]">
+                    {actorInitials(event.actorName, event.actorEmail)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[var(--color-text)]">
+                      {actorLabel}
                     </p>
-                  ) : (
-                    <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">No actor</p>
-                  )}
+                    <p className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]">
+                      {event.actorEmail || "System"}
+                    </p>
+                  </div>
                 </div>
                 <div className="hidden min-w-0 lg:block">
                   <p className="truncate text-sm font-semibold text-[var(--color-text)]">{orgName}</p>
@@ -581,14 +867,11 @@ export function AuditEventsManager({
                   <button
                     type="button"
                     onClick={() => setSelected(event)}
-                    className="inline-flex size-9 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
+                    className="inline-flex size-9 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
                     aria-label={`View ${actionLabel}`}
                     title="View details"
                   >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
+                    <EyeIcon className="size-4" />
                   </button>
                 </div>
               </DataTableRow>

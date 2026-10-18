@@ -342,10 +342,40 @@ export async function POST(req: NextRequest) {
 
     const resolvedOrganizationId = await resolveOrganizationId(event);
     if (event.eventType !== "ping") {
+      const planId =
+        asString(event.data.planId) ??
+        asString(event.data.plan_id) ??
+        asString(asRecord(event.data.subscription)?.planId);
+      const periodEnd = readPeriodEndFromPayload(event.data);
+      const orgSnapshot = resolvedOrganizationId
+        ? await prisma.organization.findUnique({
+            where: { id: resolvedOrganizationId },
+            select: {
+              planSlug: true,
+              billingInterval: true,
+              billingStatus: true,
+              cancelAtPeriodEnd: true,
+            },
+          })
+        : null;
+
       await writePlatformAudit({
         organizationId: resolvedOrganizationId ?? event.organizationId,
         action: `billing.webhook_${event.eventType.replace(/\./g, "_")}`,
-        metadata: { eventId: event.id, eventType: event.eventType },
+        metadata: {
+          eventId: event.id,
+          eventType: event.eventType,
+          ...(planId ? { planId } : {}),
+          ...(periodEnd ? { periodEnd: periodEnd.toISOString() } : {}),
+          ...(orgSnapshot
+            ? {
+                planSlug: orgSnapshot.planSlug,
+                billingInterval: orgSnapshot.billingInterval,
+                billingStatus: orgSnapshot.billingStatus,
+                cancelAtPeriodEnd: orgSnapshot.cancelAtPeriodEnd,
+              }
+            : {}),
+        },
       });
     }
 
