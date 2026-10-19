@@ -306,13 +306,11 @@ function OrganizationBillingSheet({
     return options;
   }, [canCancel, canPause, canRestore, canSuspend, status]);
 
-  useEffect(() => {
-    if (!actionOptions.some((option) => option.value === action)) {
-      setAction("change_plan");
-    }
-  }, [action, actionOptions]);
-
-  const selectedAction = actionOptions.find((option) => option.value === action) ?? actionOptions[0]!;
+  const resolvedAction = actionOptions.some((option) => option.value === action)
+    ? action
+    : "change_plan";
+  const selectedAction =
+    actionOptions.find((option) => option.value === resolvedAction) ?? actionOptions[0]!;
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setEntered(true));
@@ -458,7 +456,7 @@ function OrganizationBillingSheet({
   }
 
   function runSelectedAction() {
-    switch (action) {
+    switch (resolvedAction) {
       case "change_plan":
         savePlan();
         break;
@@ -481,7 +479,7 @@ function OrganizationBillingSheet({
   }
 
   const footerCta = (() => {
-    switch (action) {
+    switch (resolvedAction) {
       case "change_plan":
         return {
           label: pending ? "Saving…" : dirty ? "Save plan changes" : "No changes",
@@ -622,7 +620,7 @@ function OrganizationBillingSheet({
               aria-label="Billing action"
             >
               {actionOptions.map((option) => {
-                const selected = action === option.value;
+                const selected = resolvedAction === option.value;
                 return (
                   <button
                     key={option.value}
@@ -662,7 +660,7 @@ function OrganizationBillingSheet({
             </div>
           </section>
 
-          {action === "change_plan" ? (
+          {resolvedAction === "change_plan" ? (
             <section className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5">
               <label className="block">
                 <FieldLabel>Plan</FieldLabel>
@@ -698,7 +696,7 @@ function OrganizationBillingSheet({
             </section>
           ) : null}
 
-          {action === "cancel" ? (
+          {resolvedAction === "cancel" ? (
             <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5">
               <FieldLabel>Cancel when</FieldLabel>
               <CustomSelect
@@ -713,7 +711,7 @@ function OrganizationBillingSheet({
             </section>
           ) : null}
 
-          {action !== "change_plan" ? (
+          {resolvedAction !== "change_plan" ? (
             <p
               className={`rounded-xl border px-3.5 py-3 text-[12px] leading-relaxed ${
                 selectedAction.tone === "danger"
@@ -725,17 +723,17 @@ function OrganizationBillingSheet({
                       : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]"
               }`}
             >
-              {action === "resume"
+              {resolvedAction === "resume"
                 ? status === "expired"
                   ? "This opens Stripe checkout for the current plan. Access restores after payment."
                   : "This resumes the live Billing subscription and clears a scheduled cancel if present."
-                : action === "pause"
+                : resolvedAction === "pause"
                   ? "This pauses Billing and revokes access for this workspace until you resume."
-                  : action === "cancel"
+                  : resolvedAction === "cancel"
                     ? cancelMode === "now"
                       ? "Access ends immediately. This cannot be undone from here."
                       : "Access continues until the current period ends, then Billing cancels."
-                    : action === "suspend"
+                    : resolvedAction === "suspend"
                       ? "Every Billing subscription for this customer will be suspended and access revoked."
                       : `Delete “${organization.name}” and all of its data permanently?`}
             </p>
