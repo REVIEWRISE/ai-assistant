@@ -708,11 +708,31 @@ export type BillingSubscriptionSummary = {
   customerId: string | null;
   productId: string | null;
   planId: string | null;
+  pendingPlanId?: string | null;
   currentPeriodStart?: string | null;
   currentPeriodEnd?: string | null;
   trialEndDate?: string | null;
   cancelAtPeriodEnd?: boolean;
 };
+
+export type BillingPlanChangeKind = "upgrade" | "downgrade" | "cancel_downgrade";
+
+export type BillingPlanChangeResult = {
+  subscription: BillingSubscriptionSummary | null;
+  change: BillingPlanChangeKind;
+  effectiveAt: string | null;
+};
+
+/** Prefer the Billing API `detail` string when present in thrown errors. */
+export function billingApiErrorDetail(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const prefix = message.match(/^Billing API error \d+ on [^:]+:\s*/);
+  if (prefix) {
+    const detail = message.slice(prefix[0].length).trim();
+    if (detail) return detail;
+  }
+  return message;
+}
 
 function parseBillingSubscription(raw: unknown): BillingSubscriptionSummary | null {
   const row = asRecord(raw);
@@ -736,11 +756,23 @@ function parseBillingSubscription(raw: unknown): BillingSubscriptionSummary | nu
       asString(row.planId) ??
       asString(asRecord(row.plan)?.id) ??
       null,
+    pendingPlanId:
+      asString(row.pendingPlanId) ??
+      asString(row.pending_plan_id) ??
+      asString(asRecord(row.pendingPlan)?.id) ??
+      null,
     currentPeriodStart: asString(row.currentPeriodStart) ?? null,
     currentPeriodEnd: asString(row.currentPeriodEnd) ?? null,
     trialEndDate: asString(row.trialEndDate) ?? null,
     cancelAtPeriodEnd: Boolean(row.cancelAtPeriodEnd),
   };
+}
+
+function parsePlanChangeKind(value: unknown): BillingPlanChangeKind | null {
+  if (value === "upgrade" || value === "downgrade" || value === "cancel_downgrade") {
+    return value;
+  }
+  return null;
 }
 
 /**
@@ -835,6 +867,52 @@ export async function updateBillingSubscription(
   await billingFetch(`/billing/admin/subscriptions/${encodeURIComponent(subscriptionId)}`, {
     method: "PATCH",
     body: JSON.stringify(body),
+  });
+}
+
+/**
+ * PATCH /billing/admin/subscriptions/:id/change-plan
+ * Upgrades apply now (prorated). Downgrades schedule for period end.
+ */
+export async function changeBillingSubscriptionPlan(
+  subscriptionId: string,
+  planId: string,
+): Promise<BillingPlanChangeResult> {
+  const res = await billingFetch(
+    `/billing/admin/subscriptions/${encodeURIComponent(subscriptionId)}/change-plan`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ planId }),
+    },
+  );
+  const body = (await res.json()) as Record<string, unknown>;
+  const change = parsePlanChangeKind(body.change);
+  if (!change) {
+    throw new Error("Billing API returned an invalid change-plan payload.");
+  }
+  return {
+    subscription: parseBillingSubscription(body.subscription),
+    change,
+    effectiveAt:
+      asString(body.effectiveAt) ??
+      asString(body.effective_at) ??
+      null,
+  };
+}
+
+/** PATCH /billing/admin/subscriptions/:id/pause */
+export async function pauseBillingSubscription(subscriptionId: string): Promise<void> {
+  await billingFetch(`/billing/admin/subscriptions/${encodeURIComponent(subscriptionId)}/pause`, {
+    method: "PATCH",
+    body: JSON.stringify({}),
+  });
+}
+
+/** PATCH /billing/admin/customers/:id/suspend */
+export async function suspendBillingCustomer(customerId: string): Promise<void> {
+  await billingFetch(`/billing/admin/customers/${encodeURIComponent(customerId)}/suspend`, {
+    method: "PATCH",
+    body: JSON.stringify({}),
   });
 }
 

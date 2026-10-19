@@ -5,7 +5,14 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { DataTablePagination } from "@/components/data-table";
 import { CustomSelect } from "@/components/custom-select";
-import { adminUpdateOrganizationPlan, adminCancelOrganizationSubscription, adminRestoreOrganizationSubscription, adminDeleteOrganization } from "@/app/(protected)/billing-admin/organizations/actions";
+import {
+  adminUpdateOrganizationPlan,
+  adminCancelOrganizationSubscription,
+  adminRestoreOrganizationSubscription,
+  adminPauseOrganizationSubscription,
+  adminSuspendOrganizationBilling,
+  adminDeleteOrganization,
+} from "@/app/(protected)/billing-admin/organizations/actions";
 import { toast } from "@/lib/toast";
 import { PLAN_SLUGS, getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
 
@@ -39,13 +46,6 @@ const PLAN_OPTIONS = PLAN_SLUGS.map((slug) => ({
 const INTERVAL_OPTIONS: Array<{ value: IntervalOption; label: string }> = [
   { value: "monthly", label: "Monthly" },
   { value: "yearly", label: "Yearly" },
-];
-
-const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
-  { value: "active", label: "Active" },
-  { value: "trialing", label: "Trialing" },
-  { value: "needs_plan", label: "Needs plan" },
-  { value: "expired", label: "Expired" },
 ];
 
 function normalizeStatus(status: string | null): StatusFilter {
@@ -171,58 +171,33 @@ const FILTERS: Array<{ id: StatusFilter; label: string }> = [
   { id: "expired", label: "Expired" },
 ];
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+type BillingSheetAction =
+  | "change_plan"
+  | "resume"
+  | "pause"
+  | "cancel"
+  | "suspend"
+  | "delete";
+
+type ActionTone = "default" | "success" | "warn" | "danger";
+
+function MetaChip({ label, value }: { label: string; value: string }) {
+  if (!value || value === "—") return null;
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] py-2.5 last:border-0">
-      <p className="text-[11px] font-medium text-[var(--color-text-muted)]">{label}</p>
-      <p className="max-w-[62%] text-right text-sm font-semibold text-[var(--color-text)]">{value}</p>
+    <div className="min-w-0">
+      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/45">
+        {label}
+      </p>
+      <p className="mt-0.5 truncate text-[12px] font-medium text-white/90">{value}</p>
     </div>
   );
 }
 
-function SheetSection({
-  eyebrow,
-  title,
-  description,
-  children,
-  tone = "default",
-}: {
-  eyebrow?: string;
-  title: string;
-  description?: string;
-  children: ReactNode;
-  tone?: "default" | "danger" | "success";
-}) {
-  const border =
-    tone === "danger"
-      ? "border-red-200 [[data-theme=dark]_&]:border-red-500/30"
-      : tone === "success"
-        ? "border-emerald-200 [[data-theme=dark]_&]:border-emerald-500/30"
-        : "border-[var(--color-border)]";
-  const eyebrowColor =
-    tone === "danger"
-      ? "text-red-700 [[data-theme=dark]_&]:text-red-300"
-      : tone === "success"
-        ? "text-emerald-800 [[data-theme=dark]_&]:text-emerald-300"
-        : "text-[var(--color-text-muted)]";
-
+function FieldLabel({ children }: { children: ReactNode }) {
   return (
-    <section
-      className={`rounded-2xl border bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)] ${border}`}
-    >
-      {eyebrow ? (
-        <p className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${eyebrowColor}`}>
-          {eyebrow}
-        </p>
-      ) : null}
-      <h4 className={`text-sm font-semibold text-[var(--color-text)] ${eyebrow ? "mt-1" : ""}`}>
-        {title}
-      </h4>
-      {description ? (
-        <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">{description}</p>
-      ) : null}
-      <div className={eyebrow || description || title ? "mt-4" : ""}>{children}</div>
-    </section>
+    <span className="mb-1.5 block text-[11px] font-medium text-[var(--color-text-muted)]">
+      {children}
+    </span>
   );
 }
 
@@ -258,21 +233,84 @@ function OrganizationBillingSheet({
 
   const [planSlug, setPlanSlug] = useState<PlanSlug>(initialPlan);
   const [billingInterval, setBillingInterval] = useState<IntervalOption>(initialInterval);
-  const [billingStatus, setBillingStatus] = useState<StatusFilter>(status);
   const [resetPeriod, setResetPeriod] = useState(false);
   const [cancelMode, setCancelMode] = useState<"period_end" | "now">("period_end");
-  const [confirmCancel, setConfirmCancel] = useState(false);
-  const [confirmRestore, setConfirmRestore] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [action, setAction] = useState<BillingSheetAction>("change_plan");
 
   const dirty =
     planSlug !== initialPlan ||
     billingInterval !== initialInterval ||
-    billingStatus !== status ||
+    status !== "active" ||
     resetPeriod;
 
   const canCancel = (status === "active" || status === "trialing") && !organization.cancelAtPeriodEnd;
+  const canPause = status === "active" || status === "trialing";
   const canRestore = organization.cancelAtPeriodEnd || status === "expired";
+  const canSuspend = status === "active" || status === "trialing" || status === "expired";
+
+  const actionOptions = useMemo(() => {
+    const options: Array<{
+      value: BillingSheetAction;
+      label: string;
+      hint: string;
+      tone: ActionTone;
+    }> = [
+      {
+        value: "change_plan",
+        label: "Change plan",
+        hint: "Upgrade now or schedule a downgrade · sets status to Active",
+        tone: "default",
+      },
+    ];
+    if (canRestore) {
+      options.push({
+        value: "resume",
+        label: "Resume / restore",
+        hint:
+          status === "expired"
+            ? "Open checkout for the current plan"
+            : "Clear scheduled cancel or unpause",
+        tone: "success",
+      });
+    }
+    if (canPause) {
+      options.push({
+        value: "pause",
+        label: "Pause",
+        hint: "Revoke access until resumed",
+        tone: "warn",
+      });
+    }
+    if (canCancel) {
+      options.push({
+        value: "cancel",
+        label: "Cancel",
+        hint: "At period end or immediately",
+        tone: "danger",
+      });
+    }
+    if (canSuspend) {
+      options.push({
+        value: "suspend",
+        label: "Suspend customer",
+        hint: "Suspend all subscriptions for this customer",
+        tone: "danger",
+      });
+    }
+    options.push({
+      value: "delete",
+      label: "Delete workspace",
+      hint: "Permanent — cannot be undone",
+      tone: "danger",
+    });
+    return options;
+  }, [canCancel, canPause, canRestore, canSuspend, status]);
+
+  const resolvedAction = actionOptions.some((option) => option.value === action)
+    ? action
+    : "change_plan";
+  const selectedAction =
+    actionOptions.find((option) => option.value === resolvedAction) ?? actionOptions[0]!;
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setEntered(true));
@@ -298,18 +336,35 @@ function OrganizationBillingSheet({
         organizationId: organization.id,
         planSlug,
         billingInterval,
-        billingStatus,
+        billingStatus: "active",
         resetPeriod: resetPeriod || billingInterval !== initialInterval,
       });
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
-      toast.success(
-        result.billingSynced
-          ? "Workspace plan updated in the app and Billing."
-          : "Access updated in the app. Stripe was not changed, so this grant is protected from Billing cancel events.",
-      );
+      if (result.change === "downgrade") {
+        const when = result.effectiveAt
+          ? new Date(result.effectiveAt).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })
+          : "period end";
+        toast.success(
+          `Downgrade scheduled for ${when}. Current plan stays active until then.`,
+        );
+      } else if (result.change === "upgrade") {
+        toast.success("Upgrade applied now. Any prorated difference was charged.");
+      } else if (result.change === "cancel_downgrade") {
+        toast.success("Pending downgrade canceled. Subscription stays on the current plan.");
+      } else if (result.billingSynced) {
+        toast.success("Workspace plan updated in the app and Billing.");
+      } else {
+        toast.success(
+          "Access updated in the app. Billing had no live subscription, so this grant is protected from cancel events.",
+        );
+      }
       onClose();
       router.refresh();
     });
@@ -321,7 +376,6 @@ function OrganizationBillingSheet({
         organizationId: organization.id,
         mode: cancelMode,
       });
-      setConfirmCancel(false);
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -336,21 +390,51 @@ function OrganizationBillingSheet({
     });
   }
 
+  function pauseSubscription() {
+    startTransition(async () => {
+      const result = await adminPauseOrganizationSubscription({
+        organizationId: organization.id,
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Subscription paused. Access revoked.");
+      onClose();
+      router.refresh();
+    });
+  }
+
   function restoreSubscription() {
     startTransition(async () => {
       const result = await adminRestoreOrganizationSubscription({
         organizationId: organization.id,
       });
-      setConfirmRestore(false);
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
-      toast.success(
-        result.billingSynced
-          ? "Subscription will continue. The scheduled Billing cancel was cleared."
-          : "Access restored in the app. Billing may still need a live subscription.",
-      );
+      if (result.mode === "checkout" && result.checkoutUrl) {
+        toast.success("Opening checkout for the current plan…");
+        window.location.assign(result.checkoutUrl);
+        return;
+      }
+      toast.success("Subscription resumed. Scheduled cancel cleared when present.");
+      onClose();
+      router.refresh();
+    });
+  }
+
+  function suspendBilling() {
+    startTransition(async () => {
+      const result = await adminSuspendOrganizationBilling({
+        organizationId: organization.id,
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("All Billing subscriptions for this customer were suspended.");
       onClose();
       router.refresh();
     });
@@ -361,7 +445,6 @@ function OrganizationBillingSheet({
       const result = await adminDeleteOrganization({
         organizationId: organization.id,
       });
-      setConfirmDelete(false);
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -372,10 +455,78 @@ function OrganizationBillingSheet({
     });
   }
 
+  function runSelectedAction() {
+    switch (resolvedAction) {
+      case "change_plan":
+        savePlan();
+        break;
+      case "resume":
+        restoreSubscription();
+        break;
+      case "pause":
+        pauseSubscription();
+        break;
+      case "cancel":
+        cancelSubscription();
+        break;
+      case "suspend":
+        suspendBilling();
+        break;
+      case "delete":
+        deleteWorkspace();
+        break;
+    }
+  }
+
+  const footerCta = (() => {
+    switch (resolvedAction) {
+      case "change_plan":
+        return {
+          label: pending ? "Saving…" : dirty ? "Save plan changes" : "No changes",
+          disabled: !dirty || pending,
+          className: "vr-btn-primary",
+        };
+      case "resume":
+        return {
+          label: pending
+            ? "Working…"
+            : status === "expired"
+              ? "Open checkout"
+              : "Resume subscription",
+          disabled: pending,
+          className: "bg-emerald-700 text-white hover:bg-emerald-600",
+        };
+      case "pause":
+        return {
+          label: pending ? "Pausing…" : "Pause subscription",
+          disabled: pending,
+          className: "bg-amber-700 text-white hover:bg-amber-600",
+        };
+      case "cancel":
+        return {
+          label: pending ? "Canceling…" : "Cancel subscription",
+          disabled: pending,
+          className: "bg-red-600 text-white hover:bg-red-700",
+        };
+      case "suspend":
+        return {
+          label: pending ? "Suspending…" : "Suspend customer",
+          disabled: pending,
+          className: "bg-red-600 text-white hover:bg-red-700",
+        };
+      case "delete":
+        return {
+          label: pending ? "Deleting…" : "Delete workspace",
+          disabled: pending,
+          className: "bg-red-600 text-white hover:bg-red-700",
+        };
+    }
+  })();
+
   return (
     <div
       className={`fixed inset-0 z-50 flex justify-end transition-colors duration-200 ${
-        entered ? "bg-[var(--color-overlay)] backdrop-blur-[2px]" : "bg-transparent"
+        entered ? "bg-black/55 backdrop-blur-[2px]" : "bg-transparent"
       }`}
     >
       <button
@@ -388,146 +539,151 @@ function OrganizationBillingSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="org-billing-title"
-        className={`relative flex h-full w-full max-w-md flex-col border-l border-[var(--color-border)] bg-[var(--color-bg)] shadow-[-24px_0_60px_-28px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out sm:max-w-lg ${
+        className={`relative flex h-full w-full max-w-[24rem] flex-col border-l border-white/10 bg-[var(--color-bg)] shadow-[-24px_0_60px_-20px_rgba(0,0,0,0.55)] transition-transform duration-300 ease-out sm:max-w-[26rem] ${
           entered ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <header className="relative shrink-0 overflow-hidden border-b border-[var(--color-border)] bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 pb-5 pt-5 text-white">
+        <header className="relative shrink-0 overflow-hidden bg-[#0c0c0c] px-5 pb-4 pt-4 text-white">
           <div
-            className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-white/10 blur-3xl"
+            className="pointer-events-none absolute -right-10 -top-16 size-40 rounded-full bg-white/[0.06] blur-2xl"
             aria-hidden
           />
-          <div
-            className="pointer-events-none absolute -bottom-20 left-10 size-40 rounded-full bg-white/5 blur-3xl"
-            aria-hidden
-          />
-
           <div className="relative flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-sm font-semibold tracking-wide text-white backdrop-blur-sm">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-[11px] font-semibold tracking-wide text-white">
                 {initials || "WS"}
               </span>
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
                   Workspace billing
                 </p>
                 <h3
                   id="org-billing-title"
-                  className="mt-1 truncate text-xl font-semibold tracking-tight text-white"
+                  className="mt-0.5 truncate text-[17px] font-semibold tracking-tight text-white"
                 >
                   {organization.name}
                 </h3>
-                <p className="mt-1 text-xs text-neutral-400">
-                  {timeline.primary}
-                  {timeline.secondary ? ` · ${timeline.secondary}` : ""}
+                <p className="mt-1 truncate text-[12px] text-white/55">
+                  {planLabel(organization.planSlug)} · {intervalLabel}
                 </p>
-                <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${tone.className}`}
-                  >
-                    <span className={`size-1.5 rounded-full ${tone.dot}`} aria-hidden />
-                    {tone.label}
-                  </span>
-                  <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
-                    {planLabel(organization.planSlug)} · {intervalLabel}
-                  </span>
-                  {organization.cancelAtPeriodEnd ? (
-                    <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
-                      Cancels at period end
-                    </span>
-                  ) : null}
-                  {organization.billingAdminOverride ? (
-                    <span className="rounded-full border border-violet-400/40 bg-violet-500/15 px-2.5 py-1 text-[11px] font-semibold text-violet-200">
-                      Admin grant
-                    </span>
-                  ) : null}
-                </div>
               </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-sm text-slate-200 transition hover:bg-white/15 hover:text-white"
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-[13px] text-white/70 transition hover:bg-white/15 hover:text-white"
               aria-label="Close dialog"
             >
               ✕
             </button>
           </div>
+
+          <div className="relative mt-3.5 flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${tone.className}`}
+            >
+              <span className={`size-1.5 rounded-full ${tone.dot}`} aria-hidden />
+              {tone.label}
+            </span>
+            <span className="text-[11px] text-white/50">
+              {organization.memberCount} member{organization.memberCount === 1 ? "" : "s"}
+            </span>
+            {organization.cancelAtPeriodEnd ? (
+              <span className="rounded-md border border-amber-400/35 bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-100">
+                Cancels at period end
+              </span>
+            ) : null}
+            {organization.billingAdminOverride ? (
+              <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5 text-[11px] font-medium text-white/70">
+                Admin grant
+              </span>
+            ) : null}
+          </div>
+
+          <div className="relative mt-4 flex flex-wrap gap-x-6 gap-y-2.5 border-t border-white/10 pt-3.5">
+            <MetaChip label="Trial ends" value={formatDate(organization.trialEndsAt)} />
+            <MetaChip label="Paid at" value={formatDate(organization.paidAt)} />
+            <MetaChip label="Period ends" value={formatDate(organization.currentPeriodEndsAt)} />
+            <MetaChip label="Created" value={formatDate(organization.createdAt)} />
+          </div>
+          <p className="relative mt-2 text-[11px] text-white/45">{timeline.primary}</p>
         </header>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
-          <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-            <div className="grid grid-cols-2 gap-px bg-[var(--color-border)] sm:grid-cols-4">
-              {[
-                { label: "Plan", value: planLabel(organization.planSlug) },
-                { label: "Interval", value: intervalLabel },
-                { label: "Status", value: tone.label },
-                { label: "Members", value: String(organization.memberCount) },
-              ].map((stat) => (
-                <div key={stat.label} className="bg-[var(--color-surface)] px-3.5 py-3.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                    {stat.label}
-                  </p>
-                  <p className="mt-1.5 truncate text-sm font-semibold text-[var(--color-text)]">
-                    {stat.value}
-                  </p>
-                </div>
-              ))}
-            </div>
-            <div className="border-t border-[var(--color-border)] px-4 py-1">
-              <DetailRow label="Trial ends" value={formatDate(organization.trialEndsAt)} />
-              <DetailRow label="Paid at" value={formatDate(organization.paidAt)} />
-              <DetailRow label="Period ends" value={formatDate(organization.currentPeriodEndsAt)} />
-              <DetailRow label="Created" value={formatDate(organization.createdAt)} />
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
+          <section>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+              Choose action
+            </p>
+            <div
+              className="mt-2.5 space-y-1.5"
+              role="radiogroup"
+              aria-label="Billing action"
+            >
+              {actionOptions.map((option) => {
+                const selected = resolvedAction === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setAction(option.value)}
+                    className={`flex w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition ${
+                      selected
+                        ? "border-[var(--color-text)]/25 bg-[var(--color-surface)] shadow-[var(--shadow-sm)]"
+                        : "border-transparent bg-transparent hover:bg-[var(--color-raised)]"
+                    }`}
+                  >
+                    <span
+                      className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border ${
+                        selected
+                          ? "border-[var(--color-text)] bg-[var(--color-text)]"
+                          : "border-[var(--color-border)]"
+                      }`}
+                      aria-hidden
+                    >
+                      {selected ? (
+                        <span className="size-1.5 rounded-full bg-[var(--color-bg)]" />
+                      ) : null}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-semibold text-[var(--color-text)]">
+                        {option.label}
+                      </span>
+                      <span className="mt-0.5 block text-[11px] leading-snug text-[var(--color-text-muted)]">
+                        {option.hint}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </section>
 
-          <SheetSection
-            eyebrow="Manage"
-            title="Change plan"
-            description="Updates entitlements for this workspace. Matching Billing subscriptions are updated when one exists."
-          >
-            <div className="space-y-3">
+          {resolvedAction === "change_plan" ? (
+            <section className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5">
+              <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                Saving applies the selected plan and sets billing status to Active.
+              </p>
               <label className="block">
-                <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">Plan</span>
+                <FieldLabel>Plan</FieldLabel>
                 <CustomSelect
                   value={planSlug}
                   onChange={setPlanSlug}
                   options={PLAN_OPTIONS}
                   aria-label="Select plan"
-                  className="mt-1.5"
                 />
               </label>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block">
-                  <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">
-                    Interval
-                  </span>
-                  <CustomSelect
-                    value={billingInterval}
-                    onChange={setBillingInterval}
-                    options={INTERVAL_OPTIONS}
-                    aria-label="Select billing interval"
-                    className="mt-1.5"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">
-                    Status
-                  </span>
-                  <CustomSelect
-                    value={billingStatus}
-                    onChange={setBillingStatus}
-                    options={STATUS_OPTIONS}
-                    aria-label="Select billing status"
-                    className="mt-1.5"
-                  />
-                </label>
-              </div>
-
-              <label className="flex items-start gap-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5">
+              <label className="block">
+                <FieldLabel>Interval</FieldLabel>
+                <CustomSelect
+                  value={billingInterval}
+                  onChange={setBillingInterval}
+                  options={INTERVAL_OPTIONS}
+                  aria-label="Select billing interval"
+                />
+              </label>
+              <label className="flex items-start gap-2.5">
                 <input
                   type="checkbox"
                   checked={resetPeriod || billingInterval !== initialInterval}
@@ -535,195 +691,77 @@ function OrganizationBillingSheet({
                   onChange={(event) => setResetPeriod(event.target.checked)}
                   className="mt-0.5"
                 />
-                <span className="text-xs leading-5 text-[var(--color-text-muted)]">
-                  Reset period end from paid date using the selected interval
-                  {billingInterval !== initialInterval
-                    ? " (required when interval changes)."
-                    : "."}
+                <span className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                  Reset period from paid date
+                  {billingInterval !== initialInterval ? " (required for interval change)" : ""}
                 </span>
               </label>
-            </div>
-          </SheetSection>
-
-          {canCancel ? (
-            <SheetSection
-              tone="danger"
-              eyebrow="Subscription"
-              title="Cancel subscription"
-              description="Cancel at period end to keep access until the current period finishes, or cancel now to revoke access immediately."
-            >
-              <div className="space-y-3">
-                <label className="block">
-                  <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">
-                    Cancel mode
-                  </span>
-                  <CustomSelect
-                    value={cancelMode}
-                    onChange={setCancelMode}
-                    options={[
-                      { value: "period_end", label: "At period end (keep access until then)" },
-                      { value: "now", label: "Cancel now (revoke access immediately)" },
-                    ]}
-                    aria-label="Cancel mode"
-                    className="mt-1.5"
-                  />
-                </label>
-
-                {!confirmCancel ? (
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => setConfirmCancel(true)}
-                    className="w-full rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800 transition hover:bg-red-100 disabled:opacity-50 [[data-theme=dark]_&]:border-red-500/40 [[data-theme=dark]_&]:bg-red-500/10 [[data-theme=dark]_&]:text-red-200 [[data-theme=dark]_&]:hover:bg-red-500/20"
-                  >
-                    Cancel subscription
-                  </button>
-                ) : (
-                  <div className="space-y-2 rounded-xl border border-red-200 bg-red-50/80 p-3 [[data-theme=dark]_&]:border-red-500/30 [[data-theme=dark]_&]:bg-red-500/10">
-                    <p className="text-xs font-medium text-red-800 [[data-theme=dark]_&]:text-red-200">
-                      {cancelMode === "now"
-                        ? "Cancel now and revoke access for this workspace?"
-                        : "Schedule cancel at period end? Access stays until the current period ends."}
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        disabled={pending}
-                        onClick={() => setConfirmCancel(false)}
-                        className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-text)]"
-                      >
-                        Keep
-                      </button>
-                      <button
-                        type="button"
-                        disabled={pending}
-                        onClick={cancelSubscription}
-                        className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-                      >
-                        {pending ? "Canceling" : "Confirm cancel"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </SheetSection>
+            </section>
           ) : null}
 
-          {canRestore ? (
-            <SheetSection
-              tone="success"
-              eyebrow="Subscription"
-              title="Restore access"
-              description={
-                organization.cancelAtPeriodEnd
-                  ? "Keep the current subscription and clear the scheduled cancel in Billing when possible."
-                  : "Grant app access again. Billing is updated only if a live subscription still exists."
-              }
-            >
-              {!confirmRestore ? (
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => setConfirmRestore(true)}
-                  className="w-full rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-100 disabled:opacity-50 [[data-theme=dark]_&]:border-emerald-500/40 [[data-theme=dark]_&]:bg-emerald-500/10 [[data-theme=dark]_&]:text-emerald-200 [[data-theme=dark]_&]:hover:bg-emerald-500/20"
-                >
-                  Restore access
-                </button>
-              ) : (
-                <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 [[data-theme=dark]_&]:border-emerald-500/30 [[data-theme=dark]_&]:bg-emerald-500/10">
-                  <p className="text-xs font-medium text-emerald-900 [[data-theme=dark]_&]:text-emerald-200">
-                    Restore access for this workspace?
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => setConfirmRestore(false)}
-                      className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-text)]"
-                    >
-                      Keep
-                    </button>
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={restoreSubscription}
-                      className="flex-1 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
-                    >
-                      {pending ? "Restoring" : "Confirm restore"}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </SheetSection>
+          {resolvedAction === "cancel" ? (
+            <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5">
+              <FieldLabel>Cancel when</FieldLabel>
+              <CustomSelect
+                value={cancelMode}
+                onChange={setCancelMode}
+                options={[
+                  { value: "period_end", label: "At period end" },
+                  { value: "now", label: "Cancel immediately" },
+                ]}
+                aria-label="Cancel mode"
+              />
+            </section>
           ) : null}
 
-          <SheetSection
-            tone="danger"
-            eyebrow="Danger zone"
-            title="Delete workspace"
-            description="Permanently removes this organization and all of its data. This cannot be undone."
-          >
-            {!confirmDelete ? (
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => setConfirmDelete(true)}
-                className="w-full rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800 transition hover:bg-red-100 disabled:opacity-50 [[data-theme=dark]_&]:border-red-500/40 [[data-theme=dark]_&]:bg-red-500/10 [[data-theme=dark]_&]:text-red-200 [[data-theme=dark]_&]:hover:bg-red-500/20"
-              >
-                Delete workspace
-              </button>
-            ) : (
-              <div className="space-y-2 rounded-xl border border-red-200 bg-red-50/80 p-3 [[data-theme=dark]_&]:border-red-500/30 [[data-theme=dark]_&]:bg-red-500/10">
-                <p className="text-xs font-medium text-red-800 [[data-theme=dark]_&]:text-red-200">
-                  Delete “{organization.name}” and all workspace data?
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => setConfirmDelete(false)}
-                    className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-text)]"
-                  >
-                    Keep
-                  </button>
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={deleteWorkspace}
-                    className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-                  >
-                    {pending ? "Deleting" : "Delete workspace"}
-                  </button>
-                </div>
-              </div>
-            )}
-          </SheetSection>
+          {resolvedAction !== "change_plan" ? (
+            <p
+              className={`rounded-xl border px-3.5 py-3 text-[12px] leading-relaxed ${
+                selectedAction.tone === "danger"
+                  ? "border-red-200/80 bg-red-50/70 text-red-800 [[data-theme=dark]_&]:border-red-500/25 [[data-theme=dark]_&]:bg-red-500/[0.08] [[data-theme=dark]_&]:text-red-200"
+                  : selectedAction.tone === "warn"
+                    ? "border-amber-200/80 bg-amber-50/70 text-amber-950 [[data-theme=dark]_&]:border-amber-500/25 [[data-theme=dark]_&]:bg-amber-500/[0.08] [[data-theme=dark]_&]:text-amber-100"
+                    : selectedAction.tone === "success"
+                      ? "border-emerald-200/80 bg-emerald-50/70 text-emerald-900 [[data-theme=dark]_&]:border-emerald-500/25 [[data-theme=dark]_&]:bg-emerald-500/[0.08] [[data-theme=dark]_&]:text-emerald-200"
+                      : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]"
+              }`}
+            >
+              {resolvedAction === "resume"
+                ? status === "expired"
+                  ? "This opens Stripe checkout for the current plan. Access restores after payment."
+                  : "This resumes the live Billing subscription and clears a scheduled cancel if present."
+                : resolvedAction === "pause"
+                  ? "This pauses Billing and revokes access for this workspace until you resume."
+                  : resolvedAction === "cancel"
+                    ? cancelMode === "now"
+                      ? "Access ends immediately. This cannot be undone from here."
+                      : "Access continues until the current period ends, then Billing cancels."
+                    : resolvedAction === "suspend"
+                      ? "Every Billing subscription for this customer will be suspended and access revoked."
+                      : `Delete “${organization.name}” and all of its data permanently?`}
+            </p>
+          ) : null}
         </div>
 
-        <footer className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-          <div className="flex items-center gap-3">
+        <footer className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-3.5">
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={onClose}
               disabled={pending}
-              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] disabled:opacity-50"
+              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2.5 text-[13px] font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)] disabled:opacity-50"
             >
               Close
             </button>
             <button
               type="button"
-              disabled={!dirty || pending}
-              onClick={savePlan}
-              className="flex-1 rounded-xl vr-btn-primary px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={footerCta.disabled}
+              onClick={runSelectedAction}
+              className={`flex-1 rounded-xl px-4 py-2.5 text-[13px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${footerCta.className}`}
             >
-              {pending ? "Saving" : dirty ? "Save plan changes" : "No changes"}
+              {footerCta.label}
             </button>
           </div>
-          {dirty ? (
-            <p className="mt-2 text-[11px] text-[var(--color-text-muted)]">
-              Unsaved plan, interval, or status changes.
-            </p>
-          ) : null}
         </footer>
       </aside>
     </div>

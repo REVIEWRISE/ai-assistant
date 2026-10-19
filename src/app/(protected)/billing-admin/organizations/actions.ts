@@ -10,14 +10,16 @@ import {
 import { prisma } from "@/lib/prisma";
 import { PLAN_SLUGS, type PlanSlug } from "@/lib/pricing-plans";
 import {
+  changeOrganizationBillingPlan,
+  pauseOrganizationBillingSubscription,
   resumeOrganizationBillingSubscription,
-  syncOrganizationBillingPlan,
+  suspendOrganizationBillingCustomer,
 } from "@/lib/billing-subscription-admin";
 import {
   cancelOrganizationBillingSubscription,
   isIgnorableCancelError,
 } from "@/lib/billing-subscription-cancel";
-import { isBillingConfigured } from "@/lib/billing-client";
+import { isBillingConfigured, type BillingPlanChangeKind } from "@/lib/billing-client";
 import { fallbackOrganizationIdForAdmin, purgeOrganization } from "@/lib/organization-delete";
 import { notifyAdminsOfOrganizationPlanChange } from "@/lib/billing-admin-plan-change-email";
 import { writePlatformAudit } from "@/lib/platform-audit";
@@ -25,7 +27,14 @@ import { writePlatformAudit } from "@/lib/platform-audit";
 const ADMIN_ORGS_PATH = "/billing-admin/organizations";
 
 export type AdminUpdateOrganizationPlanResult =
-  | { ok: true; billingSynced: boolean }
+  | {
+      ok: true;
+      billingSynced: boolean;
+      change: BillingPlanChangeKind | null;
+      effectiveAt: string | null;
+      /** False when Billing scheduled a downgrade — local plan stays on the current tier. */
+      localPlanApplied: boolean;
+    }
   | { ok: false; error: string };
 
 function asPlanSlug(value: string): PlanSlug | null {
@@ -51,8 +60,8 @@ function asBillingStatus(value: string): BillingStatus | null {
 
 /**
  * Admin override: change a workspace's local plan / interval / status.
- * Tries to PATCH a matching live Billing subscription; falls back to a
- * protected local grant that cancel webhooks will not overwrite.
+ * Live subscriptions use PATCH .../change-plan (upgrade now / downgrade at period end).
+ * Without a live sub, falls back to a protected local grant.
  */
 export async function adminUpdateOrganizationPlan(input: {
   organizationId: string;
@@ -103,6 +112,12 @@ export async function adminUpdateOrganizationPlan(input: {
       : "active");
 
   let billingSynced = false;
+  let change: BillingPlanChangeKind | null = null;
+  let effectiveAt: string | null = null;
+  let localPlanApplied = true;
+
+  const planOrIntervalChanged =
+    org.planSlug !== planSlug || org.billingInterval !== billingInterval;
 
   if (nextStatus === "expired" || nextStatus === "needs_plan") {
     if (isBillingConfigured()) {
@@ -115,17 +130,36 @@ export async function adminUpdateOrganizationPlan(input: {
       }
       billingSynced = Boolean(cancelResult.ok && !cancelResult.localOnly);
     }
-  } else {
-    const sync = await syncOrganizationBillingPlan({
+  } else if (planOrIntervalChanged) {
+    const sync = await changeOrganizationBillingPlan({
       organizationId,
       planSlug,
       billingInterval,
     });
+    if (!sync.ok) {
+      return { ok: false, error: sync.error };
+    }
     billingSynced = sync.billingSynced;
+    change = sync.change;
+    effectiveAt = sync.effectiveAt;
+    // Downgrades stay on the current plan until period end.
+    if (sync.change === "downgrade") {
+      localPlanApplied = false;
+    }
   }
 
-  const intervalChanged = org.billingInterval !== billingInterval;
-  const shouldResetPeriod = Boolean(input.resetPeriod) || intervalChanged;
+  const appliedPlanSlug = localPlanApplied
+    ? planSlug
+    : asPlanSlug(org.planSlug ?? "") ?? planSlug;
+  const appliedInterval = localPlanApplied
+    ? billingInterval
+    : org.billingInterval === "yearly" || org.billingInterval === "monthly"
+      ? org.billingInterval
+      : billingInterval;
+
+  const intervalChanged = org.billingInterval !== appliedInterval;
+  const shouldResetPeriod =
+    localPlanApplied && (Boolean(input.resetPeriod) || intervalChanged);
 
   let currentPeriodEndsAt = org.currentPeriodEndsAt;
   let paidAt = org.paidAt;
@@ -133,15 +167,15 @@ export async function adminUpdateOrganizationPlan(input: {
   if (nextStatus === "active") {
     if (!paidAt) paidAt = new Date();
     if (shouldResetPeriod || !currentPeriodEndsAt) {
-      currentPeriodEndsAt = addBillingPeriod(paidAt, billingInterval);
+      currentPeriodEndsAt = addBillingPeriod(paidAt, appliedInterval);
     }
   }
 
   await prisma.organization.update({
     where: { id: organizationId },
     data: {
-      planSlug,
-      billingInterval,
+      planSlug: appliedPlanSlug,
+      billingInterval: appliedInterval,
       billingStatus: nextStatus,
       paidAt: nextStatus === "active" ? paidAt : null,
       currentPeriodEndsAt: nextStatus === "active" ? currentPeriodEndsAt : null,
@@ -159,9 +193,12 @@ export async function adminUpdateOrganizationPlan(input: {
     billingStatus: org.billingStatus,
   };
   const toSnapshot = {
-    planSlug,
-    billingInterval,
+    planSlug: localPlanApplied ? planSlug : org.planSlug,
+    billingInterval: appliedInterval,
     billingStatus: nextStatus,
+    ...(change === "downgrade"
+      ? { pendingPlanSlug: planSlug, pendingBillingInterval: billingInterval, effectiveAt }
+      : {}),
   };
 
   await writePlatformAudit({
@@ -173,6 +210,9 @@ export async function adminUpdateOrganizationPlan(input: {
       from: fromSnapshot,
       to: toSnapshot,
       billingSynced,
+      change,
+      effectiveAt,
+      localPlanApplied,
     },
   });
 
@@ -182,13 +222,17 @@ export async function adminUpdateOrganizationPlan(input: {
     organizationId,
     organizationName: org.name,
     from: fromSnapshot,
-    to: toSnapshot,
+    to: {
+      planSlug: localPlanApplied ? planSlug : org.planSlug,
+      billingInterval: appliedInterval,
+      billingStatus: nextStatus,
+    },
     billingSynced,
   });
 
   revalidatePath(ADMIN_ORGS_PATH);
   revalidatePath("/billing-admin");
-  return { ok: true, billingSynced };
+  return { ok: true, billingSynced, change, effectiveAt, localPlanApplied };
 }
 
 export type AdminCancelOrganizationSubscriptionResult =
@@ -230,7 +274,13 @@ export async function adminCancelOrganizationSubscription(input: {
 }
 
 export type AdminRestoreOrganizationSubscriptionResult =
-  | { ok: true; billingSynced: boolean; localOnly: boolean }
+  | {
+      ok: true;
+      mode: "resumed" | "checkout";
+      billingSynced: boolean;
+      localOnly: boolean;
+      checkoutUrl?: string;
+    }
   | { ok: false; error: string };
 
 export async function adminRestoreOrganizationSubscription(input: {
@@ -246,10 +296,15 @@ export async function adminRestoreOrganizationSubscription(input: {
   await writePlatformAudit({
     actorId: session.userId,
     organizationId,
-    action: "billing_admin.access_restored",
+    action:
+      result.mode === "checkout"
+        ? "billing_admin.resume_checkout_started"
+        : "billing_admin.access_restored",
     metadata: {
+      mode: result.mode,
       billingSynced: result.billingSynced,
       localOnly: result.localOnly,
+      ...(result.mode === "checkout" ? { sessionId: result.sessionId } : {}),
     },
   });
 
@@ -257,7 +312,80 @@ export async function adminRestoreOrganizationSubscription(input: {
   revalidatePath("/billing-admin");
   revalidatePath("/subscription");
   revalidatePath("/billing/expired");
-  return result;
+
+  if (result.mode === "checkout") {
+    return {
+      ok: true,
+      mode: "checkout",
+      billingSynced: false,
+      localOnly: false,
+      checkoutUrl: result.checkoutUrl,
+    };
+  }
+
+  return {
+    ok: true,
+    mode: "resumed",
+    billingSynced: result.billingSynced,
+    localOnly: result.localOnly,
+  };
+}
+
+export type AdminPauseOrganizationSubscriptionResult =
+  | { ok: true; billingSynced: boolean }
+  | { ok: false; error: string };
+
+/** PATCH /billing/admin/subscriptions/:id/pause */
+export async function adminPauseOrganizationSubscription(input: {
+  organizationId: string;
+}): Promise<AdminPauseOrganizationSubscriptionResult> {
+  const session = await requireAdminSession();
+  const organizationId = input.organizationId.trim();
+  if (!organizationId) return { ok: false, error: "Workspace is required." };
+
+  const result = await pauseOrganizationBillingSubscription(organizationId);
+  if (!result.ok) return result;
+
+  await writePlatformAudit({
+    actorId: session.userId,
+    organizationId,
+    action: "billing_admin.subscription_paused",
+    metadata: { billingSynced: result.billingSynced },
+  });
+
+  revalidatePath(ADMIN_ORGS_PATH);
+  revalidatePath("/billing-admin");
+  revalidatePath("/subscription");
+  return { ok: true, billingSynced: result.billingSynced };
+}
+
+export type AdminSuspendOrganizationBillingResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/** PATCH /billing/admin/customers/:id/suspend */
+export async function adminSuspendOrganizationBilling(input: {
+  organizationId: string;
+}): Promise<AdminSuspendOrganizationBillingResult> {
+  const session = await requireAdminSession();
+  const organizationId = input.organizationId.trim();
+  if (!organizationId) return { ok: false, error: "Workspace is required." };
+
+  const result = await suspendOrganizationBillingCustomer(organizationId);
+  if (!result.ok) return result;
+
+  await writePlatformAudit({
+    actorId: session.userId,
+    organizationId,
+    action: "billing_admin.customer_suspended",
+    metadata: { billingSynced: result.billingSynced },
+  });
+
+  revalidatePath(ADMIN_ORGS_PATH);
+  revalidatePath("/billing-admin");
+  revalidatePath("/subscription");
+  revalidatePath("/billing/expired");
+  return { ok: true };
 }
 
 export type AdminDeleteOrganizationResult =
