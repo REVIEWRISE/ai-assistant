@@ -13,6 +13,7 @@ import {
   changeOrganizationBillingPlan,
   pauseOrganizationBillingSubscription,
   resumeOrganizationBillingSubscription,
+  startCheckoutForOrganizationPlan,
   suspendOrganizationBillingCustomer,
 } from "@/lib/billing-subscription-admin";
 import {
@@ -29,11 +30,23 @@ const ADMIN_ORGS_PATH = "/billing-admin/organizations";
 export type AdminUpdateOrganizationPlanResult =
   | {
       ok: true;
+      mode?: "applied";
       billingSynced: boolean;
       change: BillingPlanChangeKind | null;
       effectiveAt: string | null;
       /** False when Billing scheduled a downgrade — local plan stays on the current tier. */
       localPlanApplied: boolean;
+      checkoutUrl?: undefined;
+    }
+  | {
+      ok: true;
+      mode: "checkout";
+      billingSynced: false;
+      change: null;
+      effectiveAt: null;
+      localPlanApplied: false;
+      checkoutUrl: string;
+      sessionId: string | null;
     }
   | { ok: false; error: string };
 
@@ -59,9 +72,9 @@ function asBillingStatus(value: string): BillingStatus | null {
 }
 
 /**
- * Admin override: change a workspace's local plan / interval / status.
+ * Change a workspace plan via Billing only.
  * Live subscriptions use PATCH .../change-plan (upgrade now / downgrade at period end).
- * Without a live sub, falls back to a protected local grant.
+ * Without a live sub, opens Stripe checkout — never grants Active locally without Billing.
  */
 export async function adminUpdateOrganizationPlan(input: {
   organizationId: string;
@@ -77,6 +90,10 @@ export async function adminUpdateOrganizationPlan(input: {
   const billingInterval = asInterval(input.billingInterval.trim());
   if (!organizationId || !planSlug || !billingInterval) {
     return { ok: false, error: "Choose a valid plan and billing interval." };
+  }
+
+  if (!isBillingConfigured()) {
+    return { ok: false, error: "Billing is not configured." };
   }
 
   const org = await prisma.organization.findUnique({
@@ -118,18 +135,54 @@ export async function adminUpdateOrganizationPlan(input: {
 
   const planOrIntervalChanged =
     org.planSlug !== planSlug || org.billingInterval !== billingInterval;
+  const activatingWithoutLiveAccess =
+    nextStatus === "active" &&
+    (org.billingStatus === "expired" || org.billingStatus === "needs_plan");
+
+  async function startPlanCheckout(): Promise<AdminUpdateOrganizationPlanResult> {
+    const checkout = await startCheckoutForOrganizationPlan({
+      organizationId,
+      planSlug: planSlug!,
+      billingInterval: billingInterval!,
+    });
+    if (!checkout.ok) return checkout;
+
+    await writePlatformAudit({
+      actorId: session.userId,
+      organizationId,
+      action: "billing_admin.plan_checkout_started",
+      metadata: {
+        organizationName: org!.name,
+        planSlug,
+        billingInterval,
+        sessionId: checkout.sessionId,
+        fromStatus: org!.billingStatus,
+      },
+    });
+
+    revalidatePath(ADMIN_ORGS_PATH);
+    revalidatePath("/billing-admin");
+    return {
+      ok: true,
+      mode: "checkout",
+      billingSynced: false,
+      change: null,
+      effectiveAt: null,
+      localPlanApplied: false,
+      checkoutUrl: checkout.checkoutUrl,
+      sessionId: checkout.sessionId,
+    };
+  }
 
   if (nextStatus === "expired" || nextStatus === "needs_plan") {
-    if (isBillingConfigured()) {
-      const cancelResult = await cancelOrganizationBillingSubscription({
-        organizationId,
-        mode: "now",
-      });
-      if (!cancelResult.ok && !isIgnorableCancelError(cancelResult.error)) {
-        return { ok: false, error: cancelResult.error };
-      }
-      billingSynced = Boolean(cancelResult.ok && !cancelResult.localOnly);
+    const cancelResult = await cancelOrganizationBillingSubscription({
+      organizationId,
+      mode: "now",
+    });
+    if (!cancelResult.ok && !isIgnorableCancelError(cancelResult.error)) {
+      return { ok: false, error: cancelResult.error };
     }
+    billingSynced = Boolean(cancelResult.ok && !cancelResult.localOnly);
   } else if (planOrIntervalChanged) {
     const sync = await changeOrganizationBillingPlan({
       organizationId,
@@ -139,13 +192,40 @@ export async function adminUpdateOrganizationPlan(input: {
     if (!sync.ok) {
       return { ok: false, error: sync.error };
     }
-    billingSynced = sync.billingSynced;
-    change = sync.change;
-    effectiveAt = sync.effectiveAt;
-    // Downgrades stay on the current plan until period end.
-    if (sync.change === "downgrade") {
-      localPlanApplied = false;
+
+    if (sync.billingSynced) {
+      billingSynced = true;
+      change = sync.change;
+      effectiveAt = sync.effectiveAt;
+      // Downgrades stay on the current plan until period end.
+      if (sync.change === "downgrade") {
+        localPlanApplied = false;
+      }
+    } else if (nextStatus === "active") {
+      return startPlanCheckout();
+    } else {
+      return {
+        ok: false,
+        error: "No live Billing subscription to update. Start checkout for this plan instead.",
+      };
     }
+  } else if (activatingWithoutLiveAccess) {
+    return startPlanCheckout();
+  } else if (nextStatus === "active" && !planOrIntervalChanged) {
+    // Period reset / metadata-only on an already-active workspace — no Billing call needed.
+    billingSynced = true;
+  }
+
+  // Never mark Active from a local-only write when Billing was not synced.
+  if (
+    (nextStatus === "active" || nextStatus === "trialing") &&
+    !billingSynced &&
+    change !== "downgrade"
+  ) {
+    return {
+      ok: false,
+      error: "Plan changes must go through Billing (live change-plan or checkout).",
+    };
   }
 
   const appliedPlanSlug = localPlanApplied
@@ -182,8 +262,8 @@ export async function adminUpdateOrganizationPlan(input: {
       ...(nextStatus === "active" || nextStatus === "expired"
         ? { cancelAtPeriodEnd: false }
         : {}),
-      billingAdminOverride:
-        (nextStatus === "active" || nextStatus === "trialing") && !billingSynced,
+      // Plan writes always go through Billing — clear any prior local grant flag.
+      billingAdminOverride: false,
     },
   });
 
@@ -232,7 +312,14 @@ export async function adminUpdateOrganizationPlan(input: {
 
   revalidatePath(ADMIN_ORGS_PATH);
   revalidatePath("/billing-admin");
-  return { ok: true, billingSynced, change, effectiveAt, localPlanApplied };
+  return {
+    ok: true,
+    mode: "applied",
+    billingSynced,
+    change,
+    effectiveAt,
+    localPlanApplied,
+  };
 }
 
 export type AdminCancelOrganizationSubscriptionResult =
@@ -360,32 +447,38 @@ export async function adminPauseOrganizationSubscription(input: {
 }
 
 export type AdminSuspendOrganizationBillingResult =
-  | { ok: true }
+  | { ok: true; mode: "now" | "period_end" }
   | { ok: false; error: string };
 
 /** PATCH /billing/admin/customers/:id/suspend */
 export async function adminSuspendOrganizationBilling(input: {
   organizationId: string;
+  mode?: "now" | "period_end";
 }): Promise<AdminSuspendOrganizationBillingResult> {
   const session = await requireAdminSession();
   const organizationId = input.organizationId.trim();
   if (!organizationId) return { ok: false, error: "Workspace is required." };
 
-  const result = await suspendOrganizationBillingCustomer(organizationId);
+  const mode = input.mode === "period_end" ? "period_end" : "now";
+  const result = await suspendOrganizationBillingCustomer(organizationId, mode);
   if (!result.ok) return result;
 
   await writePlatformAudit({
     actorId: session.userId,
     organizationId,
     action: "billing_admin.customer_suspended",
-    metadata: { billingSynced: result.billingSynced },
+    metadata: {
+      mode: result.mode,
+      billingSynced: result.billingSynced,
+      localOnly: result.localOnly,
+    },
   });
 
   revalidatePath(ADMIN_ORGS_PATH);
   revalidatePath("/billing-admin");
   revalidatePath("/subscription");
   revalidatePath("/billing/expired");
-  return { ok: true };
+  return { ok: true, mode: result.mode };
 }
 
 export type AdminDeleteOrganizationResult =

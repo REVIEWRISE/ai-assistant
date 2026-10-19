@@ -7,15 +7,12 @@ import { toast } from "@/lib/toast";
 const successMessages: Record<string, string> = {
   created: "User created successfully.",
   updated: "User updated successfully.",
-  deleted: "User removed successfully.",
 };
 
 const errorMessages: Record<string, string> = {
   missing: "Please fill in all required fields.",
   invalid_email: "Please provide a valid email address.",
   exists: "That email is already in use.",
-  cannot_delete_self: "You cannot delete your own account.",
-  last_admin: "Keep at least one administrator.",
   organization_missing: "Enter an organization name before adding its details.",
   organization_invalid: "Organization details exceed the allowed length.",
   unknown: "Something went wrong. Try again.",

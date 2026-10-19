@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CustomSelect } from "@/components/custom-select";
 import { SearchableSelect } from "@/components/searchable-select";
-import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   DataTable,
   DataTableBody,
@@ -42,19 +41,16 @@ type UserRow = {
 type UsersManagerProps = {
   users: UserRow[];
   roles: RoleOption[];
-  currentUserId: string;
   onCreateUser: (formData: FormData) => void | Promise<void>;
   onUpdateUser: (formData: FormData) => void | Promise<void>;
-  onDeleteUser: (formData: FormData) => void | Promise<void>;
 };
 
 type OverlayState =
   | { type: "create" }
   | { type: "edit"; user: UserRow }
-  | { type: "delete"; user: UserRow }
   | null;
 
-type StatusFilter = "all" | "active" | "invited" | "suspended";
+type StatusFilter = "all" | "active" | "suspended";
 
 const fieldClass =
   "mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]";
@@ -89,21 +85,15 @@ function statusLabel(status: string): string {
 function UserActionsMenu({
   user,
   isOpen,
-  canDelete,
-  deleteDisabledReason,
   onToggle,
   onClose,
   onEdit,
-  onDelete,
 }: {
   user: UserRow;
   isOpen: boolean;
-  canDelete: boolean;
-  deleteDisabledReason: string;
   onToggle: () => void;
   onClose: () => void;
   onEdit: () => void;
-  onDelete: () => void;
 }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -183,14 +173,6 @@ function UserActionsMenu({
       danger: false,
       disabled: false,
     },
-    {
-      id: "delete",
-      label: "Delete user",
-      description: canDelete ? "Permanently remove this account" : deleteDisabledReason,
-      onClick: onDelete,
-      danger: true,
-      disabled: !canDelete,
-    },
   ];
 
   return (
@@ -266,10 +248,8 @@ function UserActionsMenu({
 export function UsersManager({
   users,
   roles,
-  currentUserId,
   onCreateUser,
   onUpdateUser,
-  onDeleteUser,
 }: UsersManagerProps) {
   const [overlay, setOverlay] = useState<OverlayState>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -281,12 +261,6 @@ export function UsersManager({
   const [showPassword, setShowPassword] = useState(false);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState("");
 
-  const adminIds = useMemo(
-    () => users.filter((user) => user.roleName.toLowerCase() === "admin").map((user) => user.id),
-    [users],
-  );
-  const lastAdminId = adminIds.length === 1 ? adminIds[0] : null;
-
   const roleNames = useMemo(() => {
     const names = new Set(users.map((user) => user.roleName));
     return Array.from(names).sort((a, b) => a.localeCompare(b));
@@ -296,7 +270,6 @@ export function UsersManager({
     return {
       all: users.length,
       active: users.filter((user) => user.accountStatus === "active").length,
-      invited: users.filter((user) => user.accountStatus === "invited").length,
       suspended: users.filter((user) => user.accountStatus === "suspended").length,
     };
   }, [users]);
@@ -366,7 +339,6 @@ export function UsersManager({
   const statusOptions = [
     { value: "all" as const, label: `All · ${statusCounts.all}` },
     { value: "active" as const, label: `Active · ${statusCounts.active}` },
-    { value: "invited" as const, label: `Invited · ${statusCounts.invited}` },
     { value: "suspended" as const, label: `Suspended · ${statusCounts.suspended}` },
   ];
 
@@ -497,18 +469,11 @@ export function UsersManager({
                 <UserActionsMenu
                   user={user}
                   isOpen={openMenuId === user.id}
-                  canDelete={user.id !== currentUserId && user.id !== lastAdminId}
-                  deleteDisabledReason={
-                    user.id === currentUserId
-                      ? "You cannot delete your own account"
-                      : "At least one administrator is required"
-                  }
                   onToggle={() =>
                     setOpenMenuId((current) => (current === user.id ? null : user.id))
                   }
                   onClose={() => setOpenMenuId(null)}
                   onEdit={() => openEditSheet(user)}
-                  onDelete={() => setOverlay({ type: "delete", user })}
                 />
               </div>
             </DataTableRow>
@@ -551,7 +516,7 @@ export function UsersManager({
         </DataTable>
       </div>
 
-      {overlay && overlay.type !== "delete"
+      {overlay
         ? createPortal(
             <div className="fixed inset-0 z-50 flex justify-end bg-[var(--color-overlay)] backdrop-blur-sm">
               <button
@@ -728,7 +693,6 @@ export function UsersManager({
                             }
                             options={[
                               { value: "active", label: "Active" },
-                              { value: "invited", label: "Invited" },
                               { value: "suspended", label: "Suspended" },
                             ]}
                           />
@@ -908,21 +872,6 @@ export function UsersManager({
           )
         : null}
 
-      <ConfirmDialog
-        open={overlay?.type === "delete"}
-        title="Delete user"
-        description={
-          overlay?.type === "delete"
-            ? `This will permanently remove “${overlay.user.fullName}”.`
-            : ""
-        }
-        confirmLabel="Delete user"
-        onCancel={() => setOverlay(null)}
-        action={onDeleteUser}
-        hiddenFields={
-          overlay?.type === "delete" ? [{ name: "id", value: overlay.user.id }] : []
-        }
-      />
     </section>
   );
 }

@@ -4,7 +4,7 @@ import { UsersManager } from "@/components/users-manager";
 import { UsersToasts } from "@/components/users-toasts";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { requireAdminSession } from "@/lib/auth-session";
-import { createUser, deleteUser, updateUser } from "./actions";
+import { createUser, updateUser } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -33,12 +33,11 @@ export default async function UserManagementPage() {
 
   const totalUsers = users.length;
   const activeUsers = users.filter((user) => user.accountStatus === "active").length;
-  const invitedUsers = users.filter((user) => user.accountStatus === "invited").length;
   const suspendedUsers = users.filter((user) => user.accountStatus === "suspended").length;
   const adminUsers = users.filter(
     (user) => user.userRoles[0]?.role?.name.toLowerCase() === "admin",
   ).length;
-  const attentionUsers = totalUsers - activeUsers;
+  const attentionUsers = suspendedUsers;
   const newest = users[users.length - 1];
   const newestLabel = newest ? new Date(newest.createdAt).toLocaleDateString() : "—";
 
@@ -59,7 +58,7 @@ export default async function UserManagementPage() {
         variant="command"
         eyebrow="User Management"
         title="Team directory"
-        description="Invite people, assign roles, and manage sign-in access across every workspace."
+        description="Create accounts, assign roles, and manage sign-in access across every workspace."
         status={status}
         statusTone={totalUsers === 0 || attentionUsers > 0 ? "warning" : "success"}
         actions={[
@@ -83,12 +82,9 @@ export default async function UserManagementPage() {
             hint: "elevated workspace access",
           },
           {
-            label: "Needs attention",
-            value: attentionUsers,
-            hint:
-              attentionUsers === 0
-                ? "all accounts active"
-                : `${invitedUsers} invited · ${suspendedUsers} suspended`,
+            label: "Suspended",
+            value: suspendedUsers,
+            hint: suspendedUsers === 0 ? "no blocked accounts" : "sign-in blocked",
           },
         ]}
       />
@@ -112,10 +108,8 @@ export default async function UserManagementPage() {
           })),
         }))}
         roles={roles}
-        currentUserId={session.userId}
         onCreateUser={createUser}
         onUpdateUser={updateUser}
-        onDeleteUser={deleteUser}
       />
     </div>
   );

@@ -33,6 +33,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   "billing_admin.customer_suspended": "Suspended a Billing customer",
   "billing_admin.access_restored": "Restored workspace access",
   "billing_admin.resume_checkout_started": "Started resume checkout for a workspace",
+  "billing_admin.plan_checkout_started": "Started plan-change checkout for a workspace",
   "billing_admin.organization_deleted": "Deleted a workspace",
   "billing.checkout_started": "Started checkout",
   "billing.trial_started": "Started a free trial",
@@ -105,4 +106,20 @@ export function formatAuditAction(action: string): string {
   const trimmed = action.trim();
   if (!trimmed) return "Unknown action";
   return AUDIT_ACTION_LABELS[trimmed] ?? humanizeUnknownAction(trimmed);
+}
+
+/** Known action codes with labels — use to keep filter dropdowns complete. */
+export function listKnownAuditActions(): string[] {
+  return Object.keys(AUDIT_ACTION_LABELS).sort((a, b) =>
+    formatAuditAction(a).localeCompare(formatAuditAction(b)),
+  );
+}
+
+export function isBillingAuditAction(action: string): boolean {
+  const normalized = action.trim().toLowerCase();
+  return (
+    normalized.startsWith("billing.") ||
+    normalized.startsWith("billing_admin.") ||
+    normalized.includes("refund")
+  );
 }

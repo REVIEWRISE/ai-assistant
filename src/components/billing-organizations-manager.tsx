@@ -11,7 +11,6 @@ import {
   adminRestoreOrganizationSubscription,
   adminPauseOrganizationSubscription,
   adminSuspendOrganizationBilling,
-  adminDeleteOrganization,
 } from "@/app/(protected)/billing-admin/organizations/actions";
 import { toast } from "@/lib/toast";
 import { PLAN_SLUGS, getPlanBySlug, type PlanSlug } from "@/lib/pricing-plans";
@@ -176,8 +175,7 @@ type BillingSheetAction =
   | "resume"
   | "pause"
   | "cancel"
-  | "suspend"
-  | "delete";
+  | "suspend";
 
 type ActionTone = "default" | "success" | "warn" | "danger";
 
@@ -235,6 +233,7 @@ function OrganizationBillingSheet({
   const [billingInterval, setBillingInterval] = useState<IntervalOption>(initialInterval);
   const [resetPeriod, setResetPeriod] = useState(false);
   const [cancelMode, setCancelMode] = useState<"period_end" | "now">("period_end");
+  const [suspendMode, setSuspendMode] = useState<"period_end" | "now">("period_end");
   const [action, setAction] = useState<BillingSheetAction>("change_plan");
 
   const dirty =
@@ -243,10 +242,12 @@ function OrganizationBillingSheet({
     status !== "active" ||
     resetPeriod;
 
-  const canCancel = (status === "active" || status === "trialing") && !organization.cancelAtPeriodEnd;
-  const canPause = status === "active" || status === "trialing";
+  const isLive = status === "active" || status === "trialing";
+  const canChangePlan = true;
   const canRestore = organization.cancelAtPeriodEnd || status === "expired";
-  const canSuspend = status === "active" || status === "trialing" || status === "expired";
+  const canPause = isLive && !organization.cancelAtPeriodEnd;
+  const canCancel = isLive && !organization.cancelAtPeriodEnd;
+  const canSuspend = isLive;
 
   const actionOptions = useMemo(() => {
     const options: Array<{
@@ -254,18 +255,23 @@ function OrganizationBillingSheet({
       label: string;
       hint: string;
       tone: ActionTone;
-    }> = [
-      {
+    }> = [];
+
+    if (canChangePlan) {
+      options.push({
         value: "change_plan",
-        label: "Change plan",
-        hint: "Upgrade now or schedule a downgrade · sets status to Active",
+        label: status === "needs_plan" ? "Assign plan" : "Change plan",
+        hint:
+          status === "needs_plan" || status === "expired"
+            ? "Pick a plan and continue to Stripe checkout"
+            : "Upgrade now or schedule a downgrade on the live subscription",
         tone: "default",
-      },
-    ];
+      });
+    }
     if (canRestore) {
       options.push({
         value: "resume",
-        label: "Resume / restore",
+        label: status === "expired" ? "Restore via checkout" : "Resume / restore",
         hint:
           status === "expired"
             ? "Open checkout for the current plan"
@@ -293,22 +299,21 @@ function OrganizationBillingSheet({
       options.push({
         value: "suspend",
         label: "Suspend customer",
-        hint: "Suspend all subscriptions for this customer",
+        hint: "At period end or immediately",
         tone: "danger",
       });
     }
-    options.push({
-      value: "delete",
-      label: "Delete workspace",
-      hint: "Permanent — cannot be undone",
-      tone: "danger",
-    });
     return options;
-  }, [canCancel, canPause, canRestore, canSuspend, status]);
+  }, [canCancel, canChangePlan, canPause, canRestore, canSuspend, status]);
+
+  const defaultAction: BillingSheetAction =
+    status === "expired" || organization.cancelAtPeriodEnd ? "resume" : "change_plan";
 
   const resolvedAction = actionOptions.some((option) => option.value === action)
     ? action
-    : "change_plan";
+    : actionOptions.some((option) => option.value === defaultAction)
+      ? defaultAction
+      : (actionOptions[0]?.value ?? "change_plan");
   const selectedAction =
     actionOptions.find((option) => option.value === resolvedAction) ?? actionOptions[0]!;
 
@@ -343,6 +348,11 @@ function OrganizationBillingSheet({
         toast.error(result.error);
         return;
       }
+      if (result.mode === "checkout" && result.checkoutUrl) {
+        toast.success("Opening checkout for the selected plan…");
+        window.location.assign(result.checkoutUrl);
+        return;
+      }
       if (result.change === "downgrade") {
         const when = result.effectiveAt
           ? new Date(result.effectiveAt).toLocaleDateString(undefined, {
@@ -359,11 +369,9 @@ function OrganizationBillingSheet({
       } else if (result.change === "cancel_downgrade") {
         toast.success("Pending downgrade canceled. Subscription stays on the current plan.");
       } else if (result.billingSynced) {
-        toast.success("Workspace plan updated in the app and Billing.");
+        toast.success("Workspace plan updated in Billing.");
       } else {
-        toast.success(
-          "Access updated in the app. Billing had no live subscription, so this grant is protected from cancel events.",
-        );
+        toast.success("Workspace plan updated.");
       }
       onClose();
       router.refresh();
@@ -429,27 +437,17 @@ function OrganizationBillingSheet({
     startTransition(async () => {
       const result = await adminSuspendOrganizationBilling({
         organizationId: organization.id,
+        mode: suspendMode,
       });
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
-      toast.success("All Billing subscriptions for this customer were suspended.");
-      onClose();
-      router.refresh();
-    });
-  }
-
-  function deleteWorkspace() {
-    startTransition(async () => {
-      const result = await adminDeleteOrganization({
-        organizationId: organization.id,
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Workspace deleted.");
+      toast.success(
+        result.mode === "now"
+          ? "Customer suspended. Access revoked."
+          : "Customer set to suspend at period end.",
+      );
       onClose();
       router.refresh();
     });
@@ -472,9 +470,6 @@ function OrganizationBillingSheet({
       case "suspend":
         suspendBilling();
         break;
-      case "delete":
-        deleteWorkspace();
-        break;
     }
   }
 
@@ -482,7 +477,17 @@ function OrganizationBillingSheet({
     switch (resolvedAction) {
       case "change_plan":
         return {
-          label: pending ? "Saving…" : dirty ? "Save plan changes" : "No changes",
+          label: pending
+            ? status === "expired" || status === "needs_plan"
+              ? "Opening checkout…"
+              : "Saving…"
+            : status === "expired" || status === "needs_plan"
+              ? dirty
+                ? "Continue to checkout"
+                : "No changes"
+              : dirty
+                ? "Save plan changes"
+                : "No changes",
           disabled: !dirty || pending,
           className: "vr-btn-primary",
         };
@@ -511,12 +516,6 @@ function OrganizationBillingSheet({
       case "suspend":
         return {
           label: pending ? "Suspending…" : "Suspend customer",
-          disabled: pending,
-          className: "bg-red-600 text-white hover:bg-red-700",
-        };
-      case "delete":
-        return {
-          label: pending ? "Deleting…" : "Delete workspace",
           disabled: pending,
           className: "bg-red-600 text-white hover:bg-red-700",
         };
@@ -610,60 +609,68 @@ function OrganizationBillingSheet({
         </header>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
-          <section>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-              Choose action
-            </p>
-            <div
-              className="mt-2.5 space-y-1.5"
-              role="radiogroup"
-              aria-label="Billing action"
-            >
-              {actionOptions.map((option) => {
-                const selected = resolvedAction === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    onClick={() => setAction(option.value)}
-                    className={`flex w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition ${
-                      selected
-                        ? "border-[var(--color-text)]/25 bg-[var(--color-surface)] shadow-[var(--shadow-sm)]"
-                        : "border-transparent bg-transparent hover:bg-[var(--color-raised)]"
-                    }`}
-                  >
-                    <span
-                      className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border ${
+          {actionOptions.length > 1 ? (
+            <section>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                Choose action
+              </p>
+              <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+                Available for {tone.label.toLowerCase()} workspaces
+                {organization.cancelAtPeriodEnd ? " with a scheduled cancel" : ""}.
+              </p>
+              <div
+                className="mt-2.5 space-y-1.5"
+                role="radiogroup"
+                aria-label="Billing action"
+              >
+                {actionOptions.map((option) => {
+                  const selected = resolvedAction === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setAction(option.value)}
+                      className={`flex w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition ${
                         selected
-                          ? "border-[var(--color-text)] bg-[var(--color-text)]"
-                          : "border-[var(--color-border)]"
+                          ? "border-[var(--color-text)]/25 bg-[var(--color-surface)] shadow-[var(--shadow-sm)]"
+                          : "border-transparent bg-transparent hover:bg-[var(--color-raised)]"
                       }`}
-                      aria-hidden
                     >
-                      {selected ? (
-                        <span className="size-1.5 rounded-full bg-[var(--color-bg)]" />
-                      ) : null}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[13px] font-semibold text-[var(--color-text)]">
-                        {option.label}
+                      <span
+                        className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border ${
+                          selected
+                            ? "border-[var(--color-text)] bg-[var(--color-text)]"
+                            : "border-[var(--color-border)]"
+                        }`}
+                        aria-hidden
+                      >
+                        {selected ? (
+                          <span className="size-1.5 rounded-full bg-[var(--color-bg)]" />
+                        ) : null}
                       </span>
-                      <span className="mt-0.5 block text-[11px] leading-snug text-[var(--color-text-muted)]">
-                        {option.hint}
+                      <span className="min-w-0">
+                        <span className="block text-[13px] font-semibold text-[var(--color-text)]">
+                          {option.label}
+                        </span>
+                        <span className="mt-0.5 block text-[11px] leading-snug text-[var(--color-text-muted)]">
+                          {option.hint}
+                        </span>
                       </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
 
           {resolvedAction === "change_plan" ? (
             <section className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5">
               <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-                Saving applies the selected plan and sets billing status to Active.
+                {status === "expired" || status === "needs_plan"
+                  ? "This opens Stripe checkout for the selected plan. Access restores after payment."
+                  : "Live subscriptions upgrade now or schedule a downgrade at period end."}
               </p>
               <label className="block">
                 <FieldLabel>Plan</FieldLabel>
@@ -714,6 +721,21 @@ function OrganizationBillingSheet({
             </section>
           ) : null}
 
+          {resolvedAction === "suspend" ? (
+            <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5">
+              <FieldLabel>Suspend when</FieldLabel>
+              <CustomSelect
+                value={suspendMode}
+                onChange={setSuspendMode}
+                options={[
+                  { value: "period_end", label: "At period end" },
+                  { value: "now", label: "Suspend immediately" },
+                ]}
+                aria-label="Suspend mode"
+              />
+            </section>
+          ) : null}
+
           {resolvedAction !== "change_plan" ? (
             <p
               className={`rounded-xl border px-3.5 py-3 text-[12px] leading-relaxed ${
@@ -737,8 +759,10 @@ function OrganizationBillingSheet({
                       ? "Access ends immediately. This cannot be undone from here."
                       : "Access continues until the current period ends, then Billing cancels."
                     : resolvedAction === "suspend"
-                      ? "Every Billing subscription for this customer will be suspended and access revoked."
-                      : `Delete “${organization.name}” and all of its data permanently?`}
+                      ? suspendMode === "now"
+                        ? "Every Billing subscription for this customer will be suspended and access revoked now."
+                        : "Access continues until the current period ends, then Billing suspends the customer."
+                      : null}
             </p>
           ) : null}
         </div>
