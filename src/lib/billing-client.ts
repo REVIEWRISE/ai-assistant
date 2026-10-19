@@ -909,10 +909,13 @@ export async function pauseBillingSubscription(subscriptionId: string): Promise<
 }
 
 /** PATCH /billing/admin/customers/:id/suspend */
-export async function suspendBillingCustomer(customerId: string): Promise<void> {
+export async function suspendBillingCustomer(
+  customerId: string,
+  mode: "now" | "period_end" = "now",
+): Promise<void> {
   await billingFetch(`/billing/admin/customers/${encodeURIComponent(customerId)}/suspend`, {
     method: "PATCH",
-    body: JSON.stringify({}),
+    body: JSON.stringify({ mode }),
   });
 }
 

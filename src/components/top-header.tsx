@@ -210,6 +210,8 @@ export function TopHeader({
         options={organizations.map((org) => ({ value: org.id, label: org.name }))}
         placeholder="Select workspace"
         disabled={switchingOrganization}
+        searchable
+        searchPlaceholder="Search workspaces…"
         aria-label="Switch organization"
         className="mt-0 w-full min-w-0"
         triggerClassName="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] py-2 text-xs shadow-[var(--shadow-sm)] hover:bg-[var(--color-raised)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"

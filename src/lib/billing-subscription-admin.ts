@@ -22,6 +22,7 @@ import {
   asBillingStatus,
   clearOrgCancelAtPeriodEnd,
   markOrgUnpaid,
+  scheduleOrgCancelAtPeriodEnd,
   type BillingInterval,
 } from "@/lib/entitlements";
 import { getPlanBySlug, isPlanSlug, type PlanSlug } from "@/lib/pricing-plans";
@@ -108,36 +109,37 @@ async function ownerEmailForOrganization(organizationId: string): Promise<{
   };
 }
 
+export type BillingAdminCheckoutResult =
+  | {
+      ok: true;
+      checkoutUrl: string;
+      sessionId: string | null;
+      planSlug: PlanSlug;
+      billingInterval: BillingInterval;
+    }
+  | { ok: false; error: string };
+
 /**
- * Start Stripe checkout for the workspace's current plan (re-subscribe / resume payment).
+ * Start Stripe checkout for a specific plan on a workspace.
  */
-export async function startCheckoutForOrganizationCurrentPlan(
-  organizationId: string,
-): Promise<
-  | { ok: true; checkoutUrl: string; sessionId: string | null; planSlug: PlanSlug; billingInterval: BillingInterval }
-  | { ok: false; error: string }
-> {
+export async function startCheckoutForOrganizationPlan(input: {
+  organizationId: string;
+  planSlug: PlanSlug;
+  billingInterval: BillingInterval;
+}): Promise<BillingAdminCheckoutResult> {
   if (!isBillingConfigured()) {
     return { ok: false, error: "Billing is not configured." };
   }
 
   const org = await prisma.organization.findUnique({
-    where: { id: organizationId },
-    select: { id: true, name: true, planSlug: true, billingInterval: true },
+    where: { id: input.organizationId },
+    select: { id: true },
   });
   if (!org) return { ok: false, error: "Workspace not found." };
-  if (!isPlanSlug(org.planSlug)) {
-    return { ok: false, error: "Choose a plan before starting checkout." };
-  }
-
-  const billingInterval: BillingInterval =
-    org.billingInterval === "yearly" || org.billingInterval === "monthly"
-      ? org.billingInterval
-      : "monthly";
 
   const resolved = await resolveCheckoutPlan({
-    planSlug: org.planSlug,
-    billingInterval,
+    planSlug: input.planSlug,
+    billingInterval: input.billingInterval,
   });
   if (!resolved) {
     return {
@@ -146,7 +148,7 @@ export async function startCheckoutForOrganizationCurrentPlan(
     };
   }
 
-  const owner = await ownerEmailForOrganization(organizationId);
+  const owner = await ownerEmailForOrganization(input.organizationId);
   if (!owner) {
     return { ok: false, error: "Workspace needs an owner email before checkout." };
   }
@@ -173,7 +175,7 @@ export async function startCheckoutForOrganizationCurrentPlan(
         ok: true,
         checkoutUrl: checkout.checkoutUrl,
         sessionId: checkout.sessionId,
-        planSlug: org.planSlug,
+        planSlug: input.planSlug,
         billingInterval: resolved.billingInterval,
       };
     } catch (error) {
@@ -192,13 +194,40 @@ export async function startCheckoutForOrganizationCurrentPlan(
         ok: true,
         checkoutUrl: checkout.checkoutUrl,
         sessionId: checkout.sessionId,
-        planSlug: org.planSlug,
+        planSlug: input.planSlug,
         billingInterval: resolved.billingInterval,
       };
     }
   } catch (error) {
     return { ok: false, error: billingApiErrorDetail(error) };
   }
+}
+
+/**
+ * Start Stripe checkout for the workspace's current plan (re-subscribe / resume payment).
+ */
+export async function startCheckoutForOrganizationCurrentPlan(
+  organizationId: string,
+): Promise<BillingAdminCheckoutResult> {
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { planSlug: true, billingInterval: true },
+  });
+  if (!org) return { ok: false, error: "Workspace not found." };
+  if (!isPlanSlug(org.planSlug)) {
+    return { ok: false, error: "Choose a plan before starting checkout." };
+  }
+
+  const billingInterval: BillingInterval =
+    org.billingInterval === "yearly" || org.billingInterval === "monthly"
+      ? org.billingInterval
+      : "monthly";
+
+  return startCheckoutForOrganizationPlan({
+    organizationId,
+    planSlug: org.planSlug,
+    billingInterval,
+  });
 }
 
 /**
@@ -382,9 +411,16 @@ export async function pauseOrganizationBillingSubscription(
   }
 }
 
+export type BillingSuspendMode = "now" | "period_end";
+
+export type BillingAdminSuspendResult =
+  | { ok: true; billingSynced: boolean; localOnly: boolean; mode: BillingSuspendMode }
+  | { ok: false; error: string };
+
 export async function suspendOrganizationBillingCustomer(
   organizationId: string,
-): Promise<BillingAdminSyncResult> {
+  mode: BillingSuspendMode = "now",
+): Promise<BillingAdminSuspendResult> {
   if (!isBillingConfigured()) {
     return { ok: false, error: "Billing is not configured." };
   }
@@ -395,9 +431,13 @@ export async function suspendOrganizationBillingCustomer(
   }
 
   try {
-    await suspendBillingCustomer(customerId);
-    await markOrgUnpaid(organizationId);
-    return { ok: true, billingSynced: true, localOnly: false };
+    await suspendBillingCustomer(customerId, mode);
+    if (mode === "now") {
+      await markOrgUnpaid(organizationId);
+    } else {
+      await scheduleOrgCancelAtPeriodEnd(organizationId);
+    }
+    return { ok: true, billingSynced: true, localOnly: false, mode };
   } catch (error) {
     return { ok: false, error: billingApiErrorDetail(error) };
   }

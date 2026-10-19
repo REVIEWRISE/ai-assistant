@@ -5,7 +5,6 @@ import { isValidEmail } from "@/lib/email-policy";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { requireAdminSession } from "@/lib/auth-session";
-import { userHasAdminRole } from "@/lib/admin-view-only";
 import { validatePasswordStrength } from "@/lib/password-policy";
 import { invalidateUserSessions } from "@/lib/session-token";
 import { writePlatformAudit } from "@/lib/platform-audit";
@@ -240,44 +239,3 @@ export async function updateUser(formData: FormData) {
   redirect("/users?success=updated");
 }
 
-export async function deleteUser(formData: FormData) {
-  const session = await requireAdminSession();
-
-  const id = String(formData.get("id") || "");
-  if (!id) {
-    redirect("/users?error=missing");
-  }
-
-  if (id === session.userId) {
-    redirect("/users?error=cannot_delete_self");
-  }
-
-  const targetIsAdmin = await userHasAdminRole(id);
-  if (targetIsAdmin) {
-    const remainingAdmins = await prisma.userRole.count({
-      where: {
-        role: { name: "Admin" },
-        userId: { not: id },
-      },
-    });
-    if (remainingAdmins === 0) {
-      redirect("/users?error=last_admin");
-    }
-  }
-
-  try {
-    await invalidateUserSessions(id);
-    await prisma.user.delete({ where: { id } });
-
-    await writePlatformAudit({
-      actorId: session.userId,
-      organizationId: session.activeOrganizationId,
-      action: "admin.user_deleted",
-      metadata: { targetUserId: id },
-    });
-  } catch {
-    redirect("/users?error=delete_failed");
-  }
-
-  redirect("/users?success=deleted");
-}

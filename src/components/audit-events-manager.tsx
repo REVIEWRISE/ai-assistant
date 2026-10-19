@@ -11,7 +11,11 @@ import {
   DataTablePagination,
   DataTableRow,
 } from "@/components/data-table";
-import { formatAuditAction } from "@/lib/audit-action-labels";
+import {
+  formatAuditAction,
+  isBillingAuditAction,
+  listKnownAuditActions,
+} from "@/lib/audit-action-labels";
 import { toast } from "@/lib/toast";
 import * as XLSX from "xlsx";
 
@@ -38,6 +42,8 @@ type AuditEventsManagerProps = {
   events: AuditEventRow[];
   organizations: OrganizationOption[];
   totalInDatabase: number;
+  /** Distinct action codes from the full audit table (not just the loaded page). */
+  actionCatalog?: string[];
 };
 
 type Severity = {
@@ -504,6 +510,7 @@ export function AuditEventsManager({
   events,
   organizations,
   totalInDatabase,
+  actionCatalog = [],
 }: AuditEventsManagerProps) {
   const [query, setQuery] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
@@ -515,14 +522,27 @@ export function AuditEventsManager({
   const [selected, setSelected] = useState<AuditEventRow | null>(null);
 
   const actionOptions = useMemo(() => {
-    const unique = [...new Set(events.map((event) => event.action))].sort((a, b) =>
+    const unique = new Set<string>();
+    for (const action of events.map((event) => event.action)) {
+      if (action.trim()) unique.add(action);
+    }
+    for (const action of actionCatalog) {
+      if (action.trim()) unique.add(action);
+    }
+    // Always keep known billing / billing-admin actions in the filter, even if
+    // none of those events are in the currently loaded window.
+    for (const action of listKnownAuditActions()) {
+      if (isBillingAuditAction(action)) unique.add(action);
+    }
+
+    const sorted = [...unique].sort((a, b) =>
       formatAuditAction(a).localeCompare(formatAuditAction(b)),
     );
     return [
       { value: "all", label: "All actions" },
-      ...unique.map((action) => ({ value: action, label: formatAuditAction(action) })),
+      ...sorted.map((action) => ({ value: action, label: formatAuditAction(action) })),
     ];
-  }, [events]);
+  }, [events, actionCatalog]);
 
   const organizationOptions = useMemo(() => {
     const fromEvents = new Map<string, string>();
