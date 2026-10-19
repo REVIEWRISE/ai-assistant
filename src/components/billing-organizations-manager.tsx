@@ -258,7 +258,7 @@ function OrganizationBillingSheet({
       {
         value: "change_plan",
         label: "Change plan",
-        hint: "Upgrade now or schedule a downgrade",
+        hint: "Upgrade now or schedule a downgrade · sets status to Active",
         tone: "default",
       },
     ];
@@ -600,7 +600,7 @@ function OrganizationBillingSheet({
             ) : null}
           </div>
 
-          <div className="relative mt-4 grid grid-cols-2 gap-3 border-t border-white/10 pt-3.5">
+          <div className="relative mt-4 flex flex-wrap gap-x-6 gap-y-2.5 border-t border-white/10 pt-3.5">
             <MetaChip label="Trial ends" value={formatDate(organization.trialEndsAt)} />
             <MetaChip label="Paid at" value={formatDate(organization.paidAt)} />
             <MetaChip label="Period ends" value={formatDate(organization.currentPeriodEndsAt)} />
@@ -662,6 +662,9 @@ function OrganizationBillingSheet({
 
           {resolvedAction === "change_plan" ? (
             <section className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5">
+              <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                Saving applies the selected plan and sets billing status to Active.
+              </p>
               <label className="block">
                 <FieldLabel>Plan</FieldLabel>
                 <CustomSelect
