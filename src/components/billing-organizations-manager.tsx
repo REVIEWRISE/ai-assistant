@@ -249,62 +249,59 @@ function OrganizationBillingSheet({
   const canCancel = isLive && !organization.cancelAtPeriodEnd;
   const canSuspend = isLive;
 
-  const actionOptions = useMemo(() => {
-    const options: Array<{
-      value: BillingSheetAction;
-      label: string;
-      hint: string;
-      tone: ActionTone;
-    }> = [];
+  const actionOptions: Array<{
+    value: BillingSheetAction;
+    label: string;
+    hint: string;
+    tone: ActionTone;
+  }> = [];
 
-    if (canChangePlan) {
-      options.push({
-        value: "change_plan",
-        label: status === "needs_plan" ? "Assign plan" : "Change plan",
-        hint:
-          status === "needs_plan" || status === "expired"
-            ? "Pick a plan and continue to Stripe checkout"
-            : "Upgrade now or schedule a downgrade on the live subscription",
-        tone: "default",
-      });
-    }
-    if (canRestore) {
-      options.push({
-        value: "resume",
-        label: status === "expired" ? "Restore via checkout" : "Resume / restore",
-        hint:
-          status === "expired"
-            ? "Open checkout for the current plan"
-            : "Clear scheduled cancel or unpause",
-        tone: "success",
-      });
-    }
-    if (canPause) {
-      options.push({
-        value: "pause",
-        label: "Pause",
-        hint: "Revoke access until resumed",
-        tone: "warn",
-      });
-    }
-    if (canCancel) {
-      options.push({
-        value: "cancel",
-        label: "Cancel",
-        hint: "At period end or immediately",
-        tone: "danger",
-      });
-    }
-    if (canSuspend) {
-      options.push({
-        value: "suspend",
-        label: "Suspend customer",
-        hint: "At period end or immediately",
-        tone: "danger",
-      });
-    }
-    return options;
-  }, [canCancel, canChangePlan, canPause, canRestore, canSuspend, status]);
+  if (canChangePlan) {
+    actionOptions.push({
+      value: "change_plan",
+      label: status === "needs_plan" ? "Assign plan" : "Change plan",
+      hint:
+        status === "needs_plan" || status === "expired"
+          ? "Pick a plan and continue to Stripe checkout"
+          : "Upgrade now or schedule a downgrade on the live subscription",
+      tone: "default",
+    });
+  }
+  if (canRestore) {
+    actionOptions.push({
+      value: "resume",
+      label: status === "expired" ? "Restore via checkout" : "Resume / restore",
+      hint:
+        status === "expired"
+          ? "Open checkout for the current plan"
+          : "Clear scheduled cancel or unpause",
+      tone: "success",
+    });
+  }
+  if (canPause) {
+    actionOptions.push({
+      value: "pause",
+      label: "Pause",
+      hint: "Revoke access until resumed",
+      tone: "warn",
+    });
+  }
+  if (canCancel) {
+    actionOptions.push({
+      value: "cancel",
+      label: "Cancel",
+      hint: "At period end or immediately",
+      tone: "danger",
+    });
+  }
+  if (canSuspend) {
+    actionOptions.push({
+      value: "suspend",
+      label: "Suspend customer",
+      hint: "At period end or immediately",
+      tone: "danger",
+    });
+  }
 
   const defaultAction: BillingSheetAction =
     status === "expired" || organization.cancelAtPeriodEnd ? "resume" : "change_plan";

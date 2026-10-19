@@ -9,7 +9,7 @@ import { createUser, updateUser } from "./actions";
 export const dynamic = "force-dynamic";
 
 export default async function UserManagementPage() {
-  const session = await requireAdminSession();
+  await requireAdminSession();
 
   const [users, roles] = await Promise.all([
     prisma.user.findMany({
