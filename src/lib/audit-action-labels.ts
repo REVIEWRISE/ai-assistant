@@ -29,7 +29,10 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
 
   "billing_admin.plan_overridden": "Overrode a workspace plan",
   "billing_admin.subscription_canceled": "Canceled a workspace subscription",
+  "billing_admin.subscription_paused": "Paused a workspace subscription",
+  "billing_admin.customer_suspended": "Suspended a Billing customer",
   "billing_admin.access_restored": "Restored workspace access",
+  "billing_admin.resume_checkout_started": "Started resume checkout for a workspace",
   "billing_admin.organization_deleted": "Deleted a workspace",
   "billing.checkout_started": "Started checkout",
   "billing.trial_started": "Started a free trial",
