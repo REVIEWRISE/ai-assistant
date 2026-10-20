@@ -22,6 +22,11 @@ const AUDIT_MENU_ID = "f1a2b3c4-d5e6-4789-a012-3456789abcdf";
 const AUDIT_PATH = "/platform/audit";
 const PLATFORM_PARENT_ID = "18d185ec-9cb2-46d9-bd27-e65d1341b66c";
 
+const SUPPORT_MENU_ID = "a7c8d9e0-f1a2-4b3c-9d4e-5f6a7b8c9d0e";
+const SUPPORT_PATH = "/support";
+const PLATFORM_SUPPORT_MENU_ID = "b8d9e0f1-a2b3-4c4d-8e5f-6a7b8c9d0e1f";
+const PLATFORM_SUPPORT_PATH = "/platform/support";
+
 async function ensureMenuItem({
   id,
   path,
@@ -144,6 +149,27 @@ async function main() {
   });
   if (auditId) {
     await ensureRoleGrants(auditId, ["Admin"], "Audit Log");
+  }
+
+  const supportId = await ensureMenuItem({
+    id: SUPPORT_MENU_ID,
+    path: SUPPORT_PATH,
+    label: "Support",
+    sortOrder: 9,
+  });
+  if (supportId) {
+    await ensureRoleGrants(supportId, ["User", "Admin"], "Support");
+  }
+
+  const platformSupportId = await ensureMenuItem({
+    id: PLATFORM_SUPPORT_MENU_ID,
+    path: PLATFORM_SUPPORT_PATH,
+    label: "Support",
+    sortOrder: 2,
+    parentId: PLATFORM_PARENT_ID,
+  });
+  if (platformSupportId) {
+    await ensureRoleGrants(platformSupportId, ["Admin"], "Platform Support");
   }
 }
 

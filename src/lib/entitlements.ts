@@ -80,6 +80,7 @@ const BILLING_LOCKOUT_PATHS = [
   "/billing/expired",
   "/onboarding/plan",
   "/profile",
+  "/support",
   "/logout",
 ];
 
@@ -438,6 +439,7 @@ export function isBillingBypassPath(pathname: string): boolean {
     pathIs(pathname, "/billing") || // includes /billing/success for post-checkout sync
     pathIs(pathname, "/logout") ||
     pathIs(pathname, "/profile") ||
+    pathIs(pathname, "/support") ||
     pathIs(pathname, "/platform") ||
     pathIs(pathname, "/billing-admin")
   );
@@ -446,10 +448,12 @@ export function isBillingBypassPath(pathname: string): boolean {
 /**
  * After cancel / expiry, stay on the buy-plan wall.
  * Profile and the in-app subscription page are not an escape into the dashboard.
+ * Support remains reachable so locked workspaces can still ask for help.
  */
 export function isExpiredBillingBypassPath(pathname: string): boolean {
   return (
     pathIs(pathname, "/billing") ||
+    pathIs(pathname, "/support") ||
     pathIs(pathname, "/logout")
   );
 }

@@ -42,6 +42,9 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   "billing.subscription_canceled": "Canceled a subscription",
   "organization.created": "Created a workspace",
   "organization.deleted": "Deleted a workspace",
+  "support.ticket_created": "Opened a support request",
+  "support.ticket_replied": "Replied on a support request",
+  "support.ticket_status_changed": "Updated a support request status",
 
   "billing_admin.module_created": "Created a billing module",
   "billing_admin.module_updated": "Updated a billing module",

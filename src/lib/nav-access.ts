@@ -12,9 +12,14 @@ export function normalizeNavPath(path: string): string {
 
 /** Paths that are always reachable for signed-in users in the shell. */
 const ALWAYS_ALLOW = new Set(
-  ["/logout", "/billing", "/billing/expired", "/onboarding/plan", "/profile"].map(
-    normalizeNavPath,
-  ),
+  [
+    "/logout",
+    "/billing",
+    "/billing/expired",
+    "/onboarding/plan",
+    "/profile",
+    "/support",
+  ].map(normalizeNavPath),
 );
 
 export function isHrefAllowedForNav(href: string, allowed: Set<string>): boolean {

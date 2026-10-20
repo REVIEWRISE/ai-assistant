@@ -34,6 +34,9 @@ model User {
   loginChallenges     LoginChallenge[]
   refundRequestsRequested RefundRequest[] @relation("RefundRequestRequester")
   refundRequestsReviewed  RefundRequest[] @relation("RefundRequestReviewer")
+  supportTicketsCreated   SupportTicket[] @relation("SupportTicketCreator")
+  supportTicketsAssigned  SupportTicket[] @relation("SupportTicketAssignee")
+  supportTicketMessages   SupportTicketMessage[]
 
   @@map("users")
 }
@@ -144,6 +147,7 @@ model Organization {
   retellCalls    RetellCall[]
   retellPhoneNumbers RetellPhoneNumber[]
   refundRequests RefundRequest[]
+  supportTickets SupportTicket[]
 
   @@map("organizations")
 }
@@ -171,6 +175,46 @@ model RefundRequest {
   @@index([organizationId])
   @@index([status, createdAt])
   @@map("refund_requests")
+}
+
+model SupportTicket {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId      String    @map("organization_id") @db.Uuid
+  createdByUserId     String    @map("created_by_user_id") @db.Uuid
+  assignedToUserId    String?   @map("assigned_to_user_id") @db.Uuid
+  subject             String
+  status              String    @default("pending")
+  rejectionReason     String?   @map("rejection_reason") @db.Text
+  statusChangedAt     DateTime  @default(now()) @map("status_changed_at") @db.Timestamptz(6)
+  requesterLastReadAt DateTime? @map("requester_last_read_at") @db.Timestamptz(6)
+  adminLastReadAt     DateTime? @map("admin_last_read_at") @db.Timestamptz(6)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User                   @relation("SupportTicketCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  assignedTo   User?                  @relation("SupportTicketAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  messages     SupportTicketMessage[]
+
+  @@index([organizationId])
+  @@index([createdByUserId])
+  @@index([status, updatedAt])
+  @@map("support_tickets")
+}
+
+model SupportTicketMessage {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId   String   @map("ticket_id") @db.Uuid
+  authorId   String   @map("author_id") @db.Uuid
+  authorRole String   @map("author_role")
+  body       String   @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("support_ticket_messages")
 }
 
 model OrganizationReviewSettings {

@@ -76,9 +76,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isChromeFreeBillingGate =
     isOnboardingPlan || isBillingExpiredWall || isBillingCheckoutReturn;
 
-  const lockExpiredWorkspace =
-    billingStatus === "expired" && profileRole !== "Admin" && !isChromeFreeBillingGate;
-
   const visibleNavItems = useMemo(() => {
     const set = allowedNavPaths === null ? new Set<string>() : new Set(allowedNavPaths);
     return filterNavItemsByPermissions(APP_NAV_ITEMS, set, profileRole === "Admin");
@@ -217,7 +214,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isChromeFreeBillingGate || lockExpiredWorkspace) {
+  // Plan / expired / checkout walls stay chrome-free. Other expired routes keep the
+  // sidebar so Support (and other lockout paths) remain reachable.
+  if (isChromeFreeBillingGate) {
     return (
       <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
         <BillingAccessGuard

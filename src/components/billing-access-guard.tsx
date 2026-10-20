@@ -19,6 +19,8 @@ function isBypassPath(pathname: string): boolean {
     pathname.startsWith("/logout/") ||
     pathname === "/profile" ||
     pathname.startsWith("/profile/") ||
+    pathname === "/support" ||
+    pathname.startsWith("/support/") ||
     pathname === "/platform" ||
     pathname.startsWith("/platform/") ||
     pathname === "/billing-admin" ||
@@ -30,6 +32,10 @@ function isExpiredBypassPath(pathname: string): boolean {
   return (
     pathname === "/billing" ||
     pathname.startsWith("/billing/") ||
+    pathname === "/support" ||
+    pathname.startsWith("/support/") ||
+    pathname === "/profile" ||
+    pathname.startsWith("/profile/") ||
     pathname === "/logout" ||
     pathname.startsWith("/logout/")
   );
