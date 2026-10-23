@@ -13,29 +13,35 @@ export default async function PlatformAuditPage() {
   const since24HoursAgo = new Date();
   since24HoursAgo.setUTCDate(since24HoursAgo.getUTCDate() - 1);
 
-  const [events, organizations, totalInDatabase, recentDayCount] = await Promise.all([
-    prisma.auditEvent.findMany({
-      orderBy: { createdAt: "desc" },
-      take: RECENT_EVENT_LIMIT,
-      include: {
-        actor: { select: { id: true, fullName: true, email: true } },
-        organization: { select: { id: true, name: true } },
-      },
-    }),
-    prisma.organization.findMany({
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-      take: 300,
-    }),
-    prisma.auditEvent.count(),
-    prisma.auditEvent.count({
-      where: {
-        createdAt: { gte: since24HoursAgo },
-      },
-    }),
-  ]);
+  const [events, organizations, totalInDatabase, recentDayCount, distinctActions] =
+    await Promise.all([
+      prisma.auditEvent.findMany({
+        orderBy: { createdAt: "desc" },
+        take: RECENT_EVENT_LIMIT,
+        include: {
+          actor: { select: { id: true, fullName: true, email: true } },
+          organization: { select: { id: true, name: true } },
+        },
+      }),
+      prisma.organization.findMany({
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+        take: 300,
+      }),
+      prisma.auditEvent.count(),
+      prisma.auditEvent.count({
+        where: {
+          createdAt: { gte: since24HoursAgo },
+        },
+      }),
+      prisma.auditEvent.groupBy({
+        by: ["action"],
+        orderBy: { action: "asc" },
+      }),
+    ]);
 
-  const uniqueActions = new Set(events.map((event) => event.action)).size;
+  const actionCatalog = distinctActions.map((row) => row.action);
+  const uniqueActions = new Set(actionCatalog).size;
   const uniqueActors = new Set(
     events.map((event) => event.actorId).filter((id): id is string => Boolean(id)),
   ).size;
@@ -67,7 +73,7 @@ export default async function PlatformAuditPage() {
           {
             label: "Action types",
             value: uniqueActions,
-            hint: "in this view",
+            hint: "across all stored events",
           },
           {
             label: "Actors",
@@ -91,6 +97,7 @@ export default async function PlatformAuditPage() {
         }))}
         organizations={organizations}
         totalInDatabase={totalInDatabase}
+        actionCatalog={actionCatalog}
       />
     </div>
   );

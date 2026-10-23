@@ -12,7 +12,7 @@ const GROUPS = [
   { label: "Customer operations", paths: ["/appointments", "/reviews", "/voice-agent"] },
   { label: "Billing", paths: ["/subscription"] },
   { label: "Administration", paths: ["/users", "/settings/access", "/billing-admin", "/platform"], admin: true },
-  { label: "Account", paths: ["/profile"] },
+  { label: "Account", paths: ["/support", "/profile"] },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {

@@ -88,6 +88,9 @@ export async function getAllowedMenuPathsForUser(
     paths = filterPathsByPlanEntitlements(paths, billing, { isAdmin });
   }
 
+  // Support is always available to signed-in users (even without an explicit menu grant).
+  paths.add(normalizeNavPath("/support"));
+
   return paths;
 }
 

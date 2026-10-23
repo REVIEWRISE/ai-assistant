@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 export type CustomSelectOption<T extends string = string> = {
@@ -19,6 +19,9 @@ type CustomSelectProps<T extends string> = {
   className?: string;
   triggerClassName?: string;
   menuClassName?: string;
+  /** Shows a search field in the dropdown menu. */
+  searchable?: boolean;
+  searchPlaceholder?: string;
   "aria-label": string;
 };
 
@@ -38,7 +41,7 @@ function computeMenuPosition(rect: DOMRect): MenuPosition {
 
   return {
     left: rect.left,
-    width: rect.width,
+    width: Math.max(rect.width, 220),
     ...(openUpward
       ? { bottom: window.innerHeight - rect.top + gap }
       : { top: rect.bottom + gap }),
@@ -54,16 +57,30 @@ export function CustomSelect<T extends string>({
   className = "mt-1.5",
   triggerClassName = "",
   menuClassName = "",
+  searchable = false,
+  searchPlaceholder = "Search…",
   "aria-label": ariaLabel,
 }: CustomSelectProps<T>) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const menuRef = useRef<HTMLUListElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
   const listboxId = useId();
 
   const selected = options.find((option) => option.value === value);
+  const filteredOptions = useMemo(() => {
+    if (!searchable) return options;
+    const needle = query.trim().toLowerCase();
+    if (!needle) return options;
+    return options.filter(
+      (option) =>
+        option.label.toLowerCase().includes(needle) ||
+        option.description?.toLowerCase().includes(needle),
+    );
+  }, [options, query, searchable]);
 
   function openMenu() {
     const rect = triggerRef.current?.getBoundingClientRect();
@@ -74,6 +91,7 @@ export function CustomSelect<T extends string>({
   function closeMenu() {
     setOpen(false);
     setMenuPosition(null);
+    setQuery("");
   }
 
   useEffect(() => {
@@ -114,6 +132,12 @@ export function CustomSelect<T extends string>({
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open || !searchable) return;
+    const frame = requestAnimationFrame(() => searchRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [open, searchable]);
+
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <button
@@ -153,75 +177,110 @@ export function CustomSelect<T extends string>({
 
       {open && menuPosition
         ? createPortal(
-            <ul
+            <div
               ref={menuRef}
-              id={listboxId}
-              role="listbox"
-              aria-label={ariaLabel}
               style={{
                 top: menuPosition.top,
                 bottom: menuPosition.bottom,
                 left: menuPosition.left,
                 width: menuPosition.width,
               }}
-              className={`fixed z-[140] max-h-72 overflow-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1 shadow-[var(--shadow-lg)] ${menuClassName}`}
+              className={`fixed z-[140] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)] ${menuClassName}`}
             >
-              {options.map((option) => {
-                const isSelected = option.value === value;
-                const isOptionDisabled = Boolean(option.disabled);
-                return (
-                  <li key={option.value} role="presentation">
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={isSelected}
-                      aria-disabled={isOptionDisabled}
-                      disabled={isOptionDisabled}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => {
-                        if (isOptionDisabled) return;
-                        onChange(option.value);
+              {searchable ? (
+                <div className="border-b border-[var(--color-border)] p-2">
+                  <label className="sr-only" htmlFor={`${listboxId}-search`}>
+                    Search options
+                  </label>
+                  <input
+                    ref={searchRef}
+                    id={`${listboxId}-search`}
+                    type="search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") {
+                        event.stopPropagation();
                         closeMenu();
-                      }}
-                      className={`flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition ${
-                        isOptionDisabled
-                          ? "cursor-not-allowed opacity-40 hover:bg-transparent"
-                          : isSelected
-                            ? "bg-[var(--color-primary-soft)] font-semibold text-[var(--color-primary-h)]"
-                            : "text-[var(--color-text)] hover:bg-[var(--color-surface)]"
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className={`truncate ${isSelected ? "font-semibold" : "font-medium"}`} title={option.label}>
-                          {option.label}
-                        </p>
-                        {option.description ? (
-                          <p className="mt-0.5 truncate text-[11px] font-normal text-[var(--color-text-muted)]">
-                            {option.description}
-                          </p>
-                        ) : null}
-                      </div>
-                      {isSelected ? (
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="h-4 w-4 shrink-0"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          aria-hidden
-                        >
-                          <path d="M5 12l4 4L19 6" />
-                        </svg>
-                      ) : null}
-                    </button>
+                      }
+                    }}
+                    placeholder={searchPlaceholder}
+                    className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2 text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)]"
+                    autoComplete="off"
+                  />
+                </div>
+              ) : null}
+              <ul
+                id={listboxId}
+                role="listbox"
+                aria-label={ariaLabel}
+                className="max-h-64 overflow-auto p-1"
+              >
+                {filteredOptions.length === 0 ? (
+                  <li className="px-2.5 py-3 text-center text-sm text-[var(--color-text-muted)]">
+                    No matches
                   </li>
-                );
-              })}
-            </ul>,
+                ) : (
+                  filteredOptions.map((option) => {
+                    const isSelected = option.value === value;
+                    const isOptionDisabled = Boolean(option.disabled);
+                    return (
+                      <li key={option.value} role="presentation">
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={isSelected}
+                          aria-disabled={isOptionDisabled}
+                          disabled={isOptionDisabled}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => {
+                            if (isOptionDisabled) return;
+                            onChange(option.value);
+                            closeMenu();
+                          }}
+                          className={`flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition ${
+                            isOptionDisabled
+                              ? "cursor-not-allowed opacity-40 hover:bg-transparent"
+                              : isSelected
+                                ? "bg-[var(--color-primary-soft)] font-semibold text-[var(--color-primary-h)]"
+                                : "text-[var(--color-text)] hover:bg-[var(--color-surface)]"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className={`truncate ${isSelected ? "font-semibold" : "font-medium"}`}
+                              title={option.label}
+                            >
+                              {option.label}
+                            </p>
+                            {option.description ? (
+                              <p className="mt-0.5 truncate text-[11px] font-normal text-[var(--color-text-muted)]">
+                                {option.description}
+                              </p>
+                            ) : null}
+                          </div>
+                          {isSelected ? (
+                            <svg
+                              viewBox="0 0 24 24"
+                              className="h-4 w-4 shrink-0"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              aria-hidden
+                            >
+                              <path d="M5 12l4 4L19 6" />
+                            </svg>
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </div>,
             document.body,
           )
         : null}
     </div>
   );
 }
-

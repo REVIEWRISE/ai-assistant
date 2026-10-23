@@ -7,7 +7,6 @@ import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { userHasAdminRole } from "@/lib/admin-view-only";
 import {
   createOrganization,
-  deleteOrganization,
   switchOrganization,
   updateOrganizationName,
 } from "@/app/(protected)/profile/actions";
@@ -77,12 +76,10 @@ export default async function AppointmentOrganizationPage() {
       <OrganizationsManager
         organizations={organizations}
         activeOrganizationId={session.activeOrganizationId ?? ""}
-        canForceDelete={isAdmin}
         returnTo="/appointments/organization"
         onCreateOrganization={createOrganization}
         onUpdateOrganization={updateOrganizationName}
         onSwitchOrganization={switchOrganization}
-        onDeleteOrganization={deleteOrganization}
       />
     </div>
   );

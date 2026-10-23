@@ -3,7 +3,6 @@
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   DataTable,
   DataTableBody,
@@ -24,19 +23,15 @@ type OrganizationsManagerProps = {
   organizations: OrganizationRow[];
   activeOrganizationId: string;
   readOnly?: boolean;
-  /** When true, delete confirms cascade of all workspace data (admin force-delete). */
-  canForceDelete?: boolean;
   returnTo: string;
   onCreateOrganization: (formData: FormData) => void | Promise<void>;
   onUpdateOrganization: (formData: FormData) => void | Promise<void>;
   onSwitchOrganization: (formData: FormData) => void | Promise<void>;
-  onDeleteOrganization: (formData: FormData) => void | Promise<void>;
 };
 
 type ModalState =
   | { type: "create" }
   | { type: "edit"; organization: OrganizationRow }
-  | { type: "delete"; organization: OrganizationRow }
   | null;
 
 function organizationInitials(name: string) {
@@ -49,23 +44,19 @@ function organizationInitials(name: string) {
 function OrganizationActionsMenu({
   organization,
   isActive,
-  canDelete,
   isOpen,
   onToggle,
   onClose,
   onSetActive,
   onEdit,
-  onDelete,
 }: {
   organization: OrganizationRow;
   isActive: boolean;
-  canDelete: boolean;
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
   onSetActive: () => void;
   onEdit: () => void;
-  onDelete: () => void;
 }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -157,16 +148,6 @@ function OrganizationActionsMenu({
       danger: false,
       disabled: false,
     },
-    {
-      id: "delete",
-      label: "Delete organization",
-      description: canDelete
-        ? "Permanently remove this workspace"
-        : "Add another workspace before deleting this one",
-      onClick: onDelete,
-      danger: true,
-      disabled: !canDelete,
-    },
   ];
 
   return (
@@ -241,12 +222,10 @@ export function OrganizationsManager({
   organizations,
   activeOrganizationId,
   readOnly = false,
-  canForceDelete = false,
   returnTo,
   onCreateOrganization,
   onUpdateOrganization,
   onSwitchOrganization,
-  onDeleteOrganization,
 }: OrganizationsManagerProps) {
   const [modal, setModal] = useState<ModalState>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -366,7 +345,6 @@ export function OrganizationsManager({
                     <OrganizationActionsMenu
                       organization={organization}
                       isActive={isActive}
-                      canDelete={canForceDelete || organizations.length > 1}
                       isOpen={openMenuId === organization.id}
                       onToggle={() =>
                         setOpenMenuId((current) =>
@@ -381,7 +359,6 @@ export function OrganizationsManager({
                         void onSwitchOrganization(formData);
                       }}
                       onEdit={() => openEdit(organization)}
-                      onDelete={() => setModal({ type: "delete", organization })}
                     />
                   )}
                 </div>
@@ -403,7 +380,7 @@ export function OrganizationsManager({
         />
       </DataTable>
 
-      {modal && modal.type !== "delete"
+      {modal
         ? createPortal(
             <div
               className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-6"
@@ -550,29 +527,6 @@ export function OrganizationsManager({
             document.body,
           )
         : null}
-
-      <ConfirmDialog
-        open={modal?.type === "delete"}
-        title="Delete organization"
-        description={
-          modal?.type === "delete"
-            ? canForceDelete
-              ? `Permanently delete "${modal.organization.name}" and all workspace data (members, bookings, reviews, knowledge base, chatbot, voice lines, and audit history)? This cannot be undone.`
-              : `This will permanently remove "${modal.organization.name}" if it is empty and you have owner access.`
-            : ""
-        }
-        confirmLabel={canForceDelete ? "Delete workspace & data" : "Delete Organization"}
-        onCancel={() => setModal(null)}
-        action={onDeleteOrganization}
-        hiddenFields={
-          modal?.type === "delete"
-            ? [
-                { name: "organization_id", value: modal.organization.id },
-                { name: "return_to", value: returnTo },
-              ]
-            : []
-        }
-      />
     </section>
   );
 }
