@@ -362,8 +362,37 @@ export function VoiceAgentRetellSettings({
     [selectedVoiceId, voiceCatalog],
   );
   const selectedVoicePreviewUrl = selectedVoice?.previewAudioUrl ?? "";
-
-
+  const agentDisplayName = config.agentName.trim() || "Your assistant";
+  const languageLabel =
+    RETELL_LANGUAGE_OPTIONS.find((option) => option.value === config.language)?.label ??
+    config.language;
+  const voiceLabel = selectedVoice?.voiceName?.trim() || selectedVoiceId || "Not set";
+  const typeLabel = config.enabled ? "Inbound calls" : "Paused";
+  const knowledgeLabel = statusLabel(knowledge.status);
+  const bookingLabel = knowledgeConfig.enablePhoneBooking ? "On" : "Off";
+  const identityLine = remoteAgentMissing
+    ? `${organizationName} · Needs repair`
+    : hasAgent
+      ? `${organizationName} · Your phone assistant`
+      : `${organizationName} · Ready to set up`;
+  const presenceLabel = remoteAgentMissing
+    ? "Needs repair"
+    : hasAgent
+      ? "On duty"
+      : "Not linked yet";
+  const assistantInfo = remoteAgentMissing
+    ? "Reconnect this agent so callers keep reaching your team."
+    : hasAgent
+      ? knowledgeConfig.enablePhoneBooking
+        ? "Answers inbound calls and can book appointments while you work."
+        : "Answers inbound calls for your workspace. Turn on booking when you’re ready."
+      : "Link an agent below to start answering calls for this workspace.";
+  const agentIdShort = hasAgent
+    ? config.retellAgentId.trim().length > 18
+      ? `${config.retellAgentId.trim().slice(0, 10)}…${config.retellAgentId.trim().slice(-4)}`
+      : config.retellAgentId.trim()
+    : null;
+  const waveformBars = [8, 14, 20, 12, 18, 10, 16];
 
   function jumpToSection(key: SectionKey) {
     setActiveSection(key);
@@ -382,95 +411,195 @@ export function VoiceAgentRetellSettings({
       <div className={`relative min-h-[28rem] ${agentConfigLocked ? "overflow-hidden rounded-2xl" : ""}`}>
         <div className={agentConfigLocked ? "pointer-events-none select-none" : undefined}>
       <div className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-        <div className="relative overflow-hidden border-b border-white/10 bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 py-6 text-white lg:px-6">
+        <div className="relative overflow-hidden bg-[linear-gradient(160deg,#0c0c0c_0%,#171717_48%,#222222_100%)] px-5 pb-5 pt-7 text-white sm:px-6 sm:pt-8">
           <div
-            className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-white/10 blur-3xl"
-            aria-hidden
-          />
-          <div
-            className="pointer-events-none absolute -bottom-24 left-1/4 size-40 rounded-full bg-white/5 blur-3xl"
+            className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.1),transparent_60%)]"
             aria-hidden
           />
 
-          <div className="relative flex flex-wrap items-start justify-between gap-5">
-            <div className="flex min-w-0 items-start gap-4">
-              <span
-                className="mt-0.5 flex size-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white"
-                aria-hidden
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="size-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
-                  <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
-                  <path d="M12 18v4M8 22h8" />
-                </svg>
-              </span>
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
-                  Voice agent · {organizationName}
-                </p>
-                <h2 className="mt-1.5 text-[1.35rem] font-semibold tracking-[-0.02em] text-white">
-                  {hasAgent && config.agentName.trim()
-                    ? config.agentName.trim()
-                    : `Voice of ${organizationName}`}
-                </h2>
-                <p className="mt-1.5 max-w-xl text-[13px] leading-relaxed text-neutral-400">
-                  {remoteAgentMissing
-                    ? `Repair the agent link so ${organizationName} keeps answering calls.`
-                    : hasAgent
-                      ? `Tune how ${organizationName} greets callers, what it knows, and how bookings work.`
-                      : `Set the name, voice, and knowledge callers hear when they reach ${organizationName}.`}
-                </p>
+          <div className="relative flex flex-col items-center text-center">
+            <div className="flex items-center gap-3 sm:gap-5">
+              <div className="flex h-12 items-end gap-[3px]" aria-hidden>
+                {waveformBars.map((height, index) => (
+                  <span
+                    key={`wave-l-${index}`}
+                    className={`w-[2.5px] rounded-full ${
+                      hasAgent && !remoteAgentMissing ? "bg-white/45" : "bg-white/18"
+                    }`}
+                    style={{ height: `${height}px` }}
+                  />
+                ))}
+              </div>
+
+              <div className="relative">
+                <span className="flex size-[4.75rem] items-center justify-center rounded-full border border-white/20 bg-white/10 shadow-[0_12px_40px_-18px_rgba(0,0,0,0.8)]">
+                  <svg
+                    viewBox="0 0 48 48"
+                    className="size-9 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <circle cx="24" cy="16" r="6" />
+                    <path d="M12 36c2.5-6 7-9 12-9s9.5 3 12 9" />
+                    <path d="M10 18v6a4 4 0 0 0 4 4h2" />
+                    <path d="M38 18v6a4 4 0 0 1-4 4h-2" />
+                    <path d="M10 20h-2a2 2 0 0 1-2-2v-1a3 3 0 0 1 3-3h1" />
+                    <path d="M38 20h2a2 2 0 0 0 2-2v-1a3 3 0 0 0-3-3h-1" />
+                  </svg>
+                </span>
+                <span
+                  className={`absolute bottom-1 right-1 size-3.5 rounded-full border-2 border-[#161616] ${
+                    remoteAgentMissing
+                      ? "bg-amber-400"
+                      : hasAgent
+                        ? "bg-emerald-400"
+                        : "bg-neutral-500"
+                  }`}
+                  title={presenceLabel}
+                  aria-label={presenceLabel}
+                />
+              </div>
+
+              <div className="flex h-12 items-end gap-[3px]" aria-hidden>
+                {[...waveformBars].reverse().map((height, index) => (
+                  <span
+                    key={`wave-r-${index}`}
+                    className={`w-[2.5px] rounded-full ${
+                      hasAgent && !remoteAgentMissing ? "bg-white/45" : "bg-white/18"
+                    }`}
+                    style={{ height: `${height}px` }}
+                  />
+                ))}
               </div>
             </div>
 
-            <span
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-                remoteAgentMissing
-                  ? "border-amber-400/30 bg-amber-400/15 text-amber-100"
-                  : hasAgent
-                    ? "border-emerald-400/30 bg-emerald-400/15 text-emerald-100"
-                    : "border-white/15 bg-white/10 text-neutral-300"
-              }`}
-            >
+            <h2 className="mt-4 text-[1.4rem] font-semibold tracking-[-0.025em] text-white sm:text-[1.55rem]">
+              {agentDisplayName}
+            </h2>
+            <p className="mt-1.5 text-[13px] text-neutral-400">{identityLine}</p>
+            <p className="mt-1 max-w-lg text-[12px] leading-relaxed text-neutral-500">
+              {assistantInfo}
+            </p>
+
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
               <span
-                className={`size-1.5 rounded-full ${
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
                   remoteAgentMissing
-                    ? "bg-amber-300"
+                    ? "border-amber-400/30 bg-amber-400/15 text-amber-100"
                     : hasAgent
-                      ? "bg-emerald-300"
-                      : "bg-neutral-400"
+                      ? "border-emerald-400/30 bg-emerald-400/15 text-emerald-100"
+                      : "border-white/15 bg-white/10 text-neutral-300"
                 }`}
-                aria-hidden
-              />
-              {remoteAgentMissing ? "Needs repair" : hasAgent ? "Agent connected" : "Not linked yet"}
-            </span>
+              >
+                <span
+                  className={`size-1.5 rounded-full ${
+                    remoteAgentMissing
+                      ? "bg-amber-300"
+                      : hasAgent
+                        ? "bg-emerald-300"
+                        : "bg-neutral-400"
+                  }`}
+                  aria-hidden
+                />
+                {presenceLabel}
+              </span>
+              {agentIdShort ? (
+                <span
+                  className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-2.5 py-1 font-mono text-[10px] font-medium text-neutral-300"
+                  title={config.retellAgentId}
+                >
+                  ID {agentIdShort}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => jumpToSection(hasAgent ? "voice" : "setup")}
+                className="rounded-xl bg-white px-3.5 py-2 text-[12px] font-semibold text-neutral-950 transition hover:bg-neutral-200"
+              >
+                {hasAgent ? "Edit voice" : "Set up agent"}
+              </button>
+              <button
+                type="button"
+                onClick={() => jumpToSection("knowledge")}
+                className="rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
+              >
+                Knowledge
+              </button>
+              <button
+                type="button"
+                onClick={onGoToPhoneTab}
+                className="rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
+              >
+                Phone lines
+              </button>
+              <button
+                type="button"
+                onClick={() => jumpToSection("booking")}
+                className="rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
+              >
+                {knowledgeConfig.enablePhoneBooking ? "Booking settings" : "Enable booking"}
+              </button>
+            </div>
           </div>
 
-          <div className="relative mt-5 grid gap-3 border-t border-white/10 pt-4 sm:grid-cols-3">
-            <div>
-              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/45">Status</p>
-              <p className="mt-0.5 text-[12px] font-medium text-white/90">
-                {config.enabled ? "Live for callers" : "Paused"}
-              </p>
+          <div className="relative mt-6 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
+              <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
+                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
+                  <path d="M22 16.9v2a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h2a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L7.1 9.5a16 16 0 0 0 6 6l1.1-1.1a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z" />
+                </svg>
+              </span>
+              <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Type</p>
+              <p className="mt-0.5 text-[13px] font-semibold text-white">{typeLabel}</p>
             </div>
-            <div>
-              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/45">Knowledge</p>
-              <p className="mt-0.5 text-[12px] font-medium text-white/90">{statusLabel(knowledge.status)}</p>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
+              <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
+                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
+                  <path d="M11 5 6 9H2v6h4l5 4V5z" />
+                  <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+                </svg>
+              </span>
+              <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Voice</p>
+              <p className="mt-0.5 truncate text-[13px] font-semibold text-white">{voiceLabel}</p>
             </div>
-            <div>
-              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/45">Voice booking</p>
-              <p className="mt-0.5 text-[12px] font-medium text-white/90">
-                {knowledgeConfig.enablePhoneBooking ? "On" : "Off"}
-                {!retellApiConfigured ? " · API missing" : ""}
-              </p>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
+              <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
+                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M3 12h18" />
+                  <path d="M12 3a14 14 0 0 1 0 18" />
+                  <path d="M12 3a14 14 0 0 0 0 18" />
+                </svg>
+              </span>
+              <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Language</p>
+              <p className="mt-0.5 truncate text-[13px] font-semibold text-white">{languageLabel}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
+              <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
+                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                </svg>
+              </span>
+              <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Knowledge</p>
+              <p className="mt-0.5 truncate text-[13px] font-semibold text-white">{knowledgeLabel}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
+              <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
+                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <path d="M16 2v4M8 2v4M3 10h18" />
+                </svg>
+              </span>
+              <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Booking</p>
+              <p className="mt-0.5 text-[13px] font-semibold text-white">{bookingLabel}</p>
             </div>
           </div>
         </div>

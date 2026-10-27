@@ -390,7 +390,7 @@ function AuditEventSheet({
         </header>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
-          <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+          <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
             <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-3.5">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-semibold text-[var(--color-primary-h)]">
                 {actorInitials(event.actorName, event.actorEmail)}
@@ -425,7 +425,7 @@ function AuditEventSheet({
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+          <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-3">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
@@ -636,7 +636,7 @@ export function AuditEventsManager({
   }
 
   return (
-    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
       <div className="border-b border-[var(--color-border)] px-4 py-4 lg:px-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">

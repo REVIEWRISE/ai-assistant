@@ -1365,7 +1365,7 @@ export function AppointmentsTabs({
         })}
       </div>
 
-      <div className="flex flex-wrap items-end justify-between gap-3 rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 shadow-[var(--shadow-sm)]">
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">{activeContext.eyebrow}</p>
           <h2 className="mt-1 text-lg font-semibold tracking-tight text-[var(--color-text)]">{activeContext.title}</h2>

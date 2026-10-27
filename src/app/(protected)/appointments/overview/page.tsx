@@ -305,6 +305,25 @@ export default async function AppointmentsOverviewPage({
     },
   ];
   const completedSetupSteps = setupSteps.filter((step) => step.complete).length;
+  const assistantReady = connectedProviders > 0 && Boolean(chatbotSettings);
+  const presenceLabel = !assistantReady
+    ? connectedProviders === 0
+      ? "Calendar needed"
+      : "Assistant setup needed"
+    : upcomingNext24h > 0
+      ? "Busy today"
+      : "On duty";
+  const identityLine = !assistantReady
+    ? `${activeOrganization.name} · Ready to set up`
+    : `${activeOrganization.name} · Your booking assistant`;
+  const assistantInfo = !assistantReady
+    ? connectedProviders === 0
+      ? "Connect a calendar so this assistant can check availability and confirm bookings."
+      : "Configure the booking assistant so callers and website visitors get a consistent experience."
+    : upcomingNext24h > 0
+      ? `${upcomingNext24h} booking${upcomingNext24h === 1 ? "" : "s"} in the next 24 hours — keep calendars and CRM delivery healthy.`
+      : "Watching availability, bookings, and delivery for this workspace.";
+  const waveformBars = [8, 14, 20, 12, 18, 10, 16];
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
@@ -329,12 +348,41 @@ export default async function AppointmentsOverviewPage({
 
       <AppointmentPageHeader
         variant="command"
-        title="Appointment operations"
-        description={<>Monitor availability, bookings, and delivery health for {activeOrganization.name}.</>}
-        status={connectedProviders > 0 ? "Calendar connected" : "Calendar setup needed"}
-        statusTone={connectedProviders > 0 ? "success" : "warning"}
+        eyebrow="Appointment Agent"
+        title={
+          assistantReady
+            ? `${activeOrganization.name} bookings`
+            : "Your booking assistant"
+        }
+        description={
+          assistantReady ? (
+            <>
+              Keep calendars, bookings, and delivery healthy for {activeOrganization.name} — the
+              assistant that turns availability into confirmed appointments.
+            </>
+          ) : (
+            <>
+              Set up the booking assistant for {activeOrganization.name}. Connect a calendar and
+              configure how visitors book with you.
+            </>
+          )
+        }
+        status={
+          assistantReady
+            ? upcomingNext24h > 0
+              ? `${upcomingNext24h} upcoming today`
+              : "Assistant ready"
+            : connectedProviders > 0
+              ? "Configure assistant"
+              : "Calendar setup needed"
+        }
+        statusTone={assistantReady ? "success" : "warning"}
         actions={[
-          { href: "/appointments/chatbot", label: "Configure assistant", primary: true },
+          {
+            href: assistantReady ? "/appointments/chatbot" : connectedProviders > 0 ? "/appointments/chatbot" : "/appointments/organization",
+            label: assistantReady ? "Configure assistant" : connectedProviders > 0 ? "Set up assistant" : "Connect calendar",
+            primary: true,
+          },
         ]}
         metrics={[
           { label: "Calendar providers", value: connectedProviders, hint: connectedProviders > 0 ? "Ready for availability checks" : "Connect a calendar" },
@@ -343,6 +391,186 @@ export default async function AppointmentsOverviewPage({
           { label: "Voice bookings", value: phoneBookingsTotal, hint: phoneBookingsTotal > 0 ? "Captured by Voice AI" : "No voice bookings yet" },
         ]}
       />
+
+      <div className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+        <div className="relative overflow-hidden bg-[linear-gradient(160deg,#0c0c0c_0%,#171717_48%,#222222_100%)] px-5 pb-5 pt-7 text-white sm:px-6 sm:pt-8">
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.1),transparent_60%)]"
+            aria-hidden
+          />
+
+          <div className="relative flex flex-col items-center text-center">
+            <div className="flex items-center gap-3 sm:gap-5">
+              <div className="flex h-12 items-end gap-[3px]" aria-hidden>
+                {waveformBars.map((height, index) => (
+                  <span
+                    key={`wave-l-${index}`}
+                    className={`w-[2.5px] rounded-full ${assistantReady ? "bg-white/45" : "bg-white/18"}`}
+                    style={{ height: `${height}px` }}
+                  />
+                ))}
+              </div>
+
+              <div className="relative">
+                <span className="flex size-[4.75rem] items-center justify-center rounded-full border border-white/20 bg-white/10 shadow-[0_12px_40px_-18px_rgba(0,0,0,0.8)]">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="size-8 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <path d="M16 2v4M8 2v4M3 10h18" />
+                    <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" />
+                  </svg>
+                </span>
+                <span
+                  className={`absolute bottom-1 right-1 size-3.5 rounded-full border-2 border-[#161616] ${
+                    !assistantReady
+                      ? "bg-neutral-500"
+                      : upcomingNext24h > 0
+                        ? "bg-amber-400"
+                        : "bg-emerald-400"
+                  }`}
+                  title={presenceLabel}
+                  aria-label={presenceLabel}
+                />
+              </div>
+
+              <div className="flex h-12 items-end gap-[3px]" aria-hidden>
+                {[...waveformBars].reverse().map((height, index) => (
+                  <span
+                    key={`wave-r-${index}`}
+                    className={`w-[2.5px] rounded-full ${assistantReady ? "bg-white/45" : "bg-white/18"}`}
+                    style={{ height: `${height}px` }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <h2 className="mt-4 text-[1.4rem] font-semibold tracking-[-0.025em] text-white sm:text-[1.55rem]">
+              {activeOrganization.name} bookings
+            </h2>
+            <p className="mt-1.5 text-[13px] text-neutral-400">{identityLine}</p>
+            <p className="mt-1 max-w-lg text-[12px] leading-relaxed text-neutral-500">
+              {assistantInfo}
+            </p>
+
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                  !assistantReady
+                    ? "border-white/15 bg-white/10 text-neutral-300"
+                    : upcomingNext24h > 0
+                      ? "border-amber-400/30 bg-amber-400/15 text-amber-100"
+                      : "border-emerald-400/30 bg-emerald-400/15 text-emerald-100"
+                }`}
+              >
+                <span
+                  className={`size-1.5 rounded-full ${
+                    !assistantReady
+                      ? "bg-neutral-400"
+                      : upcomingNext24h > 0
+                        ? "bg-amber-300"
+                        : "bg-emerald-300"
+                  }`}
+                  aria-hidden
+                />
+                {presenceLabel}
+              </span>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              <Link
+                href="/appointments/chatbot"
+                className="rounded-xl bg-white px-3.5 py-2 text-[12px] font-semibold text-neutral-950 transition hover:bg-neutral-200"
+              >
+                {Boolean(chatbotSettings) ? "Configure assistant" : "Set up assistant"}
+              </Link>
+              <Link
+                href="/appointments/organization"
+                className="rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
+              >
+                Calendars
+              </Link>
+              <Link
+                href="/appointments/knowledge-base"
+                className="rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
+              >
+                Knowledge
+              </Link>
+              <Link
+                href="/appointments/chatbot"
+                className="rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
+              >
+                {crmWebhookConfigured ? "CRM settings" : "Connect CRM"}
+              </Link>
+            </div>
+          </div>
+
+          <div className="relative mt-6 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
+              <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
+                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <path d="M16 2v4M8 2v4M3 10h18" />
+                </svg>
+              </span>
+              <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Calendars</p>
+              <p className="mt-0.5 text-[13px] font-semibold text-white">
+                {connectedProviders} connected
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
+              <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
+                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v5l3 2" />
+                </svg>
+              </span>
+              <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Next 24h</p>
+              <p className="mt-0.5 text-[13px] font-semibold text-white">{upcomingNext24h}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
+              <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
+                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
+                  <path d="M8 2v4M16 2v4" />
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <path d="M3 10h18" />
+                </svg>
+              </span>
+              <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Next 7d</p>
+              <p className="mt-0.5 text-[13px] font-semibold text-white">{upcomingNext7d}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
+              <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
+                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+                  <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+                </svg>
+              </span>
+              <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Voice</p>
+              <p className="mt-0.5 text-[13px] font-semibold text-white">{phoneBookingsTotal}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
+              <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
+                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
+                  <path d="M12 3v18" />
+                  <path d="M5 8h14M5 16h14" />
+                </svg>
+              </span>
+              <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">CRM</p>
+              <p className="mt-0.5 text-[13px] font-semibold text-white">
+                {crmWebhookConfigured ? "Connected" : "Not set"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {completedSetupSteps < setupSteps.length ? (
         <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-md)]">

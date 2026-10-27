@@ -155,6 +155,43 @@ export function SupportTicketThread({
     threadEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [ticket.messages.length]);
 
+  // Live updates (AI auto-reply, admin messages, status changes) via SSE.
+  useEffect(() => {
+    const url = `/api/support/tickets/${encodeURIComponent(ticket.id)}/stream`;
+    const source = new EventSource(url);
+    let lastFingerprint: string | null = null;
+
+    function onTicket(event: MessageEvent) {
+      try {
+        const payload = JSON.parse(String(event.data)) as { fingerprint?: string };
+        if (payload.fingerprint && payload.fingerprint === lastFingerprint) return;
+        lastFingerprint = payload.fingerprint ?? null;
+      } catch {
+        // still refresh on malformed payloads from our stream
+      }
+      router.refresh();
+    }
+
+    function onGone() {
+      source.close();
+      router.push(backHref);
+    }
+
+    source.addEventListener("ticket", onTicket as EventListener);
+    source.addEventListener("gone", onGone as EventListener);
+    source.addEventListener("reconnect", () => {
+      // Browser EventSource reconnects automatically after close; force a fresh open.
+      source.close();
+      router.refresh();
+    });
+
+    return () => {
+      source.removeEventListener("ticket", onTicket as EventListener);
+      source.removeEventListener("gone", onGone as EventListener);
+      source.close();
+    };
+  }, [ticket.id, backHref, router]);
+
   useEffect(() => {
     if (!statusMenuOpen) return;
     function onPointerDown(event: MouseEvent) {
@@ -273,7 +310,7 @@ export function SupportTicketThread({
               role="menuitem"
               disabled={pending}
               onClick={() => chooseStatus(status)}
-              className={`flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left transition hover:bg-[var(--color-bg)] disabled:opacity-50 ${
+              className={`flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left transition hover:bg-[var(--color-raised)] disabled:opacity-50 ${
                 status === "rejected"
                   ? "text-red-700 [[data-theme=dark]_&]:text-red-300"
                   : "text-[var(--color-text)]"
@@ -300,12 +337,12 @@ export function SupportTicketThread({
   );
 
   return (
-    <div className="flex min-h-[32rem] flex-col overflow-hidden rounded-[1.65rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-      <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-3 py-2.5 sm:px-4">
+    <div className="flex min-h-[32rem] flex-col overflow-hidden rounded-[1.65rem] border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:bg-[var(--color-surface)]">
+      <div className="flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 sm:px-4 [[data-theme=dark]_&]:bg-[var(--color-raised)]">
         <Link
           href={backHref}
           aria-label={`Back to ${mode === "admin" ? "inbox" : "requests"}`}
-          className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition hover:bg-[var(--color-bg)] hover:text-[var(--color-text)]"
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
         >
           <span aria-hidden className="text-lg leading-none">
             ←
@@ -334,16 +371,25 @@ export function SupportTicketThread({
       <section className="flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 space-y-0 overflow-y-auto px-4 py-2 sm:px-5">
           {ticket.messages.map((message, index) => {
-            const fromAdmin = message.authorRole === "admin";
+            const fromSupport =
+              message.authorRole === "admin" || message.authorRole === "ai";
+            const fromAi = message.authorRole === "ai";
             const prev = ticket.messages[index - 1];
             const sameAuthor =
               prev &&
               prev.authorRole === message.authorRole &&
               prev.author.id === message.author.id;
+            const roleLabel = fromAi
+              ? "AI assistant"
+              : message.authorRole === "admin"
+                ? "Support"
+                : mode === "user"
+                  ? "You"
+                  : "Requester";
             return (
               <article
                 key={message.id}
-                className={`flex gap-3 ${fromAdmin ? "" : "flex-row-reverse"} ${
+                className={`flex gap-3 ${fromSupport ? "" : "flex-row-reverse"} ${
                   sameAuthor ? "pt-1.5" : "pt-5"
                 }`}
               >
@@ -352,31 +398,33 @@ export function SupportTicketThread({
                 ) : (
                   <span
                     className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                      fromAdmin
-                        ? "bg-[var(--color-text)] text-[var(--color-bg)]"
-                        : "bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]"
+                      fromAi
+                        ? "bg-violet-600 text-white [[data-theme=dark]_&]:bg-violet-500"
+                        : fromSupport
+                          ? "bg-[var(--color-text)] text-[var(--color-bg)]"
+                          : "bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]"
                     }`}
                     aria-hidden
                   >
-                    {initialsFor(message.author.fullName)}
+                    {fromAi ? "AI" : initialsFor(message.author.fullName)}
                   </span>
                 )}
                 <div
                   className={`flex min-w-0 max-w-[min(100%,28rem)] flex-col ${
-                    fromAdmin ? "items-start" : "items-end"
+                    fromSupport ? "items-start" : "items-end"
                   }`}
                 >
                   {!sameAuthor ? (
                     <div
                       className={`mb-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 ${
-                        fromAdmin ? "" : "justify-end"
+                        fromSupport ? "" : "justify-end"
                       }`}
                     >
                       <p className="text-[13px] font-semibold text-[var(--color-text)]">
-                        {message.author.fullName}
+                        {fromAi ? "Support AI" : message.author.fullName}
                       </p>
-                      <span className="rounded-md bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-                        {fromAdmin ? "Support" : mode === "user" ? "You" : "Requester"}
+                      <span className="rounded-md border border-[var(--color-border)] bg-[var(--color-raised)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+                        {roleLabel}
                       </span>
                       <time className="text-[11px] text-[var(--color-text-muted)]">
                         {formatDate(message.createdAt)}
@@ -385,9 +433,11 @@ export function SupportTicketThread({
                   ) : null}
                   <div
                     className={`w-fit max-w-full rounded-2xl px-3.5 py-2.5 text-left text-[13px] leading-relaxed ${
-                      fromAdmin
-                        ? "rounded-tl-md border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)]"
-                        : "rounded-tr-md bg-[var(--color-text)] text-[var(--color-bg)]"
+                      fromAi
+                        ? "rounded-tl-md border border-violet-200/80 bg-violet-50/80 text-[var(--color-text)] [[data-theme=dark]_&]:border-violet-400/40 [[data-theme=dark]_&]:bg-violet-500/20 [[data-theme=dark]_&]:text-violet-50"
+                        : fromSupport
+                          ? "rounded-tl-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] [[data-theme=dark]_&]:border-[var(--color-border-hover)] [[data-theme=dark]_&]:bg-[var(--color-raised)]"
+                          : "rounded-tr-md bg-[var(--color-text)] text-[var(--color-bg)]"
                     }`}
                   >
                     <p className="whitespace-pre-wrap">{message.body}</p>
@@ -404,9 +454,9 @@ export function SupportTicketThread({
           <div ref={threadEndRef} className="h-4" />
         </div>
 
-        <div className="border-t border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 sm:px-5">
+        <div className="border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 sm:px-5 [[data-theme=dark]_&]:bg-[var(--color-raised)]">
           {canReply ? (
-            <div className="flex items-end gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2 shadow-[var(--shadow-sm)]">
+            <div className="flex items-end gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-2 shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)] [[data-theme=dark]_&]:bg-[var(--color-surface)]">
               <textarea
                 value={body}
                 onChange={(event) => setBody(event.target.value)}
@@ -451,7 +501,7 @@ export function SupportTicketThread({
               </button>
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-[12px] leading-relaxed text-[var(--color-text-muted)]">
+            <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-[12px] leading-relaxed text-[var(--color-text-muted)] [[data-theme=dark]_&]:border-[var(--color-border-hover)] [[data-theme=dark]_&]:bg-[var(--color-surface)]">
               This request is closed. Start a new request from Support if you still need help.
             </div>
           )}

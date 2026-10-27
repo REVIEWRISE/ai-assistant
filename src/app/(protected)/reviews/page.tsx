@@ -288,14 +288,44 @@ export default async function ReviewsPage() {
       <AppointmentPageHeader
         variant="command"
         eyebrow="Review Response"
-        title="Reputation operations"
-        description={
-          <>Review, approve, and publish consistent responses for {organization?.name ?? "your active organization"}.</>
+        title={
+          connectedSources > 0
+            ? organization?.name
+              ? `${organization.name} replies`
+              : "Your review assistant"
+            : "Your review assistant"
         }
-        status={connectedSources > 0 ? `${connectedSources} source${connectedSources === 1 ? "" : "s"} connected` : "Review source required"}
+        description={
+          connectedSources > 0 ? (
+            <>
+              Draft, approve, and publish replies that sound like {organization?.name ?? "your team"} on every
+              connected review source.
+            </>
+          ) : (
+            <>
+              Connect a review source so {organization?.name ?? "your workspace"} can start answering with a
+              consistent voice.
+            </>
+          )
+        }
+        status={
+          connectedSources > 0
+            ? totals.pending > 0
+              ? `${totals.pending} awaiting reply`
+              : "Assistant ready"
+            : "Connect a source"
+        }
         statusTone={connectedSources > 0 ? "success" : "warning"}
         actions={[
-          ...(connectedSources > 0 ? [{ href: "/reviews?tab=workflow", label: totals.pending > 0 ? `Open inbox · ${totals.pending}` : "Open inbox", primary: true }] : []),
+          ...(connectedSources > 0
+            ? [
+                {
+                  href: "/reviews?tab=workflow",
+                  label: totals.pending > 0 ? `Open inbox · ${totals.pending}` : "Open inbox",
+                  primary: true,
+                },
+              ]
+            : [{ href: "/reviews?tab=integrations", label: "Connect source", primary: true }]),
         ]}
         metrics={[
           { label: "Total reviews", value: totals.total, hint: "all connected sources" },
@@ -308,6 +338,7 @@ export default async function ReviewsPage() {
       <ReviewsTabs
         defaultTab={connectedSources > 0 ? "workflow" : "integrations"}
         organizationId={organizationId}
+        organizationName={organization?.name ?? "Your workspace"}
         routingRules={routingRules}
         syncCronConfig={syncCronConfig}
         replyAutomation={replyAutomation}

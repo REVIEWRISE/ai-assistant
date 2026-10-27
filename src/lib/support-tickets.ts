@@ -7,7 +7,11 @@ export const SUPPORT_TICKET_STATUSES = [
 
 export type SupportTicketStatus = (typeof SUPPORT_TICKET_STATUSES)[number];
 
-export type SupportMessageAuthorRole = "user" | "admin";
+export type SupportMessageAuthorRole = "user" | "admin" | "ai";
+
+/** Fixed system account used as authorId for AI support replies. */
+export const SUPPORT_AI_USER_EMAIL = "support-ai@system.local";
+export const SUPPORT_AI_USER_ID = "c0ffee00-a100-4000-8000-0000000000a1";
 
 const STATUS_LABELS: Record<SupportTicketStatus, string> = {
   pending: "Pending",
@@ -80,7 +84,9 @@ export function supportTicketHasUnread(input: {
   if (Number.isNaN(lastMessageMs)) return false;
 
   if (input.viewer === "user") {
-    if (input.lastMessageAuthorRole !== "admin") return false;
+    if (input.lastMessageAuthorRole !== "admin" && input.lastMessageAuthorRole !== "ai") {
+      return false;
+    }
     if (!input.requesterLastReadAt) return true;
     const readMs = new Date(input.requesterLastReadAt).getTime();
     return Number.isNaN(readMs) ? true : lastMessageMs > readMs;

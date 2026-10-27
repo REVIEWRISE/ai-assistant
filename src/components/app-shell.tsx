@@ -7,6 +7,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { TopHeader } from "@/components/top-header";
 import { NavAccessGuard } from "@/components/nav-access-guard";
 import { BillingAccessGuard } from "@/components/billing-access-guard";
+import { SupportChatWidget } from "@/components/support-chat-widget";
 import { APP_NAV_ITEMS } from "@/lib/nav-config";
 import { filterNavItemsByPermissions, isHrefAllowedForNav } from "@/lib/nav-access";
 
@@ -75,6 +76,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/billing/canceled/");
   const isChromeFreeBillingGate =
     isOnboardingPlan || isBillingExpiredWall || isBillingCheckoutReturn;
+  const showSupportChat =
+    allowedNavPaths !== null &&
+    !authRoute &&
+    !isPublicLanding &&
+    !isEmbedRoute &&
+    !isOnboardingPlan &&
+    profileRole !== "Admin";
 
   const visibleNavItems = useMemo(() => {
     const set = allowedNavPaths === null ? new Set<string>() : new Set(allowedNavPaths);
@@ -225,6 +233,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           isAdmin={profileRole === "Admin"}
         />
         <main className="min-h-screen overflow-y-auto">{children}</main>
+        <SupportChatWidget enabled={showSupportChat} />
       </div>
     );
   }
@@ -299,6 +308,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <AppFooter organization={profileOrg} role={profileRole} />
         </div>
       </div>
+      <SupportChatWidget enabled={showSupportChat} />
     </div>
   );
 }
