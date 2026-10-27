@@ -83,19 +83,6 @@ export default async function AppointmentChatbotPage() {
         description="Configure the website assistant, booking questions, voice experience, and CRM delivery for each organization."
         status={activeOrganization ? `Active: ${activeOrganization.name}` : "No active organization"}
         statusTone={activeOrganization ? "success" : "warning"}
-        actions={[
-          { href: "/appointments/organization", label: "Manage organizations" },
-          ...(activeOrganization
-            ? [
-                {
-                  href: `/embed/chatbot?org=${activeOrganization.id}`,
-                  label: "Test active assistant",
-                  primary: true,
-                  external: true,
-                },
-              ]
-            : []),
-        ]}
         metrics={[
           { label: "Organizations", value: totalOrganizations },
           { label: "Assistants configured", value: `${configuredAssistants}/${totalOrganizations}` },

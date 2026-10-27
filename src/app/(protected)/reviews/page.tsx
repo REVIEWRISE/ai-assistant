@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { ReviewsTabs } from "@/components/reviews-tabs";
 import { ReviewsPageAlerts } from "@/components/reviews-page-alerts";
-import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { prisma } from "@/lib/prisma";
 import { isOAuthProviderConfig } from "@/lib/google-oauth";
 import {
@@ -270,14 +269,6 @@ export default async function ReviewsPage() {
     };
   });
 
-  const totals = {
-    total: reviewRows.length,
-    pending: reviewRows.filter((r) => r.status.toLowerCase() === "pending").length,
-    autoReady: reviewRows.filter(
-      (r) => r.status.toLowerCase() === "pending" && isAutoReadyPendingReview(r.rating, routingRules),
-    ).length,
-  };
-
   const connectedSources = reviewServices.filter((service) => service.status === "Connected").length;
 
   return (
@@ -285,55 +276,6 @@ export default async function ReviewsPage() {
       <Suspense fallback={null}>
         <ReviewsPageAlerts />
       </Suspense>
-      <AppointmentPageHeader
-        variant="command"
-        eyebrow="Review Response"
-        title={
-          connectedSources > 0
-            ? organization?.name
-              ? `${organization.name} replies`
-              : "Your review assistant"
-            : "Your review assistant"
-        }
-        description={
-          connectedSources > 0 ? (
-            <>
-              Draft, approve, and publish replies that sound like {organization?.name ?? "your team"} on every
-              connected review source.
-            </>
-          ) : (
-            <>
-              Connect a review source so {organization?.name ?? "your workspace"} can start answering with a
-              consistent voice.
-            </>
-          )
-        }
-        status={
-          connectedSources > 0
-            ? totals.pending > 0
-              ? `${totals.pending} awaiting reply`
-              : "Assistant ready"
-            : "Connect a source"
-        }
-        statusTone={connectedSources > 0 ? "success" : "warning"}
-        actions={[
-          ...(connectedSources > 0
-            ? [
-                {
-                  href: "/reviews?tab=workflow",
-                  label: totals.pending > 0 ? `Open inbox · ${totals.pending}` : "Open inbox",
-                  primary: true,
-                },
-              ]
-            : [{ href: "/reviews?tab=integrations", label: "Connect source", primary: true }]),
-        ]}
-        metrics={[
-          { label: "Total reviews", value: totals.total, hint: "all connected sources" },
-          { label: "Awaiting", value: totals.pending, hint: totals.pending > 0 ? "responses need attention" : "inbox is clear" },
-          { label: "Auto-ready", value: totals.autoReady, hint: "safe to publish" },
-          { label: "Connected sources", value: connectedSources, hint: `${Math.max(0, reviewServices.length - connectedSources)} need setup` },
-        ]}
-      />
 
       <ReviewsTabs
         defaultTab={connectedSources > 0 ? "workflow" : "integrations"}

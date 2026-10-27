@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { VoiceAgentPhoneSettings } from "@/components/voice-agent-phone-settings";
-import { VoiceAgentRetellSettings } from "@/components/voice-agent-retell-settings";
+import {
+  VoiceAgentAssistantCard,
+  VoiceAgentRetellSettings,
+  type VoiceAgentSectionKey,
+} from "@/components/voice-agent-retell-settings";
 import { VoiceAgentAnalytics, type CallItem } from "@/components/voice-agent-analytics";
 import type { RetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import type { OrgRetellPhoneNumber } from "@/lib/retell-phone-numbers";
@@ -118,11 +122,20 @@ export function VoiceAgentTabs({
     requestedTab && tabAllowed(requestedTab, canManageAgent, canManagePhone)
       ? requestedTab
       : defaultTab;
+  const [focusSection, setFocusSection] = useState<VoiceAgentSectionKey | null>(null);
+  const [focusToken, setFocusToken] = useState(0);
+  const hasAgent = Boolean(retellConfig.retellAgentId.trim());
 
   function selectTab(tab: TabKey) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", tab);
     router.replace(`/voice-agent?${params.toString()}`, { scroll: false });
+  }
+
+  function openAgentSection(section: VoiceAgentSectionKey) {
+    setFocusSection(section);
+    setFocusToken((token) => token + 1);
+    selectTab("agent");
   }
 
   useEffect(() => {
@@ -139,30 +152,47 @@ export function VoiceAgentTabs({
 
   return (
     <section className="space-y-4">
+      <VoiceAgentAssistantCard
+        organizationName={organizationName}
+        config={retellConfig}
+        knowledge={knowledge}
+        knowledgeConfig={knowledgeConfig}
+        remoteAgentMissing={remoteAgentMissing}
+        voiceCatalog={voiceCatalog}
+        onSetup={() => openAgentSection(hasAgent ? "voice" : "setup")}
+        onKnowledge={() => openAgentSection("knowledge")}
+        onPhone={() => selectTab("phone")}
+        onBooking={() => openAgentSection("booking")}
+      />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
-      {tabs.length > 1 ? (
-        <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1" role="tablist" aria-label="Voice operations">
-          {tabs.map((tab) => {
-            const active = activeTab === tab.key;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => selectTab(tab.key)}
-                className={`whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
-                  active
-                    ? "bg-[var(--color-bg)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border)]"
-                    : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-text)]"
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
+        {tabs.length > 1 ? (
+          <div
+            className="inline-flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1"
+            role="tablist"
+            aria-label="Voice operations"
+          >
+            {tabs.map((tab) => {
+              const active = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => selectTab(tab.key)}
+                  className={`whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
+                    active
+                      ? "bg-[var(--color-bg)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border)]"
+                      : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-text)]"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
         {readOnly ? (
           <span className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
             View-only access
@@ -195,6 +225,8 @@ export function VoiceAgentTabs({
           onPullFromRetell={onPullFromRetell}
           onGenerateOpeningMessage={onGenerateOpeningMessage}
           onGenerateSystemPrompt={onGenerateSystemPrompt}
+          focusSection={focusSection}
+          focusToken={focusToken}
         />
         </fieldset>
       ) : null}

@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { VoiceAgentPageAlerts } from "@/components/voice-agent-page-alerts";
 import { VoiceAgentTabs } from "@/components/voice-agent-tabs";
 import { prisma } from "@/lib/prisma";
@@ -160,32 +159,7 @@ export default async function VoiceAgentPage() {
     transcript: call.transcript,
     createdAt: call.createdAt.toISOString(),
   }));
-  const callsReceived = phoneStats.reduce((sum, phone) => sum + phone.callsReceived, 0);
-  const phoneBookings = phoneStats.reduce((sum, phone) => sum + phone.bookingsCount, 0);
   const voiceMinutes = await getOrgVoiceMinutesUsage(org.id);
-  const agentReady =
-    Boolean(localSettings.retell.retellAgentId.trim()) && !remoteAgentMissing;
-  const voiceStatus = !retellApiConfigured
-    ? "Voice service setup required"
-    : !voiceMinutes.voiceIncluded
-      ? "Upgrade required for voice"
-    : voiceMinutes.minutesExhausted
-      ? "Calling minutes exhausted"
-    : remoteAgentMissing
-      ? "Agent connection needs repair"
-    : !agentReady
-      ? "Agent setup required"
-    : phones.length === 0
-      ? "Agent connected · add a phone line"
-      : "Agent connected";
-  const voiceStatusTone: "success" | "warning" =
-    retellApiConfigured &&
-    voiceMinutes.voiceIncluded &&
-    agentReady &&
-    !remoteAgentMissing &&
-    !voiceMinutes.minutesExhausted
-      ? "success"
-      : "warning";
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
@@ -202,63 +176,6 @@ export default async function VoiceAgentPage() {
           }
         />
       </Suspense>
-
-      <AppointmentPageHeader
-        variant="command"
-        eyebrow="Voice Support"
-        title={
-          agentReady && localSettings.retell.agentName.trim()
-            ? localSettings.retell.agentName.trim()
-            : "Your voice agent"
-        }
-        description={
-          agentReady ? (
-            <>
-              The voice of {org.name} on every inbound call — review lines, tune the agent, and keep
-              callers feeling looked after.
-            </>
-          ) : (
-            <>
-              Set up the phone agent that represents {org.name}. Callers should hear a voice that
-              sounds like your team.
-            </>
-          )
-        }
-        status={voiceStatus}
-        statusTone={voiceStatusTone}
-        actions={[
-          {
-            href: "/voice-agent?tab=agent",
-            label: agentReady ? "Configure agent" : "Set up agent",
-            primary: !agentReady || phones.length > 0,
-          },
-          {
-            href: "/voice-agent?tab=phone",
-            label: phones.length > 0 ? "Manage phone lines" : "Add phone line",
-            primary: agentReady && phones.length === 0,
-          },
-        ]}
-        metrics={[
-          { label: "Phone lines", value: phones.length, hint: primaryPhone ? "primary line active" : "no primary line" },
-          { label: "Calls received", value: callsReceived, hint: "last 30 days" },
-          { label: "Bookings by phone", value: phoneBookings, hint: "last 30 days" },
-          {
-            label: "Calling minutes",
-            value: voiceMinutes.voiceIncluded
-              ? voiceMinutes.enforced
-                ? `${voiceMinutes.usedMinutes}/${voiceMinutes.includedMinutes}`
-                : voiceMinutes.usedMinutes
-              : "Not included",
-            hint: !voiceMinutes.voiceIncluded
-              ? "Pro Voice plan required"
-              : voiceMinutes.enforced
-                ? voiceMinutes.minutesExhausted
-                  ? "limit reached this period"
-                  : `${voiceMinutes.remainingMinutes} min left this period`
-                : "no minute cap on this plan",
-          },
-        ]}
-      />
 
       <VoiceAgentTabs
         organizationId={org.id}

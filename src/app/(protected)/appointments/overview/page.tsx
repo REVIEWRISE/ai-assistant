@@ -1,5 +1,4 @@
 import { AppointmentsTabs } from "@/components/appointments-tabs";
-import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { parseBookingFlowQaPayload, type BookingFlowQaItem } from "@/lib/booking-flow-qa";
 import { requireSession } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
@@ -346,52 +345,6 @@ export default async function AppointmentsOverviewPage({
         </div>
       ) : null}
 
-      <AppointmentPageHeader
-        variant="command"
-        eyebrow="Appointment Agent"
-        title={
-          assistantReady
-            ? `${activeOrganization.name} bookings`
-            : "Your booking assistant"
-        }
-        description={
-          assistantReady ? (
-            <>
-              Keep calendars, bookings, and delivery healthy for {activeOrganization.name} — the
-              assistant that turns availability into confirmed appointments.
-            </>
-          ) : (
-            <>
-              Set up the booking assistant for {activeOrganization.name}. Connect a calendar and
-              configure how visitors book with you.
-            </>
-          )
-        }
-        status={
-          assistantReady
-            ? upcomingNext24h > 0
-              ? `${upcomingNext24h} upcoming today`
-              : "Assistant ready"
-            : connectedProviders > 0
-              ? "Configure assistant"
-              : "Calendar setup needed"
-        }
-        statusTone={assistantReady ? "success" : "warning"}
-        actions={[
-          {
-            href: assistantReady ? "/appointments/chatbot" : connectedProviders > 0 ? "/appointments/chatbot" : "/appointments/organization",
-            label: assistantReady ? "Configure assistant" : connectedProviders > 0 ? "Set up assistant" : "Connect calendar",
-            primary: true,
-          },
-        ]}
-        metrics={[
-          { label: "Calendar providers", value: connectedProviders, hint: connectedProviders > 0 ? "Ready for availability checks" : "Connect a calendar" },
-          { label: "Upcoming · 24h", value: upcomingNext24h, hint: upcomingNext24h > 0 ? "Needs attention today" : "No bookings today" },
-          { label: "Upcoming · 7d", value: upcomingNext7d, hint: upcomingNext7d > 0 ? "Scheduled this week" : "Week is currently open" },
-          { label: "Voice bookings", value: phoneBookingsTotal, hint: phoneBookingsTotal > 0 ? "Captured by Voice AI" : "No voice bookings yet" },
-        ]}
-      />
-
       <div className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
         <div className="relative overflow-hidden bg-[linear-gradient(160deg,#0c0c0c_0%,#171717_48%,#222222_100%)] px-5 pb-5 pt-7 text-white sm:px-6 sm:pt-8">
           <div
@@ -400,7 +353,10 @@ export default async function AppointmentsOverviewPage({
           />
 
           <div className="relative flex flex-col items-center text-center">
-            <div className="flex items-center gap-3 sm:gap-5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+              Appointment Agent
+            </p>
+            <div className="mt-4 flex items-center gap-3 sm:gap-5">
               <div className="flex h-12 items-end gap-[3px]" aria-hidden>
                 {waveformBars.map((height, index) => (
                   <span
@@ -452,9 +408,9 @@ export default async function AppointmentsOverviewPage({
               </div>
             </div>
 
-            <h2 className="mt-4 text-[1.4rem] font-semibold tracking-[-0.025em] text-white sm:text-[1.55rem]">
-              {activeOrganization.name} bookings
-            </h2>
+            <h1 className="mt-4 text-[1.4rem] font-semibold tracking-[-0.025em] text-white sm:text-[1.55rem]">
+              {assistantReady ? `${activeOrganization.name} bookings` : "Your booking assistant"}
+            </h1>
             <p className="mt-1.5 text-[13px] text-neutral-400">{identityLine}</p>
             <p className="mt-1 max-w-lg text-[12px] leading-relaxed text-neutral-500">
               {assistantInfo}
@@ -486,17 +442,27 @@ export default async function AppointmentsOverviewPage({
 
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
               <Link
-                href="/appointments/chatbot"
+                href={
+                  connectedProviders > 0
+                    ? "/appointments/chatbot"
+                    : "/appointments/overview?tab=integrations#appointment-operations"
+                }
                 className="rounded-xl bg-white px-3.5 py-2 text-[12px] font-semibold text-neutral-950 transition hover:bg-neutral-200"
               >
-                {Boolean(chatbotSettings) ? "Configure assistant" : "Set up assistant"}
+                {connectedProviders === 0
+                  ? "Connect calendar"
+                  : Boolean(chatbotSettings)
+                    ? "Configure assistant"
+                    : "Set up assistant"}
               </Link>
-              <Link
-                href="/appointments/organization"
-                className="rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
-              >
-                Calendars
-              </Link>
+              {connectedProviders > 0 ? (
+                <Link
+                  href="/appointments/overview?tab=integrations#appointment-operations"
+                  className="rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
+                >
+                  Calendars
+                </Link>
+              ) : null}
               <Link
                 href="/appointments/knowledge-base"
                 className="rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
