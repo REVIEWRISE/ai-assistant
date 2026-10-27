@@ -334,8 +334,7 @@ export default async function AppointmentsOverviewPage({
         status={connectedProviders > 0 ? "Calendar connected" : "Calendar setup needed"}
         statusTone={connectedProviders > 0 ? "success" : "warning"}
         actions={[
-          { href: "/appointments/chatbot", label: "Configure assistant" },
-          { href: `/embed/chatbot?org=${activeOrganization.id}`, label: "Test booking flow", primary: true, external: true },
+          { href: "/appointments/chatbot", label: "Configure assistant", primary: true },
         ]}
         metrics={[
           { label: "Calendar providers", value: connectedProviders, hint: connectedProviders > 0 ? "Ready for availability checks" : "Connect a calendar" },

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
+import { userHasAdminRole } from "@/lib/admin-view-only";
 import { requireSession } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import { writePlatformAudit } from "@/lib/platform-audit";
@@ -24,6 +25,9 @@ function cleanBody(value: FormDataEntryValue | null, max: number): string {
 
 export async function createSupportTicket(formData: FormData): Promise<SupportActionResult> {
   const session = await requireSession();
+  if (await userHasAdminRole(session.userId)) {
+    return { ok: false, error: "Platform admins handle the inbox — they can’t open new requests." };
+  }
   const organizationId = session.activeOrganizationId;
   if (!organizationId) {
     return { ok: false, error: "Select a workspace before contacting support." };
@@ -67,6 +71,9 @@ export async function createSupportTicket(formData: FormData): Promise<SupportAc
 
 export async function replyToSupportTicket(formData: FormData): Promise<SupportActionResult> {
   const session = await requireSession();
+  if (await userHasAdminRole(session.userId)) {
+    return { ok: false, error: "Use the platform support inbox to reply as support." };
+  }
   const ticketId = String(formData.get("ticket_id") ?? "").trim();
   const body = cleanBody(formData.get("body"), 5000);
   if (!ticketId) return { ok: false, error: "Ticket is required." };

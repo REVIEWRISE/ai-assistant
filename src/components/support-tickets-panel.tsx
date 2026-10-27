@@ -25,7 +25,6 @@ type StatusFilter = "all" | SupportTicketStatus;
 const FILTERS: Array<{ id: StatusFilter; label: string }> = [
   { id: "all", label: "All" },
   { id: "pending", label: "Pending" },
-  { id: "accepted", label: "Accepted" },
   { id: "in_progress", label: "In progress" },
   { id: "completed", label: "Completed" },
   { id: "rejected", label: "Rejected" },
@@ -94,7 +93,6 @@ export function SupportTicketsPanel({
     const next: Record<StatusFilter, number> = {
       all: tickets.length,
       pending: 0,
-      accepted: 0,
       in_progress: 0,
       completed: 0,
       rejected: 0,

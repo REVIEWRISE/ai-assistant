@@ -171,18 +171,18 @@ export default async function VoiceAgentPage() {
       ? "Upgrade required for voice"
     : voiceMinutes.minutesExhausted
       ? "Calling minutes exhausted"
+    : remoteAgentMissing
+      ? "Agent connection needs repair"
+    : !agentReady
+      ? "Agent setup required"
     : phones.length === 0
-      ? "Phone line required"
-      : remoteAgentMissing
-        ? "Agent connection needs repair"
-      : agentReady
-        ? "Voice agent operational"
-        : "Agent setup required";
+      ? "Agent connected · add a phone line"
+      : "Agent connected";
   const voiceStatusTone: "success" | "warning" =
     retellApiConfigured &&
     voiceMinutes.voiceIncluded &&
-    phones.length > 0 &&
     agentReady &&
+    !remoteAgentMissing &&
     !voiceMinutes.minutesExhausted
       ? "success"
       : "warning";
@@ -206,8 +206,24 @@ export default async function VoiceAgentPage() {
       <AppointmentPageHeader
         variant="command"
         eyebrow="Voice Support"
-        title="Voice operations"
-        description={<>Configure and monitor the AI phone agent serving {org.name}.</>}
+        title={
+          agentReady && localSettings.retell.agentName.trim()
+            ? localSettings.retell.agentName.trim()
+            : "Your voice agent"
+        }
+        description={
+          agentReady ? (
+            <>
+              The voice of {org.name} on every inbound call — review lines, tune the agent, and keep
+              callers feeling looked after.
+            </>
+          ) : (
+            <>
+              Set up the phone agent that represents {org.name}. Callers should hear a voice that
+              sounds like your team.
+            </>
+          )
+        }
         status={voiceStatus}
         statusTone={voiceStatusTone}
         actions={[

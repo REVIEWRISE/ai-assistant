@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS support_tickets (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT support_tickets_status_check
-    CHECK (status IN ('pending', 'accepted', 'in_progress', 'completed', 'rejected'))
+    CHECK (status IN ('pending', 'in_progress', 'completed', 'rejected'))
 );
 
 CREATE INDEX IF NOT EXISTS support_tickets_organization_id_idx

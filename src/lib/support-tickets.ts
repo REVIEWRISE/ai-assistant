@@ -1,6 +1,5 @@
 export const SUPPORT_TICKET_STATUSES = [
   "pending",
-  "accepted",
   "in_progress",
   "completed",
   "rejected",
@@ -12,7 +11,6 @@ export type SupportMessageAuthorRole = "user" | "admin";
 
 const STATUS_LABELS: Record<SupportTicketStatus, string> = {
   pending: "Pending",
-  accepted: "Accepted",
   in_progress: "In progress",
   completed: "Completed",
   rejected: "Rejected",
@@ -20,8 +18,7 @@ const STATUS_LABELS: Record<SupportTicketStatus, string> = {
 
 /** Admin-driven transitions. Users only create tickets and reply while open. */
 const ADMIN_TRANSITIONS: Record<SupportTicketStatus, SupportTicketStatus[]> = {
-  pending: ["accepted", "rejected"],
-  accepted: ["in_progress", "completed", "rejected"],
+  pending: ["in_progress", "completed", "rejected"],
   in_progress: ["completed", "rejected"],
   completed: [],
   rejected: [],
@@ -41,17 +38,16 @@ export function supportTicketStatusLabel(status: string): string {
 
 export function isSupportTicketOpen(status: string): boolean {
   const normalized = asSupportTicketStatus(status);
-  return normalized === "pending" || normalized === "accepted" || normalized === "in_progress";
+  return normalized === "pending" || normalized === "in_progress";
 }
 
 export function canUserReplyToSupportTicket(status: string): boolean {
   return isSupportTicketOpen(status);
 }
 
-/** Admins must accept before messaging; replies allowed while accepted or in progress. */
+/** Admins can reply while the request is pending or in progress. */
 export function canAdminReplyToSupportTicket(status: string): boolean {
-  const normalized = asSupportTicketStatus(status);
-  return normalized === "accepted" || normalized === "in_progress";
+  return isSupportTicketOpen(status);
 }
 
 export function canAdminTransitionSupportTicket(

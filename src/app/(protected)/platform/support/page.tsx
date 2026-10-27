@@ -31,9 +31,7 @@ export default async function PlatformSupportPage() {
   });
 
   const pendingCount = tickets.filter((ticket) => ticket.status === "pending").length;
-  const inProgressCount = tickets.filter((ticket) =>
-    ["accepted", "in_progress"].includes(ticket.status),
-  ).length;
+  const inProgressCount = tickets.filter((ticket) => ticket.status === "in_progress").length;
   const completedCount = tickets.filter((ticket) => ticket.status === "completed").length;
   const unreadCount = tickets.filter((ticket) =>
     supportTicketHasUnread({
@@ -51,13 +49,13 @@ export default async function PlatformSupportPage() {
         variant="command"
         eyebrow="Platform"
         title="Support inbox"
-        description="Review help requests from workspaces, reply in-thread, and move each request through acceptance, progress, completion, or rejection."
+        description="Review help requests from workspaces, reply in-thread, and move each request through progress, completion, or rejection."
         status={unreadCount > 0 ? `${unreadCount} unread` : `${pendingCount} pending`}
         statusTone={unreadCount > 0 || pendingCount > 0 ? "warning" : "success"}
         metrics={[
           { label: "Unread", value: unreadCount, hint: "needs attention" },
-          { label: "Pending", value: pendingCount, hint: "awaiting accept" },
-          { label: "Active", value: inProgressCount, hint: "accepted / in progress" },
+          { label: "Pending", value: pendingCount, hint: "awaiting reply" },
+          { label: "Active", value: inProgressCount, hint: "in progress" },
           { label: "Completed", value: completedCount, hint: "resolved" },
         ]}
       />

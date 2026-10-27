@@ -381,48 +381,98 @@ export function VoiceAgentRetellSettings({
 
       <div className={`relative min-h-[28rem] ${agentConfigLocked ? "overflow-hidden rounded-2xl" : ""}`}>
         <div className={agentConfigLocked ? "pointer-events-none select-none" : undefined}>
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-5 shadow-[var(--shadow-sm)] lg:px-6">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Configuration workspace</p>
-          <h2 className="mt-1.5 text-lg font-semibold tracking-[-0.015em] text-[var(--color-text)]">Agent settings</h2>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">Work through each section, then save and synchronize from the action bar below.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-        <span
-          className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-            config.enabled ? "vr-app-status-success" : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
-          }`}
-        >
-          {config.enabled ? "Configuration active" : "Configuration paused"}
-        </span>
-        <span
-          className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-            remoteAgentMissing
-              ? "vr-app-status-warning"
-              : hasAgent
-              ? "bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]"
-              : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
-          }`}
-        >
-          {remoteAgentMissing ? "Agent missing" : hasAgent ? "Agent connected" : "Agent not linked"}
-        </span>
-        <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${statusTone(knowledge.status)}`}>
-          KB: {statusLabel(knowledge.status)}
-        </span>
-        <span
-          className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-            knowledgeConfig.enablePhoneBooking
-              ? "vr-app-status-success"
-              : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
-          }`}
-        >
-          Voice booking: {knowledgeConfig.enablePhoneBooking ? "On" : "Off"}
-        </span>
-        {!retellApiConfigured ? (
-          <span className="rounded-full bg-[var(--color-raised)] px-2.5 py-1 text-[10px] font-semibold text-[var(--color-text-muted)]">
-            Voice service API not configured
-          </span>
-        ) : null}
+      <div className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+        <div className="relative overflow-hidden border-b border-white/10 bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 py-6 text-white lg:px-6">
+          <div
+            className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-white/10 blur-3xl"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -bottom-24 left-1/4 size-40 rounded-full bg-white/5 blur-3xl"
+            aria-hidden
+          />
+
+          <div className="relative flex flex-wrap items-start justify-between gap-5">
+            <div className="flex min-w-0 items-start gap-4">
+              <span
+                className="mt-0.5 flex size-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white"
+                aria-hidden
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="size-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+                  <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+                  <path d="M12 18v4M8 22h8" />
+                </svg>
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+                  Voice agent · {organizationName}
+                </p>
+                <h2 className="mt-1.5 text-[1.35rem] font-semibold tracking-[-0.02em] text-white">
+                  {hasAgent && config.agentName.trim()
+                    ? config.agentName.trim()
+                    : `Voice of ${organizationName}`}
+                </h2>
+                <p className="mt-1.5 max-w-xl text-[13px] leading-relaxed text-neutral-400">
+                  {remoteAgentMissing
+                    ? `Repair the agent link so ${organizationName} keeps answering calls.`
+                    : hasAgent
+                      ? `Tune how ${organizationName} greets callers, what it knows, and how bookings work.`
+                      : `Set the name, voice, and knowledge callers hear when they reach ${organizationName}.`}
+                </p>
+              </div>
+            </div>
+
+            <span
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                remoteAgentMissing
+                  ? "border-amber-400/30 bg-amber-400/15 text-amber-100"
+                  : hasAgent
+                    ? "border-emerald-400/30 bg-emerald-400/15 text-emerald-100"
+                    : "border-white/15 bg-white/10 text-neutral-300"
+              }`}
+            >
+              <span
+                className={`size-1.5 rounded-full ${
+                  remoteAgentMissing
+                    ? "bg-amber-300"
+                    : hasAgent
+                      ? "bg-emerald-300"
+                      : "bg-neutral-400"
+                }`}
+                aria-hidden
+              />
+              {remoteAgentMissing ? "Needs repair" : hasAgent ? "Agent connected" : "Not linked yet"}
+            </span>
+          </div>
+
+          <div className="relative mt-5 grid gap-3 border-t border-white/10 pt-4 sm:grid-cols-3">
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/45">Status</p>
+              <p className="mt-0.5 text-[12px] font-medium text-white/90">
+                {config.enabled ? "Live for callers" : "Paused"}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/45">Knowledge</p>
+              <p className="mt-0.5 text-[12px] font-medium text-white/90">{statusLabel(knowledge.status)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/45">Voice booking</p>
+              <p className="mt-0.5 text-[12px] font-medium text-white/90">
+                {knowledgeConfig.enablePhoneBooking ? "On" : "Off"}
+                {!retellApiConfigured ? " · API missing" : ""}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 

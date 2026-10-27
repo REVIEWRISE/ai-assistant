@@ -67,12 +67,6 @@ function statusTone(status: string): { className: string; dot: string } {
           "border-violet-200 bg-violet-50 text-violet-900 [[data-theme=dark]_&]:border-violet-500/35 [[data-theme=dark]_&]:bg-violet-500/20 [[data-theme=dark]_&]:text-violet-100",
         dot: "bg-violet-600 [[data-theme=dark]_&]:bg-violet-400",
       };
-    case "accepted":
-      return {
-        className:
-          "border-sky-200 bg-sky-50 text-sky-900 [[data-theme=dark]_&]:border-sky-500/35 [[data-theme=dark]_&]:bg-sky-500/20 [[data-theme=dark]_&]:text-sky-100",
-        dot: "bg-sky-600 [[data-theme=dark]_&]:bg-sky-400",
-      };
     case "in_progress":
       return {
         className:
@@ -102,7 +96,6 @@ function statusTone(status: string): { className: string; dot: string } {
 
 const NEXT_STATUS_LABELS: Record<SupportTicketStatus, string> = {
   pending: "Pending",
-  accepted: "Accept request",
   in_progress: "Mark in progress",
   completed: "Mark completed",
   rejected: "Reject request",
@@ -110,7 +103,6 @@ const NEXT_STATUS_LABELS: Record<SupportTicketStatus, string> = {
 
 const NEXT_STATUS_HINTS: Record<SupportTicketStatus, string> = {
   pending: "",
-  accepted: "Open the request and unlock replies",
   in_progress: "You’re actively working on this",
   completed: "Close as resolved",
   rejected: "Decline with a reason",
@@ -460,9 +452,7 @@ export function SupportTicketThread({
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-[12px] leading-relaxed text-[var(--color-text-muted)]">
-              {mode === "admin" && ticket.status === "pending"
-                ? "Accept this request from the status menu to unlock replies."
-                : "This request is closed. Start a new request from Support if you still need help."}
+              This request is closed. Start a new request from Support if you still need help.
             </div>
           )}
         </div>
