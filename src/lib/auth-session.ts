@@ -20,28 +20,26 @@ const sessionSelect = {
 
 export type AppSession = NonNullable<Awaited<ReturnType<typeof getValidSession>>>;
 
-/** Prefer an existing membership; admins may fall back to any workspace. */
+/**
+ * Prefer an existing membership for regular users.
+ * Admins default to null (“All workspaces”) so ops screens stay global until they pick one.
+ */
 export async function resolveDefaultOrganizationId(userId: string): Promise<string | null> {
+  if (await userHasAdminRole(userId)) {
+    return null;
+  }
+
   const membership = await prisma.organizationMember.findFirst({
     where: { userId },
     select: { organizationId: true },
     orderBy: { createdAt: "asc" },
   });
-  if (membership?.organizationId) return membership.organizationId;
-
-  if (await userHasAdminRole(userId)) {
-    const organization = await prisma.organization.findFirst({
-      select: { id: true },
-      orderBy: { name: "asc" },
-    });
-    return organization?.id ?? null;
-  }
-
-  return null;
+  return membership?.organizationId ?? null;
 }
 
 /**
  * If the session has no usable active organization, pick a default and persist it.
+ * Admins may keep null for the global “All workspaces” view.
  * Fixes deploy/login cases where the header shows a workspace but the session is unset.
  */
 export async function ensureSessionHasActiveOrganization<
@@ -54,6 +52,18 @@ export async function ensureSessionHasActiveOrganization<
 >(session: T): Promise<T & { activeOrganizationId: string | null }> {
   if (session.activeOrganizationId && session.activeOrganization) {
     return session;
+  }
+
+  const isAdmin = await userHasAdminRole(session.userId);
+  if (isAdmin) {
+    if (session.activeOrganizationId && !session.activeOrganization) {
+      await prisma.session.update({
+        where: { id: session.id },
+        data: { activeOrganizationId: null },
+      });
+      return { ...session, activeOrganizationId: null, activeOrganization: null };
+    }
+    return { ...session, activeOrganizationId: null };
   }
 
   const nextOrganizationId = await resolveDefaultOrganizationId(session.userId);
@@ -137,4 +147,23 @@ export async function requireAdminSession(): Promise<AppSession> {
 
   if (!adminRole) redirect("/dashboard");
   return session;
+}
+
+export type ActiveOrganizationSession = AppSession & {
+  activeOrganizationId: string;
+  activeOrganization: NonNullable<AppSession["activeOrganization"]>;
+};
+
+/**
+ * Product modules (appointments, reviews, voice) need one concrete workspace.
+ * “All workspaces” is only for admin ops screens — redirect to the picker otherwise.
+ */
+export async function requireActiveOrganization(
+  redirectTo = "/appointments/organization?error=organization_required",
+): Promise<ActiveOrganizationSession> {
+  const session = await requireSession();
+  if (!session.activeOrganizationId || !session.activeOrganization) {
+    redirect(redirectTo);
+  }
+  return session as ActiveOrganizationSession;
 }

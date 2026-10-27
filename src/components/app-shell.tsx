@@ -10,6 +10,10 @@ import { BillingAccessGuard } from "@/components/billing-access-guard";
 import { SupportChatWidget } from "@/components/support-chat-widget";
 import { APP_NAV_ITEMS } from "@/lib/nav-config";
 import { filterNavItemsByPermissions, isHrefAllowedForNav } from "@/lib/nav-access";
+import {
+  ADMIN_ALL_WORKSPACES,
+  isAdminAllWorkspacesValue,
+} from "@/lib/admin-organization-scope";
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") {
@@ -17,6 +21,26 @@ function isActive(pathname: string, href: string): boolean {
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/** Product modules that cannot run under admin “All workspaces”. */
+function isWorkspaceRequiredPath(pathname: string): boolean {
+  // Org picker is the place to choose a workspace while on All.
+  if (
+    pathname === "/appointments/organization" ||
+    pathname.startsWith("/appointments/organization/")
+  ) {
+    return false;
+  }
+
+  return (
+    pathname === "/appointments" ||
+    pathname.startsWith("/appointments/") ||
+    pathname === "/reviews" ||
+    pathname.startsWith("/reviews/") ||
+    pathname === "/voice-agent" ||
+    pathname.startsWith("/voice-agent/")
+  );
 }
 
 type MePayload = {
@@ -155,20 +179,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [authRoute, isPublicLanding, isEmbedRoute, isChromeFreeBillingGate, pathname, searchKey, loadSession]);
 
   const handleSwitchOrganization = async (organizationId: string) => {
-    if (!organizationId || organizationId === activeOrganizationId || switchingOrganization) return;
+    if (switchingOrganization) return;
+
+    const selectingAll = isAdminAllWorkspacesValue(organizationId);
+    if (selectingAll) {
+      if (profileRole !== "Admin" || activeOrganizationId === null) return;
+    } else if (!organizationId || organizationId === activeOrganizationId) {
+      return;
+    }
+
     setSwitchingOrganization(true);
     try {
       const res = await fetch("/api/me/organization", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organizationId }),
+        body: JSON.stringify({
+          organizationId: selectingAll ? ADMIN_ALL_WORKSPACES : organizationId,
+        }),
       });
       if (!res.ok) return;
-      const nextOrg = organizations.find((org) => org.id === organizationId);
-      if (nextOrg) setProfileOrg(nextOrg.name);
-      setActiveOrganizationId(organizationId);
+      if (selectingAll) {
+        setProfileOrg("All workspaces");
+        setActiveOrganizationId(null);
+      } else {
+        const nextOrg = organizations.find((org) => org.id === organizationId);
+        if (nextOrg) setProfileOrg(nextOrg.name);
+        setActiveOrganizationId(organizationId);
+      }
       await loadSession();
-      router.refresh();
+      // Leaving a product module on “All workspaces” would bounce to the org picker —
+      // go to the dashboard (global admin view) instead.
+      if (selectingAll && isWorkspaceRequiredPath(pathname)) {
+        router.replace("/dashboard");
+      } else {
+        router.refresh();
+      }
     } finally {
       setSwitchingOrganization(false);
     }

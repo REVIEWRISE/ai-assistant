@@ -1,11 +1,11 @@
+import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { AppointmentsTabs } from "@/components/appointments-tabs";
 import { parseBookingFlowQaPayload, type BookingFlowQaItem } from "@/lib/booking-flow-qa";
-import { requireSession } from "@/lib/auth-session";
+import { requireActiveOrganization } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import { getAppointmentAnalytics } from "@/lib/appointment-analytics";
 import { calendarConnectionDisplay, refreshCalendarConnectionsForUser } from "@/lib/calendar-oauth-connection";
 import { listOrgCalendarRoutes } from "@/lib/booking-org-gate";
-import { redirect } from "next/navigation";
 import { crmIntegrationIsDispatchReady, resolveCrmIntegrationConfig } from "@/lib/crm-integration";
 import { retryAppointmentCalendarSync, retryAppointmentCrmSync } from "./actions";
 import Link from "next/link";
@@ -126,9 +126,8 @@ export default async function AppointmentsOverviewPage({
   const successFlag = typeof sp.success === "string" ? sp.success : undefined;
   const errorFlag = typeof sp.error === "string" ? sp.error : undefined;
   const errorDetail = typeof sp.detail === "string" ? decodeURIComponent(sp.detail) : undefined;
-  const session = await requireSession();
+  const session = await requireActiveOrganization();
   const activeOrganization = session.activeOrganization;
-  if (!activeOrganization) redirect("/appointments/organization");
 
   const knowledgeBaseStatus = activeOrganization.knowledgeBase?.status ?? "empty";
   if (knowledgeBaseStatus !== "approved") {

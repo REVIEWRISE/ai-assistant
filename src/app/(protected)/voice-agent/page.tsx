@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { VoiceAgentPageAlerts } from "@/components/voice-agent-page-alerts";
 import { VoiceAgentTabs } from "@/components/voice-agent-tabs";
 import { prisma } from "@/lib/prisma";
-import { requireSession } from "@/lib/auth-session";
+import { requireActiveOrganization } from "@/lib/auth-session";
 import { isRetellApiConfigured } from "@/lib/retell-api";
 import {
   fetchRetellVoiceAgentConfig,
@@ -36,7 +36,7 @@ import { getOrgVoiceMinutesUsage } from "@/lib/voice-minutes";
 export const dynamic = "force-dynamic";
 
 export default async function VoiceAgentPage() {
-  const authSession = await requireSession();
+  const authSession = await requireActiveOrganization();
 
   const user = await prisma.user.findUnique({
     where: { id: authSession.userId },
@@ -54,40 +54,19 @@ export default async function VoiceAgentPage() {
     activeOrganizationId: authSession.activeOrganizationId,
   };
 
-  let org = null;
-  if (session.activeOrganizationId) {
-    org = await prisma.organization.findFirst({
-      where: { id: session.activeOrganizationId },
-      include: {
-        knowledgeBase: {
-          select: { status: true, rawText: true, sourceUrl: true, lastImportedAt: true },
-        },
-        voiceAgentSettings: {
-          select: { retellConfig: true, phoneConfig: true, knowledgeConfig: true },
-        },
+  const org = await prisma.organization.findFirst({
+    where: { id: session.activeOrganizationId },
+    include: {
+      knowledgeBase: {
+        select: { status: true, rawText: true, sourceUrl: true, lastImportedAt: true },
       },
-    });
-  }
+      voiceAgentSettings: {
+        select: { retellConfig: true, phoneConfig: true, knowledgeConfig: true },
+      },
+    },
+  });
 
-  if (!org) {
-    org = await prisma.organization.findFirst({
-      where: {
-        members: {
-          some: { userId: session.user.id },
-        },
-      },
-      include: {
-        knowledgeBase: {
-          select: { status: true, rawText: true, sourceUrl: true, lastImportedAt: true },
-        },
-        voiceAgentSettings: {
-          select: { retellConfig: true, phoneConfig: true, knowledgeConfig: true },
-        },
-      },
-    });
-  }
-
-  if (!org) redirect("/appointments/organization");
+  if (!org) redirect("/appointments/organization?error=organization_required");
 
   const retellApiConfigured = isRetellApiConfigured();
   const twilioForwardingConfigured = isTwilioForwardingConfigured();

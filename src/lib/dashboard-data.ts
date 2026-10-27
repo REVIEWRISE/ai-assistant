@@ -163,6 +163,13 @@ function heroCopyForRole(input: {
   isOwner: boolean;
 }): Pick<DashboardData, "heroEyebrow" | "heroTitle" | "heroTitleAccent" | "heroDescription"> {
   if (input.roleName === "Admin") {
+    if (input.organizationName) {
+      return {
+        heroEyebrow: input.organizationName,
+        heroTitle: "What needs attention",
+        heroDescription: `Ops and product stats for ${input.organizationName}. Switch the header to All workspaces for the full platform view.`,
+      };
+    }
     return {
       heroEyebrow: "Platform",
       heroTitle: "What needs attention",
@@ -619,16 +626,29 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
   if (isAdmin) {
     const since24HoursAgo = new Date();
     since24HoursAgo.setUTCDate(since24HoursAgo.getUTCDate() - 1);
+    const orgEventWhere = orgId ? { organizationId: orgId } : {};
+    const orgEntityWhere = orgId ? { id: orgId } : {};
 
     const [statusGroups, pendingRefunds, recentAudit, totalUsers, cancelingSoon] = await Promise.all([
       prisma.organization.groupBy({
         by: ["billingStatus"],
+        where: orgEntityWhere,
         _count: { _all: true },
       }),
-      prisma.refundRequest.count({ where: { status: "pending" } }),
-      prisma.auditEvent.count({ where: { createdAt: { gte: since24HoursAgo } } }),
-      prisma.user.count(),
-      prisma.organization.count({ where: { cancelAtPeriodEnd: true } }),
+      prisma.refundRequest.count({
+        where: { status: "pending", ...orgEventWhere },
+      }),
+      prisma.auditEvent.count({
+        where: { createdAt: { gte: since24HoursAgo }, ...orgEventWhere },
+      }),
+      prisma.user.count({
+        where: orgId
+          ? { organizationMembers: { some: { organizationId: orgId } } }
+          : undefined,
+      }),
+      prisma.organization.count({
+        where: { cancelAtPeriodEnd: true, ...orgEntityWhere },
+      }),
     ]);
 
     const countFor = (status: string) =>
@@ -643,11 +663,13 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
     platformStats.push(
       {
         id: "workspaces",
-        title: "Workspaces",
+        title: orgId ? "Workspace" : "Workspaces",
         value: totalOrgs,
-        hint: `${active} active · ${trialing} on trial${
-          cancelingSoon ? ` · ${cancelingSoon} canceling` : ""
-        }`,
+        hint: orgId
+          ? orgName ?? "Selected workspace"
+          : `${active} active · ${trialing} on trial${
+              cancelingSoon ? ` · ${cancelingSoon} canceling` : ""
+            }`,
         href: "/billing-admin/organizations",
       },
       {
@@ -676,7 +698,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
     );
 
     adminHeadline = [
-      { label: "Workspaces", value: totalOrgs },
+      { label: orgId ? "Workspace" : "Workspaces", value: totalOrgs },
       { label: "Expired", value: expired },
       { label: "Pending refunds", value: pendingRefunds },
       { label: "Users", value: totalUsers },

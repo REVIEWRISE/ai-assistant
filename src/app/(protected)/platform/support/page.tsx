@@ -1,15 +1,18 @@
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { SupportTicketsPanel } from "@/components/support-tickets-panel";
 import { requireAdminSession } from "@/lib/auth-session";
+import { adminOrgWhere } from "@/lib/admin-organization-scope";
 import { prisma } from "@/lib/prisma";
 import { supportTicketHasUnread } from "@/lib/support-tickets";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlatformSupportPage() {
-  await requireAdminSession();
+  const session = await requireAdminSession();
+  const orgWhere = adminOrgWhere(session.activeOrganizationId);
 
   const tickets = await prisma.supportTicket.findMany({
+    where: orgWhere,
     orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
     take: 500,
     select: {
@@ -42,6 +45,7 @@ export default async function PlatformSupportPage() {
       adminLastReadAt: ticket.adminLastReadAt,
     }),
   ).length;
+  const workspaceLabel = session.activeOrganization?.name;
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
@@ -49,7 +53,11 @@ export default async function PlatformSupportPage() {
         variant="command"
         eyebrow="Platform"
         title="Support inbox"
-        description="Review help requests from workspaces, reply in-thread, and move each request through progress, completion, or rejection."
+        description={
+          workspaceLabel
+            ? `Review help requests for ${workspaceLabel}, reply in-thread, and move each request through progress, completion, or rejection.`
+            : "Review help requests from workspaces, reply in-thread, and move each request through progress, completion, or rejection."
+        }
         status={unreadCount > 0 ? `${unreadCount} unread` : `${pendingCount} pending`}
         statusTone={unreadCount > 0 || pendingCount > 0 ? "warning" : "success"}
         metrics={[

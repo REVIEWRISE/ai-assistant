@@ -10,8 +10,7 @@ import {
   type ReviewIntegrationKind,
 } from "@/lib/review-provider-integration";
 import { yelpPartnerRepliesEnabled } from "@/lib/yelp-fusion";
-import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/auth-session";
+import { requireActiveOrganization } from "@/lib/auth-session";
 import { connectReviewProvider, publishReviewReply, saveReviewDraft, saveReviewRoutingRules, saveReviewSyncCron, syncReviewProvider } from "./actions";
 import {
   inboxToneForStatus,
@@ -141,18 +140,8 @@ function readString(v: unknown): string {
 }
 
 export default async function ReviewsPage() {
-  const session = await requireSession();
-  const organizationId =
-    session.activeOrganizationId ??
-    (
-      await prisma.organizationMember.findFirst({
-        where: { userId: session.userId },
-        select: { organizationId: true },
-        orderBy: { createdAt: "asc" },
-      })
-    )?.organizationId ??
-    null;
-  if (!organizationId) redirect("/appointments/organization");
+  const session = await requireActiveOrganization();
+  const organizationId = session.activeOrganizationId;
 
   const [reviewSettingsRow, organization] = await Promise.all([
     prisma.organizationReviewSettings.findUnique({

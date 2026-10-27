@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { requireSession } from "@/lib/auth-session";
+import { requireActiveOrganization } from "@/lib/auth-session";
 import { redirect } from "next/navigation";
 import { KnowledgeBaseToasts } from "@/components/knowledge-base-toasts";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
@@ -17,7 +17,7 @@ import { KNOWLEDGE_UI_PREVIEW_MAX_CHARS } from "@/lib/knowledge-base-limits";
 export const maxDuration = 60;
 
 export default async function AppointmentKnowledgeBasePage() {
-  const authSession = await requireSession();
+  const authSession = await requireActiveOrganization();
 
   const session = await prisma.session.findUnique({
     where: {
@@ -44,12 +44,8 @@ export default async function AppointmentKnowledgeBasePage() {
     },
   });
 
-  if (!session) {
-    redirect("/login");
-  }
-
-  if (!session.activeOrganization) {
-    redirect("/appointments");
+  if (!session?.activeOrganization) {
+    redirect("/appointments/organization?error=organization_required");
   }
 
   const parsedData = session.activeOrganization.knowledgeBase?.parsedData;

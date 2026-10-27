@@ -1,27 +1,36 @@
 import Link from "next/link";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { requireAdminSession } from "@/lib/auth-session";
+import { adminOrgWhere, adminOrganizationIdWhere } from "@/lib/admin-organization-scope";
 import { getBillingCatalogPlans } from "@/lib/billing-plan-repository";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function BillingAdminPage() {
-  await requireAdminSession();
+  const session = await requireAdminSession();
+  const organizationWhere = adminOrganizationIdWhere(session.activeOrganizationId);
+  const refundWhere = {
+    status: "pending" as const,
+    ...adminOrgWhere(session.activeOrganizationId),
+  };
 
   const [orgCount, catalog, pendingRefunds] = await Promise.all([
-    prisma.organization.count(),
+    prisma.organization.count({ where: organizationWhere }),
     getBillingCatalogPlans(),
-    prisma.refundRequest.count({ where: { status: "pending" } }),
+    prisma.refundRequest.count({ where: refundWhere }),
   ]);
   const planCount = catalog.plans.length;
+  const workspaceLabel = session.activeOrganization?.name;
 
   const modules = [
     {
       href: "/billing-admin/organizations",
       eyebrow: "Workspaces",
       title: "Organizations",
-      description: "View workspace plans, trials, and paid status.",
+      description: workspaceLabel
+        ? `View plan, trial, and paid status for ${workspaceLabel}.`
+        : "View workspace plans, trials, and paid status.",
       count: orgCount,
       label: orgCount === 1 ? "workspace" : "workspaces",
     },
@@ -37,7 +46,9 @@ export default async function BillingAdminPage() {
       href: "/billing-admin/refunds",
       eyebrow: "Requests",
       title: "Refunds",
-      description: "Review customer refund requests and approve or reject them.",
+      description: workspaceLabel
+        ? `Review refund requests for ${workspaceLabel}.`
+        : "Review customer refund requests and approve or reject them.",
       count: pendingRefunds,
       label: pendingRefunds === 1 ? "pending" : "pending",
     },
@@ -49,11 +60,19 @@ export default async function BillingAdminPage() {
         variant="command"
         eyebrow="Billing"
         title="Billing administration"
-        description="View workspace subscriptions and the plan catalog. Platform Settings stays for system configuration."
+        description={
+          workspaceLabel
+            ? `Workspace billing for ${workspaceLabel}. Plans stay global in the catalog.`
+            : "View workspace subscriptions and the plan catalog. Platform Settings stays for system configuration."
+        }
         status={`${orgCount} workspaces`}
         statusTone="success"
         metrics={[
-          { label: "Workspaces", value: orgCount, hint: "customer organizations" },
+          {
+            label: "Workspaces",
+            value: orgCount,
+            hint: workspaceLabel ? workspaceLabel : "customer organizations",
+          },
           {
             label: "Plans",
             value: planCount,
