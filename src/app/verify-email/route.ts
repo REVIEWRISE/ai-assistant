@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { consumeEmailVerificationToken } from "@/lib/email-verification";
 import { getValidSession, resolveDefaultOrganizationId } from "@/lib/auth-session";
-import { generateSessionToken } from "@/lib/session-token";
+import { generateSessionToken, SESSION_TTL_SECONDS } from "@/lib/session-token";
 import { prisma } from "@/lib/prisma";
 import { writePlatformAudit } from "@/lib/platform-audit";
 
@@ -49,14 +49,14 @@ export async function GET(request: NextRequest) {
         userId: result.userId,
         activeOrganizationId,
         token: tokenHash,
-        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+        expiresAt: new Date(Date.now() + SESSION_TTL_SECONDS * 1000),
       },
     });
     redirectResponse.cookies.set("ai_session", rawToken, {
       path: "/",
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: SESSION_TTL_SECONDS,
       sameSite: "lax",
     });
   }

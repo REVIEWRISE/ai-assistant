@@ -37,7 +37,8 @@ export async function invalidateUserSessions(
   return result.count;
 }
 
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+/** Absolute session lifetime from login (cookie + DB `expiresAt`). */
+export const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24 hours
 
 /**
  * Create a DB session for the user and set the `ai_session` + `last_auth_provider` cookies.
