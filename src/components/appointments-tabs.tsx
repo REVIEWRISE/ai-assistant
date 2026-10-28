@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   CartesianGrid,
   Legend,
@@ -76,6 +77,13 @@ type ProviderLoadItem = {
 };
 
 type TabKey = "integrations" | "booked" | "analytics";
+
+function parseTabKey(raw: string | null): TabKey | null {
+  if (raw === "integrations" || raw === "booked" || raw === "analytics") {
+    return raw;
+  }
+  return null;
+}
 
 const tabs: Array<{ key: TabKey; label: string; hint: string }> = [
   { key: "integrations", label: "Integrations", hint: "Calendars and delivery" },
@@ -1306,7 +1314,22 @@ export function AppointmentsTabs({
   appointmentAnalytics,
   testBookingHref,
 }: AppointmentsTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>("integrations");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeTab = parseTabKey(searchParams.get("tab")) ?? "integrations";
+
+  function selectTab(tab: TabKey) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === "integrations") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tab);
+    }
+    const query = params.toString();
+    router.replace(query ? `/appointments/overview?${query}` : "/appointments/overview", {
+      scroll: false,
+    });
+  }
 
   const trendHasActivity = useMemo(
     () => appointmentAnalytics.trend.some((d) => d.recorded > 0 || d.synced > 0),
@@ -1339,7 +1362,7 @@ export function AppointmentsTabs({
   const activeContext = tabContext[activeTab];
 
   return (
-    <section className="space-y-4">
+    <section id="appointment-operations" className="space-y-4 scroll-mt-4">
       <div className="grid max-w-full grid-cols-3 gap-1.5 overflow-x-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-[var(--shadow-md)]" role="tablist" aria-label="Appointment operations">
         {tabs.map((tab) => {
           const active = activeTab === tab.key;
@@ -1349,7 +1372,7 @@ export function AppointmentsTabs({
               type="button"
               role="tab"
               aria-selected={active}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => selectTab(tab.key)}
               className={`min-w-0 rounded-xl border px-3 py-2.5 text-left transition-all duration-200 ${
                 active
                   ? "border-[color-mix(in_srgb,var(--color-primary)_22%,var(--color-border))] bg-[var(--color-primary-soft)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)]"
@@ -1365,7 +1388,7 @@ export function AppointmentsTabs({
         })}
       </div>
 
-      <div className="flex flex-wrap items-end justify-between gap-3 rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 shadow-[var(--shadow-sm)]">
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">{activeContext.eyebrow}</p>
           <h2 className="mt-1 text-lg font-semibold tracking-tight text-[var(--color-text)]">{activeContext.title}</h2>

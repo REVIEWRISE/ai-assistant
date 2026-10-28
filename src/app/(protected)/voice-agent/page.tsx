@@ -1,10 +1,9 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { VoiceAgentPageAlerts } from "@/components/voice-agent-page-alerts";
 import { VoiceAgentTabs } from "@/components/voice-agent-tabs";
 import { prisma } from "@/lib/prisma";
-import { requireSession } from "@/lib/auth-session";
+import { requireActiveOrganization } from "@/lib/auth-session";
 import { isRetellApiConfigured } from "@/lib/retell-api";
 import {
   fetchRetellVoiceAgentConfig,
@@ -37,7 +36,7 @@ import { getOrgVoiceMinutesUsage } from "@/lib/voice-minutes";
 export const dynamic = "force-dynamic";
 
 export default async function VoiceAgentPage() {
-  const authSession = await requireSession();
+  const authSession = await requireActiveOrganization();
 
   const user = await prisma.user.findUnique({
     where: { id: authSession.userId },
@@ -55,40 +54,19 @@ export default async function VoiceAgentPage() {
     activeOrganizationId: authSession.activeOrganizationId,
   };
 
-  let org = null;
-  if (session.activeOrganizationId) {
-    org = await prisma.organization.findFirst({
-      where: { id: session.activeOrganizationId },
-      include: {
-        knowledgeBase: {
-          select: { status: true, rawText: true, sourceUrl: true, lastImportedAt: true },
-        },
-        voiceAgentSettings: {
-          select: { retellConfig: true, phoneConfig: true, knowledgeConfig: true },
-        },
+  const org = await prisma.organization.findFirst({
+    where: { id: session.activeOrganizationId },
+    include: {
+      knowledgeBase: {
+        select: { status: true, rawText: true, sourceUrl: true, lastImportedAt: true },
       },
-    });
-  }
+      voiceAgentSettings: {
+        select: { retellConfig: true, phoneConfig: true, knowledgeConfig: true },
+      },
+    },
+  });
 
-  if (!org) {
-    org = await prisma.organization.findFirst({
-      where: {
-        members: {
-          some: { userId: session.user.id },
-        },
-      },
-      include: {
-        knowledgeBase: {
-          select: { status: true, rawText: true, sourceUrl: true, lastImportedAt: true },
-        },
-        voiceAgentSettings: {
-          select: { retellConfig: true, phoneConfig: true, knowledgeConfig: true },
-        },
-      },
-    });
-  }
-
-  if (!org) redirect("/appointments/organization");
+  if (!org) redirect("/appointments/organization?error=organization_required");
 
   const retellApiConfigured = isRetellApiConfigured();
   const twilioForwardingConfigured = isTwilioForwardingConfigured();
@@ -160,32 +138,7 @@ export default async function VoiceAgentPage() {
     transcript: call.transcript,
     createdAt: call.createdAt.toISOString(),
   }));
-  const callsReceived = phoneStats.reduce((sum, phone) => sum + phone.callsReceived, 0);
-  const phoneBookings = phoneStats.reduce((sum, phone) => sum + phone.bookingsCount, 0);
   const voiceMinutes = await getOrgVoiceMinutesUsage(org.id);
-  const agentReady =
-    Boolean(localSettings.retell.retellAgentId.trim()) && !remoteAgentMissing;
-  const voiceStatus = !retellApiConfigured
-    ? "Voice service setup required"
-    : !voiceMinutes.voiceIncluded
-      ? "Upgrade required for voice"
-    : voiceMinutes.minutesExhausted
-      ? "Calling minutes exhausted"
-    : phones.length === 0
-      ? "Phone line required"
-      : remoteAgentMissing
-        ? "Agent connection needs repair"
-      : agentReady
-        ? "Voice agent operational"
-        : "Agent setup required";
-  const voiceStatusTone: "success" | "warning" =
-    retellApiConfigured &&
-    voiceMinutes.voiceIncluded &&
-    phones.length > 0 &&
-    agentReady &&
-    !voiceMinutes.minutesExhausted
-      ? "success"
-      : "warning";
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
@@ -202,47 +155,6 @@ export default async function VoiceAgentPage() {
           }
         />
       </Suspense>
-
-      <AppointmentPageHeader
-        variant="command"
-        eyebrow="Voice Support"
-        title="Voice operations"
-        description={<>Configure and monitor the AI phone agent serving {org.name}.</>}
-        status={voiceStatus}
-        statusTone={voiceStatusTone}
-        actions={[
-          {
-            href: "/voice-agent?tab=agent",
-            label: agentReady ? "Configure agent" : "Set up agent",
-            primary: !agentReady || phones.length > 0,
-          },
-          {
-            href: "/voice-agent?tab=phone",
-            label: phones.length > 0 ? "Manage phone lines" : "Add phone line",
-            primary: agentReady && phones.length === 0,
-          },
-        ]}
-        metrics={[
-          { label: "Phone lines", value: phones.length, hint: primaryPhone ? "primary line active" : "no primary line" },
-          { label: "Calls received", value: callsReceived, hint: "last 30 days" },
-          { label: "Bookings by phone", value: phoneBookings, hint: "last 30 days" },
-          {
-            label: "Calling minutes",
-            value: voiceMinutes.voiceIncluded
-              ? voiceMinutes.enforced
-                ? `${voiceMinutes.usedMinutes}/${voiceMinutes.includedMinutes}`
-                : voiceMinutes.usedMinutes
-              : "Not included",
-            hint: !voiceMinutes.voiceIncluded
-              ? "Pro Voice plan required"
-              : voiceMinutes.enforced
-                ? voiceMinutes.minutesExhausted
-                  ? "limit reached this period"
-                  : `${voiceMinutes.remainingMinutes} min left this period`
-                : "no minute cap on this plan",
-          },
-        ]}
-      />
 
       <VoiceAgentTabs
         organizationId={org.id}

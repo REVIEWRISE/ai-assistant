@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getValidSession } from "@/lib/auth-session";
 import { userHasAdminRole } from "@/lib/admin-view-only";
+import { isAdminAllWorkspacesValue } from "@/lib/admin-organization-scope";
 
 export async function POST(req: Request) {
   const session = await getValidSession();
@@ -9,13 +10,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const body = (await req.json().catch(() => ({}))) as { organizationId?: string };
-  const organizationId = typeof body.organizationId === "string" ? body.organizationId.trim() : "";
-  if (!organizationId) {
-    return NextResponse.json({ error: "organization_required" }, { status: 400 });
-  }
+  const body = (await req.json().catch(() => ({}))) as { organizationId?: string | null };
+  const rawOrganizationId =
+    typeof body.organizationId === "string"
+      ? body.organizationId.trim()
+      : body.organizationId === null
+        ? null
+        : "";
 
   const isAdmin = await userHasAdminRole(session.userId);
+
+  if (isAdminAllWorkspacesValue(rawOrganizationId)) {
+    if (!isAdmin) {
+      return NextResponse.json({ error: "organization_required" }, { status: 400 });
+    }
+
+    await prisma.session.update({
+      where: { id: session.id },
+      data: { activeOrganizationId: null },
+    });
+
+    return NextResponse.json({ ok: true, organizationId: null });
+  }
+
+  const organizationId = rawOrganizationId as string;
+
   if (!isAdmin) {
     const membership = await prisma.organizationMember.findFirst({
       where: { userId: session.userId, organizationId },
@@ -39,5 +58,5 @@ export async function POST(req: Request) {
     data: { activeOrganizationId: organizationId },
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, organizationId });
 }

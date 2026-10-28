@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { requireSession } from "@/lib/auth-session";
+import { requireActiveOrganization } from "@/lib/auth-session";
 import { redirect } from "next/navigation";
 import { KnowledgeBaseToasts } from "@/components/knowledge-base-toasts";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
@@ -17,7 +17,7 @@ import { KNOWLEDGE_UI_PREVIEW_MAX_CHARS } from "@/lib/knowledge-base-limits";
 export const maxDuration = 60;
 
 export default async function AppointmentKnowledgeBasePage() {
-  const authSession = await requireSession();
+  const authSession = await requireActiveOrganization();
 
   const session = await prisma.session.findUnique({
     where: {
@@ -44,12 +44,8 @@ export default async function AppointmentKnowledgeBasePage() {
     },
   });
 
-  if (!session) {
-    redirect("/login");
-  }
-
-  if (!session.activeOrganization) {
-    redirect("/appointments");
+  if (!session?.activeOrganization) {
+    redirect("/appointments/organization?error=organization_required");
   }
 
   const parsedData = session.activeOrganization.knowledgeBase?.parsedData;
@@ -130,34 +126,55 @@ export default async function AppointmentKnowledgeBasePage() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-md)]">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border)] px-5 py-5 lg:px-6">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Agent context</p>
-            <h2 className="mt-1 text-lg font-semibold tracking-tight text-[var(--color-text)]">Current knowledge</h2>
+      <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-md)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-[var(--color-border)] px-5 py-5 lg:px-6">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
+              Agent context
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2.5">
+              <h2 className="text-lg font-semibold tracking-tight text-[var(--color-text)]">
+                Current knowledge
+              </h2>
+              {session.activeOrganization.knowledgeBase ? (
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold capitalize ${
+                    session.activeOrganization.knowledgeBase.status === "approved"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800 [[data-theme=dark]_&]:border-emerald-500/35 [[data-theme=dark]_&]:bg-emerald-500/15 [[data-theme=dark]_&]:text-emerald-200"
+                      : "border-amber-200 bg-amber-50 text-amber-900 [[data-theme=dark]_&]:border-amber-500/35 [[data-theme=dark]_&]:bg-amber-500/15 [[data-theme=dark]_&]:text-amber-200"
+                  }`}
+                >
+                  <span
+                    className={`size-1.5 rounded-full ${
+                      session.activeOrganization.knowledgeBase.status === "approved"
+                        ? "bg-emerald-600 [[data-theme=dark]_&]:bg-emerald-400"
+                        : "bg-amber-600 [[data-theme=dark]_&]:bg-amber-400"
+                    }`}
+                    aria-hidden
+                  />
+                  {session.activeOrganization.knowledgeBase.status}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--color-text-muted)] [[data-theme=dark]_&]:border-[var(--color-border-hover)] [[data-theme=dark]_&]:bg-[var(--color-raised)]">
+                  <span className="size-1.5 rounded-full bg-[var(--color-text-subtle)]" aria-hidden />
+                  Empty
+                </span>
+              )}
+            </div>
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
               Review the imported content before allowing the booking agent to use it.
             </p>
           </div>
           {session.activeOrganization.knowledgeBase ? (
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <span
-                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                  session.activeOrganization.knowledgeBase.status === "approved"
-                    ? "vr-app-status-success"
-                    : "vr-app-status-muted"
-                }`}
-              >
-                Status: {session.activeOrganization.knowledgeBase.status}
-              </span>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               {session.activeOrganization.knowledgeBase.status !== "approved" ? (
                 <form action={approveKnowledgeBase} className="inline-flex">
                   <input type="hidden" name="organization_id" value={session.activeOrganization.id} />
                   <button
                     type="submit"
-                    className="rounded-xl vr-btn-primary px-3 py-1.5 text-xs font-semibold sm:text-sm sm:px-4 sm:py-2"
+                    className="rounded-xl vr-btn-primary px-3.5 py-2 text-xs font-semibold"
                   >
-                    Approve for Agent
+                    Approve for agent
                   </button>
                 </form>
               ) : null}
@@ -165,7 +182,9 @@ export default async function AppointmentKnowledgeBasePage() {
                 <input type="hidden" name="organization_id" value={session.activeOrganization.id} />
                 <button
                   type="submit"
-                  className="group inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)] shadow-[var(--shadow-xs)] transition hover:border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)] sm:px-4 sm:py-2 sm:text-sm"
+                  aria-label="Clear knowledge"
+                  title="Clear knowledge"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-semibold text-[var(--color-text-muted)] transition hover:border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)] [[data-theme=dark]_&]:border-[var(--color-border-hover)] [[data-theme=dark]_&]:bg-[var(--color-raised)]"
                 >
                   <svg
                     aria-hidden="true"
@@ -175,22 +194,18 @@ export default async function AppointmentKnowledgeBasePage() {
                     strokeWidth="1.8"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="size-4"
+                    className="size-3.5"
                   >
                     <path d="M3 6h18" />
                     <path d="M8 6V4h8v2" />
                     <path d="M19 6l-1 14H6L5 6" />
                     <path d="M10 11v5M14 11v5" />
                   </svg>
-                  Clear knowledge
+                  Clear
                 </button>
               </form>
             </div>
-          ) : (
-            <div className="inline-flex rounded-full vr-app-status-muted px-3 py-1 text-xs font-semibold">
-              Status: empty
-            </div>
-          )}
+          ) : null}
         </div>
 
         {session.activeOrganization.knowledgeBase ? (

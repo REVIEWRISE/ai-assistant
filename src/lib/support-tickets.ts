@@ -1,6 +1,5 @@
 export const SUPPORT_TICKET_STATUSES = [
   "pending",
-  "accepted",
   "in_progress",
   "completed",
   "rejected",
@@ -8,11 +7,14 @@ export const SUPPORT_TICKET_STATUSES = [
 
 export type SupportTicketStatus = (typeof SUPPORT_TICKET_STATUSES)[number];
 
-export type SupportMessageAuthorRole = "user" | "admin";
+export type SupportMessageAuthorRole = "user" | "admin" | "ai";
+
+/** Fixed system account used as authorId for AI support replies. */
+export const SUPPORT_AI_USER_EMAIL = "support-ai@system.local";
+export const SUPPORT_AI_USER_ID = "c0ffee00-a100-4000-8000-0000000000a1";
 
 const STATUS_LABELS: Record<SupportTicketStatus, string> = {
   pending: "Pending",
-  accepted: "Accepted",
   in_progress: "In progress",
   completed: "Completed",
   rejected: "Rejected",
@@ -20,8 +22,7 @@ const STATUS_LABELS: Record<SupportTicketStatus, string> = {
 
 /** Admin-driven transitions. Users only create tickets and reply while open. */
 const ADMIN_TRANSITIONS: Record<SupportTicketStatus, SupportTicketStatus[]> = {
-  pending: ["accepted", "rejected"],
-  accepted: ["in_progress", "completed", "rejected"],
+  pending: ["in_progress", "completed", "rejected"],
   in_progress: ["completed", "rejected"],
   completed: [],
   rejected: [],
@@ -41,17 +42,16 @@ export function supportTicketStatusLabel(status: string): string {
 
 export function isSupportTicketOpen(status: string): boolean {
   const normalized = asSupportTicketStatus(status);
-  return normalized === "pending" || normalized === "accepted" || normalized === "in_progress";
+  return normalized === "pending" || normalized === "in_progress";
 }
 
 export function canUserReplyToSupportTicket(status: string): boolean {
   return isSupportTicketOpen(status);
 }
 
-/** Admins must accept before messaging; replies allowed while accepted or in progress. */
+/** Admins can reply while the request is pending or in progress. */
 export function canAdminReplyToSupportTicket(status: string): boolean {
-  const normalized = asSupportTicketStatus(status);
-  return normalized === "accepted" || normalized === "in_progress";
+  return isSupportTicketOpen(status);
 }
 
 export function canAdminTransitionSupportTicket(
@@ -84,7 +84,9 @@ export function supportTicketHasUnread(input: {
   if (Number.isNaN(lastMessageMs)) return false;
 
   if (input.viewer === "user") {
-    if (input.lastMessageAuthorRole !== "admin") return false;
+    if (input.lastMessageAuthorRole !== "admin" && input.lastMessageAuthorRole !== "ai") {
+      return false;
+    }
     if (!input.requesterLastReadAt) return true;
     const readMs = new Date(input.requesterLastReadAt).getTime();
     return Number.isNaN(readMs) ? true : lastMessageMs > readMs;

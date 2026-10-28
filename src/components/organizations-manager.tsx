@@ -261,7 +261,7 @@ export function OrganizationsManager({
   }
 
   return (
-    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-md)]">
+    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-md)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
       <div className="flex flex-wrap items-end justify-between gap-4 px-5 py-5 lg:px-6">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Workspace directory</p>

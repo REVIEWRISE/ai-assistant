@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { ReviewsTabs } from "@/components/reviews-tabs";
 import { ReviewsPageAlerts } from "@/components/reviews-page-alerts";
-import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { prisma } from "@/lib/prisma";
 import { isOAuthProviderConfig } from "@/lib/google-oauth";
 import {
@@ -11,8 +10,7 @@ import {
   type ReviewIntegrationKind,
 } from "@/lib/review-provider-integration";
 import { yelpPartnerRepliesEnabled } from "@/lib/yelp-fusion";
-import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/auth-session";
+import { requireActiveOrganization } from "@/lib/auth-session";
 import { connectReviewProvider, publishReviewReply, saveReviewDraft, saveReviewRoutingRules, saveReviewSyncCron, syncReviewProvider } from "./actions";
 import {
   inboxToneForStatus,
@@ -142,18 +140,8 @@ function readString(v: unknown): string {
 }
 
 export default async function ReviewsPage() {
-  const session = await requireSession();
-  const organizationId =
-    session.activeOrganizationId ??
-    (
-      await prisma.organizationMember.findFirst({
-        where: { userId: session.userId },
-        select: { organizationId: true },
-        orderBy: { createdAt: "asc" },
-      })
-    )?.organizationId ??
-    null;
-  if (!organizationId) redirect("/appointments/organization");
+  const session = await requireActiveOrganization();
+  const organizationId = session.activeOrganizationId;
 
   const [reviewSettingsRow, organization] = await Promise.all([
     prisma.organizationReviewSettings.findUnique({
@@ -270,14 +258,6 @@ export default async function ReviewsPage() {
     };
   });
 
-  const totals = {
-    total: reviewRows.length,
-    pending: reviewRows.filter((r) => r.status.toLowerCase() === "pending").length,
-    autoReady: reviewRows.filter(
-      (r) => r.status.toLowerCase() === "pending" && isAutoReadyPendingReview(r.rating, routingRules),
-    ).length,
-  };
-
   const connectedSources = reviewServices.filter((service) => service.status === "Connected").length;
 
   return (
@@ -285,29 +265,11 @@ export default async function ReviewsPage() {
       <Suspense fallback={null}>
         <ReviewsPageAlerts />
       </Suspense>
-      <AppointmentPageHeader
-        variant="command"
-        eyebrow="Review Response"
-        title="Reputation operations"
-        description={
-          <>Review, approve, and publish consistent responses for {organization?.name ?? "your active organization"}.</>
-        }
-        status={connectedSources > 0 ? `${connectedSources} source${connectedSources === 1 ? "" : "s"} connected` : "Review source required"}
-        statusTone={connectedSources > 0 ? "success" : "warning"}
-        actions={[
-          ...(connectedSources > 0 ? [{ href: "/reviews?tab=workflow", label: totals.pending > 0 ? `Open inbox · ${totals.pending}` : "Open inbox", primary: true }] : []),
-        ]}
-        metrics={[
-          { label: "Total reviews", value: totals.total, hint: "all connected sources" },
-          { label: "Awaiting", value: totals.pending, hint: totals.pending > 0 ? "responses need attention" : "inbox is clear" },
-          { label: "Auto-ready", value: totals.autoReady, hint: "safe to publish" },
-          { label: "Connected sources", value: connectedSources, hint: `${Math.max(0, reviewServices.length - connectedSources)} need setup` },
-        ]}
-      />
 
       <ReviewsTabs
         defaultTab={connectedSources > 0 ? "workflow" : "integrations"}
         organizationId={organizationId}
+        organizationName={organization?.name ?? "Your workspace"}
         routingRules={routingRules}
         syncCronConfig={syncCronConfig}
         replyAutomation={replyAutomation}

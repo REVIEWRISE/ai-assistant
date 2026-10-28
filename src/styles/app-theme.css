@@ -45,6 +45,12 @@
   box-shadow: var(--shadow-sm);
 }
 
+.dark .vr-app-panel,
+[data-theme="dark"] .vr-app-panel {
+  background: var(--color-surface);
+  border-color: var(--color-border-hover);
+}
+
 .vr-app-hero {
   border-radius: var(--radius-2xl);
   border: 1px solid color-mix(in srgb, white 12%, transparent);
@@ -53,6 +59,12 @@
   box-shadow:
     var(--shadow-md),
     inset 0 1px 0 0 color-mix(in srgb, white 6%, transparent);
+}
+
+.dark .vr-app-hero,
+[data-theme="dark"] .vr-app-hero {
+  border-color: color-mix(in srgb, white 18%, transparent);
+  background: linear-gradient(125deg, #1a1a1a 0%, #252525 42%, #2e2e2e 72%, #383838 100%);
 }
 
 .vr-app-hero-eyebrow {
@@ -93,6 +105,12 @@
   text-transform: uppercase;
 }
 
+.dark .vr-app-table-header,
+[data-theme="dark"] .vr-app-table-header {
+  background: linear-gradient(125deg, #1a1a1a 0%, #252525 42%, #2e2e2e 72%, #383838 100%);
+  color: #c4c4c4;
+}
+
 .vr-app-alert {
   border-radius: var(--radius-2xl);
   border: 1px solid var(--color-border);
@@ -126,11 +144,22 @@
   padding: 0.5rem 0.75rem;
 }
 
+.dark .vr-app-meta-cell,
+[data-theme="dark"] .vr-app-meta-cell {
+  background: var(--color-raised);
+  border-color: var(--color-border-hover);
+}
+
 .vr-app-empty-state {
   border: 1px dashed var(--color-border-hover);
   background: var(--color-surface);
   border-radius: var(--radius-2xl);
   color: var(--color-text-muted);
+}
+
+.dark .vr-app-empty-state,
+[data-theme="dark"] .vr-app-empty-state {
+  background: var(--color-raised);
 }
 
 .vr-app-status-success {

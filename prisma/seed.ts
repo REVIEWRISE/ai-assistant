@@ -83,6 +83,24 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(password, 10);
 
+  // System author for AI support auto-replies (see docs/support + support-ai-auto-reply).
+  await prisma.user.upsert({
+    where: { email: "support-ai@system.local" },
+    create: {
+      id: "c0ffee00-a100-4000-8000-0000000000a1",
+      email: "support-ai@system.local",
+      fullName: "Support AI",
+      passwordHash: null,
+      accountStatus: "active",
+      emailVerified: true,
+    },
+    update: {
+      fullName: "Support AI",
+      accountStatus: "active",
+      emailVerified: true,
+    },
+  });
+
   const adminRole = await prisma.role.upsert({
     where: { name: "Admin" },
     create: { name: "Admin" },

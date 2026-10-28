@@ -202,18 +202,8 @@ export async function completeGoogleAuthLogin(
     return { redirectTo: "/login?error=suspended" };
   }
 
-  let activeOrganizationId =
-    (
-      await prisma.organizationMember.findFirst({
-        where: { userId: user.id },
-        select: { organizationId: true },
-        orderBy: { createdAt: "asc" },
-      })
-    )?.organizationId ?? null;
-
-  if (!activeOrganizationId) {
-    activeOrganizationId = await resolveDefaultOrganizationId(user.id);
-  }
+  // Admins land on “All workspaces” (null); others get their first membership.
+  const activeOrganizationId = await resolveDefaultOrganizationId(user.id);
 
   await createUserSession(user.id, activeOrganizationId, "google");
 

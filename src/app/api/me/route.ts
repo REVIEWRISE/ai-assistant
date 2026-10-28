@@ -61,7 +61,8 @@ export async function GET() {
         email: session.user.email,
         emailVerified: session.user.emailVerified,
         role: displayRoleFromUserRoles(roles),
-        organization: session.activeOrganization?.name ?? "Workspace",
+        organization:
+          session.activeOrganization?.name ?? (isAdmin ? "All workspaces" : "Workspace"),
         organizationId,
       },
       organizations,

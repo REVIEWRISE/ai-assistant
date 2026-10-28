@@ -1,18 +1,21 @@
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { BillingOrganizationsManager } from "@/components/billing-organizations-manager";
 import { requireAdminSession } from "@/lib/auth-session";
+import { adminOrganizationIdWhere } from "@/lib/admin-organization-scope";
 import { repairShortYearlyBillingPeriods } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function BillingAdminOrganizationsPage() {
-  await requireAdminSession();
+  const session = await requireAdminSession();
+  const organizationWhere = adminOrganizationIdWhere(session.activeOrganizationId);
 
   // Repair yearly orgs still stuck on the old +30-day period-end fallback.
   await repairShortYearlyBillingPeriods();
 
   const organizations = await prisma.organization.findMany({
+    where: organizationWhere,
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -58,6 +61,7 @@ export default async function BillingAdminOrganizationsPage() {
     cancelAtPeriodEnd: org.cancelAtPeriodEnd,
     billingAdminOverride: org.billingAdminOverride,
   }));
+  const workspaceLabel = session.activeOrganization?.name;
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
@@ -65,7 +69,11 @@ export default async function BillingAdminOrganizationsPage() {
         variant="command"
         eyebrow="Billing"
         title="Organizations"
-        description="View workspace subscriptions and override plan, interval, or status when needed."
+        description={
+          workspaceLabel
+            ? `View and override plan, interval, or status for ${workspaceLabel}.`
+            : "View workspace subscriptions and override plan, interval, or status when needed."
+        }
         status={`${organizations.length} workspaces`}
         statusTone={counts.expired > 0 ? "warning" : "success"}
         actions={[{ href: "/billing-admin", label: "Billing overview" }]}

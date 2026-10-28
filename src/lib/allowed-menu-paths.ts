@@ -90,6 +90,10 @@ export async function getAllowedMenuPathsForUser(
 
   // Support is always available to signed-in users (even without an explicit menu grant).
   paths.add(normalizeNavPath("/support"));
+  // Platform inbox is always available to admins (even if Access Control omitted the grant).
+  if (isAdmin) {
+    paths.add(normalizeNavPath("/platform/support"));
+  }
 
   return paths;
 }
