@@ -25,7 +25,6 @@ type StatusFilter = "all" | SupportTicketStatus;
 const FILTERS: Array<{ id: StatusFilter; label: string }> = [
   { id: "all", label: "All" },
   { id: "pending", label: "Pending" },
-  { id: "accepted", label: "Accepted" },
   { id: "in_progress", label: "In progress" },
   { id: "completed", label: "Completed" },
   { id: "rejected", label: "Rejected" },
@@ -94,7 +93,6 @@ export function SupportTicketsPanel({
     const next: Record<StatusFilter, number> = {
       all: tickets.length,
       pending: 0,
-      accepted: 0,
       in_progress: 0,
       completed: 0,
       rejected: 0,
@@ -183,7 +181,7 @@ export function SupportTicketsPanel({
 
   return (
     <div>
-      <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+      <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
         <div className="border-b border-[var(--color-border)] px-4 py-4 lg:px-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
@@ -217,9 +215,9 @@ export function SupportTicketsPanel({
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between lg:px-5">
+        <div className="flex flex-col gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between lg:px-5 [[data-theme=dark]_&]:bg-[var(--color-raised)]">
           <div
-            className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1"
+            className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1 [[data-theme=dark]_&]:border-[var(--color-border-hover)]"
             role="tablist"
             aria-label="Filter by support status"
           >
@@ -237,7 +235,7 @@ export function SupportTicketsPanel({
                   }}
                   className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                     active
-                      ? "bg-[var(--color-bg)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border)]"
+                      ? "bg-[var(--color-bg)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border)] [[data-theme=dark]_&]:bg-[var(--color-surface)] [[data-theme=dark]_&]:ring-[var(--color-border-hover)]"
                       : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
                   }`}
                 >
@@ -268,7 +266,7 @@ export function SupportTicketsPanel({
           </label>
         </div>
 
-        <div className="overflow-x-auto bg-[var(--color-bg)]">
+        <div className="overflow-x-auto bg-[var(--color-bg)] [[data-theme=dark]_&]:bg-[var(--color-surface)]">
           <table className="w-full min-w-[48rem] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-[var(--color-border)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">

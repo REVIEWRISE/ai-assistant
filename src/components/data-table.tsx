@@ -14,7 +14,7 @@ export function DataTable({
   return (
     <div
       className={joinClasses(
-        "overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]",
+        "overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] [[data-theme=dark]_&]:border-[var(--color-border-hover)] [[data-theme=dark]_&]:bg-[var(--color-surface)]",
         className,
       )}
     >

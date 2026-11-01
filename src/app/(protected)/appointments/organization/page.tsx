@@ -42,9 +42,12 @@ export default async function AppointmentOrganizationPage() {
   }
 
   const isAdmin = await userHasAdminRole(session.userId);
-  // Match the header workspace selector: admins see every workspace, not only memberships.
+  // Admins: All workspaces → full list; selected header workspace → that org only.
   const organizations = isAdmin
     ? await prisma.organization.findMany({
+        where: session.activeOrganizationId
+          ? { id: session.activeOrganizationId }
+          : undefined,
         orderBy: { name: "asc" },
         select: { id: true, name: true, logoUrl: true, createdAt: true },
       })
@@ -64,8 +67,15 @@ export default async function AppointmentOrganizationPage() {
       <AppointmentPageHeader
         variant="command"
         title="Organization workspace"
-        description="Choose which business the Appointment Agent should operate, or create another workspace."
-        status={session.activeOrganization?.name ?? "No active organization"}
+        description={
+          session.activeOrganization
+            ? "Choose which business the Appointment Agent should operate, or create another workspace."
+            : "Appointments, reviews, and voice need one specific workspace. Pick one below or in the header — All workspaces is only for admin ops screens."
+        }
+        status={
+          session.activeOrganization?.name ??
+          (isAdmin ? "Select a workspace" : "No active organization")
+        }
         statusTone={session.activeOrganization ? "success" : "warning"}
         metrics={[
           { label: "Organizations", value: totalOrganizations, hint: totalOrganizations === 1 ? "workspace" : "workspaces" },

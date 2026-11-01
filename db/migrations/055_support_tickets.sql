@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS support_tickets (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT support_tickets_status_check
-    CHECK (status IN ('pending', 'accepted', 'in_progress', 'completed', 'rejected'))
+    CHECK (status IN ('pending', 'in_progress', 'completed', 'rejected'))
 );
 
 CREATE INDEX IF NOT EXISTS support_tickets_organization_id_idx
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS support_ticket_messages (
   body TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT support_ticket_messages_author_role_check
-    CHECK (author_role IN ('user', 'admin'))
+    CHECK (author_role IN ('user', 'admin', 'ai'))
 );
 
 CREATE INDEX IF NOT EXISTS support_ticket_messages_ticket_id_created_at_idx

@@ -205,7 +205,7 @@ export function BillingPlansManager({
       </div>
 
       {orderedPlans.length === 0 ? (
-        <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-16 text-center">
+        <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-16 text-center [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
           <p className="text-sm font-semibold text-[var(--color-text)]">No plans yet</p>
           <p className="mt-1.5 text-sm text-[var(--color-text-muted)]">
             Create the first plan customers can subscribe to.
@@ -227,7 +227,7 @@ export function BillingPlansManager({
               key={plan.id}
               type="button"
               onClick={() => openPlanEditor(plan)}
-              className="rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-left shadow-[var(--shadow-sm)] transition hover:border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] hover:shadow-[var(--shadow-md)]"
+              className="rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-left shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)] transition hover:border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] hover:shadow-[var(--shadow-md)]"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">

@@ -1,22 +1,26 @@
 import Link from "next/link";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { requireAdminSession } from "@/lib/auth-session";
+import { adminOrgWhere } from "@/lib/admin-organization-scope";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlatformSettingsPage() {
-  await requireAdminSession();
+  const session = await requireAdminSession();
+  const orgWhere = adminOrgWhere(session.activeOrganizationId);
+
   const [providers, auditCount] = await Promise.all([
     prisma.provider.findMany({
       select: { type: true, status: true, config: true },
     }),
-    prisma.auditEvent.count(),
+    prisma.auditEvent.count({ where: orgWhere }),
   ]);
   const enabledProviders = providers.filter(
     (provider) => provider.status === "enabled",
   ).length;
   const providerTypes = new Set(providers.map((provider) => provider.type)).size;
+  const workspaceLabel = session.activeOrganization?.name;
 
   const modules = [
     {
@@ -32,8 +36,9 @@ export default async function PlatformSettingsPage() {
       href: "/platform/audit",
       eyebrow: "Security",
       title: "Audit Log",
-      description:
-        "Review authentication, admin, and system events across every workspace.",
+      description: workspaceLabel
+        ? `Review authentication, admin, and system events for ${workspaceLabel}.`
+        : "Review authentication, admin, and system events across every workspace.",
       count: auditCount,
       label: auditCount === 1 ? "event" : "events",
     },

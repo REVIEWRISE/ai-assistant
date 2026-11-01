@@ -14,7 +14,7 @@ import { checkRegisterRateLimit } from "@/lib/rate-limit";
 import { getRequestIp } from "@/lib/request-ip";
 import { createLogger } from "@/lib/logger";
 import { validatePasswordStrength } from "@/lib/password-policy";
-import { generateSessionToken } from "@/lib/session-token";
+import { generateSessionToken, SESSION_TTL_SECONDS } from "@/lib/session-token";
 import { isSmtpConfigured } from "@/lib/smtp-mail";
 
 const log = createLogger("register");
@@ -207,7 +207,7 @@ export async function registerUser(formData: FormData) {
       userId,
       activeOrganizationId: organizationId,
       token: tokenHash,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+      expiresAt: new Date(Date.now() + SESSION_TTL_SECONDS * 1000),
     },
   });
 
@@ -216,7 +216,7 @@ export async function registerUser(formData: FormData) {
     path: "/",
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: SESSION_TTL_SECONDS,
     sameSite: "lax",
   });
   cookieStore.set("post_verify_next", postVerifyPath, {

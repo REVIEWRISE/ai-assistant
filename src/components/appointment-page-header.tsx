@@ -61,21 +61,21 @@ export function AppointmentPageHeader({
     <section
       className={
         command
-          ? "relative overflow-hidden rounded-[1.65rem] border border-white/10 bg-[linear-gradient(125deg,#0c0c0c_0%,#161616_52%,#222222_100%)] text-white shadow-[var(--shadow-lg)]"
+          ? "relative overflow-hidden rounded-[1.65rem] border border-white/10 bg-[linear-gradient(125deg,#0c0c0c_0%,#161616_52%,#222222_100%)] text-white shadow-[var(--shadow-lg)] [[data-theme=dark]_&]:border-white/18 [[data-theme=dark]_&]:bg-[linear-gradient(125deg,#1a1a1a_0%,#252525_55%,#303030_100%)]"
           : "overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]"
       }
     >
       {command ? (
         <>
-          <div className="pointer-events-none absolute -right-24 -top-28 size-72 rounded-full bg-white/10 blur-3xl" aria-hidden />
-          <div className="pointer-events-none absolute -bottom-28 left-1/3 size-64 rounded-full bg-white/5 blur-3xl" aria-hidden />
+          <div className="pointer-events-none absolute -right-24 -top-28 size-72 rounded-full bg-white/10 blur-3xl [[data-theme=dark]_&]:bg-white/[0.14]" aria-hidden />
+          <div className="pointer-events-none absolute -bottom-28 left-1/3 size-64 rounded-full bg-white/5 blur-3xl [[data-theme=dark]_&]:bg-white/10" aria-hidden />
         </>
       ) : null}
 
       <div className={`relative flex flex-wrap items-center justify-between gap-5 ${command ? "px-5 pb-5 pt-6 lg:px-7 lg:pt-7" : "px-4 py-4 lg:px-5"}`}>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${command ? "text-neutral-400" : "text-[var(--color-primary-h)]"}`}>
+            <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${command ? "text-neutral-400 [[data-theme=dark]_&]:text-neutral-300" : "text-[var(--color-primary-h)]"}`}>
               {eyebrow}
             </p>
             {status ? (
@@ -86,7 +86,7 @@ export function AppointmentPageHeader({
             ) : null}
           </div>
           <h1 className={`mt-2 font-semibold tracking-[-0.025em] ${command ? "text-2xl text-white lg:text-[2rem]" : "text-xl text-[var(--color-text)]"}`}>{title}</h1>
-          <div className={`mt-2 max-w-3xl text-sm leading-6 ${command ? "text-neutral-400" : "text-[var(--color-text-muted)]"}`}>
+          <div className={`mt-2 max-w-3xl text-sm leading-6 ${command ? "text-neutral-400 [[data-theme=dark]_&]:text-neutral-300" : "text-[var(--color-text-muted)]"}`}>
             {description}
           </div>
         </div>
@@ -120,11 +120,11 @@ export function AppointmentPageHeader({
               key={metric.label}
               className={
                 command
-                  ? "min-w-0 rounded-xl border border-white/10 bg-white/[0.06] px-3.5 py-3 backdrop-blur-sm"
+                  ? "min-w-0 rounded-xl border border-white/10 bg-white/[0.06] px-3.5 py-3 backdrop-blur-sm [[data-theme=dark]_&]:border-white/16 [[data-theme=dark]_&]:bg-white/[0.1]"
                   : `min-w-0 px-4 py-3 ${index < metrics.length - 1 ? "border-b border-[var(--color-border)] sm:border-r lg:border-b-0" : ""}`
               }
             >
-              <p className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${command ? "text-slate-400" : "text-[var(--color-text-muted)]"}`}>
+              <p className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${command ? "text-slate-400 [[data-theme=dark]_&]:text-neutral-300" : "text-[var(--color-text-muted)]"}`}>
                 {metric.label}
               </p>
               <div className="mt-1 min-w-0">
@@ -132,7 +132,7 @@ export function AppointmentPageHeader({
                   {metric.value}
                 </p>
                 {metric.hint ? (
-                  <p className={`mt-0.5 text-[10px] leading-4 ${command ? "text-slate-400" : "text-[var(--color-text-muted)]"}`}>
+                  <p className={`mt-0.5 text-[10px] leading-4 ${command ? "text-slate-400 [[data-theme=dark]_&]:text-neutral-400" : "text-[var(--color-text-muted)]"}`}>
                     {metric.hint}
                   </p>
                 ) : null}

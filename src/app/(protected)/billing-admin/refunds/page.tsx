@@ -1,19 +1,22 @@
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { BillingRefundsManager } from "@/components/billing-refunds-manager";
 import { requireAdminSession } from "@/lib/auth-session";
+import { adminOrgWhere } from "@/lib/admin-organization-scope";
 import { prisma } from "@/lib/prisma";
 import { syncPendingRefundRequests } from "@/lib/refund-sync";
 
 export const dynamic = "force-dynamic";
 
 export default async function BillingAdminRefundsPage() {
-  await requireAdminSession();
+  const session = await requireAdminSession();
+  const orgWhere = adminOrgWhere(session.activeOrganizationId);
 
   // Reconcile pending requests with live Billing service status
   await syncPendingRefundRequests();
 
   const [rows, totalCount] = await Promise.all([
     prisma.refundRequest.findMany({
+      where: orgWhere,
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
       take: 500,
       select: {
@@ -31,12 +34,13 @@ export default async function BillingAdminRefundsPage() {
         reviewedBy: { select: { id: true, fullName: true } },
       },
     }),
-    prisma.refundRequest.count(),
+    prisma.refundRequest.count({ where: orgWhere }),
   ]);
 
   const pendingCount = rows.filter((row) => row.status === "pending").length;
   const approvedCount = rows.filter((row) => row.status === "approved").length;
   const rejectedCount = rows.filter((row) => row.status === "rejected").length;
+  const workspaceLabel = session.activeOrganization?.name;
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
@@ -44,7 +48,11 @@ export default async function BillingAdminRefundsPage() {
         variant="command"
         eyebrow="Billing"
         title="Refund requests"
-        description="View customer refund requests and submission history. Financial refunds and subscription adjustments are processed directly in the Billing service."
+        description={
+          workspaceLabel
+            ? `View refund requests for ${workspaceLabel}. Financial refunds and subscription adjustments are processed directly in the Billing service.`
+            : "View customer refund requests and submission history. Financial refunds and subscription adjustments are processed directly in the Billing service."
+        }
         status={`${pendingCount} pending`}
         statusTone={pendingCount > 0 ? "warning" : "success"}
         actions={[{ href: "/billing-admin", label: "Billing overview" }]}

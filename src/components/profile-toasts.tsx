@@ -36,6 +36,8 @@ const errorMessages: Record<string, string> = {
   organization_last: "Add another workspace before deleting this one.",
   organization_has_members: "Remove other members before deleting this organization.",
   organization_not_empty: "This organization has data and cannot be deleted. Ask an admin to force-delete it.",
+  organization_required:
+    "Select a specific workspace first. Appointments, reviews, and voice cannot use All workspaces.",
 };
 
 export function ProfileToasts() {

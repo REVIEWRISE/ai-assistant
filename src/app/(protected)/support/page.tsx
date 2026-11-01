@@ -1,6 +1,8 @@
+import { redirect } from "next/navigation";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { SupportTicketsPanel } from "@/components/support-tickets-panel";
 import { requireSession } from "@/lib/auth-session";
+import { userHasAdminRole } from "@/lib/admin-view-only";
 import { prisma } from "@/lib/prisma";
 import { supportTicketHasUnread } from "@/lib/support-tickets";
 import { createSupportTicket } from "./actions";
@@ -9,6 +11,9 @@ export const dynamic = "force-dynamic";
 
 export default async function SupportPage() {
   const session = await requireSession();
+  if (await userHasAdminRole(session.userId)) {
+    redirect("/platform/support");
+  }
 
   const tickets = await prisma.supportTicket.findMany({
     where: { createdByUserId: session.userId },
@@ -33,7 +38,7 @@ export default async function SupportPage() {
   });
 
   const openCount = tickets.filter((ticket) =>
-    ["pending", "accepted", "in_progress"].includes(ticket.status),
+    ["pending", "in_progress"].includes(ticket.status),
   ).length;
   const completedCount = tickets.filter((ticket) => ticket.status === "completed").length;
   const pendingCount = tickets.filter((ticket) => ticket.status === "pending").length;

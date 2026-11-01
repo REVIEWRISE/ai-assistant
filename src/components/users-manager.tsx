@@ -348,7 +348,7 @@ export function UsersManager({
   ];
 
   return (
-    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
       <div className="flex flex-col gap-4 border-b border-[var(--color-border)] px-4 py-4 sm:flex-row sm:items-start sm:justify-between lg:px-5">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
@@ -597,7 +597,7 @@ export function UsersManager({
                   ) : null}
 
                   <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
-                    <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+                    <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
                       <div className="flex items-start gap-3 border-b border-[var(--color-border)] px-5 py-4">
                         <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-[11px] font-bold text-[var(--color-primary-h)]">
                           01
@@ -702,7 +702,7 @@ export function UsersManager({
                       </div>
                     </section>
 
-                    <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+                    <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
                       <div className="flex items-start justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
                         <div className="flex items-start gap-3">
                           <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-[11px] font-bold text-[var(--color-primary-h)]">

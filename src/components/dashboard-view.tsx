@@ -18,7 +18,7 @@ function DashboardSectionCard({ section }: { section: DashboardSection }) {
   const hasCharts = section.charts.length > 0;
 
   return (
-    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-md)]">
+    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-md)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
       <div className="flex flex-wrap items-start justify-between gap-4 px-5 pb-4 pt-5 lg:px-6 lg:pt-6">
         <div className="flex min-w-0 items-start gap-3">
           <span
@@ -42,7 +42,7 @@ function DashboardSectionCard({ section }: { section: DashboardSection }) {
         </div>
         <Link
           href={section.href}
-          className="group inline-flex shrink-0 items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5 text-xs font-semibold text-[var(--color-text)] shadow-[var(--shadow-sm)] transition hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] hover:text-[var(--color-primary-h)]"
+          className="group inline-flex shrink-0 items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5 text-xs font-semibold text-[var(--color-text)] shadow-[var(--shadow-sm)] transition hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] hover:text-[var(--color-primary-h)] [[data-theme=dark]_&]:border-[var(--color-border-hover)] [[data-theme=dark]_&]:bg-[var(--color-raised)]"
         >
           Open module
           <span className="transition-transform group-hover:translate-x-0.5" aria-hidden>→</span>
@@ -136,7 +136,7 @@ function DashboardPlatformAttention({ stats }: { stats: DashboardPlatformStat[] 
   if (!stats.length) return null;
 
   return (
-    <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-md)] lg:p-5">
+    <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-md)] lg:p-5 [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
       <div className="mb-4 px-1">
         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
           Across the platform
@@ -148,7 +148,7 @@ function DashboardPlatformAttention({ stats }: { stats: DashboardPlatformStat[] 
           <Link
             key={stat.id}
             href={stat.href}
-            className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 transition hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] hover:shadow-[var(--shadow-md)]"
+            className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 transition hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] hover:shadow-[var(--shadow-md)] [[data-theme=dark]_&]:border-[var(--color-border-hover)] [[data-theme=dark]_&]:bg-[var(--color-raised)]"
           >
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
               {stat.title}
@@ -184,17 +184,17 @@ function WorkspaceBillingChips({
 }) {
   const chips = (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text)]">
+      <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text)] [[data-theme=dark]_&]:border-[var(--color-border-hover)] [[data-theme=dark]_&]:bg-[var(--color-raised)]">
         {billing.status}
       </span>
       {billing.planLabel ? (
-        <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
+        <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-muted)] [[data-theme=dark]_&]:border-[var(--color-border-hover)] [[data-theme=dark]_&]:bg-[var(--color-raised)]">
           {billing.planLabel}
           {billing.interval ? ` · ${billing.interval}` : ""}
         </span>
       ) : null}
       {billing.periodHint ? (
-        <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
+        <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-muted)] [[data-theme=dark]_&]:border-[var(--color-border-hover)] [[data-theme=dark]_&]:bg-[var(--color-raised)]">
           {billing.periodHint}
         </span>
       ) : null}
@@ -248,9 +248,9 @@ export function DashboardView({ data }: { data: DashboardData }) {
         </section>
       ) : (
         <>
-          <section className="relative overflow-hidden rounded-[1.65rem] border border-white/10 bg-[linear-gradient(125deg,#0c0c0c_0%,#161616_52%,#222222_100%)] px-5 py-6 text-white shadow-[var(--shadow-lg)] lg:px-7 lg:py-7">
-            <div className="pointer-events-none absolute -right-24 -top-28 size-72 rounded-full bg-white/10 blur-3xl" aria-hidden />
-            <div className="pointer-events-none absolute -bottom-28 left-1/3 size-64 rounded-full bg-white/5 blur-3xl" aria-hidden />
+          <section className="relative overflow-hidden rounded-[1.65rem] border border-white/10 bg-[linear-gradient(125deg,#0c0c0c_0%,#161616_52%,#222222_100%)] px-5 py-6 text-white shadow-[var(--shadow-lg)] [[data-theme=dark]_&]:border-white/18 [[data-theme=dark]_&]:bg-[linear-gradient(125deg,#1a1a1a_0%,#252525_55%,#303030_100%)] lg:px-7 lg:py-7">
+            <div className="pointer-events-none absolute -right-24 -top-28 size-72 rounded-full bg-white/10 blur-3xl [[data-theme=dark]_&]:bg-white/[0.14]" aria-hidden />
+            <div className="pointer-events-none absolute -bottom-28 left-1/3 size-64 rounded-full bg-white/5 blur-3xl [[data-theme=dark]_&]:bg-white/10" aria-hidden />
 
             <div className="relative grid items-end gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(24rem,0.72fr)]">
               <div>

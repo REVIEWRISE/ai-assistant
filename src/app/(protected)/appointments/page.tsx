@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
+import { WorkspaceRequiredPanel } from "@/components/workspace-required-panel";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth-session";
 
@@ -21,38 +22,46 @@ export default async function AppointmentsPage() {
   });
 
   const activeOrganization = session?.activeOrganization;
+  if (!activeOrganization) {
+    return (
+      <WorkspaceRequiredPanel
+        title="Appointment Agent workspace"
+        description="Pick a customer workspace before opening booking overview, knowledge, or the assistant."
+      />
+    );
+  }
   const modules = [
     {
       href: "/appointments/overview",
       eyebrow: "Operate",
       title: "Booking overview",
       description: "Monitor calendar health, upcoming appointments, and booking delivery.",
-      status: activeOrganization ? "Open workspace" : "Select an organization",
-      ready: Boolean(activeOrganization),
+      status: "Open workspace",
+      ready: true,
     },
     {
       href: "/appointments/organization",
       eyebrow: "Workspace",
       title: "Organization",
       description: "Manage the business identity and active workspace used by the agent.",
-      status: activeOrganization?.name ?? "Not selected",
-      ready: Boolean(activeOrganization),
+      status: activeOrganization.name,
+      ready: true,
     },
     {
       href: "/appointments/knowledge-base",
       eyebrow: "Business context",
       title: "Knowledge base",
       description: "Import services and policies that guide booking conversations.",
-      status: activeOrganization?.knowledgeBase?.status === "approved" ? "Approved" : "Needs approval",
-      ready: activeOrganization?.knowledgeBase?.status === "approved",
+      status: activeOrganization.knowledgeBase?.status === "approved" ? "Approved" : "Needs approval",
+      ready: activeOrganization.knowledgeBase?.status === "approved",
     },
     {
       href: "/appointments/chatbot",
       eyebrow: "Experience",
       title: "Booking assistant",
       description: "Customize prompts, booking questions, voice, CRM, and website embed.",
-      status: activeOrganization?.chatbotSettings ? "Configured" : "Needs configuration",
-      ready: Boolean(activeOrganization?.chatbotSettings),
+      status: activeOrganization.chatbotSettings ? "Configured" : "Needs configuration",
+      ready: Boolean(activeOrganization.chatbotSettings),
     },
   ];
 
@@ -61,13 +70,13 @@ export default async function AppointmentsPage() {
       <AppointmentPageHeader
         title="Appointment Agent workspace"
         description="Set up the business context once, then monitor and improve every booking channel from one place."
-        status={activeOrganization ? activeOrganization.name : "Organization required"}
-        statusTone={activeOrganization ? "success" : "warning"}
-        actions={activeOrganization ? [{ href: "/appointments/overview", label: "Open operations", primary: true }] : [{ href: "/appointments/organization", label: "Choose organization", primary: true }]}
+        status={activeOrganization.name}
+        statusTone="success"
+        actions={[{ href: "/appointments/overview", label: "Open operations", primary: true }]}
         metrics={[
-          { label: "Workspace", value: activeOrganization?.name ?? "Not selected" },
-          { label: "Knowledge", value: activeOrganization?.knowledgeBase?.status === "approved" ? "Approved" : "Needs approval" },
-          { label: "Assistant", value: activeOrganization?.chatbotSettings ? "Configured" : "Not configured" },
+          { label: "Workspace", value: activeOrganization.name },
+          { label: "Knowledge", value: activeOrganization.knowledgeBase?.status === "approved" ? "Approved" : "Needs approval" },
+          { label: "Assistant", value: activeOrganization.chatbotSettings ? "Configured" : "Not configured" },
         ]}
       />
 

@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { SupportTicketThread } from "@/components/support-ticket-thread";
 import { requireSession } from "@/lib/auth-session";
+import { userHasAdminRole } from "@/lib/admin-view-only";
 import { prisma } from "@/lib/prisma";
 import { canUserReplyToSupportTicket } from "@/lib/support-tickets";
 import { markSupportTicketRead, replyToSupportTicket } from "../actions";
@@ -14,6 +15,10 @@ export default async function SupportTicketDetailPage({
 }) {
   const session = await requireSession();
   const { id } = await params;
+
+  if (await userHasAdminRole(session.userId)) {
+    redirect(`/platform/support/${id}`);
+  }
 
   const ticket = await prisma.supportTicket.findUnique({
     where: { id },

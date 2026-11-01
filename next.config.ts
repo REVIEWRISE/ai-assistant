@@ -29,6 +29,10 @@ const CSP_REPORT_ONLY_EMBED = [
 const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: ["nodemailer"],
+  // Keep editable support FAQ markdown available to the server in standalone builds.
+  outputFileTracingIncludes: {
+    "/*": ["./docs/support/**/*"],
+  },
   async headers() {
     return [
       {

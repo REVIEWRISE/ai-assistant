@@ -9,10 +9,14 @@ import { createUser, updateUser } from "./actions";
 export const dynamic = "force-dynamic";
 
 export default async function UserManagementPage() {
-  await requireAdminSession();
+  const session = await requireAdminSession();
+  const organizationId = session.activeOrganizationId;
 
   const [users, roles] = await Promise.all([
     prisma.user.findMany({
+      where: organizationId
+        ? { organizationMembers: { some: { organizationId } } }
+        : undefined,
       orderBy: { createdAt: "asc" },
       include: {
         userRoles: {
@@ -20,6 +24,7 @@ export default async function UserManagementPage() {
           take: 1,
         },
         organizationMembers: {
+          where: organizationId ? { organizationId } : undefined,
           orderBy: { createdAt: "asc" },
           include: { organization: true },
         },
@@ -40,6 +45,7 @@ export default async function UserManagementPage() {
   const attentionUsers = suspendedUsers;
   const newest = users[users.length - 1];
   const newestLabel = newest ? new Date(newest.createdAt).toLocaleDateString() : "—";
+  const workspaceLabel = session.activeOrganization?.name;
 
   const status =
     totalUsers === 0
@@ -58,7 +64,11 @@ export default async function UserManagementPage() {
         variant="command"
         eyebrow="User Management"
         title="Team directory"
-        description="Create accounts, assign roles, and manage sign-in access across every workspace."
+        description={
+          workspaceLabel
+            ? `Create accounts, assign roles, and manage sign-in access for ${workspaceLabel}.`
+            : "Create accounts, assign roles, and manage sign-in access across every workspace."
+        }
         status={status}
         statusTone={totalUsers === 0 || attentionUsers > 0 ? "warning" : "success"}
         actions={[

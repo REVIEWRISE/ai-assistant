@@ -35,9 +35,6 @@ export async function adminReplyToSupportTicket(
     select: { id: true, status: true, organizationId: true },
   });
   if (!ticket) return { ok: false, error: "Ticket not found." };
-  if (ticket.status === "pending") {
-    return { ok: false, error: "Accept this request before sending a reply." };
-  }
   if (!canAdminReplyToSupportTicket(ticket.status)) {
     return { ok: false, error: "This request is closed." };
   }

@@ -111,7 +111,7 @@ function MetricCard({
   hint?: string | null;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5">
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5 [[data-theme=dark]_&]:border-[var(--color-border-hover)] [[data-theme=dark]_&]:bg-[var(--color-raised)]">
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
         {label}
       </p>
@@ -204,7 +204,7 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
         </section>
       ) : null}
 
-      <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+      <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--color-border)] px-5 py-5 sm:px-6">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
@@ -238,7 +238,7 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
 
       {/* Existing Refund / Credit History (Only shown if requests exist) */}
       {requests.length > 0 ? (
-        <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+        <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border)] px-5 py-4 sm:px-6">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
@@ -289,7 +289,7 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
               </div>
             ) : null}
 
-            <div className="divide-y divide-[var(--color-border)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+            <div className="divide-y divide-[var(--color-border)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] [[data-theme=dark]_&]:border-[var(--color-border-hover)] [[data-theme=dark]_&]:bg-[var(--color-raised)]">
               {requests.map((req) => {
                 const isPending = req.status === "pending";
                 const isApproved = req.status === "approved";
@@ -358,7 +358,7 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
       ) : null}
 
       {/* Low-Visibility Collapsed Billing Terms & Inquiries Footer */}
-      <section className="rounded-xl border border-[var(--color-border)]/50 bg-[var(--color-surface)]/30 p-4">
+      <section className="rounded-xl border border-[var(--color-border)]/50 bg-[var(--color-surface)]/30 p-4 [[data-theme=dark]_&]:border-[var(--color-border)] [[data-theme=dark]_&]:bg-[var(--color-surface)]">
         <details className="group">
           <summary className="flex cursor-pointer select-none items-center justify-between text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)]">
             <span>Billing terms, recurring renewal & dispute disclosures</span>
@@ -366,7 +366,7 @@ export function SubscriptionPanel({ subscription }: { subscription: Subscription
               ▼
             </span>
           </summary>
-          <div className="mt-3 space-y-2 border-t border-[var(--color-border)]/40 pt-3 text-[11px] leading-relaxed text-[var(--color-text-subtle)]">
+          <div className="mt-3 space-y-2 border-t border-[var(--color-border)]/40 pt-3 text-[11px] leading-relaxed text-[var(--color-text-subtle)] [[data-theme=dark]_&]:text-[var(--color-text-muted)]">
             <p>
               Subscriptions automatically renew at the close of each billing cycle unless cancellation is initiated prior to the renewal date. All payments are processed through secure billing infrastructure.
             </p>

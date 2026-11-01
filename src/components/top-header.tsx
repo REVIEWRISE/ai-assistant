@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { CustomSelect } from "@/components/custom-select";
 import { ThemeSwitch } from "@/components/theme-switch";
+import { ADMIN_ALL_WORKSPACES } from "@/lib/admin-organization-scope";
 
 type HeaderCopy = {
   eyebrow: string;
@@ -200,14 +201,21 @@ export function TopHeader({
   switchingOrganization = false,
 }: TopHeaderProps) {
   const copy = getHeaderCopy(pathname);
+  const isAdmin = profileRole === "Admin";
   const hasOrganizations = organizations.length > 0;
+  const organizationOptions = [
+    ...(isAdmin ? [{ value: ADMIN_ALL_WORKSPACES, label: "All workspaces" }] : []),
+    ...organizations.map((org) => ({ value: org.id, label: org.name })),
+  ];
+  const organizationSelectValue =
+    activeOrganizationId ?? (isAdmin && hasOrganizations ? ADMIN_ALL_WORKSPACES : "");
 
   const organizationSelect =
-    hasOrganizations ? (
+    organizationOptions.length > 0 ? (
       <CustomSelect
-        value={activeOrganizationId ?? ""}
+        value={organizationSelectValue}
         onChange={(organizationId) => onSwitchOrganization?.(organizationId)}
-        options={organizations.map((org) => ({ value: org.id, label: org.name }))}
+        options={organizationOptions}
         placeholder="Select workspace"
         disabled={switchingOrganization}
         searchable

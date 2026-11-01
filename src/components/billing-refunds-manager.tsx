@@ -279,7 +279,7 @@ function RefundReviewSheet({
           </section>
 
           {/* Request Details */}
-          <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+          <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
             <div className="border-b border-[var(--color-border)] px-4 py-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
                 Request Details
@@ -413,7 +413,7 @@ export function BillingRefundsManager({ requests }: { requests: AdminRefundReque
 
   return (
     <div>
-      <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+      <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
         <div className="border-b border-[var(--color-border)] px-4 py-4 lg:px-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
             Queue

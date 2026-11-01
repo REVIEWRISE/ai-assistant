@@ -1,6 +1,7 @@
 import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { AuditEventsManager } from "@/components/audit-events-manager";
 import { requireAdminSession } from "@/lib/auth-session";
+import { adminOrgWhere, adminOrganizationIdWhere } from "@/lib/admin-organization-scope";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +9,9 @@ export const dynamic = "force-dynamic";
 const RECENT_EVENT_LIMIT = 2000;
 
 export default async function PlatformAuditPage() {
-  await requireAdminSession();
+  const session = await requireAdminSession();
+  const orgWhere = adminOrgWhere(session.activeOrganizationId);
+  const organizationListWhere = adminOrganizationIdWhere(session.activeOrganizationId);
 
   const since24HoursAgo = new Date();
   since24HoursAgo.setUTCDate(since24HoursAgo.getUTCDate() - 1);
@@ -16,6 +19,7 @@ export default async function PlatformAuditPage() {
   const [events, organizations, totalInDatabase, recentDayCount, distinctActions] =
     await Promise.all([
       prisma.auditEvent.findMany({
+        where: orgWhere,
         orderBy: { createdAt: "desc" },
         take: RECENT_EVENT_LIMIT,
         include: {
@@ -24,18 +28,21 @@ export default async function PlatformAuditPage() {
         },
       }),
       prisma.organization.findMany({
+        where: organizationListWhere,
         select: { id: true, name: true },
         orderBy: { name: "asc" },
         take: 300,
       }),
-      prisma.auditEvent.count(),
+      prisma.auditEvent.count({ where: orgWhere }),
       prisma.auditEvent.count({
         where: {
+          ...orgWhere,
           createdAt: { gte: since24HoursAgo },
         },
       }),
       prisma.auditEvent.groupBy({
         by: ["action"],
+        where: orgWhere,
         orderBy: { action: "asc" },
       }),
     ]);
@@ -45,6 +52,7 @@ export default async function PlatformAuditPage() {
   const uniqueActors = new Set(
     events.map((event) => event.actorId).filter((id): id is string => Boolean(id)),
   ).size;
+  const workspaceLabel = session.activeOrganization?.name;
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
@@ -52,7 +60,11 @@ export default async function PlatformAuditPage() {
         variant="command"
         eyebrow="Platform Settings"
         title="Audit log"
-        description="Review sign-ins, billing changes, access grants, and other events the app records."
+        description={
+          workspaceLabel
+            ? `Review sign-ins, billing changes, access grants, and other events for ${workspaceLabel}.`
+            : "Review sign-ins, billing changes, access grants, and other events the app records."
+        }
         status={recentDayCount > 0 ? `${recentDayCount} in last 24h` : "Quiet last 24h"}
         statusTone={recentDayCount > 0 ? "success" : "warning"}
         actions={[{ href: "/platform", label: "Platform overview" }]}
