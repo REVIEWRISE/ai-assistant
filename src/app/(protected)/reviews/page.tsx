@@ -255,6 +255,7 @@ export default async function ReviewsPage() {
       source: row.provider,
       tone: inboxToneForStatus(displayStatus),
       status: displayStatus,
+      replied: row.status.trim().toLowerCase() === "responded",
     };
   });
 

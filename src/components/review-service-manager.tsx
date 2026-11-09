@@ -180,7 +180,9 @@ export function ReviewServiceManager({
               View only
             </span>
           ) : null}
-          <span className="hidden text-[11px] text-[var(--color-text-muted)] sm:inline">{services.length - connectedCount} need attention</span>
+          {services.length > connectedCount ? (
+            <span className="hidden text-[11px] text-[var(--color-text-muted)] sm:inline">{services.length - connectedCount} not connected</span>
+          ) : null}
           <button
             type="button"
             onClick={() => setCollapsed((prev) => !prev)}

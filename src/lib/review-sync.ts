@@ -329,6 +329,68 @@ export function parseRequiredFieldRules(rawConfig: unknown): RequiredFieldRule[]
     .slice(0, 12);
 }
 
+type ExistingReviewForReplySync = {
+  id: string;
+  status: string;
+  rating: number;
+  reviewText: string;
+  externalReviewId: string | null;
+};
+
+/**
+ * Finds reviews still waiting here that the business already answered on the platform.
+ * Matches on the platform's review id. Text is only a fallback for rows imported without
+ * an id, and only when unambiguous, since rating-only reviews can share identical text.
+ */
+export function findExistingReviewsRepliedOnProvider(
+  existing: ExistingReviewForReplySync[],
+  candidates: NormalizedIncomingReview[],
+): Array<{ id: string; status: string; responseText: string }> {
+  const contentKey = (rating: number, text: string) => `${rating}::${text.trim()}`;
+  const byExternalId = new Map<string, ExistingReviewForReplySync>();
+  const byContent = new Map<string, ExistingReviewForReplySync[]>();
+  for (const row of existing) {
+    if (row.externalReviewId) {
+      byExternalId.set(row.externalReviewId, row);
+      continue;
+    }
+    const key = contentKey(row.rating, row.reviewText);
+    byContent.set(key, [...(byContent.get(key) ?? []), row]);
+  }
+
+  const replies = new Map<string, { id: string; status: string; responseText: string }>();
+  for (const candidate of candidates) {
+    const responseText = candidate.responseText?.trim();
+    if (!responseText) continue;
+
+    const byId = candidate.googleReviewId ? byExternalId.get(candidate.googleReviewId) : undefined;
+    const contentMatches = byContent.get(contentKey(candidate.rating, candidate.reviewText)) ?? [];
+    const match = byId ?? (contentMatches.length === 1 ? contentMatches[0] : undefined);
+
+    if (match && match.status.trim().toLowerCase() === "pending") {
+      replies.set(match.id, { id: match.id, status: match.status, responseText });
+    }
+  }
+  return [...replies.values()];
+}
+
+export async function applyProviderRepliesToExistingReviews(args: {
+  organizationId: string;
+  existing: ExistingReviewForReplySync[];
+  candidates: NormalizedIncomingReview[];
+}): Promise<number> {
+  let applied = 0;
+  for (const reply of findExistingReviewsRepliedOnProvider(args.existing, args.candidates)) {
+    // Conditional on the status we read, so a reply published here mid-sync isn't overwritten.
+    const { count } = await prisma.review.updateMany({
+      where: { id: reply.id, organizationId: args.organizationId, status: reply.status },
+      data: { responseText: reply.responseText, status: "responded" },
+    });
+    applied += count;
+  }
+  return applied;
+}
+
 export async function syncSingleConnectedReviewProvider(args: {
   userId: string;
   providerId: string;
@@ -376,7 +438,7 @@ export async function syncSingleConnectedReviewProvider(args: {
 
   const existing = await prisma.review.findMany({
     where: { organizationId: args.organizationId, provider: provider.name },
-    select: { reviewText: true, rating: true, externalReviewId: true },
+    select: { id: true, status: true, reviewText: true, rating: true, externalReviewId: true },
     take: 5000,
   });
   const existingByGoogleId = new Set(
@@ -387,6 +449,17 @@ export async function syncSingleConnectedReviewProvider(args: {
     if (r.googleReviewId && existingByGoogleId.has(r.googleReviewId)) return false;
     return !existingByContent.has(`${r.rating}::${r.reviewText.trim()}`);
   });
+
+  const repliesSynced = await applyProviderRepliesToExistingReviews({
+    organizationId: args.organizationId,
+    existing,
+    candidates,
+  });
+  if (repliesSynced > 0) {
+    console.info(
+      `[review-sync] marked ${repliesSynced} review(s) as replied for org ${args.organizationId.slice(0, 8)}`,
+    );
+  }
 
   if (toInsert.length > 0) {
     const insertedSince = new Date();
