@@ -8,9 +8,6 @@ import { AuthShell } from "@/components/auth-shell";
 import { GoogleAuthButton } from "@/components/google-auth-button";
 import { toast } from "@/lib/toast";
 
-const INPUT_CLASS =
-  "w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-3 text-sm text-[var(--color-text)] shadow-sm outline-none transition placeholder:text-[var(--color-text-subtle)] hover:border-[var(--color-border-hover)] focus:border-[var(--color-primary)] focus:ring-3 focus:ring-[color-mix(in_srgb,var(--color-primary)_14%,transparent)]";
-
 function PasswordIcon({ hidden }: { hidden: boolean }) {
   return hidden ? (
     <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -87,18 +84,16 @@ function LoginPageContent({
       sideDescription="Return to one workspace for review responses, appointments, and qualified leads—with context already attached."
     >
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Welcome back</p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-[var(--color-text)]">Sign in to VyntRise</h2>
-        <p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">Use your work email or Google account to access your workspace.</p>
+        <h2 className="text-[2.25rem] font-semibold leading-[1.1] tracking-[-0.035em] text-[var(--color-text)]">Sign in to VyntRise</h2>
+        <p className="mt-3 text-[15px] leading-7 text-[var(--color-text-muted)]">Use your work email or Google account to access your workspace.</p>
       </div>
 
       <div className="mt-8 space-y-5">
         {isGoogleAccountError && (
-          <div className="flex items-start gap-3 rounded-2xl border border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_10%,var(--color-surface))] p-4 text-sm text-[var(--color-text)]">
-            <span className="mt-0.5 text-base leading-none">ℹ️</span>
+          <div className="rounded-2xl bg-[var(--lp-tint)] p-4 text-sm text-[var(--color-text)]">
             <div>
-              <p className="font-semibold text-[var(--color-primary-h)]">Google Sign-In Required</p>
-              <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+              <p className="font-semibold text-[var(--lp-accent)]">Google sign-in required</p>
+              <p className="mt-1 leading-6 text-[var(--color-text-muted)]">
                 {emailParam ? (
                   <>The account for <strong className="font-semibold text-[var(--color-text)]">{emailParam}</strong> was registered with Google. Click below to sign in directly with Google.</>
                 ) : (
@@ -127,7 +122,7 @@ function LoginPageContent({
               defaultValue={emailParam}
               placeholder="you@company.com"
               autoComplete="email"
-              className={INPUT_CLASS}
+              className="lp-input"
             />
           </label>
 
@@ -138,7 +133,7 @@ function LoginPageContent({
               </label>
               <Link
                 href="/forgot-password"
-                className="text-xs font-semibold text-[var(--color-primary-h)] hover:underline"
+                className="text-sm font-medium text-[var(--lp-accent)] underline-offset-4 hover:underline"
               >
                 Forgot password?
               </Link>
@@ -151,7 +146,7 @@ function LoginPageContent({
                 required
                 placeholder="Enter your password"
                 autoComplete="current-password"
-                className={`${INPUT_CLASS} pr-11`}
+                className="lp-input lp-input-toggle"
               />
               <button
                 type="button"
@@ -164,19 +159,18 @@ function LoginPageContent({
             </span>
           </div>
 
-          <button type="submit" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] shadow-sm transition hover:bg-[var(--color-primary-h)]">
+          <button type="submit" className="lp-btn lp-btn-solid w-full">
             Sign in
-            <span aria-hidden>→</span>
           </button>
         </form>
       </div>
 
-      <div className="mt-7 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-center">
-        <p className="text-sm text-[var(--color-text-muted)]">
+      <div className="mt-8 border-t border-[var(--color-border)] pt-6 text-center">
+        <p className="text-[15px] text-[var(--color-text-muted)]">
           New to VyntRise?{" "}
-          <Link href="/register" className="font-semibold text-[var(--color-primary-h)] hover:underline">Create a free account</Link>
+          <Link href="/register" className="font-semibold text-[var(--lp-accent)] underline-offset-4 hover:underline">Create a free account</Link>
         </p>
-        <p className="mt-1.5 text-xs text-[var(--color-text-subtle)]">14-day trial · No credit card required</p>
+        <p className="mt-1.5 text-sm text-[var(--color-text-muted)]">14-day trial · No credit card required</p>
       </div>
     </AuthShell>
   );

@@ -198,7 +198,7 @@ export function BillingPlansManager({
             setForm(null);
           }}
           disabled={!productId}
-          className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           Add plan
         </button>
@@ -874,7 +874,7 @@ function PlanEditActions({
         type="submit"
         disabled={pending}
         aria-busy={pending}
-        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-3 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:opacity-70"
+        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-3 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)] disabled:opacity-70"
       >
         {pending ? (isCreate ? "Creating…" : "Saving…") : isCreate ? "Create plan" : "Save plan"}
       </button>

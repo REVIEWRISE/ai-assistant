@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import type { GenerateVoiceGreetingResult } from "@/app/(protected)/appointments/chatbot/actions";
+import type { GenerateVoiceGreetingResult } from "@/app/(protected)/appointments/(agent)/chatbot/actions";
 import { CustomSelect } from "@/components/custom-select";
 import { ChatbotWidgetPreview } from "@/components/chatbot-widget-preview";
 import type { BookingFlowConfig } from "@/lib/chatbot-config";
@@ -304,7 +304,7 @@ export function ChatbotVoiceBookingModal({
                     type="button"
                     disabled={generatePending}
                     onClick={() => void runGenerateGreeting()}
-                    className="shrink-0 rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary-fg)] shadow-sm transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="shrink-0 rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary-fg)] shadow-sm transition hover:bg-[var(--color-primary-fill-h)] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {generatePending ? "Generating…" : "Generate with AI"}
                   </button>
@@ -382,7 +382,7 @@ export function ChatbotVoiceBookingModal({
                     className={`inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto ${
                       previewPlaying
                         ? "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-surface)]"
-                        : "bg-[var(--color-primary)] text-[var(--color-primary-fg)] hover:bg-[var(--color-primary-h)]"
+                        : "bg-[var(--color-primary)] text-[var(--color-primary-fg)] hover:bg-[var(--color-primary-fill-h)]"
                     }`}
                   >
                     {previewPlaying ? (
@@ -482,7 +482,7 @@ export function ChatbotVoiceBookingModal({
               <button
                 type="submit"
                 disabled={!canSave}
-                className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Save voice settings
               </button>

@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { ChatbotToasts } from "@/components/chatbot-toasts";
 import { ChatbotOrganizationsTable } from "@/components/chatbot-organizations-table";
-import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { getAppOrigin } from "@/lib/app-origin";
 import { requireActiveOrganization } from "@/lib/auth-session";
 import { resolveChatbotConfigData } from "@/lib/chatbot-config";
@@ -59,22 +58,6 @@ export default async function AppointmentChatbotPage() {
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
-      <AppointmentPageHeader
-        variant="command"
-        title="Booking assistants"
-        description={`Configure the website assistant, booking questions, voice experience, and CRM delivery for ${organization.name}.`}
-        status={`Active: ${organization.name}`}
-        statusTone="success"
-        metrics={[
-          { label: "Workspace", value: organization.name },
-          {
-            label: "Assistant",
-            value: organization.chatbotSettings ? "Configured" : "Needs setup",
-          },
-          { label: "Voice", value: config.voiceBooking.enabled ? "Enabled" : "Off" },
-          { label: "CRM", value: config.crmIntegration.enabled ? "Connected" : "Off" },
-        ]}
-      />
 
       <ChatbotToasts />
 

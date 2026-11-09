@@ -9,6 +9,7 @@ import {
   type SupportChatMessage,
   type SupportChatTicket,
 } from "@/app/(protected)/support/actions";
+import { LandingLogoMark } from "@/components/landing/landing-logo-mark";
 
 const STORAGE_KEY = "support-chat-ticket-id";
 
@@ -25,24 +26,22 @@ function ChatBubble({ message }: { message: SupportChatMessage }) {
   return (
     <div className={`flex ${fromUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[85%] rounded-2xl px-3 py-2 text-[13px] leading-relaxed ${
+        className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
           fromUser
-            ? "rounded-br-md bg-[var(--color-text)] text-[var(--color-bg)]"
+            ? "rounded-br-md bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
             : fromAi
-              ? "rounded-bl-md border border-violet-200/80 bg-violet-50/90 text-[var(--color-text)] [[data-theme=dark]_&]:border-violet-500/30 [[data-theme=dark]_&]:bg-violet-500/10"
+              ? "rounded-bl-md bg-[var(--color-primary-soft)] text-[var(--color-text)]"
               : "rounded-bl-md border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)]"
         }`}
       >
         {!fromUser ? (
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+          <p className="mb-1 text-xs font-semibold text-[var(--color-primary-h)]">
             {fromAi ? "AI assistant" : "Support"}
           </p>
         ) : null}
         <p className="whitespace-pre-wrap">{message.body}</p>
         <time
-          className={`mt-1 block text-[10px] ${
-            fromUser ? "text-[var(--color-bg)]/70" : "text-[var(--color-text-muted)]"
-          }`}
+          className={`mt-1 block text-xs ${fromUser ? "text-white/80" : "text-[var(--color-text-muted)]"}`}
         >
           {formatTime(message.createdAt)}
         </time>
@@ -60,6 +59,7 @@ export function SupportChatWidget({ enabled }: { enabled: boolean }) {
   const [awaitingAi, setAwaitingAi] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const persistTicketId = useCallback((id: string | null) => {
     try {
@@ -151,6 +151,12 @@ export function SupportChatWidget({ enabled }: { enabled: boolean }) {
     });
   }
 
+  function closePanel() {
+    setOpen(false);
+    // The launcher only exists while the panel is closed, so wait for it to render.
+    requestAnimationFrame(() => triggerRef.current?.focus());
+  }
+
   function startNewChat() {
     persistTicketId(null);
     setTicket(null);
@@ -160,44 +166,43 @@ export function SupportChatWidget({ enabled }: { enabled: boolean }) {
   }
 
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex flex-col items-end gap-3 sm:bottom-5 sm:right-5">
+    <div className="pointer-events-none fixed bottom-14 right-4 z-[60] flex flex-col items-end sm:right-5">
       {open ? (
         <section
-          className="pointer-events-auto flex h-[min(34rem,calc(100dvh-6.5rem))] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]"
+          className="pointer-events-auto flex h-[min(34rem,calc(100dvh-5.5rem))] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_24px_60px_-20px_rgb(8_20_66/0.55)]"
           aria-label="Support chat"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") closePanel();
+          }}
         >
-          <header className="flex items-start justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3">
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-                Support
-              </p>
-              <h2 className="truncate text-[15px] font-semibold text-[var(--color-text)]">
-                Ask anything
-              </h2>
-              <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">
-                AI answers first. Our team can follow up.
-              </p>
+          <header className="vr-app-blue flex items-center gap-3 px-4 py-3.5">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/15" aria-hidden>
+              <LandingLogoMark className="h-5 w-auto text-white" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-[15px] font-semibold text-white">Ask anything</h2>
+              <p className="mt-0.5 text-[13px] text-white/85">AI answers first. Our team can follow up.</p>
             </div>
             <button
               type="button"
-              onClick={() => setOpen(false)}
-              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+              onClick={closePanel}
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               aria-label="Close support chat"
             >
-              <span aria-hidden className="text-lg leading-none">
-                ×
-              </span>
+              <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
             </button>
           </header>
 
           <div ref={listRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
             {loading && !ticket ? (
-              <p className="px-1 py-6 text-center text-[12px] text-[var(--color-text-muted)]">
+              <p className="px-1 py-6 text-center text-sm text-[var(--color-text-muted)]">
                 Loading conversation…
               </p>
             ) : null}
             {!loading && (!ticket || ticket.messages.length === 0) ? (
-              <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-4 text-[12px] leading-relaxed text-[var(--color-text-muted)]">
+              <div className="rounded-2xl rounded-bl-md bg-[var(--color-primary-soft)] px-3.5 py-3 text-sm leading-relaxed text-[var(--color-text)]">
                 Ask about billing, voice agent, knowledge base, or anything else on the
                 platform. Your message opens a support request automatically.
               </div>
@@ -207,7 +212,7 @@ export function SupportChatWidget({ enabled }: { enabled: boolean }) {
             ))}
             {awaitingAi ? (
               <div className="flex justify-start">
-                <div className="rounded-2xl rounded-bl-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-[12px] text-[var(--color-text-muted)]">
+                <div className="rounded-2xl rounded-bl-md bg-[var(--color-primary-soft)] px-3.5 py-2.5 text-sm text-[var(--color-text-muted)]">
                   Support AI is typing…
                 </div>
               </div>
@@ -218,7 +223,7 @@ export function SupportChatWidget({ enabled }: { enabled: boolean }) {
             <div className="mb-2 flex items-center justify-between gap-2">
               <Link
                 href={ticket ? `/support/${ticket.id}` : "/support"}
-                className="text-[11px] font-semibold text-[var(--color-primary-h)] hover:underline"
+                className="text-xs font-semibold text-[var(--color-primary-h)] underline-offset-4 hover:underline"
                 onClick={() => setOpen(false)}
               >
                 Open full Support
@@ -227,7 +232,7 @@ export function SupportChatWidget({ enabled }: { enabled: boolean }) {
                 <button
                   type="button"
                   onClick={startNewChat}
-                  className="text-[11px] font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                  className="text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
                 >
                   New chat
                 </button>
@@ -247,7 +252,7 @@ export function SupportChatWidget({ enabled }: { enabled: boolean }) {
                 rows={2}
                 placeholder="Describe your issue…"
                 disabled={pending}
-                className="min-h-[2.75rem] max-h-28 flex-1 resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)]"
+                className="min-h-[2.75rem] max-h-28 flex-1 resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-base text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] sm:text-sm"
               />
               <button
                 type="button"
@@ -279,21 +284,21 @@ export function SupportChatWidget({ enabled }: { enabled: boolean }) {
         </section>
       ) : null}
 
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="pointer-events-auto inline-flex h-12 items-center gap-2 rounded-full bg-[var(--color-text)] px-4 text-[13px] font-semibold text-[var(--color-bg)] shadow-[var(--shadow-lg)] transition hover:opacity-90"
-        aria-expanded={open}
-        aria-label={open ? "Close support chat" : "Open support chat"}
-      >
-        <span
-          className="flex size-7 items-center justify-center rounded-full bg-[var(--color-bg)]/15 text-[11px] font-bold"
-          aria-hidden
+      {!open ? (
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setOpen(true)}
+          className="pointer-events-auto inline-flex h-12 items-center gap-2 rounded-full bg-[var(--color-primary)] pl-4 pr-5 text-sm font-semibold text-[var(--color-primary-fg)] shadow-[0_14px_32px_-12px_rgb(29_58_150/0.75)] transition hover:bg-[var(--color-primary-fill-h)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary-h)]"
+          aria-label="Open support chat"
         >
-          ?
-        </span>
-        <span className="pr-0.5">{open ? "Close" : "Help"}</span>
-      </button>
+          <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M21 12a8.5 8.5 0 0 1-12.4 7.55L3 21l1.45-5.6A8.5 8.5 0 1 1 21 12Z" />
+            <path d="M8.5 12h.01M12 12h.01M15.5 12h.01" />
+          </svg>
+          Help
+        </button>
+      ) : null}
     </div>
   );
 }

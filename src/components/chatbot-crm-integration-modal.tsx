@@ -188,7 +188,7 @@ export function ChatbotCrmIntegrationModal({
               </button>
               <button
                 type="submit"
-                className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+                className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
               >
                 Save CRM integration
               </button>

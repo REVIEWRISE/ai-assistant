@@ -56,10 +56,6 @@ export function CalendarServiceManager({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base font-semibold text-[var(--color-text)]">Calendar connections</h3>
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-semibold ${connectedCount > 0 ? "vr-app-status-success" : "vr-app-status-warning"}`}>
-              <span className={`size-1.5 rounded-full ${connectedCount > 0 ? "bg-[var(--color-success)]" : "bg-[var(--color-warning)]"}`} aria-hidden />
-              {connectedCount > 0 ? `${connectedCount} connected` : "Connection needed"}
-            </span>
           </div>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">
             Availability checks and new bookings use these calendars.
@@ -115,7 +111,7 @@ export function CalendarServiceManager({
               No providers match this filter.
             </div>
           ) : (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr))]">
               {filteredProviders.map((provider: CalendarProvider) => {
                 const connected = provider.status === "Connected";
                 return (

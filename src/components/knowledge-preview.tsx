@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { KNOWLEDGE_UI_PREVIEW_MAX_CHARS } from "@/lib/knowledge-base-limits";
 
 type KnowledgePreviewProps = {
@@ -102,6 +103,9 @@ export function KnowledgePreview({
   const rawLen = rawTextLength ?? raw.length;
   const showingExcerpt = rawLen > raw.length;
   const showRawPanel = rawLen > 0;
+  // Long digests push the rest of the page far down; show a capped preview with an expand toggle.
+  const isLong = digestText.length > 1200;
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <div className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 shadow-[var(--shadow-sm)]">
@@ -124,7 +128,25 @@ export function KnowledgePreview({
       </div>
 
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-3">
-        <FormattedPreviewBody text={digestText} />
+        <div className={`relative ${isLong && !expanded ? "max-h-80 overflow-hidden" : ""}`}>
+          <FormattedPreviewBody text={digestText} />
+          {isLong && !expanded ? (
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-[linear-gradient(to_bottom,transparent,var(--color-surface))]"
+              aria-hidden
+            />
+          ) : null}
+        </div>
+        {isLong ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            aria-expanded={expanded}
+            className="mt-2 text-xs font-semibold text-[var(--color-primary-h)] hover:underline"
+          >
+            {expanded ? "Show less" : "Show full digest"}
+          </button>
+        ) : null}
       </div>
 
       {showRawPanel ? (

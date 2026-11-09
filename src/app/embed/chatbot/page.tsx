@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default async function EmbedChatbotPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ org?: string }>;
+  searchParams?: Promise<{ org?: string; open?: string; layout?: string }>;
 }) {
   const sp = (await searchParams) ?? {};
   const organizationId = String(sp.org ?? "").trim();
@@ -60,7 +60,7 @@ export default async function EmbedChatbotPage({
           background: transparent !important;
         }
       `}</style>
-      <div className="min-h-[100dvh] w-full bg-transparent">
+      <div className={sp.layout === "fill" ? "box-border h-[100dvh] w-full bg-transparent p-4" : "min-h-[100dvh] w-full bg-transparent"}>
         <FloatingBookingChatbot
           organizationId={organizationId}
           organizationName={org.name}
@@ -69,6 +69,8 @@ export default async function EmbedChatbotPage({
           iconColor={cfg.iconColor}
           bookingFlow={cfg.bookingFlow}
           voiceBooking={cfg.voiceBooking}
+          defaultOpen={sp.open === "1"}
+          fill={sp.layout === "fill"}
         />
       </div>
     </>

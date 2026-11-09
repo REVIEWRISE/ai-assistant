@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createPortal } from "react-dom";
-import type { GenerateBookingFlowResult } from "@/app/(protected)/appointments/chatbot/actions";
+import type { GenerateBookingFlowResult } from "@/app/(protected)/appointments/(agent)/chatbot/actions";
 import { ChatbotWidgetPreview } from "@/components/chatbot-widget-preview";
 import { CustomSelect } from "@/components/custom-select";
 import { normalizeQuickActionsArray, type BookingFlowConfig, type ChatbotConfigData } from "@/lib/chatbot-config";
@@ -82,7 +82,7 @@ function SaveBookingFlowSubmitButton({ idleLabel }: { idleLabel: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] shadow-sm transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-60"
+      className="rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] shadow-sm transition hover:bg-[var(--color-primary-fill-h)] disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? "Saving…" : idleLabel}
     </button>
@@ -119,7 +119,7 @@ function FlowAiCard({
         type="button"
         disabled={disabled}
         onClick={onClick}
-        className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)] shadow-sm transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-60"
+        className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)] shadow-sm transition hover:bg-[var(--color-primary-fill-h)] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? pendingLabel : buttonLabel}
       </button>

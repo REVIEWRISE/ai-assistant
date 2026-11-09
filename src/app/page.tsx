@@ -25,14 +25,12 @@ export default async function Home() {
   const registerHref = isLoggedIn ? "/dashboard" : "/register";
 
   return (
-    <div className="landing relative min-h-screen antialiased">
+    <div className="landing min-h-screen antialiased">
       <GoogleAnalytics />
-      <div className="landing-mesh pointer-events-none absolute inset-0" aria-hidden />
-      <div className="landing-grid pointer-events-none absolute inset-0 opacity-[0.05]" aria-hidden />
 
-      <div className="relative">
-        <LandingHeader isLoggedIn={isLoggedIn} />
+      <LandingHeader isLoggedIn={isLoggedIn} />
 
+      <main>
         <LandingHero isLoggedIn={isLoggedIn} />
 
         <LandingTrustedSection names={LANDING_TRUSTED_BY} />
@@ -56,9 +54,9 @@ export default async function Home() {
         <LandingFaqSection faq={LANDING_FAQ} />
 
         <LandingContactSection />
+      </main>
 
-        <LandingFooter isLoggedIn={isLoggedIn} />
-      </div>
+      <LandingFooter isLoggedIn={isLoggedIn} />
     </div>
   );
 }

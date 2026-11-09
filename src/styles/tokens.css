@@ -18,10 +18,12 @@
   --color-text-muted:      #64748b;
   --color-text-subtle:     #94a3b8;
 
-  --color-primary:         #6366f1;
-  --color-primary-h:       #4f46e5;
+  /* Filled controls use primary / primary-fill-h; text and icons use primary-h */
+  --color-primary:         #2a52be;
+  --color-primary-h:       #2a52be;
+  --color-primary-fill-h:  #21439f;
   --color-primary-fg:      #ffffff;
-  --color-primary-soft:    #eef2ff;
+  --color-primary-soft:    #eff4ff;
 
   --color-grad-start:      #41a5ff;
   --color-grad-end:        #2a52be;
@@ -55,39 +57,40 @@
 .dark,
 [data-theme="dark"] {
   color-scheme: dark;
-  /* Charcoal monochrome — clearer elevation so nested cards stay readable */
-  --color-bg:              #0f0f0f;
-  --color-surface:         #1c1c1c;
-  --color-raised:          #2a2a2a;
+  /* Navy surfaces, tinted so they sit in the same family as the brand blue */
+  --color-bg:              #0b1020;
+  --color-surface:         #121a2e;
+  --color-raised:          #1a2340;
 
-  --color-border:          #3a3a3a;
-  --color-border-muted:    #2a2a2a;
-  --color-border-hover:    #555555;
-  --color-skeleton:        #3a3a3a;
+  --color-border:          #2a3553;
+  --color-border-muted:    #1a2340;
+  --color-border-hover:    #3d4b70;
+  --color-skeleton:        #2a3553;
 
-  --color-text:            #f5f5f5;
-  --color-text-muted:      #c4c4c4;
-  --color-text-subtle:     #9a9a9a;
+  --color-text:            #f2f5fb;
+  --color-text-muted:      #b8c2d9;
+  --color-text-subtle:     #8e9ab5;
 
-  --color-primary:         #f4f4f4;
-  --color-primary-h:       #ffffff;
-  --color-primary-fg:      #0f0f0f;
-  --color-primary-soft:    #2e2e2e;
+  --color-primary:         #2f5fe0;
+  --color-primary-h:       #8cc4ff;
+  --color-primary-fill-h:  #3f6ff0;
+  --color-primary-fg:      #ffffff;
+  --color-primary-soft:    #1c2a52;
 
-  --color-grad-start:      #e8e8e8;
-  --color-grad-end:        #8a8a8a;
+  --color-grad-start:      #41a5ff;
+  --color-grad-end:        #2a52be;
 
-  --color-success:         #d6d6d6;
-  --color-success-soft:    #2a2a2a;
+  --color-success:         #34d399;
+  --color-success-soft:    #10291f;
   --color-danger:          #ef4444;
   --color-danger-fg:       #ffffff;
   --color-danger-soft:     #2a1515;
-  --color-warning:         #c4c4c4;
-  --color-warning-soft:    #2a2a2a;
+  --color-warning:         #fbbf24;
+  --color-warning-soft:    #2b2310;
 
-  --color-data-green:      #e8e8e8;
-  --color-data-purple:     #b0b0b0;
-  --color-data-cyan:       #d6d6d6;
+  --color-data-green:      #4fd8ee;
+  --color-data-purple:     #b794f6;
+  --color-data-cyan:       #38bdf8;
 
   --shadow-sm:             0 1px 2px 0 rgb(0 0 0 / 0.35);
   --shadow-md:             0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.35);
@@ -138,7 +141,7 @@
 }
 
 .vr-btn-primary:hover {
-  background-color: var(--color-primary-h);
+  background-color: var(--color-primary-fill-h);
 }
 
 .vr-card {
@@ -158,4 +161,24 @@
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
+}
+
+/*
+ * Chart series colors (validated with the dataviz palette checker, light + dark).
+ * Stepped per theme from the same hues; text never uses these — they mark identity only.
+ */
+:root,
+[data-theme="light"] {
+  --viz-blue: #2a78d6;
+  --viz-aqua: #1baf7a;
+  --viz-violet: #6250d6;
+  --viz-yellow: #eda100;
+  --viz-red: #e34948;
+}
+[data-theme="dark"] {
+  --viz-blue: #3987e5;
+  --viz-aqua: #199e70;
+  --viz-violet: #9085e9;
+  --viz-yellow: #c98500;
+  --viz-red: #e66767;
 }

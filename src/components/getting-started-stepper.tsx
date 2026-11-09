@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
+import { LandingLogoMark } from "@/components/landing/landing-logo-mark";
 import type { DashboardSetupStep } from "@/lib/dashboard-data";
 
 const OPEN_TRIGGERS = new Set(["login", "trial_started", "register", "subscription_active"]);
@@ -144,6 +145,8 @@ export function GettingStartedStepper({
 
   if (!steps.length) return null;
 
+  const progressPercent = Math.round((done.length / steps.length) * 100);
+
   function closeForNow() {
     if (autoOpenSuccess) markSessionOpened(organizationId, autoOpenSuccess);
     setManualOpen(false);
@@ -169,13 +172,11 @@ export function GettingStartedStepper({
         <button
           type="button"
           onClick={reopen}
-          className="group flex w-full items-center justify-between gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3.5 text-left shadow-[var(--shadow-sm)] transition hover:border-[color-mix(in_srgb,var(--color-primary)_28%,var(--color-border))]"
+          className="group flex w-full items-center justify-between gap-4 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 text-left shadow-[var(--shadow-sm)] transition hover:border-[var(--color-primary)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]"
         >
-          <span className="min-w-0">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-              Getting started
-            </span>
-            <span className="mt-1 block truncate text-sm font-semibold text-[var(--color-text)]">
+          <span className="min-w-0 flex-1">
+            <span className="text-xs font-semibold text-[var(--color-primary-h)]">Getting started</span>
+            <span className="mt-0.5 block truncate text-sm font-semibold text-[var(--color-text)]">
               {incompleteCount === 1
                 ? "1 setup step left"
                 : `${incompleteCount} setup steps left`}
@@ -183,8 +184,11 @@ export function GettingStartedStepper({
                 <span className="font-normal text-[var(--color-text-muted)]"> · {nextStep.label}</span>
               ) : null}
             </span>
+            <span className="mt-2 block h-1.5 max-w-sm overflow-hidden rounded-full bg-[var(--color-raised)]" aria-hidden>
+              <span className="block h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${progressPercent}%` }} />
+            </span>
           </span>
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary-fg)]">
+          <span className="inline-flex min-h-10 shrink-0 items-center rounded-full bg-[var(--color-primary)] px-4 text-sm font-semibold text-[var(--color-primary-fg)] transition group-hover:bg-[var(--color-primary-fill-h)]">
             Continue
           </span>
         </button>
@@ -201,21 +205,20 @@ export function GettingStartedStepper({
             >
               <button
                 type="button"
-                className="absolute inset-0 h-full w-full bg-[color-mix(in_srgb,#0a0a0a_48%,transparent)] backdrop-blur-[3px]"
+                className="absolute inset-0 h-full w-full bg-[var(--color-overlay)] backdrop-blur-[3px]"
                 aria-label="Close getting started helper"
                 onClick={closeForNow}
               />
 
-              <div className="onboarding-panel-in relative z-10 flex max-h-[min(92vh,40rem)] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]">
-                <header className="shrink-0 px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
+              <div className="onboarding-panel-in relative z-10 flex max-h-[min(92dvh,42rem)] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[0_32px_80px_-24px_rgb(8_20_66/0.65)] [[data-theme=dark]_&]:bg-[var(--color-surface)]">
+                <header className="vr-app-blue relative isolate shrink-0 overflow-hidden px-5 py-5 sm:px-6 sm:py-6">
+                  <LandingLogoMark className="lp-mark -right-10 -top-20 w-72 max-w-none" />
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-                        Getting started
-                      </p>
+                      <p className="text-sm font-medium text-white/85">Getting started</p>
                       <h2
                         id="getting-started-title"
-                        className="mt-1.5 text-xl font-semibold tracking-tight text-[var(--color-text)]"
+                        className="mt-1 text-2xl font-semibold leading-tight tracking-[-0.025em] text-white"
                       >
                         {incompleteCount === 0
                           ? "You're all set"
@@ -223,124 +226,138 @@ export function GettingStartedStepper({
                             ? `Finish setting up ${organizationName}`
                             : "Finish setting up"}
                       </h2>
-                      <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-muted)]">
-                        {incompleteCount === 0
-                          ? "Your workspace essentials are complete."
-                          : incompleteCount === 1
-                            ? "One step left to get the basics running."
-                            : `${incompleteCount} steps left · ${done.length} already done.`}
-                      </p>
                     </div>
                     <button
                       type="button"
                       onClick={closeForNow}
-                      className="flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                       aria-label="Close"
                     >
-                      <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                      <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                         <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
                       </svg>
                     </button>
                   </div>
+
+                  <div className="mt-4 flex items-center gap-3">
+                    <div
+                      className="h-2 flex-1 overflow-hidden rounded-full bg-white/25"
+                      role="progressbar"
+                      aria-label="Setup progress"
+                      aria-valuemin={0}
+                      aria-valuemax={steps.length}
+                      aria-valuenow={done.length}
+                    >
+                      <div className="h-full rounded-full bg-white transition-[width]" style={{ width: `${progressPercent}%` }} />
+                    </div>
+                    <p className="shrink-0 text-sm font-medium tabular-nums text-white">
+                      {done.length} of {steps.length} done
+                    </p>
+                  </div>
                 </header>
 
-                <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2 sm:px-6">
-                  {remaining.length > 0 ? (
-                    <ul className="space-y-2">
-                      {remaining.map((step, index) => {
-                        const isNext = index === 0;
-                        return (
-                          <li key={step.id}>
-                            <Link
-                              href={step.href}
-                              className={`flex items-start gap-3 rounded-2xl border px-3.5 py-3.5 transition ${
-                                isNext
-                                  ? "border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-primary-soft)] shadow-[var(--shadow-sm)]"
-                                  : "border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[color-mix(in_srgb,var(--color-primary)_20%,var(--color-border))]"
-                              }`}
-                            >
-                              <span
-                                className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                                  isNext
-                                    ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
-                                    : "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]"
-                                }`}
-                                aria-hidden
-                              >
-                                {index + 1}
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="block text-sm font-semibold text-[var(--color-text)]">{step.label}</span>
-                                <span className="mt-0.5 block text-xs leading-relaxed text-[var(--color-text-muted)]">
-                                  {step.description}
-                                </span>
-                              </span>
-                              <span
-                                className={`mt-1 shrink-0 text-xs font-semibold ${
-                                  isNext ? "text-[var(--color-primary-h)]" : "text-[var(--color-text-subtle)]"
-                                }`}
-                                aria-hidden
-                              >
-                                →
-                              </span>
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : null}
+                <ol className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4">
+                  {steps.map((step, index) => {
+                    const isNext = step.id === nextStep?.id;
+                    const isLast = index === steps.length - 1;
+                    const marker = (
+                      <span
+                        className={`relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
+                          step.complete || isNext
+                            ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+                            : "border border-[var(--color-border-hover)] bg-[var(--color-bg)] text-[var(--color-text-muted)] [[data-theme=dark]_&]:bg-[var(--color-surface)]"
+                        }`}
+                        aria-hidden
+                      >
+                        {step.complete ? (
+                          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M20 6 9 17l-5-5" />
+                          </svg>
+                        ) : (
+                          index + 1
+                        )}
+                      </span>
+                    );
+                    const text = (
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className={`block text-[15px] font-semibold leading-snug ${
+                            step.complete ? "text-[var(--color-text-muted)]" : "text-[var(--color-text)]"
+                          }`}
+                        >
+                          {step.label}
+                          {step.complete ? <span className="sr-only"> (done)</span> : null}
+                        </span>
+                        {step.complete ? null : (
+                          <span className="mt-0.5 block text-sm leading-relaxed text-[var(--color-text-muted)]">
+                            {step.description}
+                          </span>
+                        )}
+                      </span>
+                    );
 
-                  {done.length > 0 ? (
-                    <div className={`${remaining.length > 0 ? "mt-5" : ""}`}>
-                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
-                        Completed
-                      </p>
-                      <ul className="space-y-1">
-                        {done.map((step) => (
-                          <li
-                            key={step.id}
-                            className="flex items-center gap-3 rounded-xl px-2 py-2 text-sm text-[var(--color-text-muted)]"
+                    return (
+                      <li key={step.id} className="relative">
+                        {isLast ? null : (
+                          <span
+                            className={`absolute bottom-[-0.25rem] left-[1.75rem] top-8 w-0.5 ${
+                              step.complete ? "bg-[var(--color-primary)]" : "bg-[var(--color-border)]"
+                            }`}
+                            aria-hidden
+                          />
+                        )}
+                        {step.complete ? (
+                          <div className="flex items-center gap-3 p-3">
+                            {marker}
+                            {text}
+                          </div>
+                        ) : (
+                          <Link
+                            href={step.href}
+                            aria-current={isNext ? "step" : undefined}
+                            className={`group flex items-start gap-3 rounded-2xl p-3 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)] ${
+                              isNext ? "bg-[var(--color-primary-soft)]" : "hover:bg-[var(--color-raised)]"
+                            }`}
                           >
+                            {marker}
+                            {text}
                             <span
-                              className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[10px] font-bold text-emerald-600"
+                              className="mt-1 shrink-0 text-sm font-semibold text-[var(--color-primary-h)] transition-transform group-hover:translate-x-0.5"
                               aria-hidden
                             >
-                              ✓
+                              →
                             </span>
-                            <span className="line-through decoration-[var(--color-border)]">{step.label}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                </div>
+                          </Link>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
 
-                <footer className="shrink-0 border-t border-[var(--color-border)] px-5 py-4 sm:px-6">
-                  <div className="flex items-center gap-3">
+                <footer className="flex shrink-0 items-center gap-3 border-t border-[var(--color-border)] px-5 py-4 sm:px-6">
+                  <button
+                    type="button"
+                    onClick={dismissForever}
+                    className="text-sm font-medium text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
+                  >
+                    Don&apos;t show again
+                  </button>
+                  <div className="ml-auto flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={dismissForever}
-                      className="text-xs font-medium text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
+                      onClick={closeForNow}
+                      className="min-h-10 rounded-full px-4 text-sm font-semibold text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
                     >
-                      Don&apos;t show again
+                      {incompleteCount === 0 ? "Close" : "Later"}
                     </button>
-                    <div className="ml-auto flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={closeForNow}
-                        className="rounded-xl px-3.5 py-2 text-xs font-semibold text-[var(--color-text-muted)] transition hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
+                    {nextStep ? (
+                      <Link
+                        href={nextStep.href}
+                        className="inline-flex min-h-10 items-center justify-center rounded-full bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
                       >
-                        {incompleteCount === 0 ? "Close" : "Later"}
-                      </button>
-                      {nextStep ? (
-                        <Link
-                          href={nextStep.href}
-                          className="inline-flex items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
-                        >
-                          Continue
-                        </Link>
-                      ) : null}
-                    </div>
+                        Continue
+                      </Link>
+                    ) : null}
                   </div>
                 </footer>
               </div>

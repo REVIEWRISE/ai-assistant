@@ -92,6 +92,10 @@ type FloatingBookingChatbotProps = {
   voiceBooking?: VoiceBookingConfig;
   /** Admin preview: always open, no launcher, bookings not saved. */
   preview?: boolean;
+  /** Start with the chat open (real bookings). Used by the in-app "Test booking flow" panel. */
+  defaultOpen?: boolean;
+  /** Fill the host frame instead of floating bottom-right; always open, no close button (the host closes it). */
+  fill?: boolean;
   initialInteractionMode?: InteractionMode;
 };
 
@@ -244,9 +248,11 @@ export function FloatingBookingChatbot({
   bookingFlow,
   voiceBooking,
   preview = false,
+  defaultOpen = false,
+  fill = false,
   initialInteractionMode = "chat",
 }: FloatingBookingChatbotProps) {
-  const [open, setOpen] = useState(preview);
+  const [open, setOpen] = useState(preview || defaultOpen || fill);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [bookingStepState, setBookingStepState] = useState<BookingStepState>("idle");
@@ -865,7 +871,9 @@ export function FloatingBookingChatbot({
 
   return (
     <div
-      className={`chatbot-widget text-[var(--color-text)] ${preview ? "relative w-full" : "fixed bottom-5 right-5 z-40"}`}
+      className={`chatbot-widget text-[var(--color-text)] ${
+        fill ? "relative h-full w-full" : preview ? "relative w-full" : "fixed bottom-5 right-5 z-40"
+      }`}
       data-voice-booking={voiceBooking?.enabled ? "true" : "false"}
       data-voice-agent={voiceBooking?.agentName || undefined}
       data-chatbot-preview={preview ? "true" : undefined}
@@ -889,9 +897,11 @@ export function FloatingBookingChatbot({
       ) : (
         <div
           className={`relative mx-auto flex w-full flex-col overflow-hidden rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)] ring-1 ring-[color-mix(in_srgb,var(--color-primary)_8%,var(--color-border))] ${
-            preview
-              ? "h-[min(520px,72vh)] max-h-[min(520px,72vh)] max-w-[380px]"
-              : "h-[min(88dvh,700px)] max-h-[min(88dvh,700px)] w-[380px]"
+            fill
+              ? "h-full max-h-full"
+              : preview
+                ? "h-[min(520px,72vh)] max-h-[min(520px,72vh)] max-w-[380px]"
+                : "h-[min(88dvh,700px)] max-h-[min(88dvh,700px)] w-[380px]"
           }`}
         >
           <div
@@ -921,7 +931,7 @@ export function FloatingBookingChatbot({
                 </p>
               </div>
             </div>
-            {preview ? null : (
+            {preview || fill ? null : (
               <button
                 type="button"
                 onClick={() => setOpen(false)}

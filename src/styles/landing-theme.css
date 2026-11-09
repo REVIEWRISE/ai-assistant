@@ -1,54 +1,451 @@
 /* ============================================================
-   Landing page utilities — VyntRise Brand Tokens
-   Elegant, premium, and refined design system
+   Landing page theme — VyntRise brand blue
+
+   The app's dark tokens are deliberately monochrome, so the
+   landing page carries its own brand values. These match the
+   light-theme --color-grad-start / --color-grad-end tokens and
+   the logo, and stay blue in both themes.
    ============================================================ */
 
 .landing {
+  --lp-sky: #41a5ff;
+  --lp-royal: #2a52be;
+  --lp-deep: #1d3a96;
+
+  /* Text and icons on the page background */
+  --lp-accent: var(--lp-royal);
+  /* Filled buttons and marks, always paired with white */
+  --lp-solid: var(--lp-royal);
+  --lp-solid-h: #21439f;
+  --lp-tint: #eff4ff;
+  --lp-tint-line: #d3e1ff;
+  --lp-on-blue-muted: rgb(255 255 255 / 0.84);
+
+  /* Darker than the app default so body copy holds up on the blue tint */
+  --color-text-muted: #526077;
+
   background-color: var(--color-bg);
   color: var(--color-text);
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
-/* ── Backgrounds & Atmosphere ─────────────────────────────── */
+.dark .landing,
+[data-theme="dark"] .landing {
+  --lp-deep: #142a70;
+  --lp-accent: #8cc4ff;
+  --lp-solid: #2f5fe0;
+  --lp-solid-h: #3f6ff0;
+  --lp-tint: #131c33;
+  --lp-tint-line: #2a3553;
+  --color-text-muted: #b8c2d9;
+}
 
-.landing-mesh {
+.landing a:focus-visible,
+.landing button:focus-visible {
+  outline: 2px solid var(--lp-accent);
+  outline-offset: 2px;
+}
+
+.landing .lp-btn-white:focus-visible,
+.landing .lp-btn-on-blue:focus-visible,
+.landing .lp-blue-link:focus-visible {
+  outline-color: #ffffff;
+}
+
+/* ── Sign-in and account pages ───────────────────────────── */
+
+.lp-input {
+  width: 100%;
+  min-height: 3rem;
+  padding-inline: 1rem;
+  border: 1px solid var(--color-border-hover);
+  border-radius: 0.875rem;
+  background: var(--color-bg);
+  /* 16px stops iOS zooming the page when a field is focused */
+  font-size: 1rem;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.lp-input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.75;
+}
+
+.lp-input:hover {
+  border-color: var(--lp-accent);
+}
+
+.lp-input:focus {
+  border-color: var(--lp-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lp-accent) 22%, transparent);
+}
+
+.lp-input-toggle {
+  padding-right: 3rem;
+}
+
+.lp-input-code {
+  min-height: 3.75rem;
+  /* Offsets the trailing letter-spacing so the digits sit centered */
+  padding-left: calc(1rem + 0.45em);
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.45em;
+}
+
+/* ── Header: transparent over the hero, a capsule once scrolled ── */
+
+.lp-bar {
+  --bar-fg: #ffffff;
+  --bar-muted: var(--lp-on-blue-muted);
+  --bar-line: rgb(255 255 255 / 0.4);
+  --bar-hover: rgb(255 255 255 / 0.12);
+  --bar-logo: #ffffff;
+
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: 3.5rem;
+  color: var(--bar-fg);
+}
+
+.lp-bar[data-solid="true"] {
+  --bar-fg: var(--color-text);
+  --bar-muted: var(--color-text-muted);
+  --bar-line: var(--color-border-hover);
+  --bar-hover: var(--lp-tint);
+  --bar-logo: #3e6ff2;
+}
+
+/* The capsule is its own layer, so the logo and links stay put when it fades in */
+.lp-bar::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0 -0.625rem;
+  border: 1px solid var(--color-border);
+  border-radius: 9999px;
+  background: var(--color-bg);
+  box-shadow: 0 16px 36px -20px rgb(20 42 112 / 0.45);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.lp-bar[data-solid="true"]::before {
+  opacity: 1;
+}
+
+.landing .lp-bar :is(a, button):focus-visible {
+  outline-color: var(--bar-fg);
+}
+
+.lp-bar-logo {
+  color: var(--bar-fg);
+}
+
+.lp-bar-logo svg {
+  color: var(--bar-logo);
+  transition: color 0.2s ease;
+}
+
+.lp-bar-link {
+  position: relative;
+  padding-block: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--bar-muted);
+  transition: color 0.16s ease;
+}
+
+.lp-bar-link:hover,
+.lp-bar-link[aria-current] {
+  color: var(--bar-fg);
+}
+
+/* Active link marker, borrowed from the dots in the logo */
+.lp-bar-link[aria-current]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -0.25rem;
+  width: 0.3125rem;
+  height: 0.3125rem;
+  border-radius: 9999px;
+  background: var(--bar-logo);
+  transform: translateX(-50%);
+}
+
+.lp-bar-icon {
+  border: 1px solid var(--bar-line);
+  border-radius: 9999px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--bar-fg);
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.lp-bar-icon:hover {
+  background: var(--bar-hover);
+  color: var(--bar-fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-bar::before,
+  .lp-bar-logo svg,
+  .lp-bar-link,
+  .lp-bar-icon {
+    transition: none;
+  }
+}
+
+/* ── Layout and type ─────────────────────────────────────── */
+
+.lp-wrap {
+  width: 100%;
+  max-width: 76rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 640px) {
+  .lp-wrap { padding-inline: 1.5rem; }
+}
+
+@media (min-width: 1024px) {
+  .lp-wrap { padding-inline: 2rem; }
+}
+
+.lp-section {
+  padding-block: 5rem;
+}
+
+@media (min-width: 640px) {
+  .lp-section { padding-block: 7rem; }
+}
+
+.lp-tinted {
+  background-color: var(--lp-tint);
+}
+
+.lp-h1 {
+  font-size: clamp(2.5rem, 5.1vw, 4.25rem);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.lp-h2 {
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+  color: var(--color-text);
+}
+
+.lp-lede {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+/* ── Blue bands (hero and closing call to action) ────────── */
+
+.lp-blue {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: #ffffff;
   background:
-    radial-gradient(
-      ellipse 100% 70% at 50% -15%,
-      color-mix(in srgb, var(--color-primary) 8%, transparent),
-      transparent 65%
-    ),
-    radial-gradient(
-      ellipse 55% 45% at 95% 5%,
-      color-mix(in srgb, var(--color-grad-start) 7%, transparent),
-      transparent
-    ),
-    radial-gradient(
-      ellipse 45% 40% at 5% 30%,
-      color-mix(in srgb, var(--color-data-purple) 5%, transparent),
-      transparent
-    );
+    radial-gradient(58rem 36rem at 88% -12%, color-mix(in srgb, var(--lp-sky) 55%, transparent), transparent 68%),
+    linear-gradient(165deg, var(--lp-royal) 10%, var(--lp-deep) 100%);
 }
 
-.dark .landing-mesh,
-[data-theme="dark"] .landing-mesh {
+.dark .lp-blue,
+[data-theme="dark"] .lp-blue {
   background:
-    radial-gradient(
-      ellipse 100% 70% at 50% -15%,
-      color-mix(in srgb, var(--color-primary) 14%, transparent),
-      transparent 65%
-    ),
-    radial-gradient(
-      ellipse 55% 45% at 95% 5%,
-      color-mix(in srgb, var(--color-grad-start) 10%, transparent),
-      transparent
-    ),
-    radial-gradient(
-      ellipse 45% 40% at 5% 30%,
-      color-mix(in srgb, var(--color-data-purple) 8%, transparent),
-      transparent
-    );
+    radial-gradient(58rem 36rem at 88% -12%, color-mix(in srgb, var(--lp-sky) 38%, transparent), transparent 68%),
+    linear-gradient(165deg, var(--lp-royal) 0%, var(--lp-deep) 100%);
 }
+
+.lp-mark {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  color: rgb(255 255 255 / 0.07);
+}
+
+.lp-console {
+  overflow: hidden;
+  border-radius: 1.25rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-shadow: 0 40px 80px -32px rgb(8 20 66 / 0.65);
+}
+
+.dark .lp-console,
+[data-theme="dark"] .lp-console {
+  background: var(--color-surface);
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding-inline: 1.5rem;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.lp-btn-sm {
+  min-height: 2.5rem;
+  padding-inline: 1.125rem;
+  font-size: 0.875rem;
+}
+
+.lp-btn-solid {
+  background: var(--lp-solid);
+  color: #ffffff;
+}
+
+.lp-btn-solid:hover {
+  background: var(--lp-solid-h);
+}
+
+.lp-btn-outline {
+  border-color: var(--color-border-hover);
+  color: var(--color-text);
+}
+
+.lp-btn-outline:hover {
+  border-color: var(--lp-accent);
+  color: var(--lp-accent);
+}
+
+.lp-btn-white {
+  background: #ffffff;
+  color: #1d3a96;
+}
+
+.lp-btn-white:hover {
+  background: #e4edff;
+}
+
+.lp-btn-on-blue {
+  border-color: rgb(255 255 255 / 0.5);
+  color: #ffffff;
+}
+
+.lp-btn-on-blue:hover {
+  border-color: #ffffff;
+  background: rgb(255 255 255 / 0.12);
+}
+
+/* ── The customer journey rail ───────────────────────────── */
+
+.lp-stop {
+  position: relative;
+  padding-left: 4rem;
+  padding-bottom: 3.5rem;
+}
+
+.lp-stop::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 1.375rem;
+  width: 2px;
+  background: var(--lp-tint-line);
+}
+
+.lp-stop:last-child {
+  padding-bottom: 0;
+}
+
+.lp-stop:last-child::before {
+  display: none;
+}
+
+.lp-stop-icon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.875rem;
+  height: 2.875rem;
+  border-radius: 9999px;
+  background: var(--lp-solid);
+  color: #ffffff;
+}
+
+@media (min-width: 1024px) {
+  .lp-stop {
+    padding-left: 0;
+    padding-top: 5rem;
+    padding-bottom: 0;
+    padding-right: 3rem;
+  }
+
+  .lp-stop:last-child {
+    padding-right: 0;
+  }
+
+  .lp-stop::before {
+    top: 1.375rem;
+    right: 0;
+    bottom: auto;
+    left: 0;
+    width: auto;
+    height: 2px;
+  }
+
+  .lp-stop:last-child::before {
+    display: block;
+    background: linear-gradient(90deg, var(--lp-tint-line), transparent);
+  }
+}
+
+/* ── Static toggle used in product previews ──────────────── */
+
+.lp-toggle {
+  position: relative;
+  flex: none;
+  width: 2.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  background: var(--lp-solid);
+}
+
+.lp-toggle::after {
+  content: "";
+  position: absolute;
+  top: 0.1875rem;
+  right: 0.1875rem;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 9999px;
+  background: #ffffff;
+}
+
+/* ── Shared outside the landing page ─────────────────────── */
 
 .landing-grid {
   background-image:
@@ -58,263 +455,6 @@
   mask-image: radial-gradient(ellipse 85% 85% at center, black 30%, transparent 80%);
   -webkit-mask-image: radial-gradient(ellipse 85% 85% at center, black 30%, transparent 80%);
 }
-
-/* ── Hero Spotlight Panel ─────────────────────────────────── */
-
-.landing-spotlight {
-  position: relative;
-  overflow: hidden;
-  border-radius: 2rem;
-  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
-  background: var(--color-bg);
-  box-shadow:
-    0 0 0 1px rgb(255 255 255 / 0.5) inset,
-    0 40px 80px -30px rgb(15 23 42 / 0.10);
-}
-
-.dark .landing-spotlight,
-[data-theme="dark"] .landing-spotlight {
-  border-color: rgb(255 255 255 / 0.08);
-  background: linear-gradient(145deg, #0d0d12 0%, #111118 50%, #13131c 100%);
-  box-shadow:
-    0 0 0 1px rgb(255 255 255 / 0.06) inset,
-    0 40px 100px -35px rgb(0 0 0 / 0.8);
-}
-
-.landing-spotlight-glow {
-  pointer-events: none;
-  position: absolute;
-  border-radius: 9999px;
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  filter: blur(90px);
-}
-
-.dark .landing-spotlight-glow,
-[data-theme="dark"] .landing-spotlight-glow {
-  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
-  filter: blur(100px);
-}
-
-.landing-spotlight-panel {
-  border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
-  background: color-mix(in srgb, var(--color-bg) 90%, transparent);
-  box-shadow:
-    0 0 0 1px rgb(255 255 255 / 0.55) inset,
-    0 8px 32px -8px rgb(15 23 42 / 0.08);
-  backdrop-filter: blur(24px);
-}
-
-.dark .landing-spotlight-panel,
-[data-theme="dark"] .landing-spotlight-panel {
-  border-color: rgb(255 255 255 / 0.1);
-  background: rgb(255 255 255 / 0.04);
-  box-shadow:
-    0 0 0 1px rgb(255 255 255 / 0.07) inset,
-    0 20px 60px -20px rgb(0 0 0 / 0.5);
-  backdrop-filter: blur(28px);
-}
-
-/* ── Eyebrow Badge ────────────────────────────────────────── */
-
-.vr-landing-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  border-radius: 9999px;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
-  background: color-mix(in srgb, var(--color-primary-soft) 65%, var(--color-bg));
-  padding: 0.3rem 0.9rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--color-primary-h);
-}
-
-.dark .vr-landing-eyebrow,
-[data-theme="dark"] .vr-landing-eyebrow {
-  border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
-  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
-  color: #a5b4fc;
-}
-
-/* ── Gradient Text ────────────────────────────────────────── */
-
-.vr-gradient-text {
-  background: linear-gradient(
-    125deg,
-    var(--color-primary-h) 0%,
-    var(--color-grad-start) 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.dark .vr-gradient-text,
-[data-theme="dark"] .vr-gradient-text {
-  background: linear-gradient(125deg, #a5b4fc 0%, #38bdf8 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* ── Glass / Feature Cards ────────────────────────────────── */
-
-.vr-glass-card {
-  position: relative;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 1.5rem;
-  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
-}
-
-.vr-glass-card:hover {
-  border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
-  box-shadow: 0 16px 48px -16px color-mix(in srgb, var(--color-primary) 14%, transparent);
-  transform: translateY(-2px);
-}
-
-.dark .vr-glass-card {
-  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
-  border-color: rgb(255 255 255 / 0.08);
-}
-
-.dark .vr-glass-card:hover {
-  border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
-  box-shadow:
-    0 16px 48px -12px rgb(0 0 0 / 0.5),
-    0 0 24px -8px color-mix(in srgb, var(--color-primary) 20%, transparent);
-}
-
-/* ── Glow Card (Feature Banner) ───────────────────────────── */
-
-.vr-glow-card {
-  position: relative;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--color-primary-soft) 70%, var(--color-bg)) 0%,
-    var(--color-bg) 60%
-  );
-  border-radius: 1.5rem;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
-  overflow: hidden;
-}
-
-.dark .vr-glow-card {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)) 0%,
-    var(--color-surface) 60%
-  );
-  border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
-}
-
-/* ── Buttons ──────────────────────────────────────────────── */
-
-.vr-landing-btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border-radius: 9999px;
-  background: var(--color-primary);
-  padding: 0 1.75rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--color-primary-fg);
-  letter-spacing: -0.01em;
-  box-shadow:
-    0 1px 0 rgb(255 255 255 / 0.25) inset,
-    0 8px 24px -8px color-mix(in srgb, var(--color-primary) 55%, transparent);
-  transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.vr-landing-btn-primary:hover {
-  background: var(--color-primary-h);
-  transform: translateY(-1px);
-  box-shadow:
-    0 1px 0 rgb(255 255 255 / 0.3) inset,
-    0 12px 32px -8px color-mix(in srgb, var(--color-primary) 70%, transparent);
-}
-
-.vr-landing-btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border-radius: 9999px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  padding: 0 1.75rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--color-text);
-  letter-spacing: -0.01em;
-  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
-}
-
-.vr-landing-btn-secondary:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary-h);
-  transform: translateY(-1px);
-}
-
-/* ── Nav Glass ────────────────────────────────────────────── */
-
-.vr-landing-glass-nav {
-  border: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-bg) 85%, transparent);
-  backdrop-filter: blur(20px) saturate(180%);
-}
-
-.dark .vr-landing-glass-nav {
-  border-color: rgb(255 255 255 / 0.08);
-  background: color-mix(in srgb, var(--color-bg) 80%, transparent);
-}
-
-/* ── Section utilities ────────────────────────────────────── */
-
-.vr-landing-section {
-  background-color: var(--color-surface);
-}
-
-
-/* ── Section alternation divider ─────────────────────────── */
-
-/* Subtle top gradient for visual breathing room between sections */
-.vr-section-alt {
-  background-image: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--color-border) 40%, transparent) 0px,
-    transparent 1px
-  );
-}
-
-.vr-landing-heading {
-  color: var(--color-text);
-}
-
-.vr-landing-muted {
-  color: var(--color-text-muted);
-}
-
-.vr-landing-card {
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 1.25rem;
-  box-shadow: var(--shadow-sm);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.vr-landing-card:hover {
-  border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
-  box-shadow: var(--shadow-md);
-}
-
-/* ── Auth light panel ─────────────────────────────────────── */
 
 .auth-light-panel {
   --color-bg: #ffffff;
@@ -328,8 +468,6 @@
   color: #0f172a;
 }
 
-/* ── Entrance Animations ─────────────────────────────────── */
-
 @keyframes landing-fade-up {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -338,11 +476,6 @@
 @keyframes landing-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
-}
-
-@keyframes pulse-dot {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50%       { opacity: 1;   transform: scale(1.15); }
 }
 
 .landing-animate-up {
@@ -358,18 +491,9 @@
 .landing-animate-delay-3 { animation-delay: 0.21s; }
 .landing-animate-delay-4 { animation-delay: 0.28s; }
 
-@supports (animation-timeline: view()) {
-  .landing-animate-view {
-    animation: landing-fade-up 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
-    animation-timeline: view();
-    animation-range: entry 0% cover 28%;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .landing-animate-up,
-  .landing-animate-in,
-  .landing-animate-view {
+  .landing-animate-in {
     animation: none;
   }
 }

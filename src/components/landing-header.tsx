@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { BrandLogo } from "@/components/brand-logo";
+import { LandingLogoMark } from "@/components/landing/landing-logo-mark";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { trackLandingNav, trackLandingCta } from "@/lib/analytics";
@@ -12,8 +12,6 @@ const NAV = [
   { href: "#demo-playground", label: "Live Sandbox" },
   { href: "#playbook", label: "How it works" },
   { href: "#pricing", label: "Pricing" },
-  { href: "#integrations", label: "Integrations" },
-  { href: "#testimonials", label: "Stories" },
   { href: "#faq", label: "FAQ" },
 ] as const;
 
@@ -21,16 +19,19 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("");
+  const solid = scrolled || open;
+  const ctaClass = `lp-btn lp-btn-sm ${solid ? "lp-btn-solid" : "lp-btn-white"}`;
 
   useEffect(() => {
-    const sync = () => setScrolled(window.scrollY > 8);
+    const sync = () => setScrolled(window.scrollY > 24);
     sync();
     window.addEventListener("scroll", sync, { passive: true });
     return () => window.removeEventListener("scroll", sync);
   }, []);
 
   useEffect(() => {
-    const sections = NAV.map((item) => document.querySelector(item.href)).filter(Boolean) as Element[];
+    // Watches every section, so links clear while a section outside the nav is on screen.
+    const sections = document.querySelectorAll("main section[id]");
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries
@@ -59,58 +60,46 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
   }, [open]);
 
   return (
-    <header className="sticky top-0 z-50">
-      <div
-        className={`border-b transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ease-out ${
-          scrolled || open
-            ? "border-[var(--color-border)] bg-[var(--color-bg)]/88 shadow-[0_1px_12px_0_rgb(0_0_0/0.06)] backdrop-blur-xl"
-            : "border-transparent bg-transparent shadow-none backdrop-blur-none"
-        }`}
-      >
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
-          <BrandLogo
-            href="/"
-            size="sm"
-            primary={PRODUCT_NAME}
-            secondary="Autonomous AI Ops"
-            className="min-w-0 shrink-0 text-[var(--color-text)] [&_p:first-child]:text-[13px] [&_p:first-child]:font-bold [&_p:first-child]:tracking-[-0.02em] [&_p:first-child]:text-[var(--color-text)] [&_p:last-child]:hidden [&_p:last-child]:text-[10px] [&_p:last-child]:font-semibold [&_p:last-child]:text-[var(--color-primary-h)] sm:[&_p:last-child]:block"
-          />
+    <header className="sticky top-0 z-50 -mb-18 h-18">
+      {open ? (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 bg-[var(--color-overlay)] lg:hidden"
+        />
+      ) : null}
 
-          {/* Desktop Navigation */}
-          <nav
-            className="hidden items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/80 px-3 py-1.5 shadow-sm backdrop-blur lg:flex"
-            aria-label="Main navigation"
-          >
-            {NAV.map((item) => {
-              const active = activeSection === item.href;
-              return (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => trackLandingNav(item.label, item.href)}
-                  aria-current={active ? "location" : undefined}
-                  className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                    active
-                      ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] shadow-sm"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-                  }`}
-                >
-                  {item.label}
-                </a>
-              );
-            })}
+      <div className="lp-wrap flex h-full items-center">
+        <div className="lp-bar flex items-center justify-between gap-4 lg:grid lg:grid-cols-[1fr_auto_1fr]" data-solid={solid}>
+          <Link href="/" className="lp-bar-logo flex min-w-0 items-center gap-2.5 justify-self-start rounded-full">
+            <LandingLogoMark className="h-7 w-auto shrink-0" />
+            <span className="truncate text-[15px] font-semibold tracking-[-0.02em]">{PRODUCT_NAME}</span>
+          </Link>
+
+          <nav className="hidden items-center gap-8 lg:flex" aria-label="Main navigation">
+            {NAV.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                onClick={() => trackLandingNav(item.label, item.href)}
+                aria-current={activeSection === item.href ? "location" : undefined}
+                className="lp-bar-link"
+              >
+                {item.label}
+              </a>
+            ))}
           </nav>
 
-          {/* Right Actions */}
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <ThemeSwitch className="size-9 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] shadow-none hover:bg-[var(--color-raised)]" />
+          <div className="flex shrink-0 items-center gap-2 justify-self-end sm:gap-3">
+            <ThemeSwitch className="lp-bar-icon" />
 
             <div className="hidden items-center gap-3 sm:flex">
               {isLoggedIn ? (
                 <Link
                   href="/dashboard"
                   onClick={() => trackLandingCta("Header Dashboard", "header", "/dashboard")}
-                  className="vr-landing-btn-primary inline-flex h-9 items-center rounded-full px-4 text-xs font-bold text-[var(--color-primary-fg)] shadow"
+                  className={ctaClass}
                 >
                   Dashboard
                 </Link>
@@ -119,28 +108,27 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
                   <Link
                     href="/login"
                     onClick={() => trackLandingCta("Header Sign In", "header", "/login")}
-                    className="text-xs font-bold text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
+                    className="lp-bar-link"
                   >
-                    Sign In
+                    Sign in
                   </Link>
                   <Link
                     href="/register"
                     onClick={() => trackLandingCta("Header Start Free", "header", "/register")}
-                    className="vr-landing-btn-primary inline-flex h-9 items-center rounded-full px-4 text-xs font-bold text-[var(--color-primary-fg)] shadow"
+                    className={ctaClass}
                   >
-                    Start Free
+                    Start free
                   </Link>
                 </>
               )}
             </div>
 
-            {/* Mobile menu button */}
             <button
               type="button"
               onClick={() => setOpen((current) => !current)}
               aria-label={open ? "Close navigation" : "Open navigation"}
               aria-expanded={open}
-              className="inline-flex size-9 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] transition hover:bg-[var(--color-raised)] lg:hidden"
+              className="lp-bar-icon inline-flex size-9 items-center justify-center lg:hidden"
             >
               <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                 {open ? (
@@ -151,45 +139,27 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
               </svg>
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* Mobile Drawer */}
-      {open ? (
-        <>
-          <button
-            type="button"
-            aria-label="Close navigation"
-            onClick={() => setOpen(false)}
-            className="fixed inset-0 top-16 bg-[var(--color-overlay)] backdrop-blur-[4px] lg:hidden"
-          />
-          <div className="absolute inset-x-0 top-full px-4 pt-3 lg:hidden">
+          {open ? (
             <nav
-              className="mx-auto max-w-xl overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 shadow-xl"
+              className="absolute -inset-x-2.5 top-full mt-2 rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 shadow-xl lg:hidden"
               aria-label="Mobile navigation"
             >
-              {NAV.map((item) => {
-                const active = activeSection === item.href;
-                return (
-                  <a
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => {
-                      setOpen(false);
-                      trackLandingNav(item.label, item.href);
-                    }}
-                    className={`flex items-center justify-between rounded-xl px-4 py-2.5 text-xs font-bold transition ${
-                      active
-                        ? "bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]"
-                        : "text-[var(--color-text)] hover:bg-[var(--color-surface)]"
-                    }`}
-                  >
-                    {item.label}
-                  </a>
-                );
-              })}
+              {NAV.map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => {
+                    setOpen(false);
+                    trackLandingNav(item.label, item.href);
+                  }}
+                  className="flex min-h-12 items-center rounded-2xl px-3 text-base font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--lp-tint)]"
+                >
+                  {item.label}
+                </a>
+              ))}
 
-              <div className="mt-2 space-y-2 border-t border-[var(--color-border)] pt-3">
+              <div className="mt-2 grid gap-2 border-t border-[var(--color-border)] pt-3">
                 {isLoggedIn ? (
                   <Link
                     href="/dashboard"
@@ -197,7 +167,7 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
                       setOpen(false);
                       trackLandingCta("Mobile Dashboard", "mobile_header", "/dashboard");
                     }}
-                    className="vr-landing-btn-primary flex min-h-11 w-full items-center justify-center rounded-full text-xs font-bold text-[var(--color-primary-fg)] shadow"
+                    className="lp-btn lp-btn-solid w-full"
                   >
                     Open dashboard
                   </Link>
@@ -209,9 +179,9 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
                         setOpen(false);
                         trackLandingCta("Mobile Start Free Trial", "mobile_header", "/register");
                       }}
-                      className="vr-landing-btn-primary flex min-h-11 w-full items-center justify-center rounded-full text-xs font-bold text-[var(--color-primary-fg)] shadow"
+                      className="lp-btn lp-btn-solid w-full"
                     >
-                      Start 14-Day Free Trial
+                      Start 14-day free trial
                     </Link>
                     <Link
                       href="/login"
@@ -219,17 +189,17 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
                         setOpen(false);
                         trackLandingCta("Mobile Sign In", "mobile_header", "/login");
                       }}
-                      className="flex min-h-10 w-full items-center justify-center text-xs font-bold text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
+                      className="lp-btn lp-btn-outline w-full"
                     >
-                      Sign In to Existing Account
+                      Sign in
                     </Link>
                   </>
                 )}
               </div>
             </nav>
-          </div>
-        </>
-      ) : null}
+          ) : null}
+        </div>
+      </div>
     </header>
   );
 }

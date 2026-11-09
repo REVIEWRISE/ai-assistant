@@ -303,7 +303,7 @@ export function ProvidersManager({
         <button
           type="button"
           onClick={openCreateModal}
-          className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+          className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
         >
           Add provider
         </button>
@@ -706,7 +706,7 @@ export function ProvidersManager({
                                   createConnectionFieldEntry(),
                                 ])
                               }
-                              className="rounded-lg border border-[var(--color-primary)] vr-btn-primary px-3 py-1.5 text-xs font-semibold transition hover:bg-[var(--color-primary-h)]"
+                              className="rounded-lg border border-[var(--color-primary)] vr-btn-primary px-3 py-1.5 text-xs font-semibold transition hover:bg-[var(--color-primary-fill-h)]"
                             >
                               + Add required field
                             </button>

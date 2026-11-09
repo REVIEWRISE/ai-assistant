@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { CustomSelect } from "@/components/custom-select";
+import { useEffect, useState } from "react";
+import { SettingsCardHeader, SettingsSaveBar } from "@/components/settings-controls";
 import {
-  REVIEW_ROUTING_BUCKET_OPTIONS,
   defaultReviewRoutingRules,
   type ReviewRoutingBucket,
   type ReviewRoutingRules,
@@ -12,8 +11,42 @@ import {
 
 const STAR_RATINGS: ReviewStarRating[] = [5, 4, 3, 2, 1];
 
-function toStars(rating: ReviewStarRating): string {
-  return "★".repeat(rating) + "☆".repeat(5 - rating);
+/** The three routes, in order from most to least automated. */
+const BUCKETS: Array<{
+  value: ReviewRoutingBucket;
+  label: string;
+  meaning: string;
+  selectedClass: string;
+  dotClass: string;
+}> = [
+  {
+    value: "auto_publish",
+    label: "Auto-publish",
+    meaning: "Reply is posted automatically",
+    selectedClass:
+      "bg-emerald-600 text-white shadow-sm ring-emerald-600",
+    dotClass: "bg-emerald-500",
+  },
+  {
+    value: "manual_approval",
+    label: "Approve",
+    meaning: "Draft waits for a one-click approval",
+    selectedClass:
+      "bg-amber-500 text-white shadow-sm ring-amber-500",
+    dotClass: "bg-amber-500",
+  },
+  {
+    value: "needs_review",
+    label: "Human review",
+    meaning: "Someone reads and edits before replying",
+    selectedClass:
+      "bg-rose-600 text-white shadow-sm ring-rose-600",
+    dotClass: "bg-rose-500",
+  },
+];
+
+function ratingKey(star: ReviewStarRating) {
+  return String(star) as `${ReviewStarRating}`;
 }
 
 export function ReviewRoutingSettings({
@@ -29,95 +62,92 @@ export function ReviewRoutingSettings({
 }) {
   const [rules, setRules] = useState<ReviewRoutingRules>(initialRules);
 
-  function setRatingBucket(star: ReviewStarRating, bucket: ReviewRoutingBucket) {
-    setRules((prev) => ({
-      ratings: {
-        ...prev.ratings,
-        [String(star)]: bucket,
-      },
-    }));
-  }
+  useEffect(() => {
+    setRules(initialRules);
+  }, [initialRules]);
 
-  function resetDefaults() {
-    setRules(defaultReviewRoutingRules());
+  const dirty = STAR_RATINGS.some((star) => rules.ratings[ratingKey(star)] !== initialRules.ratings[ratingKey(star)]);
+
+  function setRatingBucket(star: ReviewStarRating, bucket: ReviewRoutingBucket) {
+    setRules((prev) => ({ ratings: { ...prev.ratings, [ratingKey(star)]: bucket } }));
   }
 
   return (
     <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-      <div className="border-b border-[var(--color-border)] px-5 py-5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Approval policy</p>
-        <h3 className="mt-1.5 text-lg font-semibold tracking-[-0.015em] text-[var(--color-text)]">Routing by rating</h3>
-        <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-          {readOnly ? "Review how each star rating is routed after sync." : "Choose what happens when a review syncs, based on its star rating."}
-        </p>
-      </div>
-      <form action={onSave} className="space-y-4 p-4 lg:p-5">
+      <SettingsCardHeader
+        step="2"
+        title="Route by rating"
+        description="Choose what happens to a new review based on its star rating."
+      />
+      <form action={onSave}>
         <input type="hidden" name="organization_id" value={organizationId} />
         {STAR_RATINGS.map((star) => (
-          <input
-            key={`hidden-${star}`}
-            type="hidden"
-            name={`routing_rating_${star}`}
-            value={rules.ratings[String(star) as `${typeof star}`]}
-          />
+          <input key={`hidden-${star}`} type="hidden" name={`routing_rating_${star}`} value={rules.ratings[ratingKey(star)]} />
         ))}
 
-        <p className="text-sm text-[var(--color-text-muted)]">
-          For each star rating, pick the workflow after sync. &quot;Safe to auto-publish&quot; drafts
-          (if enabled) and posts the reply to Google. &quot;Manual approval&quot; and &quot;Needs human
-          review&quot; keep the draft in your inbox until someone approves it.
-        </p>
+        <div className="grid gap-4 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-4 sm:grid-cols-3 lg:px-6">
+          {BUCKETS.map((bucket) => (
+            <div key={bucket.value} className="min-w-0">
+              <p className="flex items-center gap-2 text-xs font-semibold text-[var(--color-text)]">
+                <span className={`size-2 rounded-full ${bucket.dotClass}`} aria-hidden />
+                {bucket.label}
+              </p>
+              <p className="mt-1 pl-4 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{bucket.meaning}</p>
+            </div>
+          ))}
+        </div>
 
-        <div className="overflow-hidden rounded-2xl border border-[var(--color-border)]">
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-            <div>Rating</div>
-            <div>Route to</div>
-          </div>
-          <div className="divide-y divide-[var(--color-border-muted)]">
-            {STAR_RATINGS.map((star) => (
-              <div
-                key={star}
-                className="grid grid-cols-1 items-center gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-[var(--color-warning)]">{toStars(star)}</span>
-                  <span className="text-xs text-[var(--color-text-muted)]">{star} star{star === 1 ? "" : "s"}</span>
+        <div className="divide-y divide-[var(--color-border)]">
+          {STAR_RATINGS.map((star) => {
+            const current = rules.ratings[ratingKey(star)];
+            return (
+              <div key={star} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 lg:px-6">
+                <p className="flex items-center gap-2" aria-label={`${star} star reviews`}>
+                  <span className="text-sm tracking-[0.08em] text-amber-500" aria-hidden>
+                    {"★".repeat(star)}
+                    <span className="text-[var(--color-border-hover)]">{"★".repeat(5 - star)}</span>
+                  </span>
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    {star} star{star === 1 ? "" : "s"}
+                  </span>
+                </p>
+                <div
+                  role="radiogroup"
+                  aria-label={`Route for ${star} star reviews`}
+                  className="grid w-full grid-cols-3 gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1 sm:inline-flex sm:w-auto"
+                >
+                  {BUCKETS.map((bucket) => {
+                    const selected = current === bucket.value;
+                    return (
+                      <button
+                        key={bucket.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        disabled={readOnly}
+                        onClick={() => setRatingBucket(star, bucket.value)}
+                        className={`whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed sm:px-3 ${
+                          selected
+                            ? `${bucket.selectedClass} ring-1`
+                            : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+                        }`}
+                      >
+                        {bucket.label}
+                      </button>
+                    );
+                  })}
                 </div>
-                <CustomSelect
-                  value={rules.ratings[String(star) as `${typeof star}`]}
-                  onChange={(value) => setRatingBucket(star, value as ReviewRoutingBucket)}
-                  options={REVIEW_ROUTING_BUCKET_OPTIONS}
-                  disabled={readOnly}
-                  aria-label={`Routing for ${star} star reviews`}
-                />
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
-        <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--color-border-muted)] pt-4">
-          {readOnly ? (
-            <span className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-semibold text-[var(--color-text-muted)]">
-              View-only access
-            </span>
-          ) : (
-            <>
-          <button
-            type="button"
-            onClick={resetDefaults}
-            className="rounded-xl border border-[var(--color-border)] px-4 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-surface)]"
-          >
-            Reset to defaults
-          </button>
-          <button
-            type="submit"
-            className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
-          >
-            Save routing rules
-          </button>
-            </>
-          )}
-        </div>
+        <SettingsSaveBar
+          dirty={dirty}
+          readOnly={readOnly}
+          saveLabel="Save"
+          onReset={() => setRules(defaultReviewRoutingRules())}
+        />
       </form>
     </section>
   );

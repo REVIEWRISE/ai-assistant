@@ -1,8 +1,10 @@
 "use client";
 
+import { TestBookingButton } from "@/components/test-booking-panel";
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   CartesianGrid,
   Legend,
@@ -84,12 +86,6 @@ function parseTabKey(raw: string | null): TabKey | null {
   }
   return null;
 }
-
-const tabs: Array<{ key: TabKey; label: string; hint: string }> = [
-  { key: "integrations", label: "Integrations", hint: "Calendars and delivery" },
-  { key: "booked", label: "Bookings", hint: "Schedule and guests" },
-  { key: "analytics", label: "Performance", hint: "Volume and sync health" },
-];
 
 type AppointmentsTabsProps = {
   bookedAppointments: {
@@ -567,6 +563,35 @@ function CalendarPeriodModeSwitch({
   );
 }
 
+function EmptyStateActions({
+  testBookingHref,
+  calendarConnected,
+}: {
+  testBookingHref: string;
+  calendarConnected: boolean;
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+      {calendarConnected ? null : (
+        <Link
+          href="/appointments/overview?tab=integrations"
+          scroll={false}
+          className="rounded-xl bg-[var(--color-primary)] px-3.5 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
+        >
+          Connect a calendar
+        </Link>
+      )}
+      <TestBookingButton
+        testBookingHref={testBookingHref}
+        label="Run a test booking"
+        className={calendarConnected
+            ? "rounded-xl bg-[var(--color-primary)] px-3.5 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
+            : "rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"}
+      />
+    </div>
+  );
+}
+
 function BookedAppointmentsPanel({
   upcoming,
   recentPast,
@@ -574,7 +599,11 @@ function BookedAppointmentsPanel({
   retryCalendarSync,
   crmWebhookConfigured,
   retryCrmSync,
+  testBookingHref,
+  calendarConnected,
 }: {
+  testBookingHref: string;
+  calendarConnected: boolean;
   upcoming: BookedAppointmentRow[];
   recentPast: BookedAppointmentRow[];
   calendarRouteOptions: CalendarRouteOption[];
@@ -675,7 +704,8 @@ function BookedAppointmentsPanel({
         <div className="flex min-h-[150px] flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border-hover)] bg-[linear-gradient(145deg,var(--color-bg),var(--color-surface))] px-5 py-7 text-center">
           <span className="mb-2.5 flex size-10 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm font-semibold text-[var(--color-primary-h)] shadow-[var(--shadow-sm)]" aria-hidden>B</span>
           <p className="text-sm font-semibold text-[var(--color-text)]">No appointments yet</p>
-          <p className="mt-1 max-w-lg text-xs leading-relaxed text-[var(--color-text-muted)]">When visitors book through your embedded chatbot or Retell phone agent, their reservations will appear here.</p>
+          <p className="mt-1 max-w-lg text-xs leading-relaxed text-[var(--color-text-muted)]">When visitors book through your website chatbot or phone agent, their reservations will appear here.</p>
+          <EmptyStateActions testBookingHref={testBookingHref} calendarConnected={calendarConnected} />
         </div>
       </Panel>
     );
@@ -1314,22 +1344,8 @@ export function AppointmentsTabs({
   appointmentAnalytics,
   testBookingHref,
 }: AppointmentsTabsProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const activeTab = parseTabKey(searchParams.get("tab")) ?? "integrations";
-
-  function selectTab(tab: TabKey) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (tab === "integrations") {
-      params.delete("tab");
-    } else {
-      params.set("tab", tab);
-    }
-    const query = params.toString();
-    router.replace(query ? `/appointments/overview?${query}` : "/appointments/overview", {
-      scroll: false,
-    });
-  }
+  const activeTab = parseTabKey(searchParams.get("tab")) ?? "booked";
 
   const trendHasActivity = useMemo(
     () => appointmentAnalytics.trend.some((d) => d.recorded > 0 || d.synced > 0),
@@ -1337,67 +1353,10 @@ export function AppointmentsTabs({
   );
   const showTrendPlaceholder =
     !trendHasActivity && appointmentAnalytics.totalLast30Days === 0;
-  const totalBookings = bookedAppointments.upcoming.length + bookedAppointments.recentPast.length;
-  const connectedProviders = calendarProviders.filter((provider) => provider.status === "Connected").length;
-  const tabContext: Record<TabKey, { eyebrow: string; title: string; description: string; badge: string }> = {
-    integrations: {
-      eyebrow: "Delivery infrastructure",
-      title: "Calendar integrations",
-      description: "Manage provider connections and verify that booking requests can reach the correct calendar.",
-      badge: `${connectedProviders} of ${calendarProviders.length} connected`,
-    },
-    booked: {
-      eyebrow: "Scheduling workspace",
-      title: "Booking calendar",
-      description: "Review upcoming and recent reservations across chatbot and Voice AI channels.",
-      badge: `${totalBookings} booking${totalBookings === 1 ? "" : "s"}`,
-    },
-    analytics: {
-      eyebrow: "Operational intelligence",
-      title: "Booking performance",
-      description: "Track booking volume, calendar delivery, and synchronization health over time.",
-      badge: "30-day view",
-    },
-  };
-  const activeContext = tabContext[activeTab];
+  const calendarConnected = calendarProviders.some((provider) => provider.status === "Connected");
 
   return (
     <section id="appointment-operations" className="space-y-4 scroll-mt-4">
-      <div className="grid max-w-full grid-cols-3 gap-1.5 overflow-x-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-[var(--shadow-md)]" role="tablist" aria-label="Appointment operations">
-        {tabs.map((tab) => {
-          const active = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => selectTab(tab.key)}
-              className={`min-w-0 rounded-xl border px-3 py-2.5 text-left transition-all duration-200 ${
-                active
-                  ? "border-[color-mix(in_srgb,var(--color-primary)_22%,var(--color-border))] bg-[var(--color-primary-soft)] text-[var(--color-primary-h)] shadow-[var(--shadow-sm)]"
-                  : "border-transparent text-[var(--color-text-muted)] hover:border-[var(--color-border-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-text)]"
-              }`}
-            >
-              <span className="block truncate text-xs font-semibold">{tab.label}</span>
-              <span className={`mt-0.5 hidden truncate text-[10px] font-medium sm:block ${active ? "text-[color-mix(in_srgb,var(--color-primary-h)_72%,var(--color-text-muted))]" : "text-[var(--color-text-subtle)]"}`}>
-                {tab.hint}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex flex-wrap items-end justify-between gap-3 rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">{activeContext.eyebrow}</p>
-          <h2 className="mt-1 text-lg font-semibold tracking-tight text-[var(--color-text)]">{activeContext.title}</h2>
-          <p className="mt-1 max-w-3xl text-xs leading-relaxed text-[var(--color-text-muted)]">{activeContext.description}</p>
-        </div>
-        <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-[10px] font-semibold text-[var(--color-text-muted)]">
-          {activeContext.badge}
-        </span>
-      </div>
 
       {activeTab === "booked" ? (
         <BookedAppointmentsPanel
@@ -1407,6 +1366,8 @@ export function AppointmentsTabs({
           retryCalendarSync={retryCalendarSync}
           crmWebhookConfigured={crmWebhookConfigured}
           retryCrmSync={retryCrmSync}
+          testBookingHref={testBookingHref}
+          calendarConnected={calendarConnected}
         />
       ) : null}
 
@@ -1430,14 +1391,10 @@ export function AppointmentsTabs({
                   </p>
                   </div>
                 </div>
-                <a
-                  href={testBookingHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="shrink-0 rounded-xl bg-[var(--color-primary)] px-3.5 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
-                >
-                  Test booking flow ↗
-                </a>
+                <TestBookingButton
+                  testBookingHref={testBookingHref}
+                  className="shrink-0 rounded-xl bg-[var(--color-primary)] px-3.5 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
+                />
               </div>
             ) : (
               <div className="space-y-3 text-sm text-[var(--color-text)]">
@@ -1461,7 +1418,19 @@ export function AppointmentsTabs({
         </div>
       ) : null}
 
-      {activeTab === "analytics" ? (
+      {activeTab === "analytics" && showTrendPlaceholder ? (
+        <Panel title="Booking performance" subtitle="Volume and calendar delivery over the last 30 days">
+          <div className="flex min-h-[180px] flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border-hover)] bg-[linear-gradient(145deg,var(--color-bg),var(--color-surface))] px-5 py-8 text-center">
+            <p className="text-sm font-semibold text-[var(--color-text)]">No bookings to measure yet</p>
+            <p className="mt-1 max-w-md text-xs leading-relaxed text-[var(--color-text-muted)]">
+              Once guests book through your chatbot or phone agent, you&apos;ll see booking volume, calendar delivery, and sync issues here.
+            </p>
+            <EmptyStateActions testBookingHref={testBookingHref} calendarConnected={calendarConnected} />
+          </div>
+        </Panel>
+      ) : null}
+
+      {activeTab === "analytics" && !showTrendPlaceholder ? (
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-[color-mix(in_srgb,#0284c7_18%,var(--color-border))] bg-[linear-gradient(145deg,color-mix(in_srgb,#0284c7_7%,var(--color-surface)),var(--color-surface))] px-4 py-4 shadow-[var(--shadow-sm)]">

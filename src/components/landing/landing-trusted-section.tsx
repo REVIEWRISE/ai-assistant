@@ -1,60 +1,44 @@
-export function LandingTrustedSection({ names }: { names?: readonly string[] }) {
-  const PARTNERS = (names && names.length > 0 ? names : [
-    "Habesha Food",
-    "Liya Cookies",
-    "Nazaret Market",
-    "Apex Wellness",
-    "Nova Auto Care",
-  ]).map((name) => {
-    const categories: Record<string, string> = {
-      "Habesha Food": "Hospitality",
-      "Liya Cookies": "Bakery & Retail",
-      "Nazaret Market": "Grocery",
-      "Apex Wellness": "Healthcare",
-      "Nova Auto Care": "Automotive",
-    };
-    return { name, category: categories[name] ?? "Local Business" };
-  });
+const CATEGORIES: Record<string, string> = {
+  "Habesha Food": "Hospitality",
+  "Liya Cookies": "Bakery & Retail",
+  "Nazaret Market": "Grocery",
+};
 
-  const STATS = [
-    { value: "250k+", label: "Messages handled" },
-    { value: "< 2 min", label: "Avg response time" },
-    { value: "99.4%", label: "Automation accuracy" },
-    { value: "35 hrs", label: "Saved per location / mo" },
-  ];
+const STATS = [
+  { value: "250k+", label: "Messages handled" },
+  { value: "< 2 min", label: "Avg response time" },
+  { value: "99.4%", label: "Automation accuracy" },
+  { value: "35 hrs", label: "Saved per location / mo" },
+];
 
+export function LandingTrustedSection({ names = [] }: { names?: readonly string[] }) {
   return (
-    <section id="trusted" className="border-y border-[var(--color-border)] bg-[var(--color-surface)]/50">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        {/* Partner names */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-8">
-          <p className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
-            Trusted by
-          </p>
-          <div className="flex flex-wrap items-center gap-x-1 gap-y-0">
-            {PARTNERS.map((p, i) => (
-              <span key={p.name} className="flex items-center">
-                {i > 0 && (
-                  <span className="mx-3 text-[var(--color-border)]" aria-hidden>·</span>
-                )}
-                <span className="text-sm font-semibold text-[var(--color-text)]">{p.name}</span>
-                <span className="ml-1.5 text-xs text-[var(--color-text-subtle)]">({p.category})</span>
-              </span>
-            ))}
-            <span className="mx-3 text-[var(--color-border)]" aria-hidden>·</span>
-            <span className="text-xs text-[var(--color-text-subtle)]">and 150+ local teams</span>
-          </div>
-        </div>
-
-        {/* Stats grid */}
-        <div className="mt-8 grid grid-cols-2 gap-3 border-t border-[var(--color-border)] pt-8 sm:grid-cols-4 sm:gap-4">
+    <section id="trusted" className="border-b border-[var(--color-border)]">
+      <div className="lp-wrap py-12 sm:py-16">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-8 lg:grid-cols-4">
           {STATS.map(({ value, label }) => (
-            <div key={label} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-4 shadow-sm">
-              <p className="vr-gradient-text text-xl font-bold tracking-tight sm:text-2xl">{value}</p>
-              <p className="mt-1 text-xs text-[var(--color-text-muted)]">{label}</p>
+            <div key={label} className="flex flex-col-reverse">
+              <dt className="mt-2.5 text-sm text-[var(--color-text-muted)]">{label}</dt>
+              <dd className="text-[clamp(2rem,4vw,3rem)] font-semibold leading-none tracking-[-0.03em] text-[var(--lp-accent)]">
+                {value}
+              </dd>
             </div>
           ))}
-        </div>
+        </dl>
+
+        {names.length > 0 ? (
+          <p className="mt-10 border-t border-[var(--color-border)] pt-6 text-sm leading-7 text-[var(--color-text-muted)]">
+            Trusted by{" "}
+            {names.map((name, index) => (
+              <span key={name}>
+                {index > 0 ? ", " : null}
+                <span className="font-semibold text-[var(--color-text)]">{name}</span>
+                {CATEGORIES[name] ? ` (${CATEGORIES[name]})` : null}
+              </span>
+            ))}{" "}
+            and 150+ local teams.
+          </p>
+        ) : null}
       </div>
     </section>
   );

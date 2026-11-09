@@ -8,8 +8,14 @@ import { AuthShell } from "@/components/auth-shell";
 import { GoogleAuthButton } from "@/components/google-auth-button";
 import { toast } from "@/lib/toast";
 
-const INPUT_CLASS =
-  "w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-3 text-sm text-[var(--color-text)] shadow-sm outline-none transition placeholder:text-[var(--color-text-subtle)] hover:border-[var(--color-border-hover)] focus:border-[var(--color-primary)] focus:ring-3 focus:ring-[color-mix(in_srgb,var(--color-primary)_14%,transparent)]";
+const SETUP_STEPS = [
+  "Connect your channels",
+  "Set your brand tone and approval rules",
+  "Launch 24/7 automation",
+] as const;
+
+const FIELD_LABEL_CLASS = "mb-2 block text-sm font-semibold text-[var(--color-text)]";
+const FIELD_HINT_CLASS = "mt-1.5 block text-sm leading-6 text-[var(--color-text-muted)]";
 
 const PLAN_LABELS: Record<string, string> = {
   starter: "Starter",
@@ -73,14 +79,18 @@ function RegisterPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean
     <AuthShell
       sideTitle="Create the workspace your customer operations deserve."
       sideDescription="Start with one workflow, invite your team, and connect reviews, appointments, and leads when you are ready."
+      steps={SETUP_STEPS}
     >
       <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">Start free</p>
-          {selectedPlan ? <span className="rounded-full bg-[var(--color-primary-soft)] px-2.5 py-1 text-[10px] font-semibold capitalize text-[var(--color-primary-h)]">{selectedPlan} plan</span> : null}
-        </div>
-        <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-[var(--color-text)]">Create your workspace</h2>
-        <p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">Your account includes a 14-day trial. No credit card required.</p>
+        <h2 className="text-[2.25rem] font-semibold leading-[1.1] tracking-[-0.035em] text-[var(--color-text)]">Create your workspace</h2>
+        <p className="mt-3 text-[15px] leading-7 text-[var(--color-text-muted)]">Your account includes a 14-day trial. No credit card required.</p>
+        {selectedPlan ? (
+          <p className="mt-4 rounded-2xl bg-[var(--lp-tint)] px-4 py-3 text-sm text-[var(--color-text)]">
+            <span className="font-semibold text-[var(--lp-accent)]">{selectedPlan} plan</span>
+            {" · "}
+            {selectedInterval === "yearly" ? "Billed annually" : "Billed monthly"}
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-7 space-y-5">
@@ -91,11 +101,11 @@ function RegisterPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean
           interval={selectedInterval}
         />
 
-        <form className="space-y-4" action={registerUser}>
+        <form className="grid gap-4 sm:grid-cols-2" action={registerUser}>
           {selectedPlan ? <input type="hidden" name="plan" value={selectedPlanSlug} /> : null}
           <input type="hidden" name="interval" value={selectedInterval} />
           <label className="block">
-            <span className="mb-2 block text-sm font-semibold text-[var(--color-text)]">Full name</span>
+            <span className={FIELD_LABEL_CLASS}>Full name</span>
             <input
               id="name"
               name="name"
@@ -104,11 +114,11 @@ function RegisterPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean
               defaultValue={preservedName}
               placeholder="Jane Doe"
               autoComplete="name"
-              className={INPUT_CLASS}
+              className="lp-input"
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-sm font-semibold text-[var(--color-text)]">Work email</span>
+            <span className={FIELD_LABEL_CLASS}>Work email</span>
             <input
               id="email"
               name="email"
@@ -118,11 +128,11 @@ function RegisterPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean
               defaultValue={preservedEmail}
               placeholder="you@company.com"
               autoComplete="email"
-              className={INPUT_CLASS}
+              className="lp-input"
             />
           </label>
-          <label className="block">
-            <span className="mb-2 block text-sm font-semibold text-[var(--color-text)]">Workspace name</span>
+          <label className="block sm:col-span-2">
+            <span className={FIELD_LABEL_CLASS}>Workspace name</span>
             <input
               id="organization_name"
               name="organization_name"
@@ -132,38 +142,39 @@ function RegisterPageContent({ googleAuthEnabled }: { googleAuthEnabled: boolean
               defaultValue={preservedOrganization}
               placeholder="Acme Dental"
               autoComplete="organization"
-              className={INPUT_CLASS}
+              className="lp-input"
             />
-            <span className="mt-1.5 block text-xs text-[var(--color-text-muted)]">
+            <span className={FIELD_HINT_CLASS}>
               This is your organization or business name. You can create more workspaces later.
             </span>
           </label>
           <label className="block">
-            <span className="mb-2 block text-sm font-semibold text-[var(--color-text)]">Password</span>
+            <span className={FIELD_LABEL_CLASS}>Password</span>
             <span className="relative block">
-              <input id="password" name="password" type={showPassword ? "text" : "password"} required minLength={12} placeholder="Create a secure password" autoComplete="new-password" className={`${INPUT_CLASS} pr-11`} />
+              <input id="password" name="password" type={showPassword ? "text" : "password"} required minLength={12} placeholder="Create password" autoComplete="new-password" className="lp-input lp-input-toggle" />
               <PasswordToggle show={showPassword} onToggle={() => setShowPassword((current) => !current)} label={showPassword ? "Hide password" : "Show password"} />
-            </span>
-            <span className="mt-1.5 block text-xs text-[var(--color-text-muted)]">
-              At least 12 characters, with an uppercase letter, a lowercase letter, a number, and a symbol.
             </span>
           </label>
           <label className="block">
-            <span className="mb-2 block text-sm font-semibold text-[var(--color-text)]">Confirm password</span>
+            <span className={FIELD_LABEL_CLASS}>Confirm password</span>
             <span className="relative block">
-              <input id="confirm-password" name="confirm_password" type={showConfirm ? "text" : "password"} required placeholder="Repeat your password" autoComplete="new-password" className={`${INPUT_CLASS} pr-11`} />
+              <input id="confirm-password" name="confirm_password" type={showConfirm ? "text" : "password"} required placeholder="Repeat password" autoComplete="new-password" className="lp-input lp-input-toggle" />
               <PasswordToggle show={showConfirm} onToggle={() => setShowConfirm((current) => !current)} label={showConfirm ? "Hide password confirmation" : "Show password confirmation"} />
             </span>
           </label>
 
-          <button type="submit" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] shadow-sm transition hover:bg-[var(--color-primary-h)]">
-            Create free account <span aria-hidden>→</span>
+          <p className="-mt-2 text-sm leading-6 text-[var(--color-text-muted)] sm:col-span-2">
+            Use at least 12 characters, with an uppercase letter, a lowercase letter, a number, and a symbol.
+          </p>
+
+          <button type="submit" className="lp-btn lp-btn-solid mt-1 w-full sm:col-span-2">
+            Create free account
           </button>
         </form>
       </div>
 
-      <p className="mt-6 text-center text-sm text-[var(--color-text-muted)]">
-        Already have an account? <Link href="/login" className="font-semibold text-[var(--color-primary-h)] hover:underline">Sign in</Link>
+      <p className="mt-6 text-center text-[15px] text-[var(--color-text-muted)]">
+        Already have an account? <Link href="/login" className="font-semibold text-[var(--lp-accent)] underline-offset-4 hover:underline">Sign in</Link>
       </p>
     </AuthShell>
   );

@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, type ReactNode } from "react";
 import { CustomSelect } from "@/components/custom-select";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { ADMIN_ALL_WORKSPACES } from "@/lib/admin-organization-scope";
+
+const MANAGE_WORKSPACES = "__manage_workspaces__";
 
 type HeaderCopy = {
   eyebrow: string;
@@ -25,8 +28,8 @@ const headerByRoute: Record<string, HeaderCopy> = {
     title: "Scheduling overview",
   },
   "/appointments/organization": {
-    eyebrow: "Appointment Agent",
-    title: "Organization setup",
+    eyebrow: "Workspace",
+    title: "Workspaces",
   },
   "/appointments/knowledge-base": {
     eyebrow: "Appointment Agent",
@@ -200,21 +203,59 @@ export function TopHeader({
   onSwitchOrganization,
   switchingOrganization = false,
 }: TopHeaderProps) {
+  const router = useRouter();
   const copy = getHeaderCopy(pathname);
   const isAdmin = profileRole === "Admin";
   const hasOrganizations = organizations.length > 0;
   const organizationOptions = [
     ...(isAdmin ? [{ value: ADMIN_ALL_WORKSPACES, label: "All workspaces" }] : []),
     ...organizations.map((org) => ({ value: org.id, label: org.name })),
+    { value: MANAGE_WORKSPACES, label: "Manage workspaces…" },
   ];
   const organizationSelectValue =
     activeOrganizationId ?? (isAdmin && hasOrganizations ? ADMIN_ALL_WORKSPACES : "");
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    const closeOnOutsidePress = (event: MouseEvent) => {
+      if (!profileMenuRef.current?.contains(event.target as Node)) onCloseProfile();
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCloseProfile();
+    };
+    document.addEventListener("mousedown", closeOnOutsidePress);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsidePress);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [profileOpen, onCloseProfile]);
 
   const organizationSelect =
-    organizationOptions.length > 0 ? (
-      <CustomSelect
+    hasOrganizations || isAdmin ? (
+      <div className="relative">
+        <svg
+          viewBox="0 0 24 24"
+          className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-4 -translate-y-1/2 text-[var(--color-primary-h)]"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M4 21V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v15M15 10h3a2 2 0 0 1 2 2v9M2.5 21h19M8 8.5h3M8 12.5h3M8 16.5h3" />
+        </svg>
+        <CustomSelect
         value={organizationSelectValue}
-        onChange={(organizationId) => onSwitchOrganization?.(organizationId)}
+        onChange={(organizationId) => {
+          if (organizationId === MANAGE_WORKSPACES) {
+            router.push("/appointments/organization");
+            return;
+          }
+          onSwitchOrganization?.(organizationId);
+        }}
         options={organizationOptions}
         placeholder="Select workspace"
         disabled={switchingOrganization}
@@ -222,18 +263,20 @@ export function TopHeader({
         searchPlaceholder="Search workspaces…"
         aria-label="Switch organization"
         className="mt-0 w-full min-w-0"
-        triggerClassName="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] py-2 text-xs shadow-[var(--shadow-sm)] hover:bg-[var(--color-raised)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
+        triggerClassName="min-h-10 rounded-full! border border-[var(--color-border)] bg-transparent! py-2 pl-10! pr-3.5! text-sm shadow-none! hover:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
         menuClassName="min-w-[16rem]"
       />
+      </div>
     ) : null;
 
   return (
-    <header className="sticky top-0 z-20 shrink-0 border-b border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] backdrop-blur-xl">
-      <div className="flex items-center gap-2 px-3 py-2.5 lg:gap-3 lg:px-5">
+    <header className="sticky top-0 z-20 shrink-0 border-b border-[var(--color-border)] bg-[var(--color-bg)] [[data-theme=dark]_&]:bg-[var(--color-surface)]">
+      {/* Same height as the sidebar's logo row, so the two dividers line up */}
+      <div className="flex h-[67px] items-center gap-3 px-4 lg:px-6">
         <button
           type="button"
           onClick={onOpenMobileNav}
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--color-raised)] lg:hidden"
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--color-text)] transition hover:border-[var(--color-primary)] lg:hidden"
           aria-label="Open navigation menu"
         >
           <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -242,30 +285,26 @@ export function TopHeader({
         </button>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-h)]">
-            {copy.eyebrow}
-          </p>
-          <h2 className="mt-0.5 truncate text-[15px] font-semibold tracking-tight text-[var(--color-text)] lg:text-base">
+          <p className="truncate text-xs font-medium text-[var(--color-text-muted)]">{copy.eyebrow}</p>
+          <h2 className="truncate text-lg font-semibold leading-snug tracking-[-0.02em] text-[var(--color-text)]">
             {copy.title}
           </h2>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
-          <div className="hidden w-[18.5rem] min-w-0 lg:block">
+        <div className="flex shrink-0 items-center gap-2 lg:gap-3">
+          <div className="hidden w-64 min-w-0 lg:block">
             {organizationSelect}
           </div>
-          <ThemeSwitch />
-          <div className="relative">
+          <ThemeSwitch className="size-10! rounded-full! bg-transparent! shadow-none! hover:border-[var(--color-primary)]" />
+          <div className="relative" ref={profileMenuRef}>
             <button
               type="button"
               onClick={onToggleProfile}
               aria-expanded={profileOpen}
               aria-haspopup="menu"
               aria-label={`Profile menu for ${profileName}`}
-              className={`flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1.5 text-sm font-medium text-[var(--color-text)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--color-raised)] sm:max-w-[13.5rem] sm:px-2 sm:py-1.5 ${
-                profileOpen
-                  ? "bg-[var(--color-raised)] ring-2 ring-[color-mix(in_srgb,var(--color-primary)_18%,transparent)]"
-                  : ""
+              className={`flex min-h-10 items-center gap-2 rounded-full p-1 text-sm font-medium text-[var(--color-text)] transition hover:bg-[var(--color-raised)] sm:max-w-[13.5rem] sm:pr-3 ${
+                profileOpen ? "bg-[var(--color-raised)]" : ""
               }`}
             >
               <span className="shrink-0">{profileAvatar}</span>
@@ -277,11 +316,10 @@ export function TopHeader({
                   {profileName}
                 </span>
                 <span
-                  className="block truncate text-[10px] leading-tight text-[var(--color-text-muted)]"
+                  className="mt-0.5 block truncate text-xs leading-tight text-[var(--color-text-muted)]"
                   title={[profileRole ?? "Member", profileOrg].filter(Boolean).join(" · ")}
                 >
                   {profileRole ?? "Member"}
-                  {profileOrg ? ` · ${profileOrg}` : ""}
                 </span>
               </span>
               <svg
@@ -302,15 +340,15 @@ export function TopHeader({
                 role="menu"
                 className="absolute right-0 z-30 mt-2 w-[min(calc(100vw-1.5rem),16rem)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]"
               >
-                <div className="border-b border-[var(--color-border)] bg-[linear-gradient(125deg,#0c0c0c_0%,#161616_52%,#222222_100%)] px-4 py-3.5 text-white">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
+                <div className="border-b border-[var(--color-border)] vr-app-blue px-4 py-3.5 text-white">
+                  <p className="text-xs font-medium text-white/85">
                     Signed in
                   </p>
                   <p className="mt-1 truncate text-sm font-semibold" title={profileName}>
                     {profileName}
                   </p>
                   <p
-                    className="mt-0.5 truncate text-xs text-slate-300"
+                    className="mt-0.5 truncate text-xs text-white/85"
                     title={profileEmail ?? "user@example.com"}
                   >
                     {profileEmail ?? "user@example.com"}
@@ -322,7 +360,7 @@ export function TopHeader({
                       href="/profile"
                       role="menuitem"
                       onClick={onCloseProfile}
-                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-bg)]"
+                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
                     >
                       View profile
                     </Link>
@@ -346,7 +384,7 @@ export function TopHeader({
       </div>
 
       {hasOrganizations ? (
-        <div className="border-t border-[var(--color-border)] px-3 py-2 lg:hidden">
+        <div className="border-t border-[var(--color-border)] px-4 py-2 lg:hidden">
           {organizationSelect}
         </div>
       ) : null}
