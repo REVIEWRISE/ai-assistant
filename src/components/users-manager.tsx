@@ -368,7 +368,7 @@ export function UsersManager({
         <button
           type="button"
           onClick={openCreateSheet}
-          className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+          className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
         >
           Add user
         </button>
@@ -531,19 +531,19 @@ export function UsersManager({
                 aria-labelledby="user-sheet-title"
                 className="relative flex h-full w-full max-w-2xl flex-col border-l border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]"
               >
-                <header className="relative shrink-0 overflow-hidden border-b border-white/10 bg-[linear-gradient(135deg,#0b0b0b_0%,#171717_52%,#292929_100%)] px-5 py-6 text-white sm:px-6">
+                <header className="relative shrink-0 overflow-hidden border-b border-white/10 vr-app-blue px-5 py-6 text-white sm:px-6">
                   <div className="pointer-events-none absolute -right-12 -top-24 size-64 rounded-full bg-white/10 blur-3xl" aria-hidden />
                   <button
                     type="button"
                     onClick={() => setOverlay(null)}
-                    className="absolute right-4 top-4 z-10 flex size-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xl leading-none text-neutral-300 transition hover:bg-white/10 hover:text-white"
+                    className="absolute right-4 top-4 z-10 flex size-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xl leading-none text-white/85 transition hover:bg-white/10 hover:text-white"
                     aria-label="Close user sheet"
                   >
                     ×
                   </button>
 
                   <div className="relative pr-12">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+                    <p className="text-xs font-medium text-white/85">
                       User management
                     </p>
                     <div className="mt-4 flex items-center gap-4">
@@ -559,7 +559,7 @@ export function UsersManager({
                         >
                           {overlay.type === "create" ? "Create a new user" : overlay.user.fullName}
                         </h2>
-                        <p className="mt-1 truncate text-sm text-neutral-400">
+                        <p className="mt-1 truncate text-sm text-white/85">
                           {overlay.type === "create"
                             ? "Set up identity, access, and an optional organization."
                             : overlay.user.email}
@@ -568,14 +568,14 @@ export function UsersManager({
                     </div>
 
                     <div className="mt-5 flex flex-wrap gap-2">
-                      <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] font-semibold text-neutral-200">
+                      <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] font-semibold text-white">
                         {overlay.type === "create" ? "New account" : statusLabel(overlay.user.accountStatus)}
                       </span>
-                      <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] font-semibold text-neutral-200">
+                      <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] font-semibold text-white">
                         {overlay.type === "create" ? "Role pending" : overlay.user.roleName}
                       </span>
                       {overlay.type === "edit" ? (
-                        <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] font-semibold text-neutral-200">
+                        <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] font-semibold text-white">
                           {overlay.user.organizations.length} workspace{overlay.user.organizations.length === 1 ? "" : "s"}
                         </span>
                       ) : null}
@@ -859,7 +859,7 @@ export function UsersManager({
                       </button>
                       <button
                         type="submit"
-                        className="rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--color-primary-h)]"
+                        className="rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--color-primary-fill-h)]"
                       >
                         {overlay.type === "create" ? "Create user" : "Save changes"}
                       </button>

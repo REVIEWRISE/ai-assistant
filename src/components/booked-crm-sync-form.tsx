@@ -16,7 +16,7 @@ function RetryButton() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-60"
+      className="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)] disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? "Retrying…" : "Retry CRM sync"}
     </button>

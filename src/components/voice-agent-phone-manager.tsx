@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  SECTION_ICONS,
+  SectionGlyph,
+  SectionHeaderStrip,
+  SectionLayout,
+  SectionMenu,
+  type SectionStatus,
+} from "@/components/section-layout";
 import Link from "next/link";
 import { createPortal, useFormStatus } from "react-dom";
 import { useState, useEffect, useSyncExternalStore } from "react";
@@ -40,12 +48,18 @@ export function VoiceAgentPhoneManager({
 }) {
   const statsByNumber = new Map(phoneStats.map((stat) => [stat.phoneNumber, stat]));
   const agentReady = Boolean(retellAgentId.trim());
-  const callsReceived = phoneStats.reduce((sum, stat) => sum + stat.callsReceived, 0);
-  const bookings = phoneStats.reduce((sum, stat) => sum + stat.bookingsCount, 0);
-  const linkedLines = phones.filter((phone) => phone.retellAgentId === retellAgentId).length;
   const canBuyNumber = phones.length === 0;
+  const linesStatus: SectionStatus =
+    phones.length > 0
+      ? { label: `${phones.length} line${phones.length === 1 ? "" : "s"}`, tone: "success" }
+      : { label: "No line yet", tone: "warning" };
+  const forwardingStatus: SectionStatus =
+    phones.length > 0 ? { label: "Set up on your phone", tone: "neutral" } : { label: "Needs a line", tone: "warning" };
+  const addStatus: SectionStatus = canBuyNumber ? { label: "Needed", tone: "warning" } : { label: "Optional", tone: "neutral" };
 
   const [modePreference, setMode] = useState<"buy" | "link">(canBuyNumber ? "buy" : "link");
+  // With a line already in place, linking another number is a rare action — keep it folded away.
+  const [addLineOpen, setAddLineOpen] = useState(false);
   // Once a line exists, buying is locked — always show link mode without syncing via effect.
   const mode: "buy" | "link" = canBuyNumber ? modePreference : "link";
   const [selectedForwardingPhone, setSelectedForwardingPhone] = useState<string | undefined>();
@@ -84,56 +98,68 @@ export function VoiceAgentPhoneManager({
           </p>
           <Link
             href="/voice-agent?tab=agent"
-            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
           >
             Set up voice agent
           </Link>
         </div>
       ) : null}
 
-      <div className="grid overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)] sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: "Phone lines", value: phones.length, hint: phones.some((phone) => phone.isPrimary) ? "primary line selected" : "no primary line" },
-          { label: "Agent linked", value: linkedLines, hint: `${Math.max(0, phones.length - linkedLines)} need assignment` },
-          { label: "Calls received", value: callsReceived, hint: "last 30 days" },
-          { label: "Bookings", value: bookings, hint: "completed by phone" },
-        ].map((metric, index) => (
-          <div key={metric.label} className={`min-w-0 bg-[var(--color-bg)] px-4 py-3.5 ${index < 3 ? "border-b border-[var(--color-border)] sm:border-r lg:border-b-0" : ""}`}>
-            <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{metric.label}</p>
-            <p className="mt-1 text-xl font-semibold tracking-[-0.03em] tabular-nums text-[var(--color-text)]">{metric.value}</p>
-            <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">{metric.hint}</p>
-          </div>
-        ))}
-      </div>
-
-      <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
-        <div className="relative overflow-hidden border-b border-[var(--color-border)] bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 py-4 text-white lg:px-6">
-          <div className="pointer-events-none absolute -right-12 -top-16 size-40 rounded-full bg-white/10 blur-3xl" aria-hidden />
-          <div className="relative flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-400">Line directory</p>
-              <h3 className="mt-1.5 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">Active phone lines</h3>
-              <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-neutral-400">
-                Each number routes inbound calls to your voice agent. Activity covers the last 30 days.
-              </p>
-            </div>
-            {retellApiConfigured && agentReady ? (
-              <form action={onRefresh} className="shrink-0">
+      <SectionLayout
+        menu={
+          <SectionMenu
+            ariaLabel="Phone line sections"
+            items={[
+              {
+                id: "phone-section-lines",
+                label: "Phone lines",
+                icon: <SectionGlyph paths={[...SECTION_ICONS.phone]} />,
+                status: linesStatus,
+              },
+              {
+                id: "call-forwarding-guide-section",
+                label: "Forwarding",
+                icon: <SectionGlyph paths={[...SECTION_ICONS.forwarding]} />,
+                status: forwardingStatus,
+              },
+              ...(retellApiConfigured
+                ? [
+                    {
+                      id: "phone-section-add",
+                      label: canBuyNumber ? "Add a line" : "Link a number",
+                      icon: <SectionGlyph paths={[...SECTION_ICONS.add]} />,
+                      status: addStatus,
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        }
+      >
+      <section
+        id="phone-section-lines"
+        className="scroll-mt-28 overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]"
+      >
+        <SectionHeaderStrip
+          icon={<SectionGlyph paths={[...SECTION_ICONS.phone]} />}
+          title="Phone lines"
+          description="Each number routes inbound calls to your voice agent. Activity covers the last 30 days."
+          status={linesStatus}
+          actions={
+            retellApiConfigured && agentReady ? (
+              <form action={onRefresh}>
                 <input type="hidden" name="organization_id" value={organizationId} />
                 <input type="hidden" name="retell_agent_id" value={retellAgentId} />
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-white/15"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[11px] font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
                 >
-                  <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
-                  </svg>
-                  Refresh lines
+                  Refresh
                 </button>
               </form>
-            ) : null}
-          </div>
-        </div>
+            ) : null
+          }
+        />
 
         <div className="p-3.5 lg:p-4">
           {phones.length === 0 ? (
@@ -265,7 +291,7 @@ export function VoiceAgentPhoneManager({
                             <input type="hidden" name="retell_agent_id" value={retellAgentId} />
                             <button
                               type="submit"
-                              className="rounded-lg bg-[var(--color-primary)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+                              className="rounded-lg bg-[var(--color-primary)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
                             >
                               Assign agent
                             </button>
@@ -281,7 +307,7 @@ export function VoiceAgentPhoneManager({
         </div>
       </section>
 
-      <div id="call-forwarding-guide-section">
+      <div id="call-forwarding-guide-section" className="scroll-mt-28">
         <VoiceAgentForwardingGuide
           organizationId={organizationId}
           twilioConfigured={twilioForwardingConfigured}
@@ -291,42 +317,49 @@ export function VoiceAgentPhoneManager({
       </div>
 
       {retellApiConfigured ? (
-        <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
-          <div className="relative overflow-hidden border-b border-[var(--color-border)] bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 py-6 text-white lg:px-6">
-            <div className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-white/10 blur-3xl" aria-hidden />
-            <div className="pointer-events-none absolute -bottom-24 left-20 size-40 rounded-full bg-white/5 blur-3xl" aria-hidden />
-            <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
-                  New line
-                </p>
-                <div className="mt-2 inline-flex rounded-xl bg-white/10 p-0.5">
-                  {canBuyNumber ? (
-                    <button
-                      type="button"
-                      onClick={() => setMode("buy")}
-                      className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "buy" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
-                    >
-                      Buy a number
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={() => setMode("link")}
-                    className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${mode === "link" || !canBuyNumber ? "bg-white text-neutral-900 shadow-sm" : "text-slate-300 hover:text-white"}`}
-                  >
-                    Link existing number
-                  </button>
-                </div>
-                {!canBuyNumber ? (
-                  <p className="mt-3 max-w-md text-xs leading-relaxed text-neutral-400">
-                    This workspace already has a phone line. Additional number purchases aren&apos;t available.
-                  </p>
-                ) : null}
+        <section
+          id="phone-section-add"
+          className="scroll-mt-28 overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]"
+        >
+          <SectionHeaderStrip
+            icon={<SectionGlyph paths={[...SECTION_ICONS.add]} />}
+            title={canBuyNumber ? "Add a phone line" : "Link another number"}
+            description={
+              canBuyNumber
+                ? "Buy a new number for your AI receptionist, or link one you already own."
+                : "Bring a number you already own. Buying additional numbers isn’t available once a workspace has a line."
+            }
+            actions={canBuyNumber ? (
+              <div className="inline-flex shrink-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setMode("buy")}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${mode === "buy" ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm ring-1 ring-[var(--color-border)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"}`}
+                >
+                  Buy a number
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("link")}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${mode === "link" ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm ring-1 ring-[var(--color-border)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"}`}
+                >
+                  Link existing
+                </button>
               </div>
-            </div>
-          </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAddLineOpen((open) => !open)}
+                aria-expanded={addLineOpen}
+                className="shrink-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+              >
+                {addLineOpen ? "Cancel" : "Link a number"}
+              </button>
+            )}
+          />
 
+          {canBuyNumber || addLineOpen ? (
+          <>
           {!agentReady ? (
             <div className="flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between lg:p-6">
               <div className="min-w-0">
@@ -338,7 +371,7 @@ export function VoiceAgentPhoneManager({
               </div>
               <Link
                 href="/voice-agent?tab=agent"
-                className="inline-flex shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+                className="inline-flex shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
               >
                 Go to Agent setup
               </Link>
@@ -609,8 +642,11 @@ export function VoiceAgentPhoneManager({
               </div>
             </form>
           )}
+          </>
+          ) : null}
         </section>
       ) : null}
+      </SectionLayout>
 
       {showLegalModal && mounted
         ? createPortal(
@@ -708,7 +744,7 @@ export function VoiceAgentPhoneManager({
                       setTermsAccepted(true);
                       setShowLegalModal(false);
                     }}
-                    className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] shadow-sm"
+                    className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)] shadow-sm"
                   >
                     I Agree &amp; Accept Terms
                   </button>
@@ -729,7 +765,7 @@ function LinkPhoneSubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)] disabled:cursor-not-allowed disabled:opacity-50"
     >
       {pending ? (
         <>
@@ -757,7 +793,7 @@ function BuyPhoneSubmitButton({ termsAccepted }: { termsAccepted: boolean }) {
     </>
   );
   const buttonClass =
-    "inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-50 shadow-sm";
+    "inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)] disabled:cursor-not-allowed disabled:opacity-50 shadow-sm";
 
   if (!termsAccepted) {
     return (

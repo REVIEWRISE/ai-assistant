@@ -41,7 +41,7 @@ export function VoiceAgentPhoneSummary({
       ) : (
         <p className="mt-2 text-xs text-[var(--color-text-muted)]">
           Edit the number on the{" "}
-          <Link href="/voice-agent?tab=phone" className="font-semibold text-[var(--color-primary)] hover:underline">
+          <Link href="/voice-agent?tab=phone" className="font-semibold text-[var(--color-primary-h)] hover:underline">
             Phone &amp; Calling
           </Link>{" "}
           tab. Use the full number with country code (e.g. +15551234567).

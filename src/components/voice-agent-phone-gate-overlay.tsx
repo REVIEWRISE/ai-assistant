@@ -29,7 +29,7 @@ export function VoiceAgentPhoneGateOverlay({ onConfigurePhone }: VoiceAgentPhone
         <button
           type="button"
           onClick={onConfigurePhone}
-          className="mt-5 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+          className="mt-5 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
         >
           Configure phone number
         </button>

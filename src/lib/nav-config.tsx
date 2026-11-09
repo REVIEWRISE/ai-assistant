@@ -8,6 +8,8 @@ export type NavItem = {
   requiresAdmin?: boolean;
   hideForAdmin?: boolean;
   children?: Array<{ href: string; label: string; requiresAdmin?: boolean }>;
+  /** Children are shown as in-page tabs, not a sidebar submenu (they still gate access). */
+  childrenAsTabs?: boolean;
 };
 
 export const APP_NAV_ITEMS: NavItem[] = [
@@ -38,6 +40,7 @@ export const APP_NAV_ITEMS: NavItem[] = [
     href: "/appointments",
     label: "Appointment Agent",
     shortLabel: "Appointments",
+    childrenAsTabs: true,
     icon: (
       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
         <rect x="3" y="5" width="18" height="16" rx="2" />

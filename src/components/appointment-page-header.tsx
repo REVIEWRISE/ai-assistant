@@ -36,11 +36,11 @@ export function AppointmentPageHeader({
   const command = variant === "command";
   const statusClass =
     command && statusTone === "success"
-      ? "border-white/20 bg-white/10 text-neutral-100"
+      ? "border-white/20 bg-white/10 text-white"
       : command && statusTone === "warning"
-        ? "border-white/15 bg-white/[0.08] text-neutral-200"
+        ? "border-white/15 bg-white/[0.08] text-white"
         : command
-          ? "border-white/10 bg-white/[0.06] text-neutral-300"
+          ? "border-white/10 bg-white/[0.06] text-white/85"
           : statusTone === "success"
       ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:border-white/15 dark:bg-white/10 dark:text-neutral-200"
       : statusTone === "warning"
@@ -61,7 +61,7 @@ export function AppointmentPageHeader({
     <section
       className={
         command
-          ? "relative overflow-hidden rounded-[1.65rem] border border-white/10 bg-[linear-gradient(125deg,#0c0c0c_0%,#161616_52%,#222222_100%)] text-white shadow-[var(--shadow-lg)] [[data-theme=dark]_&]:border-white/18 [[data-theme=dark]_&]:bg-[linear-gradient(125deg,#1a1a1a_0%,#252525_55%,#303030_100%)]"
+          ? "relative overflow-hidden rounded-[1.65rem] border border-white/10 vr-app-blue text-white shadow-[var(--shadow-lg)] [[data-theme=dark]_&]:border-white/18"
           : "overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]"
       }
     >
@@ -75,7 +75,7 @@ export function AppointmentPageHeader({
       <div className={`relative flex flex-wrap items-center justify-between gap-5 ${command ? "px-5 pb-5 pt-6 lg:px-7 lg:pt-7" : "px-4 py-4 lg:px-5"}`}>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${command ? "text-neutral-400 [[data-theme=dark]_&]:text-neutral-300" : "text-[var(--color-primary-h)]"}`}>
+            <p className={`text-xs font-semibold capitalize ${command ? "text-white/85" : "text-[var(--color-primary-h)]"}`}>
               {eyebrow}
             </p>
             {status ? (
@@ -86,7 +86,7 @@ export function AppointmentPageHeader({
             ) : null}
           </div>
           <h1 className={`mt-2 font-semibold tracking-[-0.025em] ${command ? "text-2xl text-white lg:text-[2rem]" : "text-xl text-[var(--color-text)]"}`}>{title}</h1>
-          <div className={`mt-2 max-w-3xl text-sm leading-6 ${command ? "text-neutral-400 [[data-theme=dark]_&]:text-neutral-300" : "text-[var(--color-text-muted)]"}`}>
+          <div className={`mt-2 max-w-3xl text-sm leading-6 ${command ? "text-white/85" : "text-[var(--color-text-muted)]"}`}>
             {description}
           </div>
         </div>
@@ -101,7 +101,7 @@ export function AppointmentPageHeader({
                 rel={action.external ? "noreferrer" : undefined}
                 className={
                   action.primary
-                    ? `rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${command ? "bg-white text-black hover:bg-neutral-200" : "bg-[var(--color-primary)] text-[var(--color-primary-fg)] hover:bg-[var(--color-primary-h)]"}`
+                    ? `rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${command ? "bg-white text-[#1d3a96] hover:bg-[#e4edff]" : "bg-[var(--color-primary)] text-[var(--color-primary-fg)] hover:bg-[var(--color-primary-fill-h)]"}`
                     : `rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition ${command ? "border-white/10 bg-white/[0.06] text-white hover:bg-white/[0.1]" : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:bg-[var(--color-raised)]"}`
                 }
               >
@@ -124,7 +124,7 @@ export function AppointmentPageHeader({
                   : `min-w-0 px-4 py-3 ${index < metrics.length - 1 ? "border-b border-[var(--color-border)] sm:border-r lg:border-b-0" : ""}`
               }
             >
-              <p className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${command ? "text-slate-400 [[data-theme=dark]_&]:text-neutral-300" : "text-[var(--color-text-muted)]"}`}>
+              <p className={`text-xs font-semibold capitalize ${command ? "text-white/85" : "text-[var(--color-text-muted)]"}`}>
                 {metric.label}
               </p>
               <div className="mt-1 min-w-0">
@@ -132,7 +132,7 @@ export function AppointmentPageHeader({
                   {metric.value}
                 </p>
                 {metric.hint ? (
-                  <p className={`mt-0.5 text-[10px] leading-4 ${command ? "text-slate-400 [[data-theme=dark]_&]:text-neutral-400" : "text-[var(--color-text-muted)]"}`}>
+                  <p className={`mt-0.5 text-[10px] leading-4 ${command ? "text-white/85" : "text-[var(--color-text-muted)]"}`}>
                     {metric.hint}
                   </p>
                 ) : null}

@@ -54,33 +54,24 @@ export default async function AppointmentOrganizationPage() {
     : session.user.organizationMembers.map((member) => member.organization);
 
   const totalOrganizations = organizations.length;
-  const newestOrganization = organizations
-    .slice()
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-  const newestLabel = newestOrganization
-    ? new Date(newestOrganization.createdAt).toLocaleDateString()
-    : "—";
 
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
       <ProfileToasts />
       <AppointmentPageHeader
         variant="command"
-        title="Organization workspace"
+        eyebrow="Workspace"
+        title="Workspaces"
         description={
           session.activeOrganization
-            ? "Choose which business the Appointment Agent should operate, or create another workspace."
+            ? "Choose which business your agents operate for, or create another workspace. Appointments, reviews, and voice all use the active workspace."
             : "Appointments, reviews, and voice need one specific workspace. Pick one below or in the header — All workspaces is only for admin ops screens."
         }
-        status={
-          session.activeOrganization?.name ??
-          (isAdmin ? "Select a workspace" : "No active organization")
-        }
+        status={session.activeOrganization?.name ?? (isAdmin ? "Select a workspace" : "No active organization")}
         statusTone={session.activeOrganization ? "success" : "warning"}
         metrics={[
-          { label: "Organizations", value: totalOrganizations, hint: totalOrganizations === 1 ? "workspace" : "workspaces" },
+          { label: "Workspaces", value: totalOrganizations },
           { label: "Active workspace", value: session.activeOrganization?.name ?? "Not selected" },
-          { label: "Newest", value: newestOrganization?.name ?? "—", hint: newestLabel },
         ]}
       />
       <OrganizationsManager

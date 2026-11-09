@@ -104,7 +104,7 @@ export default async function BillingCanceledPage() {
               <div className="flex flex-col gap-2.5 sm:flex-row sm:gap-3">
                 <Link
                   href={retryHref}
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] sm:min-h-12 sm:flex-1"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)] sm:min-h-12 sm:flex-1"
                 >
                   Choose a plan
                 </Link>

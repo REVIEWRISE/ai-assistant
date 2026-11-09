@@ -288,7 +288,7 @@ export function RolesManager({
         <button
           type="button"
           onClick={() => setModal({ type: "create" })}
-          className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+          className="shrink-0 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
         >
           Add role
         </button>
@@ -507,7 +507,7 @@ export function RolesManager({
                     </button>
                     <button
                       type="submit"
-                      className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+                      className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
                     >
                       {modal.type === "create" ? "Create role" : "Save changes"}
                     </button>

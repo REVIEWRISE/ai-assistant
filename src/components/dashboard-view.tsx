@@ -7,7 +7,10 @@ import {
   DashboardStatFallback,
   type DashboardSection,
 } from "@/components/dashboard-charts";
+import { DashboardVoiceReport } from "@/components/dashboard-voice-report";
+import { DashboardWorkspacePrompt } from "@/components/dashboard-workspace-prompt";
 import { GettingStartedStepper } from "@/components/getting-started-stepper";
+import { LandingLogoMark } from "@/components/landing/landing-logo-mark";
 import type {
   DashboardData,
   DashboardPlatformStat,
@@ -33,7 +36,7 @@ function DashboardSectionCard({ section }: { section: DashboardSection }) {
             {section.title.charAt(0)}
           </span>
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: section.accent }}>
+            <p className="text-xs font-semibold capitalize" style={{ color: section.accent }}>
               {section.id.replace("-", " ")}
             </p>
             <h2 className="mt-1 text-lg font-semibold tracking-tight text-[var(--color-text)]">{section.title}</h2>
@@ -86,7 +89,7 @@ function DashboardStartHere({
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-h)]">{eyebrow}</p>
+            <p className="text-xs font-semibold capitalize text-[var(--color-primary-h)]">{eyebrow}</p>
             <h2 className="mt-1 text-base font-semibold text-[var(--color-text)]">{title}</h2>
             <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
               {description}
@@ -119,57 +122,40 @@ function DashboardStartHere({
   );
 }
 
-function platformToneClass(tone: DashboardPlatformStat["tone"]) {
+function platformToneDot(tone: DashboardPlatformStat["tone"]) {
   switch (tone) {
     case "danger":
-      return "border-red-200 bg-red-50 text-red-800 [[data-theme=dark]_&]:border-red-500/30 [[data-theme=dark]_&]:bg-red-500/15 [[data-theme=dark]_&]:text-red-200";
+      return "bg-red-300";
     case "warning":
-      return "border-amber-200 bg-amber-50 text-amber-900 [[data-theme=dark]_&]:border-amber-500/30 [[data-theme=dark]_&]:bg-amber-500/15 [[data-theme=dark]_&]:text-amber-200";
+      return "bg-amber-300";
     case "success":
-      return "border-emerald-200 bg-emerald-50 text-emerald-800 [[data-theme=dark]_&]:border-emerald-500/30 [[data-theme=dark]_&]:bg-emerald-500/15 [[data-theme=dark]_&]:text-emerald-200";
+      return "bg-emerald-300";
     default:
-      return "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)]";
+      return null;
   }
 }
 
-function DashboardPlatformAttention({ stats }: { stats: DashboardPlatformStat[] }) {
-  if (!stats.length) return null;
-
+function DashboardPlatformTiles({ stats }: { stats: DashboardPlatformStat[] }) {
   return (
-    <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-md)] lg:p-5 [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
-      <div className="mb-4 px-1">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
-          Across the platform
-        </p>
-        <h2 className="mt-1 text-base font-semibold text-[var(--color-text)]">Workspaces, refunds, and audit</h2>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+    <div className="relative mt-6 grid grid-cols-2 gap-2 lg:grid-cols-5 [&>*:last-child:nth-child(odd)]:col-span-2 lg:[&>*:last-child:nth-child(odd)]:col-span-1">
+      {stats.map((stat) => {
+        const dot = platformToneDot(stat.tone);
+        return (
           <Link
             key={stat.id}
             href={stat.href}
-            className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 transition hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] hover:shadow-[var(--shadow-md)] [[data-theme=dark]_&]:border-[var(--color-border-hover)] [[data-theme=dark]_&]:bg-[var(--color-raised)]"
+            className="rounded-xl border border-white/20 bg-white/10 px-3.5 py-3 transition hover:border-white/40 hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-              {stat.title}
-            </p>
-            <p className="mt-2 text-[1.7rem] font-semibold tabular-nums leading-none tracking-tight text-[var(--color-text)]">
-              {stat.value}
-            </p>
-            <p className={`mt-3 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${platformToneClass(stat.tone)}`}>
+            <p className="truncate text-xs text-white/85">{stat.title}</p>
+            <p className="mt-1.5 text-2xl font-semibold tabular-nums leading-none text-white">{stat.value}</p>
+            <p className="mt-2 flex items-start gap-1.5 text-xs leading-4 text-white/85">
+              {dot ? <span className={`mt-1 size-1.5 shrink-0 rounded-full ${dot}`} aria-hidden /> : null}
               {stat.hint}
             </p>
-            <p className="mt-3 text-[11px] font-semibold text-[var(--color-primary-h)]">
-              Open
-              <span className="inline-block transition-transform group-hover:translate-x-0.5" aria-hidden>
-                {" "}
-                →
-              </span>
-            </p>
           </Link>
-        ))}
-      </div>
-    </section>
+        );
+      })}
+    </div>
   );
 }
 
@@ -225,6 +211,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
   const hasActivity = data.overviewStats.some((stat) =>
     typeof stat.value === "number" ? stat.value > 0 : Number.parseFloat(String(stat.value)) > 0,
   );
+  // Non-admins already get the "Getting started" bar; don't repeat it as a hero badge.
+  const showHeroBadge = isAdmin || data.heroBadge !== "Finish setup";
   const attention =
     data.heroBadge === "Needs attention" ||
     data.heroBadge === "Finish setup" ||
@@ -248,48 +236,73 @@ export function DashboardView({ data }: { data: DashboardData }) {
         </section>
       ) : (
         <>
-          <section className="relative overflow-hidden rounded-[1.65rem] border border-white/10 bg-[linear-gradient(125deg,#0c0c0c_0%,#161616_52%,#222222_100%)] px-5 py-6 text-white shadow-[var(--shadow-lg)] [[data-theme=dark]_&]:border-white/18 [[data-theme=dark]_&]:bg-[linear-gradient(125deg,#1a1a1a_0%,#252525_55%,#303030_100%)] lg:px-7 lg:py-7">
-            <div className="pointer-events-none absolute -right-24 -top-28 size-72 rounded-full bg-white/10 blur-3xl [[data-theme=dark]_&]:bg-white/[0.14]" aria-hidden />
-            <div className="pointer-events-none absolute -bottom-28 left-1/3 size-64 rounded-full bg-white/5 blur-3xl [[data-theme=dark]_&]:bg-white/10" aria-hidden />
+          <section className="vr-app-hero vr-app-blue relative overflow-hidden px-5 py-6 lg:px-7 lg:py-7">
+            <LandingLogoMark className="lp-mark -bottom-28 -right-12 w-[30rem] max-w-none" />
 
-            <div className="relative grid items-end gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(24rem,0.72fr)]">
+            {isAdmin ? (
+              <div className="relative">
               <div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+                  <p className="text-sm font-medium text-white/85">
                     {data.heroEyebrow}
                   </p>
-                  <span className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${attention || hasActivity ? "border-white/20 bg-white/10 text-neutral-100" : "border-white/10 bg-white/[0.06] text-neutral-400"}`}>
-                    <span className={`size-1.5 rounded-full ${attention ? "bg-amber-300" : hasActivity || data.heroBadge === "All clear" ? "bg-white" : "bg-neutral-500"}`} aria-hidden />
+                  {showHeroBadge ? (
+                  <span className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${attention || hasActivity ? "border-white/25 bg-white/15 text-white" : "border-white/20 bg-white/10 text-white/85"}`}>
+                    <span className={`size-1.5 rounded-full ${attention ? "bg-amber-300" : hasActivity || data.heroBadge === "All clear" ? "bg-white" : "bg-white/50"}`} aria-hidden />
                     {data.heroBadge}
                   </span>
+                  ) : null}
                 </div>
                 <h1 className="mt-3 max-w-3xl text-2xl font-semibold tracking-[-0.025em] text-white lg:text-[2rem] lg:leading-tight">
                   {data.heroTitle}
-                  {data.heroTitleAccent ? <span className="text-neutral-400"> {data.heroTitleAccent}</span> : null}
+                  {data.heroTitleAccent ? <span className="text-white/80"> {data.heroTitleAccent}</span> : null}
                 </h1>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-400">
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-white/85">
+                  {data.heroDescription}
+                </p>
+              </div>
+                <DashboardPlatformTiles stats={data.platformStats} />
+              </div>
+            ) : (
+              <div className="relative grid items-end gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(24rem,0.72fr)]">
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-sm font-medium text-white/85">
+                    {data.heroEyebrow}
+                  </p>
+                  {showHeroBadge ? (
+                  <span className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${attention || hasActivity ? "border-white/25 bg-white/15 text-white" : "border-white/20 bg-white/10 text-white/85"}`}>
+                    <span className={`size-1.5 rounded-full ${attention ? "bg-amber-300" : hasActivity || data.heroBadge === "All clear" ? "bg-white" : "bg-white/50"}`} aria-hidden />
+                    {data.heroBadge}
+                  </span>
+                  ) : null}
+                </div>
+                <h1 className="mt-3 max-w-3xl text-2xl font-semibold tracking-[-0.025em] text-white lg:text-[2rem] lg:leading-tight">
+                  {data.heroTitle}
+                  {data.heroTitleAccent ? <span className="text-white/80"> {data.heroTitleAccent}</span> : null}
+                </h1>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-white/85">
                   {data.heroDescription}
                 </p>
               </div>
 
               <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-2">
                 {data.headlineStats.slice(0, 4).map((stat) => (
-                  <div key={stat.label} className="rounded-xl border border-white/10 bg-white/[0.06] px-3.5 py-3 backdrop-blur-sm">
-                    <p className="truncate text-[9px] font-semibold uppercase tracking-[0.16em] text-neutral-500">{stat.label}</p>
+                  <div key={stat.label} className="rounded-xl border border-white/20 bg-white/10 px-3.5 py-3">
+                    <p className="truncate text-xs text-white/85">{stat.label}</p>
                     <p className="mt-1.5 text-xl font-semibold tabular-nums text-white">{stat.value}</p>
                   </div>
                 ))}
-                {data.headlineStats.length === 0 ? (
-                  <div className="rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 sm:col-span-3 xl:col-span-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">Accessible modules</p>
+                {data.headlineStats.length === 0 && !data.needsWorkspace ? (
+                  <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 sm:col-span-3 xl:col-span-2">
+                    <p className="text-xs text-white/85">Accessible modules</p>
                     <p className="mt-1.5 text-xl font-semibold text-white">{data.sections.length}</p>
                   </div>
                 ) : null}
               </div>
-            </div>
+              </div>
+            )}
           </section>
-
-          {isAdmin ? <DashboardPlatformAttention stats={data.platformStats} /> : null}
 
           {isAdmin ? (
             <DashboardStartHere
@@ -302,10 +315,12 @@ export function DashboardView({ data }: { data: DashboardData }) {
             />
           ) : null}
 
-          {isAdmin ? (
+          {data.needsWorkspace ? <DashboardWorkspacePrompt workspaces={data.workspaceChoices} /> : null}
+
+          {isAdmin && !data.needsWorkspace ? (
             <div className="flex flex-wrap items-end justify-between gap-3 px-1">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
+                <p className="text-xs font-semibold capitalize text-[var(--color-primary-h)]">
                   This workspace
                 </p>
                 <h2 className="mt-1 text-lg font-semibold text-[var(--color-text)]">
@@ -315,25 +330,11 @@ export function DashboardView({ data }: { data: DashboardData }) {
               {data.workspaceBilling ? <WorkspaceBillingChips billing={data.workspaceBilling} /> : null}
             </div>
           ) : (
-            <div className="flex flex-wrap items-end justify-between gap-3 px-1">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
-                  Your workspace
-                </p>
-                <h2 className="mt-1 text-lg font-semibold text-[var(--color-text)]">
-                  {data.organizationName ?? "No workspace selected"}
-                </h2>
-              </div>
-              {data.workspaceBilling ? (
-                <WorkspaceBillingChips
-                  billing={data.workspaceBilling}
-                  href={data.isOwner ? "/subscription" : null}
-                  showAdminGrant={false}
-                />
-              ) : null}
-            </div>
+            // Plan status lives on the Subscription page; the workspace dashboard stays about activity.
+            null
           )}
 
+          {isAdmin ? (
           <DashboardOverviewGrid
             stats={data.overviewStats}
             organizationName={data.organizationName}
@@ -344,21 +345,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
                 : "Bookings, reviews, and calls in this workspace"
             }
           />
-
-          {!isAdmin ? (
-            <DashboardStartHere
-              links={data.quickLinks}
-              eyebrow={hasActivity ? "Shortcuts" : "Start here"}
-              title={hasActivity ? "Jump into a module" : "Get your workspace working"}
-              description={
-                hasActivity
-                  ? "Open bookings, reviews, the phone agent, or your plan."
-                  : "Complete these essentials to start collecting activity."
-              }
-              limit={6}
-              layout="grid"
-            />
           ) : null}
+
+
+          {data.voiceReport ? <DashboardVoiceReport report={data.voiceReport} /> : null}
 
           <div className="space-y-4">
             {data.sections.map((section) => (

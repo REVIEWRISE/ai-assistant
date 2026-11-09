@@ -1,5 +1,6 @@
 "use client";
 
+import { SECTION_ICONS, SectionGlyph, SectionHeaderStrip } from "@/components/section-layout";
 import { useState, useTransition } from "react";
 import {
   lookupForwardingCarrierAction,
@@ -194,68 +195,56 @@ export function VoiceAgentForwardingGuide({
 
   return (
     <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-      <div className="relative overflow-hidden border-b border-[var(--color-border)] bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 py-6 text-white lg:px-6">
-        <div className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-white/10 blur-3xl" aria-hidden />
-        <div className="pointer-events-none absolute -bottom-24 left-16 size-40 rounded-full bg-emerald-500/10 blur-3xl" aria-hidden />
-
-        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
-                Call forwarding setup
+      <SectionHeaderStrip
+        icon={<SectionGlyph paths={[...SECTION_ICONS.forwarding]} />}
+        title="Forward your business line"
+        badge={
+          isPreview ? (
+            <span className="rounded-full vr-app-status-warning px-2 py-0.5 text-[10px] font-semibold">Preview</span>
+          ) : (
+            <span className="rounded-full vr-app-status-success px-2 py-0.5 text-[10px] font-semibold">No-answer routing</span>
+          )
+        }
+        description={
+          isPreview
+            ? "When a caller reaches your existing number and you don’t pick up, your carrier sends the call to your AI line."
+            : "Keep your published business number. Unanswered calls roll to your AI line after the ring delay you choose."
+        }
+        actions={
+          <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                {isPreview ? "Sample AI line" : "Your AI line"}
               </p>
-              {isPreview ? (
-                <span className="rounded-full border border-amber-400/30 bg-amber-500/15 px-2 py-0.5 text-[9px] font-semibold text-amber-300">
-                  Preview
-                </span>
+              {phones.length > 1 ? (
+                <select
+                  value={selectedNumber}
+                  onChange={(e) => setSelectedNumber(e.target.value)}
+                  className="mt-1 w-full min-w-[12rem] rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 font-mono text-sm text-[var(--color-text)]"
+                >
+                  {phones.map((phone) => (
+                    <option key={phone.id} value={phone.phoneNumber}>
+                      {phone.nickname ? `${phone.nickname} · ${phone.phoneNumber}` : phone.phoneNumber}
+                      {phone.isPrimary ? " (Primary)" : ""}
+                    </option>
+                  ))}
+                </select>
               ) : (
-                <span className="rounded-full border border-emerald-400/25 bg-emerald-500/15 px-2 py-0.5 text-[9px] font-semibold text-emerald-300">
-                  No-answer routing
-                </span>
+                <p className="font-mono text-sm font-semibold tracking-tight text-[var(--color-text)]">{displayNumber}</p>
               )}
             </div>
-            <h3 className="mt-2 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
-              Forward your business line to the AI receptionist
-            </h3>
-            <p className="mt-2 text-sm leading-relaxed text-neutral-400">
-              {isPreview
-                ? "When a caller reaches your existing number and you don’t pick up, your carrier sends the call to your AI line."
-                : "Keep your published business number. Unanswered calls roll to your VyntRise AI line after the ring delay you choose."}
-            </p>
-          </div>
-
-          <div className="shrink-0 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
-              {isPreview ? "Sample AI line" : "Your AI line"}
-            </p>
-            {phones.length > 1 ? (
-              <select
-                value={selectedNumber}
-                onChange={(e) => setSelectedNumber(e.target.value)}
-                className="mt-2 w-full min-w-[12rem] rounded-xl border border-white/15 bg-black/30 px-3 py-2 font-mono text-sm text-white focus:outline-none focus:ring-1 focus:ring-white/30"
-              >
-                {phones.map((phone) => (
-                  <option key={phone.id} value={phone.phoneNumber}>
-                    {phone.nickname ? `${phone.nickname} · ${phone.phoneNumber}` : phone.phoneNumber}
-                    {phone.isPrimary ? " (Primary)" : ""}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <p className="mt-1.5 font-mono text-lg font-semibold tracking-tight text-white">{displayNumber}</p>
-            )}
             {!isPreview ? (
               <button
                 type="button"
                 onClick={() => handleCopy(rawNumber, "AI phone number")}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-white/15"
+                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
               >
-                Copy number
+                Copy
               </button>
             ) : null}
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className="space-y-5 p-5 lg:p-6">
         {/* Path picker */}
@@ -354,7 +343,7 @@ export function VoiceAgentForwardingGuide({
                 type="button"
                 disabled={lookupPending || isPreview}
                 onClick={runCarrierLookup}
-                className="inline-flex shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {lookupPending ? "Detecting…" : "Detect carrier"}
               </button>
@@ -454,10 +443,10 @@ export function VoiceAgentForwardingGuide({
 
         {/* Activation — only after carrier is ready */}
         {showInstructions ? (
-          <div className="grid gap-6 border-t border-[var(--color-border)] pt-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-8">
+          <div className="space-y-6 border-t border-[var(--color-border)] pt-5">
             <div className="space-y-5">
               {showRingStep ? (
-                <div>
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:items-center lg:gap-6">
                   <div className="flex items-center gap-2.5">
                     <StepBadge n={3} />
                     <div>
@@ -465,7 +454,7 @@ export function VoiceAgentForwardingGuide({
                       <p className="text-xs text-[var(--color-text-muted)]">How long your phone rings before forwarding.</p>
                     </div>
                   </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {RING_TIMES.map((rt) => {
                       const active = ringSeconds === rt.seconds;
                       return (
@@ -489,7 +478,34 @@ export function VoiceAgentForwardingGuide({
                     })}
                   </div>
                 </div>
-              ) : null}
+              ) : (
+                // Only the AT&T/T-Mobile code (**61*…**20#) can carry a ring time; explain where it lives for the rest.
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:items-center lg:gap-6">
+                  <div className="flex items-center gap-2.5">
+                    <StepBadge n={3} />
+                    <div>
+                      <h4 className="text-sm font-semibold text-[var(--color-text)]">Ring time before AI picks up</h4>
+                      <p className="text-xs text-[var(--color-text-muted)]">How long your phone rings before forwarding.</p>
+                    </div>
+                  </div>
+                  <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+                    {isDialCodeCarrier ? (
+                      <>
+                        <span className="font-semibold text-[var(--color-text)]">Set by {carrierLabel}.</span> Their
+                        forwarding code can&apos;t include a ring time, so calls forward after the carrier&apos;s default
+                        (usually 4–6 rings). To change it, contact {carrierLabel} support or check your account&apos;s call
+                        settings.
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-semibold text-[var(--color-text)]">Set in your provider&apos;s call settings.</span>{" "}
+                        If {carrierLabel} offers a ring-time or no-answer delay option, about 20 seconds (around four
+                        rings) works well.
+                      </>
+                    )}
+                  </p>
+                </div>
+              )}
 
               {setupPath === "auto" && isDialCodeCarrier && twilioConfigured ? (
                 <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5">
@@ -567,7 +583,7 @@ export function VoiceAgentForwardingGuide({
 
             <div className="space-y-4">
               <div className="flex items-center gap-2.5">
-                <StepBadge n={showRingStep ? 4 : 3} />
+                <StepBadge n={4} />
                 <div>
                   <h4 className="text-sm font-semibold text-[var(--color-text)]">
                     {carrier === "landline_voip" || carrier === "google_voice"
@@ -582,6 +598,8 @@ export function VoiceAgentForwardingGuide({
                 </div>
               </div>
 
+              <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+              <div className="space-y-3">
               {carrier === "landline_voip" ? (
                 <div className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
                   <p className="text-sm font-semibold text-[var(--color-text)]">VoIP / landline portal</p>
@@ -615,20 +633,20 @@ export function VoiceAgentForwardingGuide({
                 </div>
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-[var(--color-border)]">
-                  <div className="bg-[linear-gradient(135deg,#0f172a_0%,#1e293b_100%)] px-4 py-5 sm:px-5">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  <div className="bg-[var(--color-primary-soft)] px-4 py-5 sm:px-5">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-h)]">
                       Activation dial code · {carrierLabel}
                     </p>
-                    <p className="mt-2 break-all font-mono text-xl font-bold leading-tight tracking-tight text-white sm:text-2xl">
+                    <p className="mt-2 break-all font-mono text-xl font-bold leading-tight tracking-tight text-[var(--color-text)] sm:text-2xl">
                       {activationCode}
                     </p>
-                    <p className="mt-2 text-xs text-slate-400">Turns on conditional forwarding when you don’t answer.</p>
+                    <p className="mt-2 text-xs text-[var(--color-text-muted)]">Turns on conditional forwarding when you don’t answer.</p>
                   </div>
 
                   <div className="flex flex-col gap-3 border-t border-[var(--color-border)] bg-[var(--color-bg)] p-4 sm:flex-row sm:flex-wrap">
                     <a
                       href={encodedTelUri}
-                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] sm:flex-none"
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)] sm:flex-none"
                     >
                       Tap to dial (Android)
                     </a>
@@ -646,17 +664,23 @@ export function VoiceAgentForwardingGuide({
                       <span className="font-semibold text-[var(--color-text)]">iPhone:</span> Copy the code, paste
                       into the Phone keypad, then call.
                     </p>
-                    <p>
-                      <span className="font-semibold text-[var(--color-text)]">Important:</span> Turn off{" "}
-                      <span className="font-semibold text-[var(--color-text)]">Wi‑Fi Calling</span> (or use cellular)
-                      before dialing. These codes often fail over Wi‑Fi and show “Error performing request” /
-                      “Setting Registration Failed.”
-                    </p>
                   </div>
                 </div>
               )}
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              {isDialCodeCarrier ? (
+                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3.5 text-xs">
+                  <p className="font-semibold text-[var(--color-text)]">Dial code failing?</p>
+                  <p className="mt-1 leading-relaxed text-[var(--color-text-muted)]">
+                    Turn off <span className="font-semibold text-[var(--color-text)]">Wi‑Fi Calling</span> and dial on
+                    cellular — these codes often fail over Wi‑Fi with “Error performing request”. Also dial from the
+                    business phone line (not a personal line), then try again.
+                  </p>
+                </div>
+              ) : null}
+              </div>
+              <div className="space-y-3">
+              <div className="grid gap-3">
                 <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
                   <p className="text-xs font-semibold text-[var(--color-text)]">Turn off forwarding</p>
                   <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
@@ -686,15 +710,8 @@ export function VoiceAgentForwardingGuide({
                 </div>
               </div>
 
-              {isDialCodeCarrier ? (
-                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3.5 text-xs">
-                  <p className="font-semibold text-[var(--color-text)]">Dial code failing?</p>
-                  <p className="mt-1 leading-relaxed text-[var(--color-text-muted)]">
-                    Turn off <span className="font-semibold text-[var(--color-text)]">Wi‑Fi Calling</span> and dial on
-                    cellular. Also dial from the business phone line (not a personal line), then try the code again.
-                  </p>
-                </div>
-              ) : null}
+              </div>
+              </div>
 
             </div>
           </div>

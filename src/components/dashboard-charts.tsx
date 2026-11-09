@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
-  Legend,
-  Line,
-  LineChart,
+  LabelList,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -20,6 +20,7 @@ import type {
   DashboardSection,
   DashboardStat,
 } from "@/lib/dashboard-data";
+import { hasChartData } from "@/lib/dashboard-chart-data";
 
 function ChartTooltip({
   active,
@@ -55,13 +56,19 @@ function ChartTooltip({
   );
 }
 
-function hasChartData(chart: DashboardChart): boolean {
-  if (chart.kind === "line") {
-    return chart.data.some((point) =>
-      chart.series.some((series) => Number(point[series.key] ?? 0) > 0),
-    );
-  }
-  return chart.data.some((point) => point.value > 0);
+/** Map the data layer's legacy hex accents onto the validated, theme-aware chart palette. */
+const VIZ_COLOR: Record<string, string> = {
+  "#38bdf8": "var(--viz-blue)",
+  "#34d399": "var(--viz-aqua)",
+  "#2dd4bf": "var(--viz-aqua)",
+  "#a78bfa": "var(--viz-violet)",
+  "#fbbf24": "var(--viz-yellow)",
+  "#f87171": "var(--viz-red)",
+};
+
+function vizColor(color: string | undefined, fallback = "var(--viz-blue)"): string {
+  if (!color) return fallback;
+  return VIZ_COLOR[color.toLowerCase()] ?? color;
 }
 
 function ChartShell({
@@ -69,72 +76,59 @@ function ChartShell({
   subtitle,
   accent,
   featured = false,
+  legend,
   children,
 }: {
   title: string;
   subtitle?: string;
   accent: string;
   featured?: boolean;
+  legend?: Array<{ name: string; color: string }>;
   children: React.ReactNode;
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] ${
+      className={`overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] ${
         featured ? "lg:col-span-2" : ""
       }`}
     >
-      <div className="border-b border-[var(--color-border-muted)] bg-[var(--color-bg)] px-4 py-3.5">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-2">
-              <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: accent }}
-                aria-hidden
-              />
-              <p className="text-sm font-semibold text-[var(--color-text)]">{title}</p>
-            </div>
-            {subtitle ? (
-              <p className="mt-1.5 max-w-xl pl-4 text-xs leading-relaxed text-[var(--color-text-muted)]">
-                {subtitle}
-              </p>
-            ) : null}
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 px-4 pt-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: accent }} aria-hidden />
+            <p className="text-sm font-semibold text-[var(--color-text)]">{title}</p>
           </div>
+          {subtitle ? (
+            <p className="mt-1 max-w-xl pl-4 text-xs leading-relaxed text-[var(--color-text-muted)]">{subtitle}</p>
+          ) : null}
         </div>
+        {legend && legend.length > 1 ? (
+          <ul className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {legend.map((item) => (
+              <li key={item.name} className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-muted)]">
+                <span className="size-2 rounded-full" style={{ backgroundColor: item.color }} aria-hidden />
+                {item.name}
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
-      <div className="p-4">{children}</div>
+      <div className="px-2 pb-3 pt-2 sm:px-3">{children}</div>
     </div>
   );
 }
 
-function ChartEmptyState({
-  title,
-  subtitle,
-  message,
-  accent,
-  featured = false,
-}: {
-  title: string;
-  subtitle?: string;
-  message: string;
-  accent: string;
-  featured?: boolean;
-}) {
+/** Shown instead of the chart when there is no data yet — one message, no placeholder shapes. */
+function EmptyChartMessage({ message }: { message: string }) {
   return (
-    <ChartShell title={title} subtitle={subtitle} accent={accent} featured={featured}>
-      <div className="flex min-h-[125px] flex-col items-center justify-center rounded-xl border border-dashed border-[var(--color-border-hover)] bg-[linear-gradient(145deg,var(--color-bg),var(--color-surface))] px-5 py-6 text-center">
-        <div
-          className="mb-2.5 flex size-9 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-base font-semibold text-[var(--color-text-muted)] shadow-[var(--shadow-sm)]"
-          aria-hidden
-        >
-          —
-        </div>
-        <p className="text-sm font-medium text-[var(--color-text)]">No activity yet</p>
-        <p className="mt-1 max-w-sm text-xs leading-relaxed text-[var(--color-text-muted)]">{message}</p>
-      </div>
-    </ChartShell>
+    <div className="mx-2 mb-1 flex min-h-[132px] flex-col items-center justify-center rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-6 text-center">
+      <p className="text-xs font-semibold text-[var(--color-text)]">No activity yet</p>
+      <p className="mt-1 max-w-xs text-[11px] leading-relaxed text-[var(--color-text-muted)]">{message}</p>
+    </div>
   );
 }
+
+const AXIS_TICK = { fill: "var(--color-text-muted)", fontSize: 11 };
 
 function DashboardLineChartCard({
   chart,
@@ -144,56 +138,61 @@ function DashboardLineChartCard({
   accent: string;
 }) {
   const featured = chart.featured ?? false;
+  const empty = !hasChartData(chart);
+  const series = chart.series.map((item) => ({ ...item, color: vizColor(item.color) }));
 
-  if (!hasChartData(chart)) {
+  if (empty) {
     return (
-      <ChartEmptyState
-        title={chart.title}
-        subtitle={chart.subtitle}
-        message={chart.emptyMessage ?? "No data yet."}
-        accent={accent}
-        featured={featured}
-      />
+      <ChartShell title={chart.title} subtitle={chart.subtitle} accent={vizColor(accent)} featured={featured}>
+        <EmptyChartMessage message={chart.emptyMessage ?? "Daily counts appear here once there’s activity."} />
+      </ChartShell>
     );
   }
 
   return (
-    <ChartShell title={chart.title} subtitle={chart.subtitle} accent={accent} featured={featured}>
-      <div className="h-[240px] w-full">
+    <ChartShell
+      title={chart.title}
+      subtitle={chart.subtitle}
+      accent={vizColor(accent)}
+      featured={featured}
+      legend={series.map((item) => ({ name: item.name, color: vizColor(chart.series.find((s) => s.key === item.key)?.color) }))}
+    >
+      <div className="relative h-[220px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chart.data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-            <XAxis
-              dataKey={chart.labelKey}
-              tick={{ fill: "var(--color-text-muted)", fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-            />
+          <AreaChart data={chart.data} margin={{ top: 12, right: 12, left: -12, bottom: 0 }}>
+            <defs>
+              {series.map((item) => (
+                <linearGradient key={item.key} id={`fill-${chart.id}-${item.key}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={item.color} stopOpacity={0.18} />
+                  <stop offset="100%" stopColor={item.color} stopOpacity={0} />
+                </linearGradient>
+              ))}
+            </defs>
+            <CartesianGrid stroke="var(--color-border-muted)" vertical={false} />
+            <XAxis dataKey={chart.labelKey} tick={AXIS_TICK} axisLine={false} tickLine={false} tickMargin={8} />
             <YAxis
               allowDecimals={false}
-              tick={{ fill: "var(--color-text-subtle)", fontSize: 11 }}
+              tick={AXIS_TICK}
               width={32}
               axisLine={false}
               tickLine={false}
+              domain={[0, "auto"]}
             />
-            <Tooltip
-              content={<ChartTooltip />}
-              cursor={{ stroke: "var(--color-border-hover)", strokeDasharray: "4 4" }}
-            />
-            <Legend wrapperStyle={{ fontSize: 12, paddingTop: 12 }} />
-            {chart.series.map((series) => (
-              <Line
-                key={series.key}
+            <Tooltip content={<ChartTooltip />} cursor={{ stroke: "var(--color-border-hover)", strokeWidth: 1 }} />
+            {series.map((item) => (
+              <Area
+                key={item.key}
                 type="monotone"
-                dataKey={series.key}
-                name={series.name}
-                stroke={series.color}
-                strokeWidth={3}
-                dot={{ r: 4, fill: series.color, strokeWidth: 0 }}
-                activeDot={{ r: 6 }}
+                dataKey={item.key}
+                name={item.name}
+                stroke={item.color}
+                strokeWidth={2}
+                fill={`url(#fill-${chart.id}-${item.key})`}
+                dot={{ r: 4, fill: item.color, stroke: "var(--color-surface)", strokeWidth: 2 }}
+                activeDot={{ r: 5, stroke: "var(--color-surface)", strokeWidth: 2 }}
               />
             ))}
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </ChartShell>
@@ -207,45 +206,39 @@ function DashboardBarChartCard({
   chart: Extract<DashboardChart, { kind: "bar" }>;
   accent: string;
 }) {
-  const barColor = chart.data.find((point) => point.color)?.color ?? chart.color ?? accent;
   const featured = chart.featured ?? false;
+  const empty = !hasChartData(chart);
+  const baseColor = vizColor(chart.data.find((point) => point.color)?.color ?? chart.color ?? accent);
 
-  if (!hasChartData(chart)) {
+  if (empty) {
     return (
-      <ChartEmptyState
-        title={chart.title}
-        subtitle={chart.subtitle}
-        message={chart.emptyMessage ?? "No data yet."}
-        accent={barColor}
-        featured={featured}
-      />
+      <ChartShell title={chart.title} subtitle={chart.subtitle} accent={baseColor} featured={featured}>
+        <EmptyChartMessage message={chart.emptyMessage ?? "Counts appear here once there’s activity."} />
+      </ChartShell>
     );
   }
 
   return (
-    <ChartShell title={chart.title} subtitle={chart.subtitle} accent={barColor} featured={featured}>
-      <div className="h-[210px] w-full">
+    <ChartShell title={chart.title} subtitle={chart.subtitle} accent={baseColor} featured={featured}>
+      <div className="relative h-[200px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chart.data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-            <XAxis
-              dataKey="label"
-              tick={{ fill: "var(--color-text-muted)", fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-            />
+          <BarChart data={chart.data} margin={{ top: 20, right: 12, left: -12, bottom: 0 }} barCategoryGap="28%">
+            <CartesianGrid stroke="var(--color-border-muted)" vertical={false} />
+            <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} tickMargin={8} interval={0} />
             <YAxis
               allowDecimals={false}
-              tick={{ fill: "var(--color-text-subtle)", fontSize: 11 }}
+              tick={AXIS_TICK}
               width={32}
               axisLine={false}
               tickLine={false}
+              domain={[0, "auto"]}
             />
-            <Tooltip content={<ChartTooltip />} />
-            <Bar dataKey="value" name={chart.title} fill={barColor} radius={[10, 10, 0, 0]} maxBarSize={56}>
+            <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--color-bg)" }} />
+            <Bar dataKey="value" name={chart.title} radius={[4, 4, 0, 0]} maxBarSize={44}>
               {chart.data.map((point) => (
-                <Cell key={point.label} fill={point.color ?? barColor} />
+                <Cell key={point.label} fill={vizColor(point.color, baseColor)} />
               ))}
+                <LabelList dataKey="value" position="top" offset={6} style={{ fill: "var(--color-text)", fontSize: 11, fontWeight: 600 }} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -323,7 +316,7 @@ export function DashboardOverviewGrid({
               className={`text-[11px] font-semibold ${stats.length === 1 ? "shrink-0 sm:self-end" : "mt-2.5"}`}
               style={{ color: stat.accent }}
             >
-              {Number(stat.value) === 0 ? "Set up module" : "View details"}{" "}
+              View details{" "}
               <span className="inline-block transition-transform group-hover:translate-x-0.5" aria-hidden>
                 →
               </span>
@@ -344,22 +337,17 @@ export function DashboardSectionSummary({
   if (!stats.length) return null;
 
   return (
-    <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+    <dl className="grid grid-cols-2 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] sm:grid-cols-4 sm:divide-x sm:divide-[var(--color-border)]">
       {stats.slice(0, 4).map((stat) => (
-        <div
-          key={stat.label}
-          className="min-w-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-3"
-        >
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-            {stat.label}
-          </p>
-          <p className="mt-1 text-xl font-semibold text-[var(--color-text)] tabular-nums">
-            {stat.value}
-          </p>
-          {stat.hint ? <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{stat.hint}</p> : null}
+        <div key={stat.label} className="min-w-0 px-4 py-3">
+          <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{stat.label}</dt>
+          <dd className="mt-0.5 flex items-baseline gap-2">
+            <span className="text-lg font-semibold tabular-nums text-[var(--color-text)]">{stat.value}</span>
+            {stat.hint ? <span className="text-[11px] text-[var(--color-text-muted)]">{stat.hint}</span> : null}
+          </dd>
         </div>
       ))}
-    </div>
+    </dl>
   );
 }
 

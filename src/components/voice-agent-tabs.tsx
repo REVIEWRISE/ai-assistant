@@ -153,15 +153,12 @@ export function VoiceAgentTabs({
   return (
     <section className="space-y-4">
       <VoiceAgentAssistantCard
-        organizationName={organizationName}
         config={retellConfig}
         knowledge={knowledge}
         knowledgeConfig={knowledgeConfig}
         remoteAgentMissing={remoteAgentMissing}
         voiceCatalog={voiceCatalog}
         onSetup={() => openAgentSection(hasAgent ? "voice" : "setup")}
-        onKnowledge={() => openAgentSection("knowledge")}
-        onPhone={() => selectTab("phone")}
         onBooking={() => openAgentSection("booking")}
       />
 
@@ -257,7 +254,7 @@ export function VoiceAgentTabs({
       ) : null}
 
       {activeTab === "analytics" ? (
-        <VoiceAgentAnalytics calls={calls} />
+        <VoiceAgentAnalytics calls={calls} onOpenPhoneLines={() => selectTab("phone")} />
       ) : null}
     </section>
   );
