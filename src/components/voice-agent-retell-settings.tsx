@@ -1,8 +1,10 @@
 "use client";
 
+import { AgentHeroCard } from "@/components/agent-hero-card";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import { type ReactNode, useEffect, useMemo, useState, useTransition } from "react";
+import { SectionGlyph, SectionMenu, SectionPanel, type SectionStatus } from "@/components/section-layout";
 import type { VoiceAgentAiResult } from "@/lib/voice-agent-ai";
 import { CustomSelect } from "@/components/custom-select";
 import { VoiceAgentPhoneGateOverlay } from "@/components/voice-agent-phone-gate-overlay";
@@ -46,6 +48,19 @@ const sections: Array<{ key: SectionKey; label: string; description: string }> =
   { key: "booking", label: "Voice booking", description: "Book on calls" },
   { key: "advanced", label: "Advanced", description: "Call behavior" },
 ];
+
+const SECTION_ICON_PATHS: Record<SectionKey, string[]> = {
+  setup: ["M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", "M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"],
+  voice: ["M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z", "M19 10v2a7 7 0 0 1-14 0v-2", "M12 19v3"],
+  conversation: ["M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"],
+  knowledge: ["M4 19.5A2.5 2.5 0 0 1 6.5 17H20", "M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"],
+  booking: ["M8 2v4M16 2v4", "M3 10h18", "M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z", "M9 16l2 2 4-4"],
+  advanced: ["M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3", "M1 14h6M9 8h6M17 16h6"],
+};
+
+function SectionIcon({ sectionKey, className = "size-4" }: { sectionKey: SectionKey; className?: string }) {
+  return <SectionGlyph paths={SECTION_ICON_PATHS[sectionKey]} className={className} />;
+}
 
 const GENERATE_ERROR_MESSAGES: Record<string, string> = {
   no_api_key: "Add OPENAI_API_KEY to generate from your knowledge base.",
@@ -128,14 +143,12 @@ function ToggleRow({
         aria-label={ariaLabel}
         disabled={disabled}
         onClick={onChange}
-        className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${
-          checked ? "bg-[var(--color-primary)]" : "bg-[var(--color-border)]"
+        className={`relative h-6 w-11 shrink-0 rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${
+          checked ? "bg-[var(--color-primary)]" : "bg-[var(--color-border-hover)]"
         }`}
       >
         <span
-          className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition ${
-            checked ? "translate-x-5" : "translate-x-0"
-          }`}
+          className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow transition ${checked ? "translate-x-5" : ""}`}
         />
       </button>
     </div>
@@ -146,33 +159,25 @@ function SectionCard({
   sectionKey,
   title,
   description,
+  status,
   children,
 }: {
   sectionKey: SectionKey;
   title: string;
   description: string;
+  status?: SectionStatus;
   children: ReactNode;
 }) {
-  const index = sections.findIndex((section) => section.key === sectionKey) + 1;
-
   return (
-    <section
+    <SectionPanel
       id={`voice-agent-section-${sectionKey}`}
-      className="scroll-mt-28 rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]"
+      icon={<SectionIcon sectionKey={sectionKey} />}
+      title={title}
+      description={description}
+      status={status}
     >
-      <div className="border-b border-[var(--color-border)] px-5 py-5 lg:px-6">
-        <div className="flex items-start gap-3.5">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-sm font-bold text-[var(--color-primary-h)]">
-            {index}
-          </span>
-          <div>
-            <h4 className="text-base font-semibold tracking-[-0.01em] text-[var(--color-text)]">{title}</h4>
-            <p className="mt-1 text-sm leading-5 text-[var(--color-text-muted)]">{description}</p>
-          </div>
-        </div>
-      </div>
-      <div className="space-y-4 p-5 lg:p-6">{children}</div>
-    </section>
+      {children}
+    </SectionPanel>
   );
 }
 
@@ -252,7 +257,7 @@ function SettingsActionButtons({
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {pending ? (
           <>
@@ -279,26 +284,20 @@ function SettingsActionButtons({
 }
 
 export function VoiceAgentAssistantCard({
-  organizationName,
   config,
   knowledge,
   knowledgeConfig,
   remoteAgentMissing,
   voiceCatalog,
   onSetup,
-  onKnowledge,
-  onPhone,
   onBooking,
 }: {
-  organizationName: string;
   config: RetellVoiceAgentConfig;
   knowledge: KnowledgeSnapshot;
   knowledgeConfig: VoiceAgentKnowledgeConfig;
   remoteAgentMissing: boolean;
   voiceCatalog: RetellVoiceListItem[];
   onSetup: () => void;
-  onKnowledge: () => void;
-  onPhone: () => void;
   onBooking: () => void;
 }) {
   const hasAgent = Boolean(config.retellAgentId.trim());
@@ -312,11 +311,6 @@ export function VoiceAgentAssistantCard({
   const typeLabel = config.enabled ? "Inbound calls" : "Paused";
   const knowledgeLabel = statusLabel(knowledge.status);
   const bookingLabel = knowledgeConfig.enablePhoneBooking ? "On" : "Off";
-  const identityLine = remoteAgentMissing
-    ? `${organizationName} · Needs repair`
-    : hasAgent
-      ? `${organizationName} · Your phone assistant`
-      : `${organizationName} · Ready to set up`;
   const presenceLabel = remoteAgentMissing
     ? "Needs repair"
     : hasAgent
@@ -334,203 +328,49 @@ export function VoiceAgentAssistantCard({
       ? `${config.retellAgentId.trim().slice(0, 10)}…${config.retellAgentId.trim().slice(-4)}`
       : config.retellAgentId.trim()
     : null;
-  const waveformBars = [8, 14, 20, 12, 18, 10, 16];
 
   return (
-    <div className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-      <div className="relative overflow-hidden bg-[linear-gradient(160deg,#0c0c0c_0%,#171717_48%,#222222_100%)] px-5 pb-5 pt-7 text-white sm:px-6 sm:pt-8">
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.1),transparent_60%)]"
-          aria-hidden
-        />
-
-        <div className="relative flex flex-col items-center text-center">
-          <div className="flex items-center gap-3 sm:gap-5">
-            <div className="flex h-12 items-end gap-[3px]" aria-hidden>
-              {waveformBars.map((height, index) => (
-                <span
-                  key={`wave-l-${index}`}
-                  className={`w-[2.5px] rounded-full ${
-                    hasAgent && !remoteAgentMissing ? "bg-white/45" : "bg-white/18"
-                  }`}
-                  style={{ height: `${height}px` }}
-                />
-              ))}
-            </div>
-
-            <div className="relative">
-              <span className="flex size-[4.75rem] items-center justify-center rounded-full border border-white/20 bg-white/10 shadow-[0_12px_40px_-18px_rgba(0,0,0,0.8)]">
-                <svg
-                  viewBox="0 0 48 48"
-                  className="size-9 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <circle cx="24" cy="16" r="6" />
-                  <path d="M12 36c2.5-6 7-9 12-9s9.5 3 12 9" />
-                  <path d="M10 18v6a4 4 0 0 0 4 4h2" />
-                  <path d="M38 18v6a4 4 0 0 1-4 4h-2" />
-                  <path d="M10 20h-2a2 2 0 0 1-2-2v-1a3 3 0 0 1 3-3h1" />
-                  <path d="M38 20h2a2 2 0 0 0 2-2v-1a3 3 0 0 0-3-3h-1" />
-                </svg>
-              </span>
-              <span
-                className={`absolute bottom-1 right-1 size-3.5 rounded-full border-2 border-[#161616] ${
-                  remoteAgentMissing
-                    ? "bg-amber-400"
-                    : hasAgent
-                      ? "bg-emerald-400"
-                      : "bg-neutral-500"
-                }`}
-                title={presenceLabel}
-                aria-label={presenceLabel}
-              />
-            </div>
-
-            <div className="flex h-12 items-end gap-[3px]" aria-hidden>
-              {[...waveformBars].reverse().map((height, index) => (
-                <span
-                  key={`wave-r-${index}`}
-                  className={`w-[2.5px] rounded-full ${
-                    hasAgent && !remoteAgentMissing ? "bg-white/45" : "bg-white/18"
-                  }`}
-                  style={{ height: `${height}px` }}
-                />
-              ))}
-            </div>
-          </div>
-
-          <h2 className="mt-4 text-[1.4rem] font-semibold tracking-[-0.025em] text-white sm:text-[1.55rem]">
-            {agentDisplayName}
-          </h2>
-          <p className="mt-1.5 text-[13px] text-neutral-400">{identityLine}</p>
-          <p className="mt-1 max-w-lg text-[12px] leading-relaxed text-neutral-500">
-            {assistantInfo}
-          </p>
-
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-                remoteAgentMissing
-                  ? "border-amber-400/30 bg-amber-400/15 text-amber-100"
-                  : hasAgent
-                    ? "border-emerald-400/30 bg-emerald-400/15 text-emerald-100"
-                    : "border-white/15 bg-white/10 text-neutral-300"
-              }`}
-            >
-              <span
-                className={`size-1.5 rounded-full ${
-                  remoteAgentMissing
-                    ? "bg-amber-300"
-                    : hasAgent
-                      ? "bg-emerald-300"
-                      : "bg-neutral-400"
-                }`}
-                aria-hidden
-              />
-              {presenceLabel}
-            </span>
-            {agentIdShort ? (
-              <span
-                className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-2.5 py-1 font-mono text-[10px] font-medium text-neutral-300"
-                title={config.retellAgentId}
-              >
-                ID {agentIdShort}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={onSetup}
-              className="rounded-xl bg-white px-3.5 py-2 text-[12px] font-semibold text-neutral-950 transition hover:bg-neutral-200"
-            >
-              {hasAgent ? "Edit voice" : "Set up agent"}
-            </button>
-            <button
-              type="button"
-              onClick={onKnowledge}
-              className="rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
-            >
-              Knowledge
-            </button>
-            <button
-              type="button"
-              onClick={onPhone}
-              className="rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
-            >
-              Phone lines
-            </button>
-            <button
-              type="button"
-              onClick={onBooking}
-              className="rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
-            >
-              {knowledgeConfig.enablePhoneBooking ? "Booking settings" : "Enable booking"}
-            </button>
-          </div>
-        </div>
-
-        <div className="relative mt-6 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
-            <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
-              <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
-                <path d="M22 16.9v2a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h2a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L7.1 9.5a16 16 0 0 0 6 6l1.1-1.1a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z" />
-              </svg>
-            </span>
-            <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Type</p>
-            <p className="mt-0.5 text-[13px] font-semibold text-white">{typeLabel}</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
-            <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
-              <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
-                <path d="M11 5 6 9H2v6h4l5 4V5z" />
-                <path d="M15.5 8.5a5 5 0 0 1 0 7" />
-              </svg>
-            </span>
-            <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Voice</p>
-            <p className="mt-0.5 truncate text-[13px] font-semibold text-white">{voiceLabel}</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
-            <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
-              <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M3 12h18" />
-                <path d="M12 3a14 14 0 0 1 0 18" />
-                <path d="M12 3a14 14 0 0 0 0 18" />
-              </svg>
-            </span>
-            <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Language</p>
-            <p className="mt-0.5 truncate text-[13px] font-semibold text-white">{languageLabel}</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
-            <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
-              <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-              </svg>
-            </span>
-            <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Knowledge</p>
-            <p className="mt-0.5 truncate text-[13px] font-semibold text-white">{knowledgeLabel}</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
-            <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
-              <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <path d="M16 2v4M8 2v4M3 10h18" />
-              </svg>
-            </span>
-            <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Booking</p>
-            <p className="mt-0.5 text-[13px] font-semibold text-white">{bookingLabel}</p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <AgentHeroCard
+      eyebrow="Voice Support"
+      title={agentDisplayName}
+      description={assistantInfo}
+      status={{
+        label: presenceLabel,
+        tone: remoteAgentMissing ? "warning" : hasAgent ? "success" : "neutral",
+      }}
+      badges={
+        agentIdShort ? (
+          <span
+            className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-2 py-0.5 font-mono text-[10px] font-medium text-white/85"
+            title={config.retellAgentId}
+          >
+            ID {agentIdShort}
+          </span>
+        ) : null
+      }
+      icon={
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <circle cx="24" cy="16" r="6" />
+          <path d="M12 36c2.5-6 7-9 12-9s9.5 3 12 9" />
+          <path d="M10 18v6a4 4 0 0 0 4 4h2" />
+          <path d="M38 18v6a4 4 0 0 1-4 4h-2" />
+          <path d="M10 20h-2a2 2 0 0 1-2-2v-1a3 3 0 0 1 3-3h1" />
+          <path d="M38 20h2a2 2 0 0 0 2-2v-1a3 3 0 0 0-3-3h-1" />
+        </svg>
+      }
+      actions={[
+        { label: hasAgent ? "Edit agent" : "Set up agent", onClick: onSetup },
+        // Knowledge and phone lines live in the tabs below; booking is the one setup step worth a shortcut.
+        ...(knowledgeConfig.enablePhoneBooking ? [] : [{ label: "Enable booking", onClick: onBooking }]),
+      ]}
+      stats={[
+        { label: "Type", value: typeLabel },
+        { label: "Voice", value: voiceLabel, title: voiceLabel },
+        { label: "Language", value: languageLabel, title: languageLabel },
+        { label: "Knowledge", value: knowledgeLabel },
+        { label: "Booking", value: bookingLabel },
+      ]}
+    />
   );
 }
 
@@ -635,6 +475,20 @@ export function VoiceAgentRetellSettings({
     [selectedVoiceId, voiceCatalog],
   );
   const selectedVoicePreviewUrl = selectedVoice?.previewAudioUrl ?? "";
+  const languageName =
+    RETELL_LANGUAGE_OPTIONS.find((option) => option.value === config.language)?.label ?? config.language;
+  const sectionStatuses: Record<SectionKey, SectionStatus> = {
+    setup: hasAgent ? { label: "Linked", tone: "success" } : { label: "Not linked", tone: "warning" },
+    voice: { label: `${selectedVoice?.voiceName?.trim() || "No voice"} · ${languageName}`, tone: selectedVoice ? "success" : "warning" },
+    conversation: config.openingMessage.trim()
+      ? { label: "Greeting set", tone: "success" }
+      : { label: "No greeting", tone: "warning" },
+    knowledge: !knowledgeConfig.useOrganizationKnowledgeBase
+      ? { label: "Not used on calls", tone: "neutral" }
+      : { label: statusLabel(knowledge.status), tone: knowledge.status === "approved" ? "success" : "warning" },
+    booking: knowledgeConfig.enablePhoneBooking ? { label: "On", tone: "success" } : { label: "Off", tone: "neutral" },
+    advanced: { label: "Defaults tuned", tone: "neutral" },
+  };
 
   return (
     <section className="space-y-4">
@@ -671,8 +525,20 @@ export function VoiceAgentRetellSettings({
         />
         {!linkExistingAgent ? <input type="hidden" name="retell_agent_id" value="" /> : null}
 
+        <div className="lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-5">
+        <SectionMenu
+          ariaLabel="Agent setup sections"
+          items={sections.map((section) => ({
+            id: `voice-agent-section-${section.key}`,
+            label: section.label,
+            icon: <SectionIcon sectionKey={section.key} />,
+            status: sectionStatuses[section.key],
+          }))}
+        />
+        <div className="min-w-0 space-y-4">
+
         <SectionCard
-          sectionKey="setup"
+          sectionKey="setup" status={sectionStatuses.setup}
           title="Setup"
           description="Link and configure the voice agent for this organization."
         >
@@ -723,7 +589,7 @@ export function VoiceAgentRetellSettings({
           </div>
         </SectionCard>
 
-        <SectionCard sectionKey="voice" title="Voice & language" description="Choose how the agent sounds on calls.">
+        <SectionCard sectionKey="voice" status={sectionStatuses.voice} title="Voice & language" description="Choose how the agent sounds on calls.">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <div className="space-y-4">
               <div>
@@ -799,7 +665,7 @@ export function VoiceAgentRetellSettings({
         </SectionCard>
 
         <SectionCard
-          sectionKey="conversation"
+          sectionKey="conversation" status={sectionStatuses.conversation}
           title="Conversation"
           description="What callers hear first and how the agent should behave."
         >
@@ -845,7 +711,7 @@ export function VoiceAgentRetellSettings({
         </SectionCard>
 
         <SectionCard
-          sectionKey="knowledge"
+          sectionKey="knowledge" status={sectionStatuses.knowledge}
           title="Knowledge base"
           description="Business facts, hours, and policies from your organization."
         >
@@ -906,40 +772,10 @@ export function VoiceAgentRetellSettings({
         </SectionCard>
 
         <SectionCard
-          sectionKey="booking"
+          sectionKey="booking" status={sectionStatuses.booking}
           title="Voice booking"
           description="Let callers book appointments during live support calls."
         >
-          <div
-            className={`rounded-2xl border px-4 py-3 ${
-              knowledgeConfig.enablePhoneBooking
-                ? "border-emerald-500/25 bg-emerald-500/10"
-                : "border-[var(--color-border)] bg-[var(--color-bg)]"
-            }`}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-[var(--color-text)]">
-                  {knowledgeConfig.enablePhoneBooking ? "Voice booking is on" : "Voice booking is off"}
-                </p>
-                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                  {knowledgeConfig.enablePhoneBooking
-                    ? "Callers can book appointments on this support line using your chatbot booking flow."
-                    : "Turn this on so the phone agent can check availability and create bookings."}
-                </p>
-              </div>
-              <span
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                  knowledgeConfig.enablePhoneBooking
-                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                    : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
-                }`}
-              >
-                {knowledgeConfig.enablePhoneBooking ? "Visible on calls" : "Hidden on calls"}
-              </span>
-            </div>
-          </div>
-
           <ToggleRow
             title="Enable voice booking"
             description="Show booking tools on live calls. Uses your Appointments → Chatbot flow, services, calendar, and confirmation emails."
@@ -964,7 +800,7 @@ export function VoiceAgentRetellSettings({
           ) : null}
         </SectionCard>
 
-        <SectionCard sectionKey="advanced" title="Advanced" description="Fine-tune how the agent responds on calls.">
+        <SectionCard sectionKey="advanced" status={sectionStatuses.advanced} title="Advanced" description="Fine-tune how the agent responds on calls.">
           <CollapsibleBlock
             title="Call behavior sliders"
             summary={`Responsiveness ${config.responsiveness.toFixed(2)} · Interruption ${config.interruptionSensitivity.toFixed(2)}`}
@@ -1038,6 +874,8 @@ export function VoiceAgentRetellSettings({
               }}
             />
           </div>
+        </div>
+        </div>
         </div>
       </form>
         </div>

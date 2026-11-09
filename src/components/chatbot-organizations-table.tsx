@@ -1,221 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import {
-  DataTable,
-  DataTableBody,
-  DataTableEmptyState,
-  DataTableHeader,
-  DataTablePagination,
-  DataTableRow,
-} from "@/components/data-table";
 import { BookingChatbotIcon } from "@/components/floating-booking-chatbot";
 import type { ChatbotConfigData } from "@/lib/chatbot-config";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { CHATBOT_EMBED_IFRAME_OPEN } from "@/lib/chatbot-embed-layout";
-import type { GenerateBookingFlowResult, GenerateVoiceGreetingResult } from "@/app/(protected)/appointments/chatbot/actions";
+import type { GenerateBookingFlowResult, GenerateVoiceGreetingResult } from "@/app/(protected)/appointments/(agent)/chatbot/actions";
 import { ChatbotBookingFlowModal } from "@/components/chatbot-booking-flow-modal";
 import { ChatbotCrmIntegrationModal } from "@/components/chatbot-crm-integration-modal";
 import { ChatbotVoiceBookingModal } from "@/components/chatbot-voice-booking-modal";
 import { ChatbotWidgetPreview } from "@/components/chatbot-widget-preview";
-
-function ChatbotOrgActionsMenu({
-  row,
-  isOpen,
-  onToggle,
-  onClose,
-  onConfigure,
-  onBookingFlow,
-  onVoice,
-  onCrm,
-}: {
-  row: ChatbotOrgRow;
-  isOpen: boolean;
-  onToggle: () => void;
-  onClose: () => void;
-  onConfigure: () => void;
-  onBookingFlow: () => void;
-  onVoice: () => void;
-  onCrm: () => void;
-}) {
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [menuPosition, setMenuPosition] = useState<{ bottom: number; left: number } | null>(null);
-
-  function computeMenuPosition(rect: DOMRect) {
-    const menuWidth = 260;
-    const gap = 8;
-    const viewportPadding = 8;
-    const bottom = window.innerHeight - rect.top + gap;
-    let left = rect.right - menuWidth;
-
-    left = Math.min(
-      Math.max(viewportPadding, left),
-      window.innerWidth - menuWidth - viewportPadding,
-    );
-
-    return { bottom, left };
-  }
-
-  function handleTriggerClick() {
-    if (isOpen) {
-      onClose();
-      return;
-    }
-    const rect = triggerRef.current?.getBoundingClientRect();
-    if (rect) {
-      setMenuPosition(computeMenuPosition(rect));
-    }
-    onToggle();
-  }
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    function updatePosition() {
-      const rect = triggerRef.current?.getBoundingClientRect();
-      if (rect) {
-        setMenuPosition(computeMenuPosition(rect));
-      }
-    }
-
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
-    return () => {
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    function handleClickOutside(event: MouseEvent) {
-      const target = event.target as Node;
-      if (triggerRef.current?.contains(target)) return;
-      if (menuRef.current?.contains(target)) return;
-      onClose();
-    }
-
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [isOpen, onClose]);
-
-  const menuItems = [
-    {
-      id: "configure",
-      label: "Configure chatbot",
-      description: "Welcome message, theme colors, and website embed code",
-      onClick: onConfigure,
-      active: false,
-      primary: true,
-    },
-    {
-      id: "booking-flow",
-      label: "Edit booking flow",
-      description: "Guided booking questions and quick-start actions",
-      onClick: onBookingFlow,
-      active: false,
-      primary: false,
-    },
-    {
-      id: "voice",
-      label: row.config.voiceBooking.enabled ? "Voice booking · On" : "Set up voice booking",
-      description: row.config.voiceBooking.enabled
-        ? `${row.config.voiceBooking.agentName} speaks on your embed widget`
-        : "Add a spoken greeting and voice profile for visitors",
-      onClick: onVoice,
-      active: row.config.voiceBooking.enabled,
-      primary: false,
-    },
-    {
-      id: "crm",
-      label: row.config.crmIntegration.enabled ? "CRM sync · On" : "Connect CRM sync",
-      description: row.config.crmIntegration.enabled
-        ? "Completed bookings are sent to your webhook"
-        : "Send completed bookings to your CRM webhook",
-      onClick: onCrm,
-      active: row.config.crmIntegration.enabled,
-      primary: false,
-    },
-  ];
-
-  return (
-    <div className="flex justify-end">
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={handleTriggerClick}
-        aria-label={`Open organization settings menu for ${row.name}`}
-        title={`Settings for ${row.name}`}
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition ${
-          isOpen
-            ? "border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]"
-            : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
-        }`}
-      >
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-          <circle cx="12" cy="5" r="1.75" />
-          <circle cx="12" cy="12" r="1.75" />
-          <circle cx="12" cy="19" r="1.75" />
-        </svg>
-      </button>
-
-      {isOpen && menuPosition
-        ? createPortal(
-            <div
-              ref={menuRef}
-              role="menu"
-              style={{ bottom: menuPosition.bottom, left: menuPosition.left }}
-              className="fixed z-[120] min-w-[16.25rem] max-w-[16.25rem] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] py-1 shadow-[var(--shadow-lg)]"
-            >
-              {menuItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    item.onClick();
-                    onClose();
-                  }}
-                  className={`flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left transition ${
-                    item.primary || item.active
-                      ? "hover:bg-[var(--color-primary-soft)]"
-                      : "hover:bg-[var(--color-surface)]"
-                  }`}
-                >
-                  <span
-                    className={`text-sm ${
-                      item.primary || item.active
-                        ? "font-semibold text-[var(--color-primary-h)]"
-                        : "font-semibold text-[var(--color-text)]"
-                    }`}
-                  >
-                    {item.label}
-                  </span>
-                  <span className="text-[11px] leading-snug text-[var(--color-text-muted)]">
-                    {item.description}
-                  </span>
-                </button>
-              ))}
-            </div>,
-            document.body,
-          )
-        : null}
-    </div>
-  );
-}
 
 function ChatbotEmbedSnippet({
   embedBaseUrl,
@@ -307,7 +102,7 @@ function ChatbotEmbedSnippet({
             <button
               type="button"
               onClick={copySnippet}
-              className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+              className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
             >
               {copied ? "Copied" : "Copy embed code"}
             </button>
@@ -359,9 +154,6 @@ export function ChatbotOrganizationsTable({
   const [previewTheme, setPreviewTheme] = useState("#22c55e");
   const [previewIcon, setPreviewIcon] = useState("#0f172a");
   const [previewWelcome, setPreviewWelcome] = useState("");
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(5);
-  const [openActionsMenuOrgId, setOpenActionsMenuOrgId] = useState<string | null>(null);
 
   function openConfigure(row: ChatbotOrgRow) {
     const { config } = row;
@@ -380,159 +172,119 @@ export function ChatbotOrganizationsTable({
     [rows],
   );
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / perPage));
-  const currentPage = Math.min(page, totalPages);
-  const paged = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return sorted.slice(start, start + perPage);
-  }, [sorted, currentPage, perPage]);
 
-  const configuredCount = sorted.filter((row) => row.configured).length;
-  const activeCount = sorted.filter((row) => row.isActive).length;
+  const row = sorted[0] ?? null;
+  const capabilities = row
+    ? [
+        {
+          id: "widget",
+          title: "Website widget",
+          description: "Welcome message, theme colors, and the embed code for your site.",
+          status: row.configured ? "Ready" : "Draft",
+          on: row.configured,
+          action: row.configured ? "Edit widget" : "Set up widget",
+          onClick: () => openConfigure(row),
+        },
+        {
+          id: "booking-flow",
+          title: "Booking flow",
+          description: "Guided booking questions and quick-start actions visitors see.",
+          status: row.configured ? "Active" : "Needs widget",
+          on: row.configured,
+          action: "Edit booking flow",
+          onClick: () => openBookingFlow(row),
+        },
+        {
+          id: "voice",
+          title: "Voice booking",
+          description: row.config.voiceBooking.enabled
+            ? `${row.config.voiceBooking.agentName} speaks on your website widget.`
+            : "Add a spoken greeting and voice profile for website visitors.",
+          status: row.config.voiceBooking.enabled ? "On" : "Off",
+          on: row.config.voiceBooking.enabled,
+          action: row.config.voiceBooking.enabled ? "Edit voice" : "Set up voice",
+          onClick: () => setVoiceModalOrg(row),
+        },
+        {
+          id: "crm",
+          title: "CRM sync",
+          description: row.config.crmIntegration.enabled
+            ? "Completed bookings are sent to your CRM webhook."
+            : "Send completed bookings to your CRM through a webhook.",
+          status: row.config.crmIntegration.enabled ? "On" : "Off",
+          on: row.config.crmIntegration.enabled,
+          action: row.config.crmIntegration.enabled ? "Edit CRM sync" : "Connect CRM",
+          onClick: () => setCrmModalOrg(row),
+        },
+      ]
+    : [];
+  const enabledCount = capabilities.filter((capability) => capability.on).length;
 
   return (
     <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-      <div className="flex flex-col gap-4 border-b border-[var(--color-border)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between lg:px-6">
+      <div className="flex flex-col gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-6">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
-            Assistant directory
-          </p>
-          <h2 className="mt-1.5 text-lg font-semibold tracking-[-0.015em] text-[var(--color-text)]">
-            Organization experiences
-          </h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--color-text-muted)]">
-            {readOnly
-              ? "Review assistant readiness and enabled capabilities across each organization."
-              : "Configure each website assistant, then extend it with booking flow, voice, and CRM delivery."}
+          <h2 className="text-lg font-semibold tracking-[-0.015em] text-[var(--color-text)]">Booking assistant</h2>
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-[var(--color-text-muted)]">
+            {row
+              ? `How the website assistant for ${row.name} looks, asks booking questions, speaks, and hands bookings to your CRM.`
+              : "Pick a workspace to configure its booking assistant."}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {readOnly ? (
-            <span className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
-              View-only access
+        {row ? (
+          <div className="flex flex-wrap gap-2">
+            {readOnly ? (
+              <span className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
+                View-only access
+              </span>
+            ) : null}
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
+              <span className={`size-1.5 rounded-full ${enabledCount === capabilities.length ? "bg-emerald-500" : "bg-amber-400"}`} aria-hidden />
+              {enabledCount} of {capabilities.length} enabled
             </span>
-          ) : null}
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
-            <span className="size-1.5 rounded-full bg-[var(--color-primary)]" aria-hidden />
-            {configuredCount} configured
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full vr-app-status-success px-3 py-1.5 text-xs font-semibold">
-            <span className="size-1.5 rounded-full bg-current" aria-hidden />
-            {activeCount} active
-          </span>
-        </div>
+          </div>
+        ) : null}
       </div>
 
-      <div className="p-4 lg:p-5">
-        <DataTable>
-          <DataTableHeader className="hidden grid-cols-[64px_minmax(220px,1.2fr)_minmax(240px,1fr)_130px_56px] lg:grid">
-            <div>Index</div>
-            <div>Organization</div>
-            <div>Capabilities</div>
-            <div>Session</div>
-            <div className="text-right">{readOnly ? "Access" : "Actions"}</div>
-          </DataTableHeader>
-          <DataTableBody>
-            {paged.length === 0 ? (
-              <DataTableEmptyState
-                title="No organizations available"
-                description="Create an organization before configuring a booking assistant."
-              />
-            ) : null}
-          {paged.map((row, index) => (
-            <DataTableRow
-              key={row.id}
-              className="items-center lg:grid-cols-[64px_minmax(220px,1.2fr)_minmax(240px,1fr)_130px_56px]"
+      {row ? (
+        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:p-5 xl:grid-cols-4">
+          {capabilities.map((capability) => (
+            <div
+              key={capability.id}
+              className="flex min-h-40 flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4"
             >
-              <div className="text-xs font-semibold text-[var(--color-text-muted)]">
-                <span className="inline-flex min-w-[40px] items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
-                  {String((currentPage - 1) * perPage + index + 1).padStart(2, "0")}
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-[var(--color-text)]">{capability.title}</h3>
+                <span
+                  className={`rounded-lg px-2 py-0.5 text-[10px] font-semibold ${
+                    capability.on ? "vr-app-status-success" : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
+                  }`}
+                >
+                  {capability.status}
                 </span>
               </div>
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-sm font-bold text-[var(--color-primary-h)]">
-                  {row.name.trim().charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate font-semibold text-[var(--color-text)]">{row.name}</p>
-                  <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                    {row.configured ? "Assistant configured" : "Setup required"} · Created{" "}
-                    {new Date(row.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                <span className={`rounded-lg px-2 py-1 text-[10px] font-semibold ${
-                  row.configured
-                    ? "bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]"
-                    : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
-                }`}>
-                  Widget {row.configured ? "ready" : "draft"}
-                </span>
-                <span className={`rounded-lg px-2 py-1 text-[10px] font-semibold ${
-                  row.config.voiceBooking.enabled
-                    ? "vr-app-status-success"
-                    : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
-                }`}>
-                  Voice {row.config.voiceBooking.enabled ? "on" : "off"}
-                </span>
-                <span className={`rounded-lg px-2 py-1 text-[10px] font-semibold ${
-                  row.config.crmIntegration.enabled
-                    ? "vr-app-status-success"
-                    : "bg-[var(--color-raised)] text-[var(--color-text-muted)]"
-                }`}>
-                  CRM {row.config.crmIntegration.enabled ? "on" : "off"}
-                </span>
-              </div>
-              <div>
-                {row.isActive ? (
-                  <span className="inline-flex rounded-lg vr-app-status-success px-2.5 py-1 text-xs font-semibold">
-                    Active session
-                  </span>
-                ) : (
-                  <span className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text-muted)]">
-                    Not active
-                  </span>
-                )}
-              </div>
-              {readOnly ? (
-                <div className="flex justify-end">
-                  <span className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text-muted)]">
-                    View only
-                  </span>
-                </div>
-              ) : (
-                <ChatbotOrgActionsMenu
-                  row={row}
-                  isOpen={openActionsMenuOrgId === row.id}
-                  onToggle={() =>
-                    setOpenActionsMenuOrgId((current) => (current === row.id ? null : row.id))
-                  }
-                  onClose={() => setOpenActionsMenuOrgId(null)}
-                  onConfigure={() => openConfigure(row)}
-                  onBookingFlow={() => openBookingFlow(row)}
-                  onVoice={() => setVoiceModalOrg(row)}
-                  onCrm={() => setCrmModalOrg(row)}
-                />
+              <p className="mt-1.5 flex-1 text-xs leading-relaxed text-[var(--color-text-muted)]">{capability.description}</p>
+              {readOnly ? null : (
+                <button
+                  type="button"
+                  onClick={capability.onClick}
+                  className={`mt-3 self-start rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                    capability.on
+                      ? "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-raised)]"
+                      : "bg-[var(--color-primary)] text-[var(--color-primary-fg)] hover:bg-[var(--color-primary-fill-h)]"
+                  }`}
+                >
+                  {capability.action}
+                </button>
               )}
-            </DataTableRow>
+            </div>
           ))}
-          </DataTableBody>
-          <DataTablePagination
-            totalItems={sorted.length}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            perPage={perPage}
-            onPageChange={setPage}
-            onPerPageChange={(size) => {
-              setPerPage(size);
-              setPage(1);
-            }}
-            pageSizes={[5, 10, 20]}
-            itemLabel="organizations"
-          />
-        </DataTable>
-      </div>
+        </div>
+      ) : (
+        <p className="px-5 py-8 text-center text-sm text-[var(--color-text-muted)]">
+          No workspace selected. Create or pick one under Manage workspaces.
+        </p>
+      )}
 
       {configureModalOrg
         ? createPortal(
@@ -636,7 +388,7 @@ export function ChatbotOrganizationsTable({
                         </button>
                         <button
                           type="submit"
-                          className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+                          className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
                         >
                           Save
                         </button>

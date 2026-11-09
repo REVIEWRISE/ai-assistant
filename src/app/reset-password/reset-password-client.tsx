@@ -60,7 +60,7 @@ function ResetPasswordContent() {
         <div className="mt-8">
           <Link
             href="/forgot-password"
-            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] shadow-sm transition hover:bg-[var(--color-primary-h)]"
+            className="lp-btn lp-btn-solid w-full"
           >
             Request new reset link
             <span aria-hidden>→</span>
@@ -129,7 +129,7 @@ function ResetPasswordContent() {
 
           <button
             type="submit"
-            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] shadow-sm transition hover:bg-[var(--color-primary-h)]"
+            className="lp-btn lp-btn-solid w-full"
           >
             Update password
             <span aria-hidden>→</span>

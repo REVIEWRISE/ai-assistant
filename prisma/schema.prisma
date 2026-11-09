@@ -260,6 +260,8 @@ model RetellCall {
   summary         String?  @db.Text
   sentiment       String?
   transcript      Json     @default(dbgenerated("'[]'::jsonb")) @db.JsonB
+  /// Set when someone marks this call's dashboard follow-up as done.
+  followUpDoneAt  DateTime? @map("follow_up_done_at") @db.Timestamptz(6)
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 

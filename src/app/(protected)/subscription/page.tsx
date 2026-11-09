@@ -96,7 +96,7 @@ export default async function SubscriptionPage() {
         title="Your subscription"
         description={
           <>
-            Plan and billing timeline for <span className="text-neutral-200">{organization.name}</span>.
+            Plan and billing timeline for <span className="text-white">{organization.name}</span>.
             {billing.cancelAtPeriodEnd
               ? " Cancellation is scheduled. Access continues until the period ends."
               : canUpgrade

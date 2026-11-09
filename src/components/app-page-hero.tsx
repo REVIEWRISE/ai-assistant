@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { LandingLogoMark } from "@/components/landing/landing-logo-mark";
 
 type AppPageHeroProps = {
   eyebrow: string;
@@ -7,19 +8,11 @@ type AppPageHeroProps = {
   children?: ReactNode;
 };
 
-/** In-app page hero — dark VyntRise band with landing-style eyebrow and primary mesh glow. */
+/** In-app page banner — the VyntRise blue band with the logo shape behind it. */
 export function AppPageHero({ eyebrow, title, description, children }: AppPageHeroProps) {
   return (
-    <section className="vr-app-hero relative overflow-hidden p-5 lg:p-6">
-      <div className="landing-dark-mesh pointer-events-none absolute inset-0 opacity-90" aria-hidden />
-      <div
-        className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(circle_at_center,color-mix(in_srgb,var(--color-primary)_35%,transparent),transparent)] blur-3xl"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-[radial-gradient(circle_at_center,color-mix(in_srgb,var(--color-grad-start)_22%,transparent),transparent)] blur-3xl"
-        aria-hidden
-      />
+    <section className="vr-app-hero vr-app-blue relative overflow-hidden p-5 lg:p-6">
+      <LandingLogoMark className="lp-mark -bottom-24 -right-12 w-[26rem] max-w-none" />
       <div className="relative">
         <div className="vr-landing-eyebrow-dark w-fit">{eyebrow}</div>
         <h1 className="mt-4 text-2xl font-semibold leading-tight tracking-tight text-white lg:mt-5 lg:text-3xl">
@@ -83,7 +76,7 @@ export function AppPageHeroLink({
   return (
     <a
       href={href}
-      className="mt-4 inline-flex rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+      className="mt-4 inline-flex rounded-xl bg-white px-4 py-2 text-sm font-semibold text-[#1d3a96] transition hover:bg-[#e4edff]"
     >
       {children}
     </a>

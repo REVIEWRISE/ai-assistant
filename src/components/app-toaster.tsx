@@ -70,6 +70,7 @@ export function AppToaster() {
           content: "vr-toast-content",
           icon: "vr-toast-icon",
           closeButton: "vr-toast-close",
+          actionButton: "vr-toast-action",
           success: "vr-toast-success",
           error: "vr-toast-error",
           warning: "vr-toast-warning",

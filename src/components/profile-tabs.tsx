@@ -46,7 +46,7 @@ function SubmitButton({ children }: { children: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-wait disabled:opacity-60"
+      className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)] disabled:cursor-wait disabled:opacity-60"
     >
       {pending ? "Saving…" : children}
     </button>

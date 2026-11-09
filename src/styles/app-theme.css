@@ -5,32 +5,6 @@
   color: var(--color-text);
 }
 
-.app-shell-mesh {
-  background:
-    radial-gradient(
-      ellipse 90% 55% at 50% -8%,
-      color-mix(in srgb, var(--color-primary) 14%, transparent),
-      transparent
-    ),
-    radial-gradient(
-      ellipse 45% 40% at 100% 0%,
-      color-mix(in srgb, var(--color-grad-start) 10%, transparent),
-      transparent
-    ),
-    radial-gradient(
-      ellipse 40% 35% at 0% 25%,
-      color-mix(in srgb, var(--color-data-purple) 6%, transparent),
-      transparent
-    );
-}
-
-.app-shell-grid {
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--color-text) 3%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--color-text) 3%, transparent) 1px, transparent 1px);
-  background-size: 48px 48px;
-}
-
 .vr-app-surface {
   border: 1px solid var(--color-border);
   background: color-mix(in srgb, var(--color-surface) 97%, transparent);
@@ -51,32 +25,47 @@
   border-color: var(--color-border-hover);
 }
 
-.vr-app-hero {
-  border-radius: var(--radius-2xl);
-  border: 1px solid color-mix(in srgb, white 12%, transparent);
-  background: linear-gradient(125deg, #0c0c0c 0%, #161616 42%, #1f1f1f 72%, #2a2a2a 100%);
+/* Same blue band as the landing hero and the sign-in panel */
+.vr-app-blue {
+  background:
+    radial-gradient(42rem 24rem at 92% -20%, color-mix(in srgb, var(--color-grad-start) 55%, transparent), transparent 70%),
+    linear-gradient(165deg, var(--color-grad-end) 10%, #1d3a96 100%);
   color: #ffffff;
-  box-shadow:
-    var(--shadow-md),
-    inset 0 1px 0 0 color-mix(in srgb, white 6%, transparent);
 }
 
-.dark .vr-app-hero,
-[data-theme="dark"] .vr-app-hero {
-  border-color: color-mix(in srgb, white 18%, transparent);
-  background: linear-gradient(125deg, #1a1a1a 0%, #252525 42%, #2e2e2e 72%, #383838 100%);
+.dark .vr-app-blue,
+[data-theme="dark"] .vr-app-blue {
+  background:
+    radial-gradient(42rem 24rem at 92% -20%, color-mix(in srgb, var(--color-grad-start) 38%, transparent), transparent 70%),
+    linear-gradient(165deg, var(--color-grad-end) 0%, #142a70 100%);
 }
 
-.vr-app-hero-eyebrow {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #a3a3a3;
+.vr-app-hero {
+  isolation: isolate;
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-md);
+}
+
+.vr-app-hero-eyebrow,
+.vr-landing-eyebrow-dark {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(255 255 255 / 0.84);
 }
 
 .vr-app-hero-muted {
-  color: #a3a3a3;
+  color: rgb(255 255 255 / 0.84);
+}
+
+.vr-app-sidebar {
+  background: linear-gradient(180deg, var(--color-grad-end) 0%, #1d3a96 100%);
+  color: #ffffff;
+}
+
+.dark .vr-app-sidebar,
+[data-theme="dark"] .vr-app-sidebar {
+  /* Deep navy so the page banner stays the one bright blue area */
+  background: var(--color-bg);
 }
 
 .vr-app-nav-active {
@@ -97,18 +86,10 @@
 }
 
 .vr-app-table-header {
-  background: linear-gradient(125deg, #0c0c0c 0%, #161616 42%, #1f1f1f 72%, #2a2a2a 100%);
-  color: #a3a3a3;
-  font-size: 0.75rem;
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+  font-size: 0.8125rem;
   font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.dark .vr-app-table-header,
-[data-theme="dark"] .vr-app-table-header {
-  background: linear-gradient(125deg, #1a1a1a 0%, #252525 42%, #2e2e2e 72%, #383838 100%);
-  color: #c4c4c4;
 }
 
 .vr-app-alert {
@@ -242,6 +223,22 @@
   font-size: 0.75rem;
   line-height: 1.55;
   color: var(--color-text-muted);
+}
+
+.vr-toast-action {
+  flex: none;
+  align-self: center;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vr-toast-action:hover {
+  background: var(--color-primary-fill-h);
 }
 
 .vr-toast-close {

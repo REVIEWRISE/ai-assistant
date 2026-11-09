@@ -137,7 +137,7 @@ function ForgotPasswordContent() {
 
         <button
           type="submit"
-          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] shadow-sm transition hover:bg-[var(--color-primary-h)]"
+          className="lp-btn lp-btn-solid w-full"
         >
           Send reset instructions
           <span aria-hidden>→</span>

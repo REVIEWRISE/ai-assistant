@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getAppointmentAnalytics } from "@/lib/appointment-analytics";
 import { getVoiceAnalytics } from "@/lib/voice-analytics";
+import { getVoiceCallReport, type VoiceCallReport } from "@/lib/voice-call-report";
 import { getOrgRetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import { displayRoleFromUserRoles, getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
 import { isHrefAllowedForNav } from "@/lib/nav-access";
@@ -97,6 +98,13 @@ export type DashboardWorkspaceBilling = {
   periodHint: string | null;
 };
 
+export type DashboardWorkspaceChoice = {
+  id: string;
+  name: string;
+  status: string;
+  planLabel: string | null;
+};
+
 export type DashboardData = {
   roleName: string;
   isOwner: boolean;
@@ -110,10 +118,15 @@ export type DashboardData = {
   headlineStats: DashboardStat[];
   overviewStats: DashboardOverviewStat[];
   sections: DashboardSection[];
+  voiceReport: VoiceCallReport | null;
   quickLinks: DashboardQuickLink[];
   setupSteps: DashboardSetupStep[];
   platformStats: DashboardPlatformStat[];
   workspaceBilling: DashboardWorkspaceBilling | null;
+  /** A module is available but no workspace is active to load it for. */
+  needsWorkspace: boolean;
+  /** Workspaces this user can open; only filled while needsWorkspace is true. */
+  workspaceChoices: DashboardWorkspaceChoice[];
   emptyMessage: string | null;
 };
 
@@ -158,26 +171,27 @@ function billingPeriodHint(org: {
 
 function heroCopyForRole(input: {
   roleName: string;
-  sectionCount: number;
+  hasModules: boolean;
   organizationName: string | null;
   isOwner: boolean;
+  adminAttention: string | null;
 }): Pick<DashboardData, "heroEyebrow" | "heroTitle" | "heroTitleAccent" | "heroDescription"> {
   if (input.roleName === "Admin") {
     if (input.organizationName) {
       return {
         heroEyebrow: input.organizationName,
-        heroTitle: "What needs attention",
+        heroTitle: input.adminAttention ?? "What needs attention",
         heroDescription: `Ops and product stats for ${input.organizationName}. Switch the header to All workspaces for the full platform view.`,
       };
     }
     return {
       heroEyebrow: "Platform",
-      heroTitle: "What needs attention",
+      heroTitle: input.adminAttention ?? "What needs attention",
       heroDescription:
         "Counts across every workspace. Switch the header to inspect one customer.",
     };
   }
-  if (input.sectionCount === 0) {
+  if (!input.hasModules) {
     return {
       heroEyebrow: "Welcome",
       heroTitle: "Your dashboard will appear here soon",
@@ -268,6 +282,9 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
   const orgId = activeOrganization?.id ?? null;
   const orgName = activeOrganization?.name ?? null;
 
+  const needsWorkspace = !orgId && (showAppointments || showReviews || showVoice);
+
+  let voiceReport: VoiceCallReport | null = null;
   const fetches: Promise<void>[] = [];
 
   if (showAppointments && orgId) {
@@ -348,16 +365,6 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
         });
       })(),
     );
-  } else if (showAppointments) {
-    sections.push({
-      id: "appointments",
-      title: "Appointment Agent",
-      description: "Select a workspace organization to see booking stats.",
-      href: "/appointments/organization",
-      accent: "#38bdf8",
-      stats: [{ label: "Active organization", value: "Not set" }],
-      charts: [],
-    });
   }
 
   if (showReviews && orgId) {
@@ -448,25 +455,17 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
         });
       })(),
     );
-  } else if (showReviews) {
-    sections.push({
-      id: "reviews",
-      title: "Review Response",
-      description: "Select a workspace organization to see review stats.",
-      href: "/appointments/organization",
-      accent: "#a78bfa",
-      stats: [{ label: "Active organization", value: "Not set" }],
-      charts: [],
-    });
   }
 
   if (showVoice && orgId) {
     fetches.push(
       (async () => {
-        const [analytics, phoneStats] = await Promise.all([
+        const [analytics, phoneStats, report] = await Promise.all([
           getVoiceAnalytics(orgId, now),
           getOrgRetellPhoneNumberStats(orgId).catch(() => []),
+          getVoiceCallReport(orgId, now, activeOrganization?.timezone).catch(() => null),
         ]);
+        voiceReport = report;
 
         const phoneLineCount = phoneStats.length;
         const callsProcessedOnLines = phoneStats.reduce((sum, line) => sum + line.callsProcessed, 0);
@@ -596,16 +595,6 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
         });
       })(),
     );
-  } else if (showVoice) {
-    sections.push({
-      id: "voice",
-      title: "Voice Support",
-      description: "Select a workspace organization to see voice agent stats.",
-      href: "/voice-agent",
-      accent: "#2dd4bf",
-      stats: [{ label: "Active organization", value: "Not set" }],
-      charts: [],
-    });
   }
 
   await Promise.all(fetches);
@@ -621,7 +610,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
   sections.sort((a, b) => sectionOrder.indexOf(a.id) - sectionOrder.indexOf(b.id));
 
   const platformStats: DashboardPlatformStat[] = [];
-  let adminHeadline: DashboardStat[] | null = null;
+  let adminAttention: string | null = null;
 
   if (isAdmin) {
     const since24HoursAgo = new Date();
@@ -676,7 +665,12 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
         id: "expired",
         title: "Expired",
         value: expired,
-        hint: needsPlan > 0 ? `${needsPlan} still choosing a plan` : "Need a plan to get back in",
+        hint:
+          needsPlan > 0
+            ? `${needsPlan} still choosing a plan`
+            : expired > 0
+              ? "Need a plan to get back in"
+              : "None right now",
         href: "/billing-admin/organizations",
         tone: expired > 0 ? "danger" : "success",
       },
@@ -684,7 +678,10 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
         id: "refunds",
         title: "Refunds",
         value: pendingRefunds,
-        hint: pendingRefunds === 1 ? "1 request waiting" : "Requests waiting for review",
+        hint:
+          pendingRefunds === 0
+            ? "None waiting"
+            : `${pendingRefunds} ${pendingRefunds === 1 ? "request" : "requests"} waiting`,
         href: "/billing-admin/refunds",
         tone: pendingRefunds > 0 ? "warning" : "default",
       },
@@ -692,29 +689,35 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
         id: "audit",
         title: "Audit (24h)",
         value: recentAudit,
-        hint: "New events today",
+        hint: recentAudit === 0 ? "No events in the last 24 hours" : "Sign-ins and admin changes",
         href: "/platform/audit",
+      },
+      {
+        id: "users",
+        title: "Users",
+        value: totalUsers,
+        hint: orgId ? "In this workspace" : "Across all workspaces",
+        href: "/users",
       },
     );
 
-    adminHeadline = [
-      { label: orgId ? "Workspace" : "Workspaces", value: totalOrgs },
-      { label: "Expired", value: expired },
-      { label: "Pending refunds", value: pendingRefunds },
-      { label: "Users", value: totalUsers },
-    ];
+    const attentionItems = [
+      expired > 0 ? `${expired} expired ${expired === 1 ? "workspace" : "workspaces"}` : null,
+      pendingRefunds > 0 ? `${pendingRefunds} ${pendingRefunds === 1 ? "refund" : "refunds"} waiting` : null,
+    ].filter(Boolean);
+    adminAttention = attentionItems.length > 0 ? attentionItems.join(" and ") : "Nothing needs attention right now";
   }
 
   const hero = heroCopyForRole({
     roleName,
-    sectionCount: sections.length,
+    hasModules: sections.length > 0 || needsWorkspace,
     organizationName: orgName,
     isOwner,
+    adminAttention,
   });
 
   const quickLinks: DashboardQuickLink[] = [];
   if (isAdmin) {
-    const pendingRefunds = platformStats.find((stat) => stat.id === "refunds")?.value ?? 0;
     quickLinks.push(
       {
         href: "/billing-admin/organizations",
@@ -729,7 +732,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
       {
         href: "/billing-admin/refunds",
         label: "Refunds",
-        description: Number(pendingRefunds) > 0 ? `${pendingRefunds} waiting` : "Approve or reject requests",
+        description: "Approve or reject requests",
       },
       {
         href: "/users",
@@ -799,7 +802,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
     }
   }
 
-  const uniqueHeadline = adminHeadline ?? headlineStats.slice(0, 4);
+  const uniqueHeadline = headlineStats.slice(0, 4);
   const hasOverviewActivity = overviewStats.some((stat) =>
     typeof stat.value === "number" ? stat.value > 0 : Number.parseFloat(String(stat.value)) > 0,
   );
@@ -818,6 +821,30 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
         periodHint: billingPeriodHint(activeOrganization),
       }
     : null;
+
+  let workspaceChoices: DashboardWorkspaceChoice[] = [];
+  if (needsWorkspace) {
+    // Same visibility as the header switcher: admins see every workspace, others their own.
+    const memberOrganizationIds = isAdmin
+      ? null
+      : (
+          await prisma.organizationMember.findMany({
+            where: { userId },
+            select: { organizationId: true },
+          })
+        ).map((member) => member.organizationId);
+    const organizations = await prisma.organization.findMany({
+      where: memberOrganizationIds ? { id: { in: memberOrganizationIds } } : undefined,
+      select: { id: true, name: true, planSlug: true, billingStatus: true },
+      orderBy: { name: "asc" },
+    });
+    workspaceChoices = organizations.map((organization) => ({
+      id: organization.id,
+      name: organization.name,
+      status: billingStatusLabel(organization.billingStatus),
+      planLabel: isPlanSlug(organization.planSlug) ? getPlanBySlug(organization.planSlug).name : null,
+    }));
+  }
 
   const setupSteps: DashboardSetupStep[] = [];
   if (!orgId || !activeOrganization) {
@@ -945,10 +972,13 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
     headlineStats: uniqueHeadline,
     overviewStats,
     sections,
+    voiceReport,
     quickLinks: quickLinks.slice(0, 6),
     setupSteps,
     platformStats,
     workspaceBilling,
-    emptyMessage: sections.length === 0 ? "No modules are assigned to your role yet." : null,
+    needsWorkspace,
+    workspaceChoices,
+    emptyMessage: sections.length === 0 && !needsWorkspace ? "No modules are assigned to your role yet." : null,
   };
 }

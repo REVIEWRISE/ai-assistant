@@ -8,6 +8,7 @@ import { TopHeader } from "@/components/top-header";
 import { NavAccessGuard } from "@/components/nav-access-guard";
 import { BillingAccessGuard } from "@/components/billing-access-guard";
 import { SupportChatWidget } from "@/components/support-chat-widget";
+import { WorkspaceSwitcherContext } from "@/components/workspace-switcher-context";
 import { APP_NAV_ITEMS } from "@/lib/nav-config";
 import { filterNavItemsByPermissions, isHrefAllowedForNav } from "@/lib/nav-access";
 import {
@@ -226,7 +227,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const setSubmenuOpen = useCallback((parentHref: string, open: boolean) => {
     APP_NAV_ITEMS.forEach((navItem) => {
-      if (!navItem.children?.length) return;
+      if (!navItem.children?.length || navItem.childrenAsTabs) return;
       sessionStorage.setItem(`submenu:${navItem.href}`, navItem.href === parentHref && open ? "1" : "0");
     });
     setSubmenuTick((prev) => prev + 1);
@@ -234,7 +235,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const closeAllSubmenus = useCallback(() => {
     APP_NAV_ITEMS.forEach((navItem) => {
-      if (!navItem.children?.length) return;
+      if (!navItem.children?.length || navItem.childrenAsTabs) return;
       sessionStorage.setItem(`submenu:${navItem.href}`, "0");
     });
     setSubmenuTick((prev) => prev + 1);
@@ -249,7 +250,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!menuStateReady) return;
     let opened = false;
     for (const item of visibleNavItems) {
-      if (!item.children?.length) continue;
+      if (!item.children?.length || item.childrenAsTabs) continue;
       if (item.children.some((child) => isActive(pathname, child.href))) {
         setSubmenuOpen(item.href, true);
         opened = true;
@@ -289,8 +290,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-shell relative h-dvh overflow-hidden">
-      <div className="app-shell-mesh pointer-events-none absolute inset-0" aria-hidden />
-      <div className="app-shell-grid pointer-events-none absolute inset-0 opacity-30" aria-hidden />
       <NavAccessGuard allowedNavPaths={allowedNavPaths} enabled={allowedNavPaths !== null} />
       <BillingAccessGuard
         billingStatus={billingStatus}
@@ -348,9 +347,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             key={activeOrganizationId ?? "none"}
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-16 [scrollbar-width:thin] lg:p-5 lg:pb-16"
           >
-            {children}
+            <WorkspaceSwitcherContext
+              value={{
+                switching: switchingOrganization,
+                onSwitch: handleSwitchOrganization,
+              }}
+            >
+              {children}
+            </WorkspaceSwitcherContext>
           </main>
-          <AppFooter organization={profileOrg} role={profileRole} />
+          <AppFooter />
         </div>
       </div>
       <SupportChatWidget enabled={showSupportChat} />

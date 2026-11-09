@@ -417,14 +417,14 @@ export function SupportTicketsPanel({
                   entered ? "translate-x-0" : "translate-x-full"
                 }`}
               >
-                <header className="relative shrink-0 overflow-hidden border-b border-white/10 bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 pb-5 pt-5 text-white">
+                <header className="relative shrink-0 overflow-hidden border-b border-white/10 vr-app-blue px-5 pb-5 pt-5 text-white">
                   <div
                     className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-white/10 blur-3xl"
                     aria-hidden
                   />
                   <div className="relative flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
+                      <p className="text-xs font-medium text-white/85">
                         Support
                       </p>
                       <h2
@@ -433,7 +433,7 @@ export function SupportTicketsPanel({
                       >
                         New request
                       </h2>
-                      <p className="mt-1 text-sm text-neutral-400">
+                      <p className="mt-1 text-sm text-white/85">
                         Tell us what you need help with. The team will reply in-thread.
                       </p>
                     </div>

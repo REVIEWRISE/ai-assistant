@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { requireActiveOrganization } from "@/lib/auth-session";
 import { redirect } from "next/navigation";
 import { KnowledgeBaseToasts } from "@/components/knowledge-base-toasts";
-import { AppointmentPageHeader } from "@/components/appointment-page-header";
 import { KnowledgeImportSources } from "@/components/knowledge-import-sources";
 import { KnowledgePreview } from "@/components/knowledge-preview";
 import { KnowledgeBaseAppendNotes } from "@/components/knowledge-base-append-notes";
@@ -58,10 +57,6 @@ export default async function AppointmentKnowledgeBasePage() {
       ? parsedData.formattedPreview
       : "";
   const knowledgeBase = session.activeOrganization.knowledgeBase;
-  const knowledgeStatus = knowledgeBase?.status ?? "empty";
-  const lastImported = knowledgeBase?.lastImportedAt
-    ? new Date(knowledgeBase.lastImportedAt).toLocaleDateString()
-    : "Never";
   const storedRawText = String(knowledgeBase?.rawText ?? "");
   const knowledgeCharacters = storedRawText.length;
   const rawTextPreview = storedRawText.slice(0, KNOWLEDGE_UI_PREVIEW_MAX_CHARS);
@@ -69,20 +64,6 @@ export default async function AppointmentKnowledgeBasePage() {
   return (
     <div className="mx-auto max-w-[92rem] space-y-5">
       <KnowledgeBaseToasts />
-      <AppointmentPageHeader
-        variant="command"
-        title="Booking knowledge"
-        description={<>Import and approve the business information the agent uses for services, policies, and booking answers.</>}
-        status={knowledgeStatus === "approved" ? "Approved for agent" : knowledgeStatus === "draft" ? "Draft needs approval" : "Knowledge required"}
-        statusTone={knowledgeStatus === "approved" ? "success" : "warning"}
-        actions={knowledgeStatus === "approved" ? [{ href: "/appointments/chatbot", label: "Configure assistant", primary: true }] : []}
-        metrics={[
-          { label: "Organization", value: session.activeOrganization.name },
-          { label: "Status", value: knowledgeStatus },
-          { label: "Last imported", value: lastImported },
-          { label: "Stored content", value: knowledgeCharacters.toLocaleString(), hint: "characters" },
-        ]}
-      />
 
       <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-md)]">
         <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--color-border)] px-5 py-5 lg:px-6">

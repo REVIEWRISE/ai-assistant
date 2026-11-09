@@ -52,6 +52,30 @@ function SaveConnectionButton({ connected }: { connected: boolean }) {
   );
 }
 
+
+/** Provider logo with an initial-letter fallback when there is no logo or it fails to load. */
+function ProviderLogo({ name, logoUrl }: { name: string; logoUrl?: string }) {
+  const [failed, setFailed] = useState(false);
+  if (logoUrl && !failed) {
+    return (
+      <Image
+        src={logoUrl}
+        alt={`${name} logo`}
+        width={24}
+        height={24}
+        unoptimized
+        onError={() => setFailed(true)}
+        className="size-9 shrink-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] object-contain p-1.5"
+      />
+    );
+  }
+  return (
+    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-bold text-[var(--color-text-muted)]">
+      {name.slice(0, 1).toUpperCase()}
+    </span>
+  );
+}
+
 export function ReviewServiceManager({
   services,
   readOnly = false,
@@ -230,20 +254,7 @@ export function ReviewServiceManager({
                 return (
                   <div key={service.id} className="flex flex-wrap items-center gap-3 px-3.5 py-3">
                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                        {service.logoUrl ? (
-                          <Image
-                            src={service.logoUrl}
-                            alt={`${service.name} logo`}
-                            width={24}
-                            height={24}
-                            unoptimized
-                            className="size-9 shrink-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] object-contain p-1.5"
-                          />
-                        ) : (
-                          <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-bold text-[var(--color-text-muted)]">
-                            {service.name.slice(0, 1).toUpperCase()}
-                          </span>
-                        )}
+                        <ProviderLogo name={service.name} logoUrl={service.logoUrl} />
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-[var(--color-text)]">{service.name}</p>
                           <p className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]">

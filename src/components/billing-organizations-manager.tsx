@@ -539,7 +539,7 @@ function OrganizationBillingSheet({
           entered ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <header className="relative shrink-0 overflow-hidden bg-[#0c0c0c] px-5 pb-4 pt-4 text-white">
+        <header className="relative shrink-0 overflow-hidden vr-app-blue px-5 pb-4 pt-4 text-white">
           <div
             className="pointer-events-none absolute -right-10 -top-16 size-40 rounded-full bg-white/[0.06] blur-2xl"
             aria-hidden

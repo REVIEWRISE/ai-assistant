@@ -1,7 +1,9 @@
 "use client";
 
+import { SECTION_ICONS, SectionGlyph, SectionHeaderStrip } from "@/components/section-layout";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useSearchParams } from "next/navigation";
 import {
   DataTable,
   DataTableBody,
@@ -125,11 +127,11 @@ function CallDetailsSheet({
           entered ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <header className="relative shrink-0 overflow-hidden border-b border-[var(--color-border)] bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 pb-5 pt-5 text-white">
+        <header className="relative shrink-0 overflow-hidden border-b border-[var(--color-border)] vr-app-blue px-5 pb-5 pt-5 text-white">
           <div className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-white/10 blur-3xl" aria-hidden />
           <div className="relative flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
+              <p className="text-xs font-medium text-white/85">
                 Call details
               </p>
               <h3
@@ -270,8 +272,19 @@ function CallDetailsSheet({
   );
 }
 
-export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
-  const [selectedCall, setSelectedCall] = useState<CallItem | null>(null);
+export function VoiceAgentAnalytics({
+  calls,
+  onOpenPhoneLines,
+}: {
+  calls: CallItem[];
+  /** Shown as the empty-state action so a first call is one click away. */
+  onOpenPhoneLines?: () => void;
+}) {
+  const requestedCallId = useSearchParams().get("call");
+  // The dashboard report links straight to one call.
+  const [selectedCall, setSelectedCall] = useState<CallItem | null>(
+    () => calls.find((call) => call.id === requestedCallId) ?? null,
+  );
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
 
@@ -293,9 +306,48 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
   const currentPage = Math.min(page, totalPages);
   const pagedCalls = calls.slice((currentPage - 1) * perPage, currentPage * perPage);
 
+  if (totalCalls === 0) {
+    return (
+      <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+        <SectionHeaderStrip
+          icon={<SectionGlyph paths={[...SECTION_ICONS.history]} />}
+          title="Call history"
+          description="Recordings, summaries, sentiment, and transcripts for every call your agent answers."
+          status={{ label: "No calls yet", tone: "neutral" }}
+        />
+        <div className="p-4 lg:p-5">
+          <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-8 text-center">
+            <p className="text-sm font-semibold text-[var(--color-text)]">No calls yet</p>
+            <p className="mt-1 max-w-md text-xs leading-relaxed text-[var(--color-text-muted)]">
+              Call your AI line to hear the agent and see your first call land here. Call counts, duration, and
+              sentiment appear once calls come in.
+            </p>
+            {onOpenPhoneLines ? (
+              <button
+                type="button"
+                onClick={onOpenPhoneLines}
+                className="mt-4 rounded-xl bg-[var(--color-primary)] px-3.5 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
+              >
+                View phone lines
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-4">
-      <div className="grid overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] sm:grid-cols-2 lg:grid-cols-4">
+
+      <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+        <SectionHeaderStrip
+          icon={<SectionGlyph paths={[...SECTION_ICONS.history]} />}
+          title="Call history"
+          description="Recordings, summaries, sentiment, and transcripts for every call your agent answers."
+          status={{ label: `${totalCalls} call${totalCalls === 1 ? "" : "s"}`, tone: "success" }}
+        />
+        <div className="grid grid-cols-2 border-b border-[var(--color-border)] lg:grid-cols-4">
         {[
           { label: "Total calls", value: totalCalls, hint: "all recorded calls" },
           {
@@ -312,30 +364,17 @@ export function VoiceAgentAnalytics({ calls }: { calls: CallItem[] }) {
         ].map((metric, index) => (
           <div
             key={metric.label}
-            className={`min-w-0 bg-[var(--color-bg)] px-5 py-5 ${index < 3 ? "border-b border-[var(--color-border)] sm:border-r lg:border-b-0" : ""}`}
+            className={`min-w-0 px-5 py-3.5 lg:px-6 ${index % 2 === 0 ? "border-r border-[var(--color-border)]" : ""} ${index < 2 ? "border-b border-[var(--color-border)] lg:border-b-0" : ""} ${index === 1 ? "lg:border-r" : ""} ${index === 3 ? "" : "lg:border-r"}`}
           >
             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
               {metric.label}
             </p>
-            <p className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-[var(--color-text)] tabular-nums">
+            <p className="mt-1 text-xl font-semibold tracking-[-0.02em] text-[var(--color-text)] tabular-nums">
               {metric.value}
             </p>
             <p className="mt-1 truncate text-xs text-[var(--color-text-muted)]">{metric.hint}</p>
           </div>
         ))}
-      </div>
-
-      <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-        <div className="border-b border-[var(--color-border)] px-5 py-5 lg:px-6">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">
-            Conversation archive
-          </p>
-          <h3 className="mt-1.5 text-lg font-semibold tracking-[-0.015em] text-[var(--color-text)]">
-            Call history
-          </h3>
-          <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-            Completed conversations, recordings, sentiment, and transcripts.
-          </p>
         </div>
         <div className="p-4 lg:p-5">
           {calls.length === 0 ? (

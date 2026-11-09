@@ -1,5 +1,6 @@
 "use client";
 
+import { AgentHeroCard } from "@/components/agent-hero-card";
 import { useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -178,15 +179,11 @@ export function ReviewsTabs({
     : pendingReviewCount > 0
       ? "Needs attention"
       : "On duty";
-  const identityLine = !assistantReady
-    ? `${organizationName} · Ready to set up`
-    : `${organizationName} · Your review assistant`;
   const assistantInfo = !assistantReady
     ? "Connect a review source so this assistant can draft and publish replies for your brand."
     : pendingReviewCount > 0
       ? `${pendingReviewCount} review${pendingReviewCount === 1 ? "" : "s"} waiting — draft, approve, or publish from the inbox.`
       : "Watching connected sources and keeping replies consistent with your voice.";
-  const waveformBars = [8, 14, 20, 12, 18, 10, 16];
   const syncLabel = syncCronConfig.enabled ? "Scheduled" : "Manual";
 
   function openReview(review: InboxItem) {
@@ -265,188 +262,44 @@ export function ReviewsTabs({
 
   return (
     <section className="space-y-4">
-      <div className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
-        <div className="relative overflow-hidden bg-[linear-gradient(160deg,#0c0c0c_0%,#171717_48%,#222222_100%)] px-5 pb-5 pt-7 text-white sm:px-6 sm:pt-8">
-          <div
-            className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.1),transparent_60%)]"
-            aria-hidden
-          />
-
-          <div className="relative flex flex-col items-center text-center">
-            <div className="flex items-center gap-3 sm:gap-5">
-              <div className="flex h-12 items-end gap-[3px]" aria-hidden>
-                {waveformBars.map((height, index) => (
-                  <span
-                    key={`wave-l-${index}`}
-                    className={`w-[2.5px] rounded-full ${
-                      assistantReady ? "bg-white/45" : "bg-white/18"
-                    }`}
-                    style={{ height: `${height}px` }}
-                  />
-                ))}
-              </div>
-
-              <div className="relative">
-                <span className="flex size-[4.75rem] items-center justify-center rounded-full border border-white/20 bg-white/10 shadow-[0_12px_40px_-18px_rgba(0,0,0,0.8)]">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="size-8 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                    <path d="M8 9h8M8 13h5" />
-                  </svg>
-                </span>
-                <span
-                  className={`absolute bottom-1 right-1 size-3.5 rounded-full border-2 border-[#161616] ${
-                    !assistantReady
-                      ? "bg-neutral-500"
-                      : pendingReviewCount > 0
-                        ? "bg-amber-400"
-                        : "bg-emerald-400"
-                  }`}
-                  title={presenceLabel}
-                  aria-label={presenceLabel}
-                />
-              </div>
-
-              <div className="flex h-12 items-end gap-[3px]" aria-hidden>
-                {[...waveformBars].reverse().map((height, index) => (
-                  <span
-                    key={`wave-r-${index}`}
-                    className={`w-[2.5px] rounded-full ${
-                      assistantReady ? "bg-white/45" : "bg-white/18"
-                    }`}
-                    style={{ height: `${height}px` }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <h2 className="mt-4 text-[1.4rem] font-semibold tracking-[-0.025em] text-white sm:text-[1.55rem]">
-              {organizationName} replies
-            </h2>
-            <p className="mt-1.5 text-[13px] text-neutral-400">{identityLine}</p>
-            <p className="mt-1 max-w-lg text-[12px] leading-relaxed text-neutral-500">
-              {assistantInfo}
-            </p>
-
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-                  !assistantReady
-                    ? "border-white/15 bg-white/10 text-neutral-300"
-                    : pendingReviewCount > 0
-                      ? "border-amber-400/30 bg-amber-400/15 text-amber-100"
-                      : "border-emerald-400/30 bg-emerald-400/15 text-emerald-100"
-                }`}
-              >
-                <span
-                  className={`size-1.5 rounded-full ${
-                    !assistantReady
-                      ? "bg-neutral-400"
-                      : pendingReviewCount > 0
-                        ? "bg-amber-300"
-                        : "bg-emerald-300"
-                  }`}
-                  aria-hidden
-                />
-                {presenceLabel}
-              </span>
-            </div>
-
-            {!readOnly ? (
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => selectTab(assistantReady ? "workflow" : "integrations")}
-                  className="rounded-xl bg-white px-3.5 py-2 text-[12px] font-semibold text-neutral-950 transition hover:bg-neutral-200"
-                >
-                  {assistantReady
+      <AgentHeroCard
+        eyebrow="Review Response"
+        title={`${organizationName} replies`}
+        description={assistantInfo}
+        status={{
+          label: presenceLabel,
+          tone: !assistantReady ? "neutral" : pendingReviewCount > 0 ? "warning" : "success",
+        }}
+        icon={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            <path d="M8 9h8M8 13h5" />
+          </svg>
+        }
+        actions={
+          readOnly
+            ? []
+            : [
+                {
+                  label: assistantReady
                     ? pendingReviewCount > 0
                       ? `Open inbox · ${pendingReviewCount}`
                       : "Open inbox"
-                    : "Connect source"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => selectTab("integrations")}
-                  className="rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
-                >
-                  Integrations
-                </button>
-                <button
-                  type="button"
-                  onClick={() => selectTab("configuration")}
-                  className="rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
-                >
-                  Automation
-                </button>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="relative mt-6 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
-              <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
-                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
-                  <path d="M12 2l2.4 7.2H22l-6 4.8 2.3 7L12 16.8 5.7 21l2.3-7-6-4.8h7.6z" />
-                </svg>
-              </span>
-              <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Sources</p>
-              <p className="mt-0.5 text-[13px] font-semibold text-white">
-                {connectedSourceCount} connected
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
-              <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
-                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M12 7v5l3 2" />
-                </svg>
-              </span>
-              <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Awaiting</p>
-              <p className="mt-0.5 text-[13px] font-semibold text-white">{pendingReviewCount}</p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
-              <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
-                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
-                  <path d="M20 6 9 17l-5-5" />
-                </svg>
-              </span>
-              <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Auto-ready</p>
-              <p className="mt-0.5 text-[13px] font-semibold text-white">{autoReadyCount}</p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
-              <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
-                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
-                  <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
-                  <circle cx="12" cy="12" r="4" />
-                </svg>
-              </span>
-              <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">AI drafts</p>
-              <p className="mt-0.5 text-[13px] font-semibold text-white">
-                {replyAutomation.draftOnSync ? "On" : "Off"}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3.5 text-left">
-              <span className="flex size-8 items-center justify-center rounded-xl bg-white/10 text-white" aria-hidden>
-                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75">
-                  <path d="M21 12a9 9 0 1 1-2.6-6.4" />
-                  <path d="M21 3v6h-6" />
-                </svg>
-              </span>
-              <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">Sync</p>
-              <p className="mt-0.5 text-[13px] font-semibold text-white">{syncLabel}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+                    : "Connect source",
+                  onClick: () => selectTab(assistantReady ? "workflow" : "integrations"),
+                },
+                // Before a source is connected the primary button already opens Integrations.
+                ...(assistantReady ? [] : [{ label: "Automation", onClick: () => selectTab("configuration") }]),
+              ]
+        }
+        stats={[
+          { label: "Sources", value: `${connectedSourceCount} connected` },
+          { label: "Awaiting", value: pendingReviewCount },
+          { label: "Auto-ready", value: autoReadyCount },
+          { label: "AI drafts", value: replyAutomation.draftOnSync ? "On" : "Off" },
+          { label: "Sync", value: syncLabel },
+        ]}
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1" role="tablist" aria-label="Review operations">
@@ -485,6 +338,7 @@ export function ReviewsTabs({
             onConnectProvider={onConnectProvider}
             onSyncProvider={onSyncProvider}
           />
+          {connectedSourceCount > 0 ? (
           <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
             <TabSectionHeader
               eyebrow="Source workload"
@@ -533,6 +387,7 @@ export function ReviewsTabs({
             )}
             </div>
           </section>
+          ) : null}
         </div>
       ) : null}
 
@@ -547,10 +402,10 @@ export function ReviewsTabs({
                 <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
                   {pendingReviewCount} in inbox
                 </span>
-                <span className="rounded-full vr-app-status-danger px-3 py-1.5 text-xs font-semibold">
+                <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${humanReviewCount > 0 ? "vr-app-status-danger" : "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)]"}`}>
                   {humanReviewCount} need review
                 </span>
-                <span className="rounded-full vr-app-status-success px-3 py-1.5 text-xs font-semibold">
+                <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${autoReadyCount > 0 ? "vr-app-status-success" : "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)]"}`}>
                   {autoReadyCount} auto-ready
                 </span>
               </div>
@@ -558,16 +413,28 @@ export function ReviewsTabs({
           />
           <div className="p-4 lg:p-5">
               {inbox.length === 0 ? (
-                <div className="flex min-h-36 flex-wrap items-center justify-between gap-4 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] p-5 text-sm">
-                  <div>
-                    <p className="font-semibold text-[var(--color-text)]">Your review inbox is clear</p>
-                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                    Connect a review provider and run sync to populate pending reviews.
-                    </p>
-                  </div>
-                  <button type="button" onClick={() => selectTab("integrations")} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]">
-                    Manage sources
-                  </button>
+                <div className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-8 text-center">
+                  <p className="text-sm font-semibold text-[var(--color-text)]">
+                    {assistantReady ? "You're all caught up" : "Connect a review source to fill your inbox"}
+                  </p>
+                  <p className="mt-1 max-w-md text-xs leading-relaxed text-[var(--color-text-muted)]">
+                    {assistantReady
+                      ? "No reviews are waiting for a reply. New reviews land here after each sync."
+                      : "Once Google Business Profile or another source is connected, new reviews arrive here with a drafted reply."}
+                  </p>
+                  {readOnly ? null : (
+                    <button
+                      type="button"
+                      onClick={() => selectTab("integrations")}
+                      className={
+                        assistantReady
+                          ? "mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2 text-xs font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-raised)]"
+                          : "mt-4 rounded-xl bg-[var(--color-primary)] px-3.5 py-2 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
+                      }
+                    >
+                      {assistantReady ? "Sync sources" : "Connect a source"}
+                    </button>
+                  )}
                 </div>
               ) : null}
               {inbox.length > 0 ? (
@@ -660,41 +527,7 @@ export function ReviewsTabs({
 
       {activeTab === "configuration" ? (
         <div className="space-y-5">
-          <section className="overflow-hidden rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
-            <TabSectionHeader
-              eyebrow="Automation control"
-              title="Review response policy"
-              description="Control when reviews are collected, when AI drafts a response, and which ratings require human approval."
-              aside={
-                <div className="flex flex-wrap gap-2">
-                  <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${syncCronConfig.enabled ? "vr-app-status-success" : "vr-app-status-muted"}`}>
-                    Sync {syncCronConfig.enabled ? "enabled" : "off"}
-                  </span>
-                  <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${replyAutomation.draftOnSync ? "vr-app-status-success" : "vr-app-status-muted"}`}>
-                    AI drafts {replyAutomation.draftOnSync ? "enabled" : "off"}
-                  </span>
-                </div>
-              }
-            />
-            <div className="grid gap-3 p-4 text-sm sm:grid-cols-3 lg:p-5">
-              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">1 · Collect</p>
-                <p className="mt-2 font-semibold text-[var(--color-text)]">Sync new reviews</p>
-                <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">Pull reputation activity on a controlled schedule.</p>
-              </div>
-              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">2 · Prepare</p>
-                <p className="mt-2 font-semibold text-[var(--color-text)]">Generate response drafts</p>
-                <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">Create consistent replies as reviews enter the inbox.</p>
-              </div>
-              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">3 · Route</p>
-                <p className="mt-2 font-semibold text-[var(--color-text)]">Apply approval rules</p>
-                <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">Send each rating to the right publishing workflow.</p>
-              </div>
-            </div>
-          </section>
-          <div className="grid items-start gap-5 xl:grid-cols-2">
+          <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
           <ReviewSyncCronSettings
             readOnly={readOnly}
             organizationId={organizationId}
@@ -716,7 +549,7 @@ export function ReviewsTabs({
         ? createPortal(
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--color-overlay)] p-4">
               <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]">
-                <div className="vr-app-table-header flex items-start justify-between gap-3 px-5 py-4">
+                <div className="vr-app-blue flex items-start justify-between gap-3 px-5 py-4">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.1em] opacity-90">
                       {selectedReview.source} • {selectedReview.rating}

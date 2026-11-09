@@ -1,108 +1,78 @@
 "use client";
 
 import Link from "next/link";
+import { LandingLogoMark } from "@/components/landing/landing-logo-mark";
 import { CONTACT_EMAIL, CONTACT_PHONE, CONTACT_PHONE_TEL } from "@/lib/brand";
 import { trackContactClick, trackLandingCta } from "@/lib/analytics";
 
+const contactLinkClass = "font-semibold text-white underline-offset-4 hover:underline";
+
 export function LandingContactSection() {
   return (
-    <section id="contact" className="relative overflow-hidden bg-[var(--color-bg)] px-4 py-20 sm:px-6 sm:py-24 lg:py-32">
-      <div className="landing-spotlight landing-animate-view mx-auto max-w-7xl overflow-hidden rounded-[2.5rem] p-8 sm:p-12 lg:p-16">
-        {/* Background glow and grid */}
-        <div className="landing-grid pointer-events-none absolute inset-0 opacity-[0.1]" aria-hidden />
-        <div className="landing-spotlight-glow -right-24 -top-32 h-96 w-96" aria-hidden />
-        <div className="landing-spotlight-glow -left-20 -bottom-24 h-80 w-80" aria-hidden />
+    <section id="contact" className="lp-blue">
+      <LandingLogoMark className="lp-mark -right-24 -top-24 w-[34rem] max-w-none lg:-right-10 lg:-top-40 lg:w-[48rem]" />
 
-        <div className="relative grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-bg)]/80 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--color-primary-h)] backdrop-blur">
-              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Ready for Immediate Deployment</span>
-            </div>
-
-            <h2 className="mt-5 text-3xl font-semibold tracking-[-0.03em] text-[var(--color-text)] sm:text-4xl lg:text-5xl">
-              Give every customer a fast, <span className="vr-gradient-text">thoughtful next step.</span>
-            </h2>
-
-            <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--color-text-muted)] sm:text-lg">
-              Start your 14-day free trial today or speak directly with our solutions team to configure custom multi-location workflows.
-            </p>
-
-            {/* Micro assurances */}
-            <div className="mt-8 flex flex-wrap gap-4 text-xs font-semibold text-[var(--color-text)]">
-              <span className="flex items-center gap-1.5">
-                <span className="text-emerald-500 font-bold">✓</span> 15-Minute Zero-Code Setup
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="text-emerald-500 font-bold">✓</span> Cancel Anytime
-              </span>
-            </div>
-          </div>
-
-          {/* Right Action Box */}
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]/80 p-6 sm:p-8 backdrop-blur shadow-lg">
-            <h3 className="text-lg font-bold text-[var(--color-text)]">
-              Get Started in Minutes
-            </h3>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              Choose an option below to test the agent with your own business channels.
-            </p>
-
-            <div className="mt-6 space-y-3">
-              <Link
-                href="/register"
-                onClick={() => {
-                  trackContactClick("trial", "/register");
-                  trackLandingCta("Start 14-Day Free Trial", "contact_box", "/register");
-                }}
-                className="vr-landing-btn-primary flex min-h-12 w-full items-center justify-center rounded-full text-sm font-bold text-[var(--color-primary-fg)] shadow"
-              >
-                Start 14-Day Free Trial →
-              </Link>
-
-              <a
-                href={`mailto:${CONTACT_EMAIL}?subject=VyntRise%20Agent%20Demo%20Request`}
-                onClick={() => {
-                  trackContactClick("email", "demo_request");
-                  trackLandingCta("Schedule Operator Demo", "contact_box", "mailto");
-                }}
-                className="vr-landing-btn-secondary flex min-h-12 w-full items-center justify-center rounded-full text-sm font-bold text-[var(--color-text)]"
-              >
-                Schedule Operator Demo
-              </a>
-            </div>
-
-            {/* Direct Contact Chips */}
-            <div className="mt-6 border-t border-[var(--color-border)] pt-5 space-y-2 text-xs text-[var(--color-text-muted)]">
-              <div className="flex items-center justify-between">
-                <span>Direct Support:</span>
-                <a
-                  href={`mailto:${CONTACT_EMAIL}`}
-                  onClick={() => trackContactClick("email", CONTACT_EMAIL)}
-                  className="font-semibold text-[var(--color-primary-h)] hover:underline"
-                >
-                  {CONTACT_EMAIL}
-                </a>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Phone / SMS:</span>
-                <a
-                  href={`tel:${CONTACT_PHONE_TEL}`}
-                  onClick={() => trackContactClick("phone", CONTACT_PHONE_TEL)}
-                  className="font-semibold text-[var(--color-text)] hover:underline"
-                >
-                  {CONTACT_PHONE}
-                </a>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Response SLA:</span>
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                  &lt; 15 mins (Mon–Fri)
-                </span>
-              </div>
-            </div>
+      <div className="lp-wrap grid gap-10 py-20 sm:py-28 lg:grid-cols-[1.25fr_0.75fr] lg:items-end lg:gap-20">
+        <div>
+          <h2 className="lp-h1">Give every customer a fast, thoughtful next step.</h2>
+          <p className="mt-6 max-w-xl text-lg leading-[1.65] text-[var(--lp-on-blue-muted)]">
+            Start your 14-day free trial today or speak directly with our solutions team to configure custom
+            multi-location workflows.
+          </p>
+          <div className="mt-9 flex flex-wrap gap-3">
+            <Link
+              href="/register"
+              onClick={() => {
+                trackContactClick("trial", "/register");
+                trackLandingCta("Start 14-Day Free Trial", "contact_box", "/register");
+              }}
+              className="lp-btn lp-btn-white"
+            >
+              Start 14-day free trial
+            </Link>
+            <a
+              href={`mailto:${CONTACT_EMAIL}?subject=VyntRise%20Agent%20Demo%20Request`}
+              onClick={() => {
+                trackContactClick("email", "demo_request");
+                trackLandingCta("Schedule Operator Demo", "contact_box", "mailto");
+              }}
+              className="lp-btn lp-btn-on-blue"
+            >
+              Schedule a demo
+            </a>
           </div>
         </div>
+
+        <dl className="space-y-4 border-t border-white/25 pt-6 text-[15px] text-[var(--lp-on-blue-muted)] lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">
+          <div>
+            <dt>Direct support</dt>
+            <dd className="mt-0.5">
+              <a
+                href={`mailto:${CONTACT_EMAIL}`}
+                onClick={() => trackContactClick("email", CONTACT_EMAIL)}
+                className={contactLinkClass}
+              >
+                {CONTACT_EMAIL}
+              </a>
+            </dd>
+          </div>
+          <div>
+            <dt>Phone / SMS</dt>
+            <dd className="mt-0.5">
+              <a
+                href={`tel:${CONTACT_PHONE_TEL}`}
+                onClick={() => trackContactClick("phone", CONTACT_PHONE_TEL)}
+                className={contactLinkClass}
+              >
+                {CONTACT_PHONE}
+              </a>
+            </dd>
+          </div>
+          <div>
+            <dt>Response time</dt>
+            <dd className="mt-0.5 font-semibold text-white">&lt; 15 mins (Mon–Fri)</dd>
+          </div>
+        </dl>
       </div>
     </section>
   );

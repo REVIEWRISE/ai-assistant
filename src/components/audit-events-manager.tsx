@@ -327,7 +327,7 @@ function AuditEventSheet({
           entered ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <header className="relative shrink-0 overflow-hidden border-b border-[var(--color-border)] bg-[linear-gradient(135deg,#0c0c0c_0%,#161616_55%,#222222_100%)] px-5 pb-5 pt-5 text-white">
+        <header className="relative shrink-0 overflow-hidden border-b border-[var(--color-border)] vr-app-blue px-5 pb-5 pt-5 text-white">
           <div
             className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-white/10 blur-3xl"
             aria-hidden
@@ -355,7 +355,7 @@ function AuditEventSheet({
                 </svg>
               </span>
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
+                <p className="text-xs font-medium text-white/85">
                   Audit event
                 </p>
                 <h3
@@ -364,7 +364,7 @@ function AuditEventSheet({
                 >
                   {formatAuditAction(event.action)}
                 </h3>
-                <p className="mt-1 text-xs text-neutral-400">{formatWhen(event.createdAt)}</p>
+                <p className="mt-1 text-xs text-white/85">{formatWhen(event.createdAt)}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-1.5">
                   <span
                     className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${severity.sheetPill}`}

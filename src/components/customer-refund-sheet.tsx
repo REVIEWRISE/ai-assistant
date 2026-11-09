@@ -228,7 +228,7 @@ export function CustomerRefundSheet({
               <button
                 type="button"
                 onClick={handleCloseDone}
-                className="mt-8 inline-flex w-full max-w-xs items-center justify-center rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)]"
+                className="mt-8 inline-flex w-full max-w-xs items-center justify-center rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
               >
                 Back to Subscription
               </button>
@@ -458,7 +458,7 @@ export function CustomerRefundSheet({
                 type="button"
                 onClick={handleSubmit}
                 disabled={pending}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)] disabled:opacity-50"
               >
                 {pending ? (
                   <>

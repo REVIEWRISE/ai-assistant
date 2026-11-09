@@ -116,6 +116,10 @@ export function DataTablePagination({
   itemLabel?: string;
   summary?: ReactNode;
 }) {
+  if (totalPages <= 1 && totalItems <= Math.min(...pageSizes)) {
+    return null;
+  }
+
   const start = totalItems === 0 ? 0 : (currentPage - 1) * perPage + 1;
   const end = Math.min(currentPage * perPage, totalItems);
 

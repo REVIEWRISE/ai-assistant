@@ -228,7 +228,7 @@ export function OnboardingPlanPicker({
             type="button"
             disabled={pending}
             onClick={submit}
-            className="inline-flex min-h-12 w-full shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-h)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            className="inline-flex min-h-12 w-full shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             {pending
               ? trialAvailable
