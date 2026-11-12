@@ -39,8 +39,8 @@ function resolveUploadPath(segments: string[]): string | null {
   return resolved.startsWith(UPLOADS_ROOT + path.sep) ? resolved : null;
 }
 
-export async function GET(_request: Request, context: RouteContext<"/api/uploads/[...path]">) {
-  const { path: segments } = await context.params;
+export async function GET(_request: Request, { params }: { params: Promise<{ path: string[] }> }) {
+  const { path: segments } = await params;
   const filePath = resolveUploadPath(segments ?? []);
   if (!filePath) return notFound();
 
