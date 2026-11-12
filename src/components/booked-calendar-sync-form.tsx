@@ -57,12 +57,12 @@ export function BookedCalendarSyncForm({
   const defaultRouteKey = preferredOk ?? (routes[0] ? routeValue(routes[0]) : "");
 
   if (synced) {
-    return <p className="mt-2 text-xs font-medium text-emerald-700">On connected calendar.</p>;
+    return <p className="mt-2 text-xs font-medium text-emerald-700 [[data-theme=dark]_&]:text-emerald-300">On connected calendar.</p>;
   }
 
   if (routes.length === 0) {
     return (
-      <p className="mt-2 text-xs text-amber-900">
+      <p className="mt-2 text-xs text-amber-900 [[data-theme=dark]_&]:text-amber-200">
         This booking is saved. Connect a calendar under the <span className="font-semibold">Integrations</span> tab,
         then return here to post it.
       </p>

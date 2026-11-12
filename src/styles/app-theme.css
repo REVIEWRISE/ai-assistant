@@ -143,6 +143,15 @@
   background: var(--color-raised);
 }
 
+/* Reserved for states that need someone to act now; milder states stay amber. */
+.vr-attention-pill {
+  border: 1px solid rgb(255 255 255 / 0.25);
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .vr-app-status-success {
   border: 1px solid color-mix(in srgb, var(--color-success) 35%, var(--color-border));
   background: var(--color-success-soft);

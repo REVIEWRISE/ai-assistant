@@ -453,7 +453,7 @@ function BookedViewModeSwitch({
   ];
 
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-gradient-to-b from-[var(--color-surface)] via-[var(--color-bg)] to-[var(--color-surface)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(15,23,42,0.04)]">
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:bg-transparent [[data-theme=dark]_&]:shadow-none">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div className="shrink-0 sm:max-w-[9.5rem] sm:border-r sm:border-[var(--color-border)] sm:pr-4">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-subtle)]">View</p>
@@ -475,8 +475,8 @@ function BookedViewModeSwitch({
                 onClick={() => onChange(mode)}
                 className={`group relative flex flex-col items-stretch rounded-xl px-3 py-2.5 text-left transition-all duration-200 sm:flex-row sm:items-center sm:gap-3 sm:py-2.5 sm:pl-3 sm:pr-3.5 ${
                   selected
-                    ? "bg-[var(--color-bg)] shadow-[0_1px_3px_rgba(15,23,42,0.08),0_0_0_1px_rgba(15,23,42,0.06)] ring-1 ring-[var(--color-border)]"
-                    : "hover:bg-[var(--color-bg)]/70"
+                    ? "bg-[var(--color-bg)] shadow-[0_1px_3px_rgba(15,23,42,0.08),0_0_0_1px_rgba(15,23,42,0.06)] ring-1 ring-[var(--color-border)] [[data-theme=dark]_&]:bg-[var(--color-raised)] [[data-theme=dark]_&]:shadow-none"
+                    : "hover:bg-[var(--color-bg)]/70 [[data-theme=dark]_&]:hover:bg-[var(--color-raised)]"
                 } focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]`}
               >
                 <span
@@ -526,7 +526,7 @@ function CalendarPeriodModeSwitch({
 
   return (
     <div
-      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]"
+      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-1 [[data-theme=dark]_&]:bg-transparent"
       role="radiogroup"
       aria-label="Calendar time range"
     >
@@ -550,7 +550,7 @@ function CalendarPeriodModeSwitch({
               <span className="block truncate">{label}</span>
               <span
                 className={`mt-0.5 hidden text-[10px] font-normal leading-tight sm:block ${
-                  selected ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-subtle)]"
+                  selected ? "text-white/85" : "text-[var(--color-text-subtle)]"
                 }`}
               >
                 {hint}
@@ -742,7 +742,7 @@ function BookedAppointmentsPanel({
           <>
             <CalendarPeriodModeSwitch value={calendarPeriodMode} onChange={setCalendarPeriodMode} />
 
-            <div className="flex items-center justify-between gap-2 rounded-2xl border border-[var(--color-border)] bg-gradient-to-b from-[var(--color-bg)] to-[var(--color-surface)] px-3 py-2.5 shadow-sm">
+            <div className="flex items-center justify-between gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 shadow-sm [[data-theme=dark]_&]:bg-transparent [[data-theme=dark]_&]:shadow-none">
               <button
                 type="button"
                 onClick={() => {
@@ -755,7 +755,7 @@ function BookedAppointmentsPanel({
                     setCalendarFocus((prev) => addCalendarDays(prev, -1));
                   }
                 }}
-                className="shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] shadow-sm hover:bg-[var(--color-raised)]"
+                className="shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] shadow-sm hover:bg-[var(--color-raised)] [[data-theme=dark]_&]:bg-[var(--color-raised)] [[data-theme=dark]_&]:hover:bg-[var(--color-border)]"
               >
                 ← Prev
               </button>
@@ -767,7 +767,7 @@ function BookedAppointmentsPanel({
                   setCalendarFocus(new Date());
                   setSelectedDateKey(null);
                 }}
-                className="min-w-0 max-w-[46%] flex-1 truncate rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-center text-xs font-semibold text-[var(--color-text)] shadow-sm hover:bg-[var(--color-raised)] sm:max-w-none sm:flex-none sm:px-3"
+                className="min-w-0 max-w-[46%] flex-1 truncate rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-center text-xs font-semibold text-[var(--color-text)] shadow-sm hover:bg-[var(--color-raised)] [[data-theme=dark]_&]:bg-[var(--color-raised)] [[data-theme=dark]_&]:hover:bg-[var(--color-border)] sm:max-w-none sm:flex-none sm:px-3"
               >
                 {currentPeriodJumpButtonLabel(calendarPeriodMode, calendarFocus)}
               </button>
@@ -783,7 +783,7 @@ function BookedAppointmentsPanel({
                     setCalendarFocus((prev) => addCalendarDays(prev, 1));
                   }
                 }}
-                className="shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] shadow-sm hover:bg-[var(--color-raised)]"
+                className="shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] shadow-sm hover:bg-[var(--color-raised)] [[data-theme=dark]_&]:bg-[var(--color-raised)] [[data-theme=dark]_&]:hover:bg-[var(--color-border)]"
               >
                 Next →
               </button>
@@ -799,7 +799,7 @@ function BookedAppointmentsPanel({
                   ))}
                 </div>
 
-                <div className="grid grid-cols-7 gap-1.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 p-1.5">
+                <div className="grid grid-cols-7 gap-1.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 p-1.5 [[data-theme=dark]_&]:border-transparent [[data-theme=dark]_&]:bg-transparent [[data-theme=dark]_&]:p-0">
                   {gridDays.map((day) => {
                     const key = dateKeyLocal(day.toISOString());
                     const dayRows = rowsByDate.get(key) ?? [];
@@ -820,8 +820,8 @@ function BookedAppointmentsPanel({
                         }}
                         className={`min-h-[7.25rem] rounded-xl border px-2 py-1.5 text-left transition ${
                           isSelected
-                            ? "border-[color-mix(in_srgb,var(--color-primary)_45%,var(--color-border))] bg-[var(--color-primary-soft)] shadow-sm ring-1 ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
-                            : "border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface)]"
+                            ? "border-[color-mix(in_srgb,var(--color-primary)_45%,var(--color-border))] bg-[var(--color-primary-soft)] shadow-sm ring-1 ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] [[data-theme=dark]_&]:border-[var(--color-primary)]"
+                            : `border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface)] ${inMonth ? "[[data-theme=dark]_&]:bg-[var(--color-raised)]" : "[[data-theme=dark]_&]:bg-transparent"} [[data-theme=dark]_&]:hover:bg-[var(--color-border)]`
                         } ${inMonth ? "text-[var(--color-text)]" : "text-[var(--color-text-subtle)]/80"}`}
                       >
                         <div className="flex items-center justify-between">
@@ -871,7 +871,7 @@ function BookedAppointmentsPanel({
                 </div>
 
                 <div className="overflow-x-auto pb-1">
-                  <div className="grid min-w-[36rem] grid-cols-7 gap-1.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 p-1.5 sm:min-w-0">
+                  <div className="grid min-w-[36rem] grid-cols-7 gap-1.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 p-1.5 sm:min-w-0 [[data-theme=dark]_&]:border-transparent [[data-theme=dark]_&]:bg-transparent [[data-theme=dark]_&]:p-0">
                     {weekDays.map((day) => {
                       const key = dateKeyLocal(day.toISOString());
                       const dayRows = rowsByDate.get(key) ?? [];
@@ -891,8 +891,8 @@ function BookedAppointmentsPanel({
                           }}
                           className={`min-h-[9.5rem] rounded-xl border px-1.5 py-1.5 text-left transition sm:px-2 ${
                             isSelected
-                              ? "border-[color-mix(in_srgb,var(--color-primary)_45%,var(--color-border))] bg-[var(--color-primary-soft)] shadow-sm ring-1 ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
-                              : "border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface)]"
+                              ? "border-[color-mix(in_srgb,var(--color-primary)_45%,var(--color-border))] bg-[var(--color-primary-soft)] shadow-sm ring-1 ring-[color-mix(in_srgb,var(--color-primary)_25%,transparent)] [[data-theme=dark]_&]:border-[var(--color-primary)]"
+                              : "border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface)] [[data-theme=dark]_&]:bg-[var(--color-raised)] [[data-theme=dark]_&]:hover:bg-[var(--color-border)]"
                           } text-[var(--color-text)]`}
                         >
                           <div className="flex items-center justify-between gap-1">
@@ -908,7 +908,7 @@ function BookedAppointmentsPanel({
                           {dayRows.length > 0 ? (
                             <div className="mt-2 space-y-1.5">
                               {dayRows.slice(0, 5).map((row) => (
-                                <div key={row.id} className="rounded-md bg-[var(--color-surface)]/90 px-1 py-0.5">
+                                <div key={row.id} className="rounded-md bg-[var(--color-surface)]/90 px-1 py-0.5 [[data-theme=dark]_&]:bg-[var(--color-border)]">
                                   <p className="truncate text-[9px] font-semibold tabular-nums text-[var(--color-text)]">
                                     {formatListTime(row.startTime)}
                                   </p>
@@ -931,7 +931,7 @@ function BookedAppointmentsPanel({
             ) : null}
 
             {calendarPeriodMode === "day" ? (
-              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 p-3 sm:p-4">
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 p-3 sm:p-4 [[data-theme=dark]_&]:bg-transparent">
                 {(() => {
                   const dayKey = dateKeyLocal(calendarFocus.toISOString());
                   const dayRowsSorted = [...(rowsByDate.get(dayKey) ?? [])].sort(
@@ -949,7 +949,7 @@ function BookedAppointmentsPanel({
                             className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl border text-center shadow-sm ${
                               isToday
                                 ? "border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] bg-gradient-to-b from-[var(--color-success-soft)] to-[var(--color-bg)] text-[var(--color-success)]"
-                                : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)]"
+                                : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] [[data-theme=dark]_&]:bg-[var(--color-raised)]"
                             }`}
                           >
                             <span className="text-[9px] font-bold uppercase leading-none text-[var(--color-text-muted)]">{parts.monthShort}</span>
@@ -970,7 +970,7 @@ function BookedAppointmentsPanel({
                         </div>
                       </div>
                       {dayRowsSorted.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
+                        <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-8 text-center [[data-theme=dark]_&]:bg-[var(--color-raised)] text-sm text-[var(--color-text-muted)]">
                           No bookings on this date. Use Prev / Next, or jump to today (
                           {currentPeriodJumpButtonLabel(calendarPeriodMode, new Date())}).
                         </div>
@@ -985,7 +985,7 @@ function BookedAppointmentsPanel({
                                   setSelectedDateKey(dayKey);
                                   setOpenDateKey(dayKey);
                                 }}
-                                className="flex w-full gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 text-left shadow-sm transition hover:border-[var(--color-border-hover)] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
+                                className="flex w-full gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 text-left shadow-sm [[data-theme=dark]_&]:bg-[var(--color-raised)] transition hover:border-[var(--color-border-hover)] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
                               >
                                 <div className="flex w-[4.5rem] shrink-0 flex-col items-end justify-center border-r border-[var(--color-border-muted)] pr-3 text-right">
                                   <span className="text-xs font-bold tabular-nums text-[var(--color-text)]">
@@ -1045,7 +1045,7 @@ function BookedAppointmentsPanel({
             )}
           </>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-gradient-to-b from-[var(--color-surface)] via-[var(--color-bg)] to-[var(--color-surface)] shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_1px_2px_rgba(15,23,42,0.04)]">
+          <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-sm)] [[data-theme=dark]_&]:bg-transparent [[data-theme=dark]_&]:shadow-none">
             <div className="max-h-[min(70vh,42rem)] overflow-y-auto">
               <div className="divide-y divide-[var(--color-border-muted)]">
                 {listSections.map((section) => {
@@ -1053,8 +1053,8 @@ function BookedAppointmentsPanel({
                   const relative = relativeListDayHint(section.dateKey);
                   const isToday = relative === "Today";
                   return (
-                    <div key={section.dateKey} className="bg-[var(--color-bg)]/40 px-3 py-4 sm:px-4">
-                      <div className="sticky top-0 z-[1] -mx-3 mb-3 border-b border-[var(--color-border)] bg-gradient-to-b from-[color-mix(in_srgb,var(--color-bg)_98%,transparent)] to-[color-mix(in_srgb,var(--color-bg)_90%,transparent)] px-3 py-3 backdrop-blur-md sm:-mx-4 sm:px-4">
+                    <div key={section.dateKey} className="bg-[var(--color-bg)]/40 px-3 py-4 sm:px-4 [[data-theme=dark]_&]:bg-transparent">
+                      <div className="sticky top-0 z-[1] -mx-3 mb-3 border-b border-[var(--color-border)] bg-[var(--color-bg)] [[data-theme=dark]_&]:bg-[var(--color-surface)] px-3 py-3 backdrop-blur-md sm:-mx-4 sm:px-4">
                         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                           {parts ? (
                             <div
@@ -1107,7 +1107,7 @@ function BookedAppointmentsPanel({
                                 setOpenDateKey(section.dateKey);
                                 setSelectedDateKey(section.dateKey);
                               }}
-                              className="group flex w-full gap-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]/90 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-[var(--color-border-hover)] hover:bg-[var(--color-bg)] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)] sm:gap-1"
+                              className="group flex w-full gap-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]/90 text-left [[data-theme=dark]_&]:bg-[var(--color-raised)] shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-[var(--color-border-hover)] hover:bg-[var(--color-bg)] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)] sm:gap-1"
                             >
                               <div
                                 className={`flex w-[4.75rem] shrink-0 flex-col justify-center gap-0.5 border-r border-[var(--color-border-muted)] bg-[var(--color-surface)]/80 px-3 py-3.5 text-right sm:w-[5.25rem] ${

@@ -28,14 +28,16 @@ export function AppointmentPageHeader({
   title: string;
   description: ReactNode;
   status?: string;
-  statusTone?: "success" | "warning" | "neutral";
+  statusTone?: "success" | "warning" | "neutral" | "attention";
   metrics?: AppointmentPageMetric[];
   actions?: AppointmentPageAction[];
   variant?: "default" | "command";
 }) {
   const command = variant === "command";
   const statusClass =
-    command && statusTone === "success"
+    statusTone === "attention"
+      ? "vr-attention-pill"
+      : command && statusTone === "success"
       ? "border-white/20 bg-white/10 text-white"
       : command && statusTone === "warning"
         ? "border-white/15 bg-white/[0.08] text-white"
@@ -47,7 +49,9 @@ export function AppointmentPageHeader({
         ? "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:border-white/15 dark:bg-white/10 dark:text-neutral-200"
         : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)]";
   const dotClass =
-    command
+    statusTone === "attention"
+      ? "bg-white motion-safe:animate-pulse"
+      : command
       ? statusTone === "success" || statusTone === "warning"
         ? "bg-white"
         : "bg-neutral-400"

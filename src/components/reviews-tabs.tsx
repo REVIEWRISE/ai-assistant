@@ -12,6 +12,8 @@ import type { ReviewSyncCronConfig } from "@/lib/review-sync-cron";
 import type { ReviewReplyAutomationConfig } from "@/lib/review-reply-automation";
 
 type InboxItem = {
+  /** Already answered on the source platform, so it stays visible but is not waiting. */
+  replied: boolean;
   id: string;
   rating: string;
   quote: string;
@@ -170,7 +172,7 @@ export function ReviewsTabs({
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const connectedSourceCount = reviewServices.filter((service) => service.status === "Connected").length;
-  const pendingReviewCount = inbox.length;
+  const pendingReviewCount = inbox.filter((review) => !review.replied).length;
   const humanReviewCount = inbox.filter((review) => review.status === "Needs human review").length;
   const autoReadyCount = inbox.filter((review) => review.status === "Safe to auto-publish").length;
   const assistantReady = connectedSourceCount > 0;
@@ -268,7 +270,7 @@ export function ReviewsTabs({
         description={assistantInfo}
         status={{
           label: presenceLabel,
-          tone: !assistantReady ? "neutral" : pendingReviewCount > 0 ? "warning" : "success",
+          tone: !assistantReady ? "neutral" : pendingReviewCount > 0 ? "attention" : "success",
         }}
         icon={
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -400,7 +402,7 @@ export function ReviewsTabs({
             aside={
               <div className="flex flex-wrap gap-2">
                 <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
-                  {pendingReviewCount} in inbox
+                  {inbox.length} in inbox
                 </span>
                 <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${humanReviewCount > 0 ? "vr-app-status-danger" : "border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)]"}`}>
                   {humanReviewCount} need review
