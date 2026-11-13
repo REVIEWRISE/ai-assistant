@@ -62,9 +62,11 @@ export function CalendarServiceManager({
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs">
-          <span className="hidden text-[11px] text-[var(--color-text-muted)] sm:inline">
-            {providers.length - connectedCount} need attention
-          </span>
+          {providers.length > connectedCount ? (
+            <span className="hidden text-[11px] text-[var(--color-text-muted)] sm:inline">
+              {providers.length - connectedCount} not connected
+            </span>
+          ) : null}
           <button
             type="button"
             onClick={() => setCollapsed((prev) => !prev)}

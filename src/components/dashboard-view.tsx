@@ -213,8 +213,9 @@ export function DashboardView({ data }: { data: DashboardData }) {
   );
   // Non-admins already get the "Getting started" bar; don't repeat it as a hero badge.
   const showHeroBadge = isAdmin || data.heroBadge !== "Finish setup";
+  const needsAttention = data.heroBadge === "Needs attention";
   const attention =
-    data.heroBadge === "Needs attention" ||
+    needsAttention ||
     data.heroBadge === "Finish setup" ||
     data.heroBadge === "Cancels soon";
 
@@ -247,8 +248,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
                     {data.heroEyebrow}
                   </p>
                   {showHeroBadge ? (
-                  <span className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${attention || hasActivity ? "border-white/25 bg-white/15 text-white" : "border-white/20 bg-white/10 text-white/85"}`}>
-                    <span className={`size-1.5 rounded-full ${attention ? "bg-amber-300" : hasActivity || data.heroBadge === "All clear" ? "bg-white" : "bg-white/50"}`} aria-hidden />
+                  <span className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${needsAttention ? "vr-attention-pill" : attention || hasActivity ? "border-white/25 bg-white/15 text-white" : "border-white/20 bg-white/10 text-white/85"}`}>
+                    <span className={`size-1.5 rounded-full ${needsAttention ? "bg-white motion-safe:animate-pulse" : attention ? "bg-amber-300" : hasActivity || data.heroBadge === "All clear" ? "bg-white" : "bg-white/50"}`} aria-hidden />
                     {data.heroBadge}
                   </span>
                   ) : null}
@@ -271,8 +272,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
                     {data.heroEyebrow}
                   </p>
                   {showHeroBadge ? (
-                  <span className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${attention || hasActivity ? "border-white/25 bg-white/15 text-white" : "border-white/20 bg-white/10 text-white/85"}`}>
-                    <span className={`size-1.5 rounded-full ${attention ? "bg-amber-300" : hasActivity || data.heroBadge === "All clear" ? "bg-white" : "bg-white/50"}`} aria-hidden />
+                  <span className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${needsAttention ? "vr-attention-pill" : attention || hasActivity ? "border-white/25 bg-white/15 text-white" : "border-white/20 bg-white/10 text-white/85"}`}>
+                    <span className={`size-1.5 rounded-full ${needsAttention ? "bg-white motion-safe:animate-pulse" : attention ? "bg-amber-300" : hasActivity || data.heroBadge === "All clear" ? "bg-white" : "bg-white/50"}`} aria-hidden />
                     {data.heroBadge}
                   </span>
                   ) : null}

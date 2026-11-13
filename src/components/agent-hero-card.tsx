@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-export type AgentHeroTone = "neutral" | "success" | "warning";
+export type AgentHeroTone = "neutral" | "success" | "warning" | "attention";
 
 export type AgentHeroAction = {
   label: string;
@@ -17,12 +17,14 @@ const DOT_CLASS: Record<AgentHeroTone, string> = {
   neutral: "bg-white/60",
   success: "bg-emerald-400",
   warning: "bg-amber-400",
+  attention: "bg-red-500",
 };
 
 const PILL_CLASS: Record<AgentHeroTone, string> = {
   neutral: "border-white/15 bg-white/10 text-white/85",
   success: "border-emerald-400/30 bg-emerald-400/15 text-emerald-100",
   warning: "border-amber-400/30 bg-amber-400/15 text-amber-100",
+  attention: "vr-attention-pill",
 };
 
 const PRIMARY_BUTTON =
@@ -106,7 +108,10 @@ export function AgentHeroCard({
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${PILL_CLASS[status.tone]}`}
                 >
-                  <span className={`size-1.5 rounded-full ${DOT_CLASS[status.tone]}`} aria-hidden />
+                  <span
+                    className={`size-1.5 rounded-full ${status.tone === "attention" ? "bg-white motion-safe:animate-pulse" : DOT_CLASS[status.tone]}`}
+                    aria-hidden
+                  />
                   {status.label}
                 </span>
                 {badges}

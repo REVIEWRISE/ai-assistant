@@ -33,6 +33,13 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/*": ["./docs/support/**/*"],
   },
+  async rewrites() {
+    return {
+      // Runs only after static files are checked, so uploads present at startup are still
+      // served directly. Anything uploaded later falls through to the route that reads disk.
+      fallback: [{ source: "/uploads/:path*", destination: "/api/uploads/:path*" }],
+    };
+  },
   async headers() {
     return [
       {

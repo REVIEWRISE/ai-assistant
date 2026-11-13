@@ -70,7 +70,7 @@ export default async function UserManagementPage() {
             : "Create accounts, assign roles, and manage sign-in access across every workspace."
         }
         status={status}
-        statusTone={totalUsers === 0 || attentionUsers > 0 ? "warning" : "success"}
+        statusTone={attentionUsers > 0 ? "attention" : totalUsers === 0 ? "warning" : "success"}
         actions={[
           { href: "/settings/access/roles", label: "Manage roles" },
           { href: "/settings/access/permissions", label: "Menu permissions", primary: true },
