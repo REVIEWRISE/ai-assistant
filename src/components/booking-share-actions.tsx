@@ -150,9 +150,6 @@ export function BookingShareActions({
                   </p>
                 </div>
                 <div className="flex justify-end gap-2 border-t border-[var(--color-border)] px-5 py-3.5">
-                  <button type="button" onClick={() => setShowQr(false)} className={secondaryButton}>
-                    Close
-                  </button>
                   <a href={qrDataUrl} download={qrFileName} className={primaryButton}>
                     <Icon path={ICONS.download} />
                     Download PNG
