@@ -11,7 +11,7 @@ function createPrismaClient() {
 }
 
 /** Bump when Prisma schema changes so dev HMR does not keep a stale client (e.g. missing new columns). */
-const PRISMA_CLIENT_GENERATION = "2026-11-09-voice-follow-up-done";
+const PRISMA_CLIENT_GENERATION = "2026-11-26-booking-slug";
 
 const globalWithMeta = globalForPrisma as typeof globalForPrisma & {
   _prismaGeneration?: string;

@@ -260,17 +260,12 @@ function BookedSourceFilterSwitch({
 }: {
   value: BookedSourceFilter;
   onChange: (value: BookedSourceFilter) => void;
-  counts: { all: number; chatbot_embed: number; voice_retell: number };
+  counts: Record<BookedSourceFilter, number>;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
       {BOOKED_SOURCE_FILTER_OPTIONS.map((option) => {
-        const count =
-          option.key === "all"
-            ? counts.all
-            : option.key === "chatbot_embed"
-              ? counts.chatbot_embed
-              : counts.voice_retell;
+        const count = counts[option.key];
         const active = value === option.key;
         return (
           <button
@@ -623,6 +618,8 @@ function BookedAppointmentsPanel({
     () => ({
       all: allRows.length,
       chatbot_embed: allRows.filter((row) => row.source === "chatbot_embed").length,
+      booking_link: allRows.filter((row) => row.source === "booking_link").length,
+      booking_qr: allRows.filter((row) => row.source === "booking_qr").length,
       voice_retell: allRows.filter((row) => row.source === "voice_retell").length,
     }),
     [allRows],

@@ -34,6 +34,7 @@ import {
 } from "@/lib/sync-appointment-calendar-event";
 import { assertOrgFeatureAccess } from "@/lib/entitlements";
 import { checkChatbotRateLimit } from "@/lib/rate-limit";
+import { WEB_BOOKING_SOURCES, webBookingSource } from "@/lib/appointment-source";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -147,6 +148,8 @@ export async function POST(request: Request) {
         .slice(-10)
     : [];
 
+  const source = webBookingSource(b.channel);
+
   if (!UUID_RE.test(organizationId)) {
     return NextResponse.json({ error: "Invalid organization" }, { status: 400 });
   }
@@ -241,7 +244,7 @@ export async function POST(request: Request) {
         const recentDuplicate = await prisma.appointment.findFirst({
           where: {
             organizationId,
-            source: "chatbot_embed",
+            source: { in: [...WEB_BOOKING_SOURCES] },
             startTime: parsed.startTime!,
             endTime: parsed.endTime!,
             partySize: parsed.partySize,
@@ -331,7 +334,7 @@ export async function POST(request: Request) {
             startTime: parsed.startTime!,
             endTime: parsed.endTime!,
             status: "requested",
-            source: "chatbot_embed",
+            source,
             serviceDescription: resolvedServiceDescription?.slice(0, 500) ?? null,
             partySize: parsed.partySize,
             bookingFlowQa: bookingFlowQa ?? undefined,
@@ -509,7 +512,7 @@ export async function POST(request: Request) {
             startTime: parsed.startTime!,
             endTime: parsed.endTime!,
             status: "requested",
-            source: "chatbot_embed",
+            source,
             serviceDescription: resolvedServiceDescription?.slice(0, 500) ?? null,
             partySize: parsed.partySize,
             bookingFlowQa: bookingFlowQa ?? null,
