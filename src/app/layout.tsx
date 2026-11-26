@@ -53,16 +53,27 @@ export const metadata: Metadata = {
 };
 
 const themeInitializer = `
-  try {
-    const stored = localStorage.getItem("vyntrise-theme");
-    const theme = stored === "light" || stored === "dark"
-      ? stored
-      : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    document.documentElement.dataset.theme = theme;
-    document.documentElement.style.colorScheme = theme;
-  } catch (_) {
-    document.documentElement.dataset.theme = "light";
-  }
+  (function () {
+    var root = document.documentElement;
+    try {
+      if (location.pathname.indexOf("/embed") === 0) {
+        // Embedded on a customer's site: the visitor's OS dark mode must not decide the look.
+        // Light by default; the site owner can add &theme=dark. color-scheme "normal" keeps the
+        // iframe transparent: browsers paint an opaque backdrop when it differs from the host page.
+        root.dataset.theme = new URLSearchParams(location.search).get("theme") === "dark" ? "dark" : "light";
+        root.style.colorScheme = "normal";
+        return;
+      }
+      var stored = localStorage.getItem("vyntrise-theme");
+      var theme = stored === "light" || stored === "dark"
+        ? stored
+        : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      root.dataset.theme = theme;
+      root.style.colorScheme = theme;
+    } catch (_) {
+      root.dataset.theme = "light";
+    }
+  })();
 `;
 
 export default function RootLayout({
