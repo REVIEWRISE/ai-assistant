@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  VoiceMinutesStatValue,
+  voiceMinutesTitle,
+  type VoiceMinutesMeterData,
+} from "@/components/voice-minutes-meter";
 import { AgentHeroCard } from "@/components/agent-hero-card";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
@@ -291,6 +296,7 @@ export function VoiceAgentAssistantCard({
   voiceCatalog,
   onSetup,
   onBooking,
+  minutesUsage,
 }: {
   config: RetellVoiceAgentConfig;
   knowledge: KnowledgeSnapshot;
@@ -299,6 +305,7 @@ export function VoiceAgentAssistantCard({
   voiceCatalog: RetellVoiceListItem[];
   onSetup: () => void;
   onBooking: () => void;
+  minutesUsage?: VoiceMinutesMeterData;
 }) {
   const hasAgent = Boolean(config.retellAgentId.trim());
   const selectedVoiceId = resolveRetellVoiceId(config);
@@ -311,14 +318,27 @@ export function VoiceAgentAssistantCard({
   const typeLabel = config.enabled ? "Inbound calls" : "Paused";
   const knowledgeLabel = statusLabel(knowledge.status);
   const bookingLabel = knowledgeConfig.enablePhoneBooking ? "On" : "Off";
+  const callsPaused =
+    hasAgent &&
+    Boolean(minutesUsage) &&
+    (!minutesUsage!.billingActive ||
+      (minutesUsage!.voiceIncluded &&
+        minutesUsage!.includedMinutes > 0 &&
+        minutesUsage!.usedMinutes >= minutesUsage!.includedMinutes));
   const presenceLabel = remoteAgentMissing
     ? "Needs repair"
-    : hasAgent
+    : callsPaused
+      ? "Calls paused"
+      : hasAgent
       ? "On duty"
       : "Not linked yet";
   const assistantInfo = remoteAgentMissing
     ? "Reconnect this agent so callers keep reaching your team."
-    : hasAgent
+    : callsPaused
+      ? !minutesUsage!.billingActive
+        ? "The plan isn't active, so callers can't reach this agent. Renew to start answering again."
+        : "This period's calling minutes are used up. Calls resume when the plan renews."
+      : hasAgent
       ? knowledgeConfig.enablePhoneBooking
         ? "Answers inbound calls and can book appointments while you work."
         : "Answers inbound calls for your workspace. Turn on booking when you’re ready."
@@ -336,7 +356,7 @@ export function VoiceAgentAssistantCard({
       description={assistantInfo}
       status={{
         label: presenceLabel,
-        tone: remoteAgentMissing ? "warning" : hasAgent ? "success" : "neutral",
+        tone: remoteAgentMissing || callsPaused ? "warning" : hasAgent ? "success" : "neutral",
       }}
       badges={
         agentIdShort ? (
@@ -369,6 +389,15 @@ export function VoiceAgentAssistantCard({
         { label: "Language", value: languageLabel, title: languageLabel },
         { label: "Knowledge", value: knowledgeLabel },
         { label: "Booking", value: bookingLabel },
+        ...(minutesUsage
+          ? [
+              {
+                label: "Minutes",
+                value: <VoiceMinutesStatValue usage={minutesUsage} />,
+                title: voiceMinutesTitle(minutesUsage),
+              },
+            ]
+          : []),
       ]}
     />
   );

@@ -249,12 +249,13 @@ function DashboardBarChartCard({
 
 export function DashboardOverviewGrid({
   stats,
-  organizationName,
+  title,
   eyebrow = "Workspace pulse",
   caption = "Live operational totals",
 }: {
   stats: DashboardOverviewStat[];
-  organizationName?: string | null;
+  /** Heading under the eyebrow; null falls back to the all-workspaces wording. */
+  title?: string | null;
   eyebrow?: string;
   caption?: string;
 }) {
@@ -275,7 +276,7 @@ export function DashboardOverviewGrid({
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-h)]">{eyebrow}</p>
           <h2 className="mt-1 text-base font-semibold text-[var(--color-text)]">
-            {organizationName ?? "Collective performance"}
+            {title ?? "Collective performance"}
           </h2>
         </div>
         <p className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-[10px] font-medium text-[var(--color-text-muted)]">{caption}</p>
@@ -284,7 +285,7 @@ export function DashboardOverviewGrid({
         {stats.map((stat) => (
           <Link
             key={stat.id}
-            href={stat.href}
+            href={stat.action?.href ?? stat.href}
             className={`group relative min-w-0 overflow-hidden rounded-2xl border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] ${
               stats.length === 1
                 ? "flex flex-wrap items-center justify-between gap-4 sm:flex-nowrap"
@@ -300,6 +301,11 @@ export function DashboardOverviewGrid({
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">{stat.title}</p>
                 <p className="mt-2 text-[1.7rem] font-semibold leading-none tracking-tight text-[var(--color-text)] tabular-nums">{stat.value}</p>
                 <p className="mt-3 line-clamp-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{stat.hint}</p>
+                {stat.action ? (
+                  <p className="vr-app-alert vr-app-alert-warning mt-2.5 !rounded-lg !px-2.5 !py-1.5 text-[11px] font-medium">
+                    {stat.action.message}
+                  </p>
+                ) : null}
               </div>
               <span
                 className="flex size-8 shrink-0 items-center justify-center rounded-xl text-xs font-semibold"
@@ -314,9 +320,13 @@ export function DashboardOverviewGrid({
             </div>
             <p
               className={`text-[11px] font-semibold ${stats.length === 1 ? "shrink-0 sm:self-end" : "mt-2.5"}`}
-              style={{ color: stat.accent }}
+              style={{ color: stat.action ? undefined : stat.accent }}
             >
-              View details{" "}
+              {stat.action ? (
+                <span className="text-[var(--color-primary-h)]">{stat.action.label}</span>
+              ) : (
+                "View details"
+              )}{" "}
               <span className="inline-block transition-transform group-hover:translate-x-0.5" aria-hidden>
                 →
               </span>

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { DashboardVoiceFollowUpDone } from "@/components/dashboard-voice-follow-up-done";
+import { DashboardVoiceReportChart } from "@/components/dashboard-voice-report-chart";
+import { DashboardVoiceStatTiles } from "@/components/dashboard-voice-stat-tiles";
 import type { VoiceCallReport, VoiceFollowUpReason } from "@/lib/voice-call-report";
 
 const CALLS_HREF = "/voice-agent?tab=analytics";
@@ -10,11 +12,6 @@ const REASON_CLASS: Record<VoiceFollowUpReason, string> = {
   no_booking: "border border-transparent bg-[var(--color-primary-soft)] text-[var(--color-primary-h)]",
 };
 
-function formatDuration(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
-}
-
 function reportTitle(report: VoiceCallReport) {
   if (report.totalCalls === 0) return `No calls in the last ${report.periodDays} days`;
   if (report.followUpCount === 0) return "No callers need a follow-up";
@@ -22,12 +19,6 @@ function reportTitle(report: VoiceCallReport) {
 }
 
 export function DashboardVoiceReport({ report }: { report: VoiceCallReport }) {
-  const stats = [
-    { label: "Calls", value: report.totalCalls },
-    { label: "Booked", value: report.bookingEnabled ? report.bookedCalls : "Off" },
-    { label: "Unhappy callers", value: report.unhappyCalls },
-    { label: "Avg length", value: formatDuration(report.avgDurationSeconds) },
-  ];
 
   return (
     <section className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-md)] lg:p-6 [[data-theme=dark]_&]:border-[var(--color-border-hover)]">
@@ -52,14 +43,14 @@ export function DashboardVoiceReport({ report }: { report: VoiceCallReport }) {
         </p>
       ) : (
         <>
-          <dl className="mt-4 grid grid-cols-2 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] sm:grid-cols-4 sm:divide-x sm:divide-[var(--color-border)] [[data-theme=dark]_&]:bg-[var(--color-raised)]">
-            {stats.map((stat) => (
-              <div key={stat.label} className="flex min-w-0 flex-col-reverse px-4 py-3">
-                <dt className="text-xs text-[var(--color-text-muted)]">{stat.label}</dt>
-                <dd className="mb-0.5 text-lg font-semibold tabular-nums text-[var(--color-text)]">{stat.value}</dd>
-              </div>
-            ))}
-          </dl>
+          <DashboardVoiceStatTiles report={report} bookingHref="/voice-agent?tab=agent" />
+
+          <DashboardVoiceReportChart
+            days={report.days}
+            bookingEnabled={report.bookingEnabled}
+            peakWindowLabel={report.peakWindowLabel}
+            peakWindowCalls={report.peakWindowCalls}
+          />
 
           {report.followUps.length > 0 ? (
             <ul className="mt-4 divide-y divide-[var(--color-border)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] [[data-theme=dark]_&]:bg-[var(--color-raised)]">
@@ -81,18 +72,18 @@ export function DashboardVoiceReport({ report }: { report: VoiceCallReport }) {
                     <p className="mt-1 text-xs font-medium text-[var(--color-text-muted)]">{followUp.nextStep}</p>
                   </div>
 
-                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                     {followUp.caller ? (
                       <a
                         href={`tel:${followUp.caller}`}
-                        className="inline-flex min-h-10 items-center rounded-full bg-[var(--color-primary)] px-4 text-sm font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
+                        className="inline-flex min-h-8 items-center rounded-full bg-[var(--color-primary)] px-3.5 text-xs font-semibold text-[var(--color-primary-fg)] transition hover:bg-[var(--color-primary-fill-h)]"
                       >
                         Call back
                       </a>
                     ) : null}
                     <Link
                       href={`${CALLS_HREF}&call=${encodeURIComponent(followUp.id)}`}
-                      className="inline-flex min-h-10 items-center rounded-full border border-[var(--color-border-hover)] px-4 text-sm font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary-h)]"
+                      className="inline-flex min-h-8 items-center rounded-full border border-[var(--color-border-hover)] px-3.5 text-xs font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary-h)]"
                     >
                       View call
                     </Link>
