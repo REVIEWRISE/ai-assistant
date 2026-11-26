@@ -37,6 +37,8 @@ import { VoiceListeningWave } from "@/components/voice-listening-wave";
 
 type InteractionMode = "chat" | "voice";
 
+const BACK_TO_MENU = "Back to menu";
+
 export function BookingChatbotIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -97,6 +99,8 @@ type FloatingBookingChatbotProps = {
   /** Fill the host frame instead of floating bottom-right; always open, no close button (the host closes it). */
   fill?: boolean;
   initialInteractionMode?: InteractionMode;
+  /** How the visitor arrived at the public booking page; omitted for the website embed. */
+  channel?: "link" | "qr";
 };
 
 function shouldMergeWithRecentBookingContext(text: string): boolean {
@@ -251,6 +255,7 @@ export function FloatingBookingChatbot({
   defaultOpen = false,
   fill = false,
   initialInteractionMode = "chat",
+  channel,
 }: FloatingBookingChatbotProps) {
   const [open, setOpen] = useState(preview || defaultOpen || fill);
   const [input, setInput] = useState("");
@@ -695,6 +700,7 @@ export function FloatingBookingChatbot({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           organizationId,
+          channel,
           message: trimmed,
           customerName: pickCustomerNameFromAnswers(bookingFlow, answers),
           customerEmail:
@@ -972,9 +978,9 @@ export function FloatingBookingChatbot({
                   <VoiceListeningWave label="Listening to you" />
                 </div>
               ) : null}
-              {actionButtons.length > 0 ? (
+              {actionButtons.some((action) => action !== BACK_TO_MENU) ? (
                 <div className="grid grid-cols-1 gap-2 pt-1">
-                  {actionButtons.map((action) => (
+                  {actionButtons.filter((action) => action !== BACK_TO_MENU).map((action) => (
                     <button
                       key={action}
                       type="button"
@@ -986,6 +992,20 @@ export function FloatingBookingChatbot({
                     </button>
                   ))}
                 </div>
+              ) : null}
+              {/* Navigation, not an answer: a quiet link so it is not mistaken for a choice. */}
+              {actionButtons.includes(BACK_TO_MENU) ? (
+                <button
+                  type="button"
+                  onClick={() => void handleAction(BACK_TO_MENU)}
+                  disabled={sending}
+                  className="inline-flex w-fit items-center gap-1 self-start rounded-lg px-1.5 py-1 text-xs font-medium text-[var(--color-text-muted)] transition hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                  </svg>
+                  Back to menu
+                </button>
               ) : null}
             </div>
           </div>
@@ -1016,7 +1036,11 @@ export function FloatingBookingChatbot({
                 </button>
               </div>
             ) : null}
-            <p className="mb-2.5 text-xs leading-relaxed text-[var(--color-text-muted)]">{helperText}</p>
+            <p className="mb-2.5 text-xs leading-relaxed text-[var(--color-text-muted)]">
+              {bookingStepState === "idle" && actionButtons.length === 0 && !isVoiceOpening
+                ? "Type your request below, including the day and time you want."
+                : helperText}
+            </p>
             {voiceHint ? (
               <p className="mb-2.5 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{voiceHint}</p>
             ) : null}
@@ -1091,7 +1115,8 @@ export function FloatingBookingChatbot({
                 </div>
               </div>
             ) : null}
-            {bookingStepState === "idle" && actionButtons.length === 0 && !isVoiceOpening ? (
+            {/* Setup hint for the business owner; never shown to customers. */}
+            {preview && bookingStepState === "idle" && actionButtons.length === 0 && !isVoiceOpening ? (
               <p className="mb-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
                 No quick-start buttons configured for this assistant.
               </p>

@@ -89,7 +89,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname === "/reset-password" ||
     pathname.startsWith("/reset-password/");
   const isPublicLanding = pathname === "/";
-  const isEmbedRoute = pathname.startsWith("/embed");
+  // Public, chrome-free pages: the website embed and the shareable booking link.
+  const isEmbedRoute = pathname.startsWith("/embed") || pathname.startsWith("/book/");
   const isOnboardingPlan =
     pathname === "/onboarding/plan" || pathname.startsWith("/onboarding/plan/");
   const isBillingExpiredWall =
