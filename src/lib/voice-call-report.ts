@@ -31,8 +31,41 @@ export type VoiceFollowUp = {
   summary: string | null;
 };
 
+export type VoiceReportDay = {
+  /** YYYY-MM-DD in the workspace timezone. */
+  date: string;
+  /** Short axis label, e.g. "Mon". */
+  label: string;
+  /** Long label for tooltips, e.g. "Mon, Nov 24". */
+  fullLabel: string;
+  booked: number;
+  handled: number;
+  followUp: number;
+  unhappy: number;
+  durationSeconds: number;
+};
+
 export type VoiceCallReport = {
   periodDays: number;
+  /** One entry per day, oldest first, including days with no calls. */
+  days: VoiceReportDay[];
+  /** Busiest two-hour window, e.g. "9–11 AM"; null when there are too few calls to say. */
+  peakWindowLabel: string | null;
+  peakWindowCalls: number;
+  /** Same measures for the 7 days before this period; null when there were no calls then. */
+  previous: {
+    totalCalls: number;
+    bookedCalls: number;
+    unhappyCalls: number;
+    avgDurationSeconds: number;
+  } | null;
+  /** Included calling minutes for the billing period; filled by the dashboard loader. */
+  minutes: {
+    includedMinutes: number;
+    usedMinutes: number;
+    remainingMinutes: number;
+    periodEnd: string;
+  } | null;
   totalCalls: number;
   bookedCalls: number;
   unhappyCalls: number;
@@ -77,6 +110,96 @@ function followUpReason(
   return null;
 }
 
+const MIN_CALLS_FOR_PEAK = 5;
+
+function safeTimeZone(timezone: string | null | undefined): string | undefined {
+  if (!timezone) return undefined;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+    return timezone;
+  } catch {
+    return undefined;
+  }
+}
+
+function dayKey(date: Date, timeZone: string | undefined): string {
+  // en-CA formats as YYYY-MM-DD.
+  return date.toLocaleDateString("en-CA", { timeZone });
+}
+
+function hourOf(date: Date, timeZone: string | undefined): number {
+  const hour = Number(date.toLocaleString("en-US", { hour: "numeric", hourCycle: "h23", timeZone }));
+  return Number.isFinite(hour) ? hour % 24 : 0;
+}
+
+function hourLabel(hour: number): string {
+  const h = hour % 24;
+  const suffix = h < 12 ? "AM" : "PM";
+  return `${h % 12 === 0 ? 12 : h % 12} ${suffix}`;
+}
+
+function windowLabel(start: number): string {
+  const end = (start + 2) % 24;
+  const startLabel = hourLabel(start);
+  const endLabel = hourLabel(end);
+  // "9–11 AM" when both ends share AM/PM, otherwise "11 AM–1 PM".
+  return startLabel.slice(-2) === endLabel.slice(-2)
+    ? `${startLabel.slice(0, -3)}–${endLabel}`
+    : `${startLabel}–${endLabel}`;
+}
+
+function buildDays(
+  calls: VoiceReportCall[],
+  outcomeOf: (call: VoiceReportCall) => "booked" | "handled" | "followUp",
+  now: Date,
+  timeZone: string | undefined,
+): VoiceReportDay[] {
+  const days: VoiceReportDay[] = [];
+  const byKey = new Map<string, VoiceReportDay>();
+  for (let offset = VOICE_REPORT_DAYS - 1; offset >= 0; offset -= 1) {
+    const date = new Date(now.getTime() - offset * 24 * 60 * 60 * 1000);
+    const key = dayKey(date, timeZone);
+    if (byKey.has(key)) continue;
+    const day: VoiceReportDay = {
+      date: key,
+      label: date.toLocaleDateString("en-US", { weekday: "short", timeZone }),
+      fullLabel: date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone }),
+      booked: 0,
+      handled: 0,
+      followUp: 0,
+      unhappy: 0,
+      durationSeconds: 0,
+    };
+    byKey.set(key, day);
+    days.push(day);
+  }
+  for (const call of calls) {
+    const day = byKey.get(dayKey(call.createdAt, timeZone));
+    if (!day) continue;
+    day[outcomeOf(call)] += 1;
+    if (isUnhappy(call.sentiment)) day.unhappy += 1;
+    day.durationSeconds += call.durationSeconds;
+  }
+  return days;
+}
+
+function peakWindow(calls: VoiceReportCall[], timeZone: string | undefined) {
+  if (calls.length < MIN_CALLS_FOR_PEAK) return { label: null, calls: 0 };
+  const perHour = new Array<number>(24).fill(0);
+  for (const call of calls) perHour[hourOf(call.createdAt, timeZone)] += 1;
+  let best = 0;
+  let bestCount = -1;
+  for (let hour = 0; hour < 24; hour += 1) {
+    const count = perHour[hour] + perHour[(hour + 1) % 24];
+    if (count > bestCount) {
+      best = hour;
+      bestCount = count;
+    }
+  }
+  // A "peak" holding a single call says nothing useful.
+  return bestCount >= 2 ? { label: windowLabel(best), calls: bestCount } : { label: null, calls: 0 };
+}
+
 function formatWhen(date: Date, timezone: string | null | undefined): string {
   const options: Intl.DateTimeFormatOptions = {
     month: "short",
@@ -97,8 +220,11 @@ export function buildVoiceCallReport(input: {
   bookedCallIds: Set<string>;
   bookingEnabled: boolean;
   timezone?: string | null;
+  now?: Date;
 }): VoiceCallReport {
   const { calls, bookedCallIds, bookingEnabled, timezone } = input;
+  const now = input.now ?? new Date();
+  const timeZone = safeTimeZone(timezone);
 
   const bookedNumbers = new Set(
     calls.filter((call) => bookedCallIds.has(call.callId) && call.fromNumber).map((call) => call.fromNumber),
@@ -139,10 +265,25 @@ export function buildVoiceCallReport(input: {
     return true;
   });
 
+  const followUpCallIds = new Set(candidates.map(({ call }) => call.id));
+  const days = buildDays(
+    calls,
+    (call) =>
+      followUpCallIds.has(call.id) ? "followUp" : bookedCallIds.has(call.callId) ? "booked" : "handled",
+    now,
+    timeZone,
+  );
+  const peak = peakWindow(calls, timeZone);
+
   const totalDuration = calls.reduce((sum, call) => sum + call.durationSeconds, 0);
 
   return {
     periodDays: VOICE_REPORT_DAYS,
+    days,
+    peakWindowLabel: peak.label,
+    peakWindowCalls: peak.calls,
+    previous: null,
+    minutes: null,
     totalCalls: calls.length,
     bookedCalls: calls.filter((call) => bookedCallIds.has(call.callId)).length,
     unhappyCalls: calls.filter((call) => isUnhappy(call.sentiment)).length,
@@ -167,9 +308,11 @@ export async function getVoiceCallReport(
   now: Date,
   timezone?: string | null,
 ): Promise<VoiceCallReport> {
-  const since = new Date(now.getTime() - VOICE_REPORT_DAYS * 24 * 60 * 60 * 1000);
+  const periodMs = VOICE_REPORT_DAYS * 24 * 60 * 60 * 1000;
+  const since = new Date(now.getTime() - periodMs);
+  const previousSince = new Date(since.getTime() - periodMs);
 
-  const [calls, settings] = await Promise.all([
+  const [calls, settings, previousCalls] = await Promise.all([
     prisma.retellCall.findMany({
       where: { organizationId, createdAt: { gte: since } },
       orderBy: { createdAt: "desc" },
@@ -191,6 +334,11 @@ export async function getVoiceCallReport(
       where: { organizationId },
       select: { knowledgeConfig: true },
     }),
+    prisma.retellCall.findMany({
+      where: { organizationId, createdAt: { gte: previousSince, lt: since } },
+      take: 1000,
+      select: { callId: true, durationSeconds: true, sentiment: true },
+    }),
   ]);
 
   const bookings = calls.length
@@ -200,10 +348,29 @@ export async function getVoiceCallReport(
       })
     : [];
 
-  return buildVoiceCallReport({
+  const previousBooked = previousCalls.length
+    ? await prisma.appointment.count({
+        where: { organizationId, retellCallId: { in: previousCalls.map((call) => call.callId) } },
+      })
+    : 0;
+  const previous =
+    previousCalls.length > 0
+      ? {
+          totalCalls: previousCalls.length,
+          bookedCalls: previousBooked,
+          unhappyCalls: previousCalls.filter((call) => isUnhappy(call.sentiment)).length,
+          avgDurationSeconds: Math.round(
+            previousCalls.reduce((sum, call) => sum + call.durationSeconds, 0) / previousCalls.length,
+          ),
+        }
+      : null;
+
+  const report = buildVoiceCallReport({
     calls,
     bookedCallIds: new Set(bookings.flatMap((booking) => (booking.retellCallId ? [booking.retellCallId] : []))),
     bookingEnabled: resolveVoiceAgentKnowledgeConfig(settings?.knowledgeConfig).enablePhoneBooking,
     timezone,
+    now,
   });
+  return { ...report, previous };
 }

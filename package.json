@@ -18,6 +18,7 @@
     "seed:billing-starter": "tsx scripts/seed-billing-modules.ts --only=starter",
     "seed:billing-growth": "tsx scripts/seed-billing-modules.ts --only=growth",
     "seed:billing-pro-voice": "tsx scripts/seed-billing-modules.ts --only=pro_voice",
+    "seed:voice-calls": "tsx scripts/seed-voice-calls.ts",
     "cleanup:legacy-plan-modules": "tsx scripts/cleanup-legacy-plan-modules.ts",
     "cron:review-sync": "tsx scripts/review-sync-cron.ts",
     "retell:llm": "tsx scripts/retell-custom-llm-server.ts",

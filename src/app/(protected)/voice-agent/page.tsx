@@ -145,7 +145,9 @@ export default async function VoiceAgentPage() {
       <Suspense fallback={null}>
         <VoiceAgentPageAlerts
           statusMessage={
-            !voiceMinutes.voiceIncluded
+            !voiceMinutes.billingActive
+              ? "This workspace's plan isn't active, so the voice agent is refusing calls. Renew the plan on the Billing page to start answering again."
+              : !voiceMinutes.voiceIncluded
               ? "Voice calling is included on Pro Voice only. Starter and Growth do not include the AI phone agent."
               : voiceMinutes.minutesExhausted
                 ? `Included calling minutes are used up for this billing period (${voiceMinutes.usedMinutes}/${voiceMinutes.includedMinutes} min). New inbound calls will be ended until the period renews.`
@@ -179,6 +181,14 @@ export default async function VoiceAgentPage() {
           lastImportedAt: kb?.lastImportedAt?.toISOString() ?? null,
         }}
         calls={calls}
+        minutesUsage={{
+          billingActive: voiceMinutes.billingActive,
+          voiceIncluded: voiceMinutes.voiceIncluded,
+          includedMinutes: voiceMinutes.includedMinutes,
+          usedMinutes: voiceMinutes.usedMinutes,
+          remainingMinutes: voiceMinutes.remainingMinutes,
+          periodEnd: voiceMinutes.periodEnd.toISOString(),
+        }}
         onSaveRetell={saveRetellVoiceAgentSettings}
         onBuyPhone={buyRetellPhoneNumberAction}
         onAssignPhone={assignRetellPhoneNumberAction}

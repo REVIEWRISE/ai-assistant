@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getAppointmentAnalytics } from "@/lib/appointment-analytics";
 import { getVoiceAnalytics } from "@/lib/voice-analytics";
 import { getVoiceCallReport, type VoiceCallReport } from "@/lib/voice-call-report";
+import { getOrgVoiceMinutesUsage } from "@/lib/voice-minutes";
 import { getOrgRetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import { displayRoleFromUserRoles, getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
 import { isHrefAllowedForNav } from "@/lib/nav-access";
@@ -54,6 +55,8 @@ export type DashboardOverviewStat = {
   hint: string;
   href: string;
   accent: string;
+  /** Something the user should fix; the card shows it as a warning and links to the fix. */
+  action?: { message: string; label: string; href: string };
 };
 
 export type DashboardSection = {
@@ -181,7 +184,7 @@ function heroCopyForRole(input: {
       return {
         heroEyebrow: input.organizationName,
         heroTitle: input.adminAttention ?? "What needs attention",
-        heroDescription: `Ops and product stats for ${input.organizationName}. Switch the header to All workspaces for the full platform view.`,
+        heroDescription: `Plan, refunds, and activity for ${input.organizationName}. Switch the header to All workspaces for the platform view.`,
       };
     }
     return {
@@ -362,6 +365,14 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           hint: `${upcoming7d} upcoming this week · ${analytics.postedToCalendarLast30Days} on calendar`,
           href: "/appointments/overview",
           accent: "#38bdf8",
+          action:
+            analytics.totalLast30Days > 0 && analytics.postedToCalendarLast30Days === 0
+              ? {
+                  message: "No bookings reached a calendar.",
+                  label: "Connect a calendar",
+                  href: "/appointments/overview",
+                }
+              : undefined,
         });
       })(),
     );
@@ -452,6 +463,14 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           hint: `${reviews.length} total · ${autoReady} auto-ready · ${needsReview} need review`,
           href: "/reviews",
           accent: "#a78bfa",
+          action:
+            connectedReviewProviders === 0
+              ? {
+                  message: "No review inbox connected yet.",
+                  label: "Connect Google reviews",
+                  href: "/reviews",
+                }
+              : undefined,
         });
       })(),
     );
@@ -465,7 +484,19 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
           getOrgRetellPhoneNumberStats(orgId).catch(() => []),
           getVoiceCallReport(orgId, now, activeOrganization?.timezone).catch(() => null),
         ]);
-        voiceReport = report;
+        const usage = report ? await getOrgVoiceMinutesUsage(orgId).catch(() => null) : null;
+        voiceReport =
+          report && usage?.enforced
+            ? {
+                ...report,
+                minutes: {
+                  includedMinutes: usage.includedMinutes,
+                  usedMinutes: usage.usedMinutes,
+                  remainingMinutes: usage.remainingMinutes,
+                  periodEnd: usage.periodEnd.toISOString(),
+                },
+              }
+            : report;
 
         const phoneLineCount = phoneStats.length;
         const callsProcessedOnLines = phoneStats.reduce((sum, line) => sum + line.callsProcessed, 0);
@@ -611,6 +642,8 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
 
   const platformStats: DashboardPlatformStat[] = [];
   let adminAttention: string | null = null;
+  /** Set only for an admin viewing one workspace; null means use the platform counts. */
+  let workspaceAttentionCount: number | null = null;
 
   if (isAdmin) {
     const since24HoursAgo = new Date();
@@ -701,11 +734,90 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
       },
     );
 
-    const attentionItems = [
-      expired > 0 ? `${expired} expired ${expired === 1 ? "workspace" : "workspaces"}` : null,
-      pendingRefunds > 0 ? `${pendingRefunds} ${pendingRefunds === 1 ? "refund" : "refunds"} waiting` : null,
-    ].filter(Boolean);
-    adminAttention = attentionItems.length > 0 ? attentionItems.join(" and ") : "Nothing needs attention right now";
+    const refundsLabel =
+      pendingRefunds > 0 ? `${pendingRefunds} ${pendingRefunds === 1 ? "refund" : "refunds"} waiting` : null;
+
+    if (orgId && activeOrganization) {
+      // One workspace: lead with its own plan state, not platform counts.
+      const status = (activeOrganization.billingStatus || "needs_plan").toLowerCase();
+      const planName = isPlanSlug(activeOrganization.planSlug)
+        ? getPlanBySlug(activeOrganization.planSlug).name
+        : "No plan";
+      const interval = activeOrganization.billingInterval
+        ? activeOrganization.billingInterval === "yearly"
+          ? "Yearly"
+          : "Monthly"
+        : null;
+      const planTone: DashboardPlatformStat["tone"] =
+        status === "expired" || status === "needs_plan"
+          ? "danger"
+          : activeOrganization.cancelAtPeriodEnd
+            ? "warning"
+            : "success";
+      const planHint =
+        status === "expired"
+          ? "Expired · calls and modules are off"
+          : status === "needs_plan"
+            ? "No plan chosen yet"
+            : activeOrganization.cancelAtPeriodEnd
+              ? `Cancels ${billingPeriodHint(activeOrganization) ?? "at period end"}`
+              : [billingStatusLabel(activeOrganization.billingStatus), interval].filter(Boolean).join(" · ");
+
+      platformStats.length = 0;
+      platformStats.push(
+        {
+          id: "plan",
+          title: "Plan",
+          value: planName,
+          hint: planHint,
+          href: "/billing-admin/organizations",
+          tone: planTone,
+        },
+        {
+          id: "refunds",
+          title: "Refunds",
+          value: pendingRefunds,
+          hint:
+            pendingRefunds === 0
+              ? "None waiting"
+              : `${pendingRefunds} ${pendingRefunds === 1 ? "request" : "requests"} waiting`,
+          href: "/billing-admin/refunds",
+          tone: pendingRefunds > 0 ? "warning" : "default",
+        },
+        {
+          id: "audit",
+          title: "Audit (24h)",
+          value: recentAudit,
+          hint: recentAudit === 0 ? "No events in the last 24 hours" : "Sign-ins and admin changes",
+          href: "/platform/audit",
+        },
+        {
+          id: "users",
+          title: "Members",
+          value: totalUsers,
+          hint: "People in this workspace",
+          href: "/users",
+        },
+      );
+
+      const planAttention =
+        status === "expired"
+          ? "Plan expired"
+          : status === "needs_plan"
+            ? "No plan chosen"
+            : activeOrganization.cancelAtPeriodEnd
+              ? "Plan cancels soon"
+              : null;
+      const items = [planAttention, refundsLabel].filter(Boolean);
+      workspaceAttentionCount = items.length;
+      adminAttention = items.length > 0 ? items.join(" and ") : "Nothing needs attention right now";
+    } else {
+      const attentionItems = [
+        expired > 0 ? `${expired} expired ${expired === 1 ? "workspace" : "workspaces"}` : null,
+        refundsLabel,
+      ].filter(Boolean);
+      adminAttention = attentionItems.length > 0 ? attentionItems.join(" and ") : "Nothing needs attention right now";
+    }
   }
 
   const hero = heroCopyForRole({
@@ -949,7 +1061,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
   }
 
   const heroBadge = isAdmin
-    ? expiredCount > 0 || refundCount > 0
+    ? (workspaceAttentionCount ?? expiredCount + refundCount) > 0
       ? "Needs attention"
       : "All clear"
     : workspaceBilling?.cancelAtPeriodEnd
@@ -962,6 +1074,11 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
             ? "Workspace active"
             : "Ready to go";
 
+  // The voice call report below repeats the Voice Support card, so show only the report.
+  const visibleOverviewStats = voiceReport
+    ? overviewStats.filter((stat) => stat.id !== "voice")
+    : overviewStats;
+
   return {
     roleName,
     isOwner,
@@ -970,7 +1087,7 @@ export async function getDashboardData(userId: string, activeOrganizationId: str
     ...hero,
     heroBadge,
     headlineStats: uniqueHeadline,
-    overviewStats,
+    overviewStats: visibleOverviewStats,
     sections,
     voiceReport,
     quickLinks: quickLinks.slice(0, 6),
