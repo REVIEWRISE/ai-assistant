@@ -97,6 +97,8 @@ type FloatingBookingChatbotProps = {
   /** Fill the host frame instead of floating bottom-right; always open, no close button (the host closes it). */
   fill?: boolean;
   initialInteractionMode?: InteractionMode;
+  /** How the visitor arrived at the public booking page; omitted for the website embed. */
+  channel?: "link" | "qr";
 };
 
 function shouldMergeWithRecentBookingContext(text: string): boolean {
@@ -251,6 +253,7 @@ export function FloatingBookingChatbot({
   defaultOpen = false,
   fill = false,
   initialInteractionMode = "chat",
+  channel,
 }: FloatingBookingChatbotProps) {
   const [open, setOpen] = useState(preview || defaultOpen || fill);
   const [input, setInput] = useState("");
@@ -695,6 +698,7 @@ export function FloatingBookingChatbot({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           organizationId,
+          channel,
           message: trimmed,
           customerName: pickCustomerNameFromAnswers(bookingFlow, answers),
           customerEmail:
@@ -1016,7 +1020,11 @@ export function FloatingBookingChatbot({
                 </button>
               </div>
             ) : null}
-            <p className="mb-2.5 text-xs leading-relaxed text-[var(--color-text-muted)]">{helperText}</p>
+            <p className="mb-2.5 text-xs leading-relaxed text-[var(--color-text-muted)]">
+              {bookingStepState === "idle" && actionButtons.length === 0 && !isVoiceOpening
+                ? "Type your request below, including the day and time you want."
+                : helperText}
+            </p>
             {voiceHint ? (
               <p className="mb-2.5 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{voiceHint}</p>
             ) : null}
@@ -1091,7 +1099,8 @@ export function FloatingBookingChatbot({
                 </div>
               </div>
             ) : null}
-            {bookingStepState === "idle" && actionButtons.length === 0 && !isVoiceOpening ? (
+            {/* Setup hint for the business owner; never shown to customers. */}
+            {preview && bookingStepState === "idle" && actionButtons.length === 0 && !isVoiceOpening ? (
               <p className="mb-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
                 No quick-start buttons configured for this assistant.
               </p>

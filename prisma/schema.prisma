@@ -119,6 +119,7 @@ model Organization {
   description  String?  @db.Text
   logoUrl      String?  @map("logo_url")
   timezone     String   @default("UTC")
+  bookingSlug  String?  @unique @map("booking_slug")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   planSlug             String?   @map("plan_slug")

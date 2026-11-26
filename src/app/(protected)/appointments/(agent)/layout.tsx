@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AppointmentAgentHero } from "@/components/appointment-agent-hero";
+import { BookingShareBar } from "@/components/booking-share-bar";
 import { AppointmentsSectionTabs, AppointmentsSectionTabsProvider } from "@/components/appointments-section-tabs";
 import { getAllowedMenuPathsForUser } from "@/lib/allowed-menu-paths";
 import { APPOINTMENT_SECTION_TABS } from "@/lib/appointment-section-tabs";
@@ -19,6 +20,9 @@ export default async function AppointmentsLayout({ children }: { children: React
       <div className="mx-auto max-w-[92rem] space-y-5">
         {session.activeOrganizationId ? (
           <AppointmentAgentHero userId={session.userId} organizationId={session.activeOrganizationId} />
+        ) : null}
+        {session.activeOrganizationId ? (
+          <BookingShareBar organizationId={session.activeOrganizationId} />
         ) : null}
         <AppointmentsSectionTabs />
         {children}
