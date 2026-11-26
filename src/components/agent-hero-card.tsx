@@ -130,7 +130,11 @@ export function AgentHeroCard({
           ) : null}
         </div>
 
-        <dl className="mt-5 grid grid-cols-2 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] sm:grid-cols-3 lg:grid-cols-5 lg:divide-x lg:divide-white/10">
+        <dl
+          className={`mt-5 grid grid-cols-2 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] sm:grid-cols-3 lg:divide-x lg:divide-white/10 ${
+            stats.length >= 6 ? "lg:grid-cols-6" : "lg:grid-cols-5"
+          }`}
+        >
           {stats.map((stat) => (
             <div key={stat.label} className="min-w-0 px-4 py-3">
               <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">{stat.label}</dt>

@@ -1,6 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { getPlanEntitlement, isPlanSlug } from "@/lib/pricing-plans";
 
+/**
+ * Billing statuses that allow calls. Mirrors isBillingAccessAllowed in entitlements.ts,
+ * which can't be imported here: it is server-only and this module also runs in the
+ * standalone custom LLM server.
+ */
+const CALLABLE_BILLING_STATUSES = new Set(["trialing", "active"]);
+
 export type VoiceMinutesUsage = {
   organizationId: string;
   /** Plan includes the AI voice agent feature (Pro Voice). */
@@ -15,12 +22,14 @@ export type VoiceMinutesUsage = {
   enforced: boolean;
   /** True when included minutes for this period are exhausted. */
   minutesExhausted: boolean;
+  /** False when the workspace's plan has expired or was never chosen. */
+  billingActive: boolean;
   /**
    * True when inbound calling must be refused:
-   * plan has no voice, or Pro Voice minutes are used up.
+   * billing is inactive, the plan has no voice, or Pro Voice minutes are used up.
    */
   callsBlocked: boolean;
-  blockReason: "plan_excludes_voice" | "minutes_exhausted" | null;
+  blockReason: "billing_inactive" | "plan_excludes_voice" | "minutes_exhausted" | null;
 };
 
 type BillingInterval = "monthly" | "yearly";
@@ -104,8 +113,12 @@ export async function getOrgVoiceMinutesUsage(
       currentPeriodEndsAt: true,
       paidAt: true,
       trialStartsAt: true,
+      billingStatus: true,
     },
   });
+
+  // Stored status, kept current by getOrgBilling; avoids a billing API call on every phone call.
+  const billingActive = CALLABLE_BILLING_STATUSES.has(org?.billingStatus ?? "needs_plan");
 
   const planSlug = org?.planSlug && isPlanSlug(org.planSlug) ? org.planSlug : null;
   const voiceEntitlement = planSlug
@@ -147,7 +160,8 @@ export async function getOrgVoiceMinutesUsage(
   const minutesExhausted = enforced && usedMinutes >= includedMinutes;
 
   let blockReason: VoiceMinutesUsage["blockReason"] = null;
-  if (!voiceIncluded) blockReason = "plan_excludes_voice";
+  if (!billingActive) blockReason = "billing_inactive";
+  else if (!voiceIncluded) blockReason = "plan_excludes_voice";
   else if (minutesExhausted) blockReason = "minutes_exhausted";
 
   return {
@@ -161,6 +175,7 @@ export async function getOrgVoiceMinutesUsage(
     periodEnd: end,
     enforced,
     minutesExhausted,
+    billingActive,
     callsBlocked: blockReason != null,
     blockReason,
   };
@@ -169,12 +184,16 @@ export async function getOrgVoiceMinutesUsage(
 export const VOICE_PLAN_EXCLUDES_MESSAGE =
   "Voice calling is not included on this plan. Upgrade to Pro Voice to enable the AI phone agent.";
 
+export const VOICE_BILLING_INACTIVE_MESSAGE =
+  "This workspace's plan is not active, so we can't take calls right now. Please try again later.";
+
 export const VOICE_MINUTES_EXCEEDED_MESSAGE =
   "We've reached this workspace's included calling minutes for the current billing period. Please try again after your plan renews, or contact support to upgrade.";
 
 export function voiceCallBlockMessage(
   usage: Pick<VoiceMinutesUsage, "blockReason">,
 ): string {
+  if (usage.blockReason === "billing_inactive") return VOICE_BILLING_INACTIVE_MESSAGE;
   if (usage.blockReason === "plan_excludes_voice") return VOICE_PLAN_EXCLUDES_MESSAGE;
   return VOICE_MINUTES_EXCEEDED_MESSAGE;
 }

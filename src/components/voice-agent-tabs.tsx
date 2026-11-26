@@ -9,6 +9,7 @@ import {
   type VoiceAgentSectionKey,
 } from "@/components/voice-agent-retell-settings";
 import { VoiceAgentAnalytics, type CallItem } from "@/components/voice-agent-analytics";
+import type { VoiceMinutesMeterData } from "@/components/voice-minutes-meter";
 import type { RetellPhoneNumberStats } from "@/lib/retell-phone-analytics";
 import type { OrgRetellPhoneNumber } from "@/lib/retell-phone-numbers";
 import type { VoiceAgentAiResult } from "@/lib/voice-agent-ai";
@@ -85,6 +86,7 @@ export function VoiceAgentTabs({
   onGenerateOpeningMessage,
   onGenerateSystemPrompt,
   twilioForwardingConfigured,
+  minutesUsage,
 }: {
   organizationId: string;
   organizationName: string;
@@ -112,6 +114,7 @@ export function VoiceAgentTabs({
   onPullFromRetell: (formData: FormData) => void | Promise<void>;
   onGenerateOpeningMessage: (formData: FormData) => Promise<VoiceAgentAiResult>;
   onGenerateSystemPrompt: (formData: FormData) => Promise<VoiceAgentAiResult>;
+  minutesUsage?: VoiceMinutesMeterData;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -160,6 +163,7 @@ export function VoiceAgentTabs({
         voiceCatalog={voiceCatalog}
         onSetup={() => openAgentSection(hasAgent ? "voice" : "setup")}
         onBooking={() => openAgentSection("booking")}
+        minutesUsage={minutesUsage}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">

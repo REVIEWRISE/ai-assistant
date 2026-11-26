@@ -36,7 +36,7 @@ export function DashboardVoiceFollowUpDone({ callRecordId }: { callRecordId: str
       type="button"
       onClick={() => save(true)}
       disabled={pending}
-      className="inline-flex min-h-10 items-center rounded-full px-3 text-sm font-semibold text-[var(--color-text-muted)] transition hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-h)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)] disabled:cursor-wait disabled:opacity-60"
+      className="inline-flex min-h-8 items-center rounded-full px-2.5 text-xs font-semibold text-[var(--color-text-muted)] transition hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-h)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)] disabled:cursor-wait disabled:opacity-60"
     >
       {pending ? "Saving…" : "Mark as done"}
     </button>
